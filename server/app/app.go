@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/amir-zouerami/campfire/server/api"
@@ -28,18 +29,34 @@ type App struct {
 	Router           http.Handler
 	Logger           logger.Logger
 	Mattermost       mattermost.Client
+	Database         *store.Database
 	WorkspaceService *service.WorkspaceService
 }
 
 /*
 New constructs the Campfire application dependency graph.
 
-This is intentionally small until the SQL runtime connection strategy is
-selected. The service/store boundaries are already real.
+This function opens SQL using Mattermost's database configuration, runs embedded
+Campfire migrations, and wires clean service/store boundaries.
 */
 func New(config Config) (*App, error) {
 	appLogger := logger.NewMattermostLogger(config.API)
 	mattermostClient := mattermost.NewPluginClient(config.API)
+
+	database, err := store.OpenMattermostDatabase(config.API)
+	if err != nil {
+		return nil, fmt.Errorf("open database: %w", err)
+	}
+
+	if err := store.RunMigrations(database); err != nil {
+		closeErr := database.Close()
+		if closeErr != nil {
+			return nil, fmt.Errorf("run migrations: %w; close database: %v", err, closeErr)
+		}
+
+		return nil, fmt.Errorf("run migrations: %w", err)
+	}
+
 	workspaceStore := store.NewUnavailableWorkspaceStore()
 	workspaceService := service.NewWorkspaceService(workspaceStore)
 
@@ -53,15 +70,20 @@ func New(config Config) (*App, error) {
 		Router:           router,
 		Logger:           appLogger,
 		Mattermost:       mattermostClient,
+		Database:         database,
 		WorkspaceService: workspaceService,
 	}, nil
 }
 
 /*
 Shutdown releases resources owned by the application container.
-
-This is a no-op in Phase 0 and will stop scheduler/database resources later.
 */
 func (a *App) Shutdown() {
+	if a.Database != nil {
+		if err := a.Database.Close(); err != nil {
+			a.Logger.Warn("failed to close Campfire database", logger.String("message", err.Error()))
+		}
+	}
+
 	a.Logger.Info("Campfire application shutdown")
 }
