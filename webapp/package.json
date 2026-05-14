@@ -1,0 +1,29 @@
+{
+	"name": "campfire-webapp",
+	"version": "0.1.0",
+	"description": "React webapp bundle for the Campfire Mattermost plugin.",
+	"main": "index.js",
+	"private": true,
+	"scripts": {
+		"build": "vite build",
+		"build:dev": "vite build --mode development",
+		"dev": "vite build --watch --mode development",
+		"check": "tsc --noEmit"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "UNLICENSED",
+	"type": "commonjs",
+	"dependencies": {
+		"react": "^18.3.1",
+		"react-dom": "^18.3.1"
+	},
+	"devDependencies": {
+		"@types/react": "^18.3.28",
+		"@types/react-dom": "^18.3.7",
+		"@vitejs/plugin-react": "^5.2.0",
+		"typescript": "^5.9.3",
+		"vite": "^7.3.3",
+		"vite-plugin-css-injected-by-js": "^3.5.2"
+	}
+}

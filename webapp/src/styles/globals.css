@@ -1,0 +1,158 @@
+.campfire-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 9999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 32px;
+	background: rgba(24, 24, 27, 0.64);
+	backdrop-filter: blur(8px);
+}
+
+.campfire-shell {
+	width: min(1040px, 100%);
+	max-height: min(760px, calc(100vh - 64px));
+	overflow: auto;
+	border: 1px solid rgba(249, 115, 22, 0.22);
+	border-radius: 28px;
+	background:
+		radial-gradient(circle at top left, rgba(249, 115, 22, 0.16), transparent 36%),
+		linear-gradient(135deg, #18181b 0%, #27272a 48%, #111827 100%);
+	box-shadow: 0 28px 90px rgba(0, 0, 0, 0.46);
+	color: #fafafa;
+}
+
+.campfire-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 24px;
+	padding: 28px 32px 20px;
+	border-bottom: 1px solid rgba(250, 250, 250, 0.08);
+}
+
+.campfire-header h1 {
+	margin: 0;
+	font-size: 36px;
+	line-height: 1.1;
+	letter-spacing: -0.04em;
+}
+
+.campfire-eyebrow {
+	margin: 0 0 8px;
+	color: #fbbf24;
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+}
+
+.campfire-close-button {
+	border: 1px solid rgba(250, 250, 250, 0.14);
+	border-radius: 999px;
+	padding: 9px 14px;
+	background: rgba(250, 250, 250, 0.08);
+	color: #fafafa;
+	cursor: pointer;
+	font: inherit;
+}
+
+.campfire-close-button:hover {
+	background: rgba(250, 250, 250, 0.14);
+}
+
+.campfire-main {
+	padding: 32px;
+}
+
+.campfire-hero-card {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 22px;
+	align-items: center;
+	padding: 28px;
+	border: 1px solid rgba(249, 115, 22, 0.24);
+	border-radius: 24px;
+	background: rgba(250, 250, 250, 0.07);
+}
+
+.campfire-hero-card h2 {
+	margin: 0 0 10px;
+	font-size: 28px;
+	letter-spacing: -0.03em;
+}
+
+.campfire-hero-card p {
+	max-width: 680px;
+	margin: 0;
+	color: #d4d4d8;
+	font-size: 15px;
+	line-height: 1.7;
+}
+
+.campfire-flame {
+	display: grid;
+	width: 72px;
+	height: 72px;
+	place-items: center;
+	border-radius: 22px;
+	background: rgba(249, 115, 22, 0.16);
+	box-shadow: inset 0 0 32px rgba(249, 115, 22, 0.18);
+	font-size: 36px;
+}
+
+.campfire-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 16px;
+	margin-top: 18px;
+}
+
+.campfire-card {
+	min-height: 124px;
+	padding: 20px;
+	border: 1px solid rgba(250, 250, 250, 0.1);
+	border-radius: 22px;
+	background: rgba(250, 250, 250, 0.055);
+}
+
+.campfire-card span {
+	display: inline-flex;
+	margin-bottom: 14px;
+	border-radius: 999px;
+	padding: 5px 9px;
+	background: rgba(251, 191, 36, 0.12);
+	color: #fbbf24;
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.campfire-card strong {
+	display: block;
+	color: #fafafa;
+	font-size: 18px;
+	line-height: 1.35;
+}
+
+@media (max-width: 760px) {
+	.campfire-overlay {
+		padding: 16px;
+	}
+
+	.campfire-header {
+		padding: 22px;
+	}
+
+	.campfire-main {
+		padding: 22px;
+	}
+
+	.campfire-hero-card {
+		grid-template-columns: 1fr;
+	}
+
+	.campfire-grid {
+		grid-template-columns: 1fr;
+	}
+}
