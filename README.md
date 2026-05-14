@@ -37,6 +37,30 @@ Campfire is built as a clean Mattermost plugin:
 - clean service/store/domain separation
 - warm modern UI
 
+# Campfire SQL migrations
+
+Campfire stores reportable product data in SQL tables with the `campfire_` prefix.
+
+## Migration order
+
+1. `001_core_workspace.sql`
+2. `002_standups.sql`
+3. `003_tasks_time.sql`
+4. `004_leaves.sql`
+5. `005_reports_notifications.sql`
+
+## Notes
+
+These files define the target Campfire schema before the runtime database connection is wired.
+
+The Mattermost public plugin API exposes KV-store helpers but does not expose a direct database handle through the `plugin.API` interface. Campfire will keep storage behind interfaces so the runtime database connection strategy can be selected without changing services or handlers.
+
+## Important
+
+Do not store analytics-heavy Campfire data only in Mattermost KV storage.
+
+KV can be used later for lightweight plugin metadata, but workspaces, standups, tasks, time entries, leaves, reports, notification runs, saved filters, and audit logs belong in SQL.
+
 ## Repository
 
 https://github.com/amir-zouerami/campfire
