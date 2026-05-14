@@ -1,0 +1,31 @@
+# Go
+*.test
+*.out
+coverage.txt
+
+# Build outputs
+dist/
+server/dist/
+webapp/dist/
+
+# Dependencies
+node_modules/
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# IDE/editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Mattermost plugin upload artifacts
+*.tar.gz
+*.tar
