@@ -43,6 +43,8 @@ type WorkspaceWorkingDay struct {
 	WorkspaceID ID
 	Weekday     time.Weekday
 	Enabled     bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 /*

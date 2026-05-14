@@ -8,6 +8,7 @@ import (
 
 	"github.com/amir-zouerami/campfire/server/domain"
 	"github.com/amir-zouerami/campfire/server/store"
+	"github.com/google/uuid"
 )
 
 /*
@@ -119,31 +120,36 @@ func (s *WorkspaceService) GetByChannel(
 /*
 Create validates and creates a workspace.
 
-The workspace creator becomes a Lead later when persistence and ID generation
-are connected.
+The workspace creator becomes a Lead. Mattermost channel admins can also be
+treated as Leads through workspace role settings.
 */
 func (s *WorkspaceService) Create(ctx context.Context, input CreateWorkspaceInput) (*domain.Workspace, error) {
-	if strings.TrimSpace(input.ActorUserID) == "" {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
 		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to create a Campfire workspace.")
 	}
 
-	if strings.TrimSpace(input.TeamID) == "" {
+	cleanTeamID := strings.TrimSpace(input.TeamID)
+	if cleanTeamID == "" {
 		return nil, NewError(ErrorCodeValidationFailed, "Team ID is required.")
 	}
 
-	if strings.TrimSpace(input.ChannelID) == "" {
+	cleanChannelID := strings.TrimSpace(input.ChannelID)
+	if cleanChannelID == "" {
 		return nil, NewError(ErrorCodeValidationFailed, "Channel ID is required.")
 	}
 
-	if strings.TrimSpace(input.Name) == "" {
+	cleanName := strings.TrimSpace(input.Name)
+	if cleanName == "" {
 		return nil, NewError(ErrorCodeValidationFailed, "Workspace name is required.")
 	}
 
-	if strings.TrimSpace(input.Timezone) == "" {
+	cleanTimezone := strings.TrimSpace(input.Timezone)
+	if cleanTimezone == "" {
 		return nil, NewError(ErrorCodeValidationFailed, "Timezone is required.")
 	}
 
-	if _, err := time.LoadLocation(input.Timezone); err != nil {
+	if _, err := time.LoadLocation(cleanTimezone); err != nil {
 		return nil, NewError(ErrorCodeValidationFailed, "Timezone must be a valid IANA timezone.")
 	}
 
@@ -151,7 +157,41 @@ func (s *WorkspaceService) Create(ctx context.Context, input CreateWorkspaceInpu
 		return nil, err
 	}
 
-	_, err := s.workspaceStore.Create(ctx, store.CreateWorkspaceParams{})
+	now := time.Now().UTC()
+	workspaceID := domain.ID(uuid.NewString())
+
+	params := store.CreateWorkspaceParams{
+		Workspace: domain.Workspace{
+			ID:          workspaceID,
+			TeamID:      cleanTeamID,
+			ChannelID:   cleanChannelID,
+			Name:        cleanName,
+			Description: strings.TrimSpace(input.Description),
+			BoardURL:    strings.TrimSpace(input.BoardURL),
+			Timezone:    cleanTimezone,
+			CreatedBy:   cleanActorUserID,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+			IsArchived:  false,
+		},
+		WorkingDays: buildWorkingDays(workspaceID, input.WorkingDays, now),
+		RoleSettings: domain.WorkspaceRoleSettings{
+			WorkspaceID:           workspaceID,
+			ChannelAdminsAreLeads: input.ChannelAdminsAreLeads,
+			SystemAdminsAreAdmins: true,
+			CreatedAt:             now,
+			UpdatedAt:             now,
+		},
+		RoleAssignments: buildInitialRoleAssignments(
+			workspaceID,
+			cleanActorUserID,
+			input.NamedLeadUserIDs,
+			input.NamedApproverUserIDs,
+			now,
+		),
+	}
+
+	workspace, err := s.workspaceStore.Create(ctx, params)
 	if err != nil {
 		if errors.Is(err, store.ErrUnavailable) {
 			return nil, NewError(ErrorCodeInternal, "Workspace persistence is not connected yet.")
@@ -160,7 +200,7 @@ func (s *WorkspaceService) Create(ctx context.Context, input CreateWorkspaceInpu
 		return nil, NewError(ErrorCodeInternal, "Could not create the workspace.")
 	}
 
-	return nil, NewError(ErrorCodeInternal, "Workspace creation result was empty.")
+	return workspace, nil
 }
 
 /*
@@ -188,4 +228,96 @@ func validateWorkingDays(workingDays []int) error {
 	}
 
 	return nil
+}
+
+/*
+buildWorkingDays creates one enabled working-day record for each selected day.
+*/
+func buildWorkingDays(workspaceID domain.ID, weekdays []int, now time.Time) []domain.WorkspaceWorkingDay {
+	workingDays := make([]domain.WorkspaceWorkingDay, 0, len(weekdays))
+
+	for _, weekday := range weekdays {
+		workingDays = append(workingDays, domain.WorkspaceWorkingDay{
+			ID:          domain.ID(uuid.NewString()),
+			WorkspaceID: workspaceID,
+			Weekday:     time.Weekday(weekday),
+			Enabled:     true,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		})
+	}
+
+	return workingDays
+}
+
+/*
+buildInitialRoleAssignments creates Lead and Approver assignments for a new workspace.
+*/
+func buildInitialRoleAssignments(
+	workspaceID domain.ID,
+	actorUserID string,
+	namedLeadUserIDs []string,
+	namedApproverUserIDs []string,
+	now time.Time,
+) []domain.WorkspaceRoleAssignment {
+	assignments := make([]domain.WorkspaceRoleAssignment, 0)
+
+	assignments = appendUniqueRoleAssignment(assignments, workspaceID, actorUserID, domain.RoleLead, actorUserID, now)
+
+	for _, leadUserID := range namedLeadUserIDs {
+		assignments = appendUniqueRoleAssignment(
+			assignments,
+			workspaceID,
+			strings.TrimSpace(leadUserID),
+			domain.RoleLead,
+			actorUserID,
+			now,
+		)
+	}
+
+	for _, approverUserID := range namedApproverUserIDs {
+		assignments = appendUniqueRoleAssignment(
+			assignments,
+			workspaceID,
+			strings.TrimSpace(approverUserID),
+			domain.RoleApprover,
+			actorUserID,
+			now,
+		)
+	}
+
+	return assignments
+}
+
+/*
+appendUniqueRoleAssignment appends a role assignment if the same user/role has not
+already been added.
+*/
+func appendUniqueRoleAssignment(
+	assignments []domain.WorkspaceRoleAssignment,
+	workspaceID domain.ID,
+	userID string,
+	role domain.Role,
+	createdBy string,
+	now time.Time,
+) []domain.WorkspaceRoleAssignment {
+	cleanUserID := strings.TrimSpace(userID)
+	if cleanUserID == "" {
+		return assignments
+	}
+
+	for _, existing := range assignments {
+		if existing.UserID == cleanUserID && existing.Role == role {
+			return assignments
+		}
+	}
+
+	return append(assignments, domain.WorkspaceRoleAssignment{
+		ID:          domain.ID(uuid.NewString()),
+		WorkspaceID: workspaceID,
+		UserID:      cleanUserID,
+		Role:        role,
+		CreatedBy:   createdBy,
+		CreatedAt:   now,
+	})
 }

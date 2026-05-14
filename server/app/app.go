@@ -57,7 +57,7 @@ func New(config Config) (*App, error) {
 		return nil, fmt.Errorf("run migrations: %w", err)
 	}
 
-	workspaceStore := store.NewUnavailableWorkspaceStore()
+	workspaceStore := store.NewSQLWorkspaceStore(database)
 	workspaceService := service.NewWorkspaceService(workspaceStore)
 
 	router := api.NewRouter(api.RouterConfig{

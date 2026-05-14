@@ -23,10 +23,10 @@ CREATE TABLE IF NOT EXISTS campfire_report_runs (
         ON DELETE CASCADE
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_campfire_report_runs_rule_period
+CREATE UNIQUE INDEX ux_campfire_report_runs_rule_period
     ON campfire_report_runs(workspace_id, report_rule_id, report_kind, period_start, period_end);
 
-CREATE INDEX IF NOT EXISTS idx_campfire_report_runs_workspace_kind_period
+CREATE INDEX idx_campfire_report_runs_workspace_kind_period
     ON campfire_report_runs(workspace_id, report_kind, period_start, period_end);
 
 CREATE TABLE IF NOT EXISTS campfire_notification_runs (
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS campfire_notification_runs (
         ON DELETE CASCADE
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_campfire_notification_runs_unique_sequence
+CREATE UNIQUE INDEX ux_campfire_notification_runs_unique_sequence
     ON campfire_notification_runs(
         workspace_id,
         reminder_rule_id,
@@ -59,7 +59,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_campfire_notification_runs_unique_sequence
         notification_kind
     );
 
-CREATE INDEX IF NOT EXISTS idx_campfire_notification_runs_workspace_schedule_date
+CREATE INDEX idx_campfire_notification_runs_workspace_schedule_date
     ON campfire_notification_runs(workspace_id, schedule_id, occurrence_date);
 
 CREATE TABLE IF NOT EXISTS campfire_saved_report_filters (
@@ -74,10 +74,10 @@ CREATE TABLE IF NOT EXISTS campfire_saved_report_filters (
     updated_at TIMESTAMP NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_campfire_saved_report_filters_user_scope
+CREATE INDEX idx_campfire_saved_report_filters_user_scope
     ON campfire_saved_report_filters(user_id, scope);
 
-CREATE INDEX IF NOT EXISTS idx_campfire_saved_report_filters_workspace_type
+CREATE INDEX idx_campfire_saved_report_filters_workspace_type
     ON campfire_saved_report_filters(workspace_id, report_type);
 
 -- +goose Down

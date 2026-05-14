@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS campfire_standup_templates (
         ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_campfire_standup_templates_workspace_kind
+CREATE INDEX idx_campfire_standup_templates_workspace_kind
     ON campfire_standup_templates(workspace_id, kind);
 
 CREATE TABLE IF NOT EXISTS campfire_standup_questions (
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS campfire_standup_questions (
         ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_campfire_standup_questions_template_position
+CREATE INDEX idx_campfire_standup_questions_template_position
     ON campfire_standup_questions(template_id, position);
 
 CREATE TABLE IF NOT EXISTS campfire_standup_schedules (
@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS campfire_standup_schedules (
         ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_campfire_standup_schedules_workspace_kind
+CREATE INDEX idx_campfire_standup_schedules_workspace_kind
     ON campfire_standup_schedules(workspace_id, kind);
 
 CREATE TABLE IF NOT EXISTS campfire_reminder_rules (
@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS campfire_reminder_rules (
         ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_campfire_reminder_rules_workspace_schedule
+CREATE INDEX idx_campfire_reminder_rules_workspace_schedule
     ON campfire_reminder_rules(workspace_id, schedule_id);
 
 CREATE TABLE IF NOT EXISTS campfire_report_rules (
@@ -136,7 +136,7 @@ CREATE TABLE IF NOT EXISTS campfire_report_rules (
         ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_campfire_report_rules_workspace_kind
+CREATE INDEX idx_campfire_report_rules_workspace_kind
     ON campfire_report_rules(workspace_id, report_kind);
 
 CREATE TABLE IF NOT EXISTS campfire_standup_submissions (
@@ -168,19 +168,19 @@ CREATE TABLE IF NOT EXISTS campfire_standup_submissions (
         ON DELETE CASCADE
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_campfire_standup_submissions_unique_occurrence
+CREATE UNIQUE INDEX ux_campfire_standup_submissions_unique_occurrence
     ON campfire_standup_submissions(workspace_id, template_id, user_id, occurrence_date);
 
-CREATE INDEX IF NOT EXISTS idx_campfire_standup_submissions_workspace_date
+CREATE INDEX idx_campfire_standup_submissions_workspace_date
     ON campfire_standup_submissions(workspace_id, occurrence_date);
 
-CREATE INDEX IF NOT EXISTS idx_campfire_standup_submissions_user_date
+CREATE INDEX idx_campfire_standup_submissions_user_date
     ON campfire_standup_submissions(user_id, occurrence_date);
 
-CREATE INDEX IF NOT EXISTS idx_campfire_standup_submissions_first_submitted
+CREATE INDEX idx_campfire_standup_submissions_first_submitted
     ON campfire_standup_submissions(first_submitted_at);
 
-CREATE INDEX IF NOT EXISTS idx_campfire_standup_submissions_last_updated
+CREATE INDEX idx_campfire_standup_submissions_last_updated
     ON campfire_standup_submissions(last_updated_at);
 
 CREATE TABLE IF NOT EXISTS campfire_standup_answers (
@@ -208,7 +208,7 @@ CREATE TABLE IF NOT EXISTS campfire_standup_answers (
         ON DELETE CASCADE
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_campfire_standup_answers_submission_question
+CREATE UNIQUE INDEX ux_campfire_standup_answers_submission_question
     ON campfire_standup_answers(submission_id, question_id);
 
 -- +goose Down
