@@ -111,6 +111,15 @@ func WriteDeleteGlobalSkipDate(w http.ResponseWriter, statusCode int, payload De
 }
 
 /*
+WriteValidateLeaveRequest writes the leave validation response.
+*/
+func WriteValidateLeaveRequest(w http.ResponseWriter, statusCode int, payload ValidateLeaveRequestResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode leave validation response")
+}
+
+/*
 WriteError writes a standard Campfire API error response.
 */
 func WriteError(w http.ResponseWriter, statusCode int, code string, message string) {

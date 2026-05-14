@@ -16,6 +16,7 @@ GlobalSkipDateStore defines persistence operations for global Campfire off-days.
 */
 type GlobalSkipDateStore interface {
 	List(ctx context.Context) ([]domain.GlobalSkipDate, error)
+	ListBetween(ctx context.Context, startDate domain.LocalDate, endDate domain.LocalDate) ([]domain.GlobalSkipDate, error)
 	Create(ctx context.Context, skipDate domain.GlobalSkipDate) (*domain.GlobalSkipDate, error)
 	Delete(ctx context.Context, skipDateID domain.ID) error
 }
@@ -57,12 +58,38 @@ func (s *SQLGlobalSkipDateStore) List(ctx context.Context) ([]domain.GlobalSkipD
 		return nil, fmt.Errorf("list global skip dates: %w", err)
 	}
 
-	skipDates := make([]domain.GlobalSkipDate, 0, len(records))
-	for _, record := range records {
-		skipDates = append(skipDates, record.toDomain())
+	return globalSkipDateRecordsToDomain(records), nil
+}
+
+/*
+ListBetween returns global skip dates between two local dates, inclusive.
+
+Dates are stored as YYYY-MM-DD strings, so lexical comparison is safe.
+*/
+func (s *SQLGlobalSkipDateStore) ListBetween(
+	ctx context.Context,
+	startDate domain.LocalDate,
+	endDate domain.LocalDate,
+) ([]domain.GlobalSkipDate, error) {
+	records := []globalSkipDateRecord{}
+
+	query := s.db.Rebind(`
+		SELECT
+			id,
+			date,
+			label,
+			created_by,
+			created_at
+		FROM campfire_global_skip_dates
+		WHERE date >= ? AND date <= ?
+		ORDER BY date ASC
+	`)
+
+	if err := s.db.SelectContext(ctx, &records, query, startDate.String(), endDate.String()); err != nil {
+		return nil, fmt.Errorf("list global skip dates between dates: %w", err)
 	}
 
-	return skipDates, nil
+	return globalSkipDateRecordsToDomain(records), nil
 }
 
 /*
@@ -186,4 +213,17 @@ func (r globalSkipDateRecord) toDomain() domain.GlobalSkipDate {
 		CreatedBy: r.CreatedBy,
 		CreatedAt: parseStoredTime(r.CreatedAt),
 	}
+}
+
+/*
+globalSkipDateRecordsToDomain maps global skip date database records to domain models.
+*/
+func globalSkipDateRecordsToDomain(records []globalSkipDateRecord) []domain.GlobalSkipDate {
+	skipDates := make([]domain.GlobalSkipDate, 0, len(records))
+
+	for _, record := range records {
+		skipDates = append(skipDates, record.toDomain())
+	}
+
+	return skipDates
 }

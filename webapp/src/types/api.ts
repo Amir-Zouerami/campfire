@@ -1,4 +1,12 @@
-import type { GlobalSkipDate, LocalDate, Workspace, WorkspaceCapabilities } from './domain';
+import type {
+	GlobalSkipDate,
+	LeaveDurationMode,
+	LeaveHalfDayPart,
+	LocalDate,
+	TimeOfDay,
+	Workspace,
+	WorkspaceCapabilities,
+} from './domain';
 
 /**
  * HealthResponse is returned by GET /api/v1/health.
@@ -86,6 +94,28 @@ export type CreateGlobalSkipDateResponse = {
  */
 export type DeleteGlobalSkipDateResponse = {
 	readonly deleted: boolean;
+};
+
+/**
+ * ValidateLeaveRequestRequest is sent to POST /leaves/validate.
+ */
+export type ValidateLeaveRequestRequest = {
+	readonly workspaceId: string;
+	readonly startDate: LocalDate;
+	readonly endDate: LocalDate;
+	readonly durationMode: LeaveDurationMode;
+	readonly halfDayPart: LeaveHalfDayPart | '';
+	readonly startTime: TimeOfDay | '';
+	readonly endTime: TimeOfDay | '';
+};
+
+/**
+ * ValidateLeaveRequestResponse is returned by POST /leaves/validate.
+ */
+export type ValidateLeaveRequestResponse = {
+	readonly allowed: boolean;
+	readonly message: string;
+	readonly globalSkipDates: readonly GlobalSkipDate[];
 };
 
 /**

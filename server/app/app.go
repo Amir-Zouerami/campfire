@@ -32,6 +32,7 @@ type App struct {
 	Database              *store.Database
 	WorkspaceService      *service.WorkspaceService
 	GlobalSkipDateService *service.GlobalSkipDateService
+	LeaveService          *service.LeaveService
 }
 
 /*
@@ -64,11 +65,14 @@ func New(config Config) (*App, error) {
 	globalSkipDateStore := store.NewSQLGlobalSkipDateStore(database)
 	globalSkipDateService := service.NewGlobalSkipDateService(globalSkipDateStore)
 
+	leaveService := service.NewLeaveService(globalSkipDateStore)
+
 	router := api.NewRouter(api.RouterConfig{
 		Logger:                appLogger,
 		Mattermost:            mattermostClient,
 		WorkspaceService:      workspaceService,
 		GlobalSkipDateService: globalSkipDateService,
+		LeaveService:          leaveService,
 	})
 
 	return &App{
@@ -78,6 +82,7 @@ func New(config Config) (*App, error) {
 		Database:              database,
 		WorkspaceService:      workspaceService,
 		GlobalSkipDateService: globalSkipDateService,
+		LeaveService:          leaveService,
 	}, nil
 }
 

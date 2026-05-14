@@ -17,6 +17,7 @@ type RouterConfig struct {
 	Mattermost            mattermost.Client
 	WorkspaceService      *service.WorkspaceService
 	GlobalSkipDateService *service.GlobalSkipDateService
+	LeaveService          *service.LeaveService
 }
 
 /*
@@ -37,6 +38,11 @@ func NewRouter(config RouterConfig) http.Handler {
 			handleGetWorkspaceByChannel(config.Logger, config.WorkspaceService),
 		)
 		api.Post("/workspaces", handleCreateWorkspace(config.Logger, config.WorkspaceService))
+
+		api.Post(
+			"/leaves/validate",
+			handleValidateLeaveRequest(config.Logger, config.Mattermost, config.LeaveService),
+		)
 
 		api.Get(
 			"/settings/global/skip-dates",
