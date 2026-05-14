@@ -6,42 +6,41 @@ import (
 	"strings"
 
 	"github.com/amir-zouerami/campfire/server/logger"
+	"github.com/amir-zouerami/campfire/server/service"
 	"github.com/go-chi/chi/v5"
 )
 
 /*
 handleGetWorkspaceByChannel handles current-channel workspace lookup.
-
-Persistence is intentionally not implemented in this step. The SQL-backed store
-will be added next, and this handler will delegate to WorkspaceService.
 */
-func handleGetWorkspaceByChannel(log logger.Logger) http.HandlerFunc {
+func handleGetWorkspaceByChannel(
+	log logger.Logger,
+	workspaceService *service.WorkspaceService,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID := strings.TrimSpace(r.Header.Get("Mattermost-User-Id"))
 		channelID := strings.TrimSpace(chi.URLParam(r, "channelID"))
-		if channelID == "" {
-			WriteError(w, http.StatusBadRequest, "invalid_request", "Channel ID is required.")
+
+		result, err := workspaceService.GetByChannel(r.Context(), userID, channelID)
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
 			return
 		}
 
-		log.Debug("workspace lookup requested", logger.String("channel_id", channelID))
-
-		WriteError(
-			w,
-			http.StatusNotFound,
-			"workspace_not_configured",
-			"Campfire is not configured for this channel yet.",
-		)
+		WriteWorkspaceByChannel(w, http.StatusOK, WorkspaceResultToResponse(*result))
 	}
 }
 
 /*
 handleCreateWorkspace handles workspace creation requests.
-
-Persistence is intentionally not implemented in this step. The request is decoded
-and lightly validated so the API contract is already real.
 */
-func handleCreateWorkspace(log logger.Logger) http.HandlerFunc {
+func handleCreateWorkspace(
+	log logger.Logger,
+	workspaceService *service.WorkspaceService,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID := strings.TrimSpace(r.Header.Get("Mattermost-User-Id"))
 		var request CreateWorkspaceRequest
 
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -49,38 +48,31 @@ func handleCreateWorkspace(log logger.Logger) http.HandlerFunc {
 			return
 		}
 
-		if strings.TrimSpace(request.TeamID) == "" {
-			WriteError(w, http.StatusBadRequest, "validation_failed", "Team ID is required.")
+		workspace, err := workspaceService.Create(r.Context(), request.ToServiceInput(userID))
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
 			return
 		}
 
-		if strings.TrimSpace(request.ChannelID) == "" {
-			WriteError(w, http.StatusBadRequest, "validation_failed", "Channel ID is required.")
-			return
-		}
-
-		if strings.TrimSpace(request.Name) == "" {
-			WriteError(w, http.StatusBadRequest, "validation_failed", "Workspace name is required.")
-			return
-		}
-
-		if strings.TrimSpace(request.Timezone) == "" {
-			WriteError(w, http.StatusBadRequest, "validation_failed", "Timezone is required.")
-			return
-		}
-
-		if len(request.WorkingDays) == 0 {
-			WriteError(w, http.StatusBadRequest, "validation_failed", "At least one working day is required.")
-			return
-		}
-
-		log.Debug("workspace creation requested", logger.String("channel_id", request.ChannelID))
-
-		WriteError(
-			w,
-			http.StatusServiceUnavailable,
-			"internal_error",
-			"Workspace persistence is not connected yet.",
-		)
+		WriteCreateWorkspace(w, http.StatusCreated, CreateWorkspaceResponse{
+			Workspace: WorkspaceToPayload(*workspace),
+		})
 	}
+}
+
+/*
+logServiceError writes service failures to plugin logs.
+*/
+func logServiceError(log logger.Logger, err error) {
+	if serviceError, ok := service.AsError(err); ok {
+		log.Debug(
+			"service error",
+			logger.String("code", string(serviceError.Code)),
+			logger.String("message", serviceError.Message),
+		)
+		return
+	}
+
+	log.Warn("unexpected service error", logger.String("message", err.Error()))
 }

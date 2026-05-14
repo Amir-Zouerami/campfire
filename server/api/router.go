@@ -5,6 +5,7 @@ import (
 
 	"github.com/amir-zouerami/campfire/server/logger"
 	"github.com/amir-zouerami/campfire/server/mattermost"
+	"github.com/amir-zouerami/campfire/server/service"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -12,8 +13,9 @@ import (
 RouterConfig contains dependencies needed by the HTTP API layer.
 */
 type RouterConfig struct {
-	Logger     logger.Logger
-	Mattermost mattermost.Client
+	Logger           logger.Logger
+	Mattermost       mattermost.Client
+	WorkspaceService *service.WorkspaceService
 }
 
 /*
@@ -29,8 +31,11 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Get("/health", handleHealth(config.Logger))
 		api.Get("/me", handleMe(config.Logger, config.Mattermost))
 
-		api.Get("/workspaces/by-channel/{channelID}", handleGetWorkspaceByChannel(config.Logger))
-		api.Post("/workspaces", handleCreateWorkspace(config.Logger))
+		api.Get(
+			"/workspaces/by-channel/{channelID}",
+			handleGetWorkspaceByChannel(config.Logger, config.WorkspaceService),
+		)
+		api.Post("/workspaces", handleCreateWorkspace(config.Logger, config.WorkspaceService))
 	})
 
 	return router

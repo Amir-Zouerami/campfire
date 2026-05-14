@@ -66,6 +66,24 @@ func WriteMe(w http.ResponseWriter, statusCode int, payload MeResponse) {
 }
 
 /*
+WriteWorkspaceByChannel writes the workspace-by-channel response.
+*/
+func WriteWorkspaceByChannel(w http.ResponseWriter, statusCode int, payload WorkspaceByChannelResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode workspace response")
+}
+
+/*
+WriteCreateWorkspace writes the create-workspace response.
+*/
+func WriteCreateWorkspace(w http.ResponseWriter, statusCode int, payload CreateWorkspaceResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode created workspace response")
+}
+
+/*
 WriteError writes a standard Campfire API error response.
 */
 func WriteError(w http.ResponseWriter, statusCode int, code string, message string) {
