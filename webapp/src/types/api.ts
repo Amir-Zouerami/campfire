@@ -1,4 +1,4 @@
-import type { Workspace, WorkspaceCapabilities } from './domain';
+import type { GlobalSkipDate, LocalDate, Workspace, WorkspaceCapabilities } from './domain';
 
 /**
  * HealthResponse is returned by GET /api/v1/health.
@@ -57,6 +57,35 @@ export type CreateWorkspaceRequest = {
  */
 export type CreateWorkspaceResponse = {
 	readonly workspace: Workspace;
+};
+
+/**
+ * ListGlobalSkipDatesResponse is returned by GET /settings/global/skip-dates.
+ */
+export type ListGlobalSkipDatesResponse = {
+	readonly skipDates: readonly GlobalSkipDate[];
+};
+
+/**
+ * CreateGlobalSkipDateRequest is sent to POST /settings/global/skip-dates.
+ */
+export type CreateGlobalSkipDateRequest = {
+	readonly date: LocalDate;
+	readonly label: string;
+};
+
+/**
+ * CreateGlobalSkipDateResponse is returned by POST /settings/global/skip-dates.
+ */
+export type CreateGlobalSkipDateResponse = {
+	readonly skipDate: GlobalSkipDate;
+};
+
+/**
+ * DeleteGlobalSkipDateResponse is returned by DELETE /settings/global/skip-dates/{skipDateID}.
+ */
+export type DeleteGlobalSkipDateResponse = {
+	readonly deleted: boolean;
 };
 
 /**

@@ -1,8 +1,12 @@
 import type {
 	ApiErrorBody,
+	CreateGlobalSkipDateRequest,
+	CreateGlobalSkipDateResponse,
 	CreateWorkspaceRequest,
 	CreateWorkspaceResponse,
+	DeleteGlobalSkipDateResponse,
 	HealthResponse,
+	ListGlobalSkipDatesResponse,
 	MeResponse,
 	WorkspaceByChannelResponse,
 } from '../types/api';
@@ -56,6 +60,29 @@ export async function createWorkspace(request: CreateWorkspaceRequest): Promise<
 }
 
 /**
+ * listGlobalSkipDates loads global Campfire holidays/off-days.
+ */
+export async function listGlobalSkipDates(): Promise<ListGlobalSkipDatesResponse> {
+	return apiGet<ListGlobalSkipDatesResponse>('/settings/global/skip-dates');
+}
+
+/**
+ * createGlobalSkipDate creates a global Campfire holiday/off-day.
+ */
+export async function createGlobalSkipDate(
+	request: CreateGlobalSkipDateRequest,
+): Promise<CreateGlobalSkipDateResponse> {
+	return apiPost<CreateGlobalSkipDateRequest, CreateGlobalSkipDateResponse>('/settings/global/skip-dates', request);
+}
+
+/**
+ * deleteGlobalSkipDate deletes a global Campfire holiday/off-day.
+ */
+export async function deleteGlobalSkipDate(skipDateID: string): Promise<DeleteGlobalSkipDateResponse> {
+	return apiDelete<DeleteGlobalSkipDateResponse>(`/settings/global/skip-dates/${encodeURIComponent(skipDateID)}`);
+}
+
+/**
  * apiGet performs a typed GET request against the Campfire plugin API.
  */
 async function apiGet<TResponse>(path: string): Promise<TResponse> {
@@ -78,6 +105,18 @@ async function apiPost<TRequest, TResponse>(path: string, body: TRequest): Promi
 			'Content-Type': 'application/json',
 		},
 		method: 'POST',
+	});
+
+	return readResponse<TResponse>(response);
+}
+
+/**
+ * apiDelete performs a typed DELETE request against the Campfire plugin API.
+ */
+async function apiDelete<TResponse>(path: string): Promise<TResponse> {
+	const response = await fetch(`${getAPIBaseURL()}${path}`, {
+		credentials: 'same-origin',
+		method: 'DELETE',
 	});
 
 	return readResponse<TResponse>(response);

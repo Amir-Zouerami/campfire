@@ -5,6 +5,8 @@ import { CAMPFIRE_OPEN_EVENT } from './events';
 import { useCampfireBootstrap } from './useCampfireBootstrap';
 import type { BootstrapStatus } from './useCampfireBootstrap';
 
+import { GlobalOffDaysCard } from './GlobalOffDaysCard';
+
 /**
  * CampfireRoot is the plugin root mounted by Mattermost.
  *
@@ -67,6 +69,8 @@ export function CampfireRoot(): ReactElement | null {
 						<h2>Backend connection</h2>
 						<BootstrapStatusView bootstrap={bootstrap} />
 					</section>
+
+					{bootstrap.state === 'ready' && <GlobalOffDaysCard isSystemAdmin={bootstrap.me.isSystemAdmin} />}
 
 					<section className="campfire-grid">
 						<article className="campfire-card">

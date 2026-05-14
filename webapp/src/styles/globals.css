@@ -229,3 +229,163 @@
 		grid-template-columns: 1fr;
 	}
 }
+
+.campfire-admin-card {
+	margin-top: 18px;
+	padding: 22px;
+	border: 1px solid rgba(249, 115, 22, 0.2);
+	border-radius: 24px;
+	background:
+		radial-gradient(circle at top right, rgba(249, 115, 22, 0.12), transparent 34%), rgba(250, 250, 250, 0.055);
+}
+
+.campfire-admin-card-muted {
+	border-color: rgba(250, 250, 250, 0.1);
+	background: rgba(250, 250, 250, 0.04);
+}
+
+.campfire-admin-card h2 {
+	margin: 0 0 8px;
+	font-size: 22px;
+	letter-spacing: -0.03em;
+}
+
+.campfire-admin-card p {
+	max-width: 720px;
+	margin: 0;
+	color: #d4d4d8;
+	line-height: 1.6;
+}
+
+.campfire-admin-card-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 20px;
+}
+
+.campfire-admin-badge {
+	flex: 0 0 auto;
+	border: 1px solid rgba(251, 191, 36, 0.24);
+	border-radius: 999px;
+	padding: 6px 10px;
+	background: rgba(251, 191, 36, 0.12);
+	color: #fbbf24;
+	font-size: 12px;
+	font-weight: 800;
+	text-transform: uppercase;
+}
+
+.campfire-offday-form {
+	display: grid;
+	grid-template-columns: 180px minmax(0, 1fr) auto;
+	gap: 12px;
+	align-items: end;
+	margin-top: 20px;
+}
+
+.campfire-offday-form label {
+	display: grid;
+	gap: 7px;
+}
+
+.campfire-offday-form label span {
+	color: #fbbf24;
+	font-size: 12px;
+	font-weight: 800;
+	text-transform: uppercase;
+}
+
+.campfire-offday-form input {
+	width: 100%;
+	border: 1px solid rgba(250, 250, 250, 0.12);
+	border-radius: 14px;
+	padding: 11px 12px;
+	background: rgba(15, 23, 42, 0.72);
+	color: #fafafa;
+	font: inherit;
+	outline: none;
+}
+
+.campfire-offday-form input:focus {
+	border-color: rgba(249, 115, 22, 0.62);
+	box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.12);
+}
+
+.campfire-offday-form button,
+.campfire-offday-row button {
+	border: 1px solid rgba(249, 115, 22, 0.28);
+	border-radius: 14px;
+	padding: 11px 14px;
+	background: linear-gradient(135deg, rgba(249, 115, 22, 0.95), rgba(251, 191, 36, 0.82));
+	color: #111827;
+	cursor: pointer;
+	font: inherit;
+	font-weight: 800;
+}
+
+.campfire-offday-form button:disabled,
+.campfire-offday-row button:disabled {
+	cursor: not-allowed;
+	opacity: 0.58;
+}
+
+.campfire-inline-message {
+	margin-top: 12px !important;
+	color: #fbbf24 !important;
+}
+
+.campfire-offday-list {
+	display: grid;
+	gap: 10px;
+	margin-top: 16px;
+}
+
+.campfire-offday-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	border: 1px solid rgba(250, 250, 250, 0.1);
+	border-radius: 18px;
+	padding: 13px 14px;
+	background: rgba(15, 23, 42, 0.46);
+}
+
+.campfire-offday-row strong {
+	display: block;
+	color: #fafafa;
+	font-size: 15px;
+}
+
+.campfire-offday-row span {
+	display: block;
+	margin-top: 3px;
+	color: #d4d4d8;
+	font-size: 13px;
+}
+
+.campfire-offday-row button {
+	background: rgba(250, 250, 250, 0.08);
+	color: #fafafa;
+}
+
+.campfire-offday-row button:hover {
+	background: rgba(248, 113, 113, 0.18);
+	border-color: rgba(248, 113, 113, 0.34);
+}
+
+@media (max-width: 760px) {
+	.campfire-admin-card-header {
+		display: grid;
+	}
+
+	.campfire-offday-form {
+		grid-template-columns: 1fr;
+	}
+
+	.campfire-offday-row {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+}

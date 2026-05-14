@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -65,12 +67,24 @@ func (s *SQLGlobalSkipDateStore) List(ctx context.Context) ([]domain.GlobalSkipD
 
 /*
 Create inserts a global skip date.
+
+The store checks for an existing date first so callers receive a typed conflict
+instead of a generic SQL uniqueness error.
 */
 func (s *SQLGlobalSkipDateStore) Create(
 	ctx context.Context,
 	skipDate domain.GlobalSkipDate,
 ) (*domain.GlobalSkipDate, error) {
-	_, err := s.db.ExecContext(
+	exists, err := s.existsByDate(ctx, skipDate.Date)
+	if err != nil {
+		return nil, err
+	}
+
+	if exists {
+		return nil, ErrConflict
+	}
+
+	_, err = s.db.ExecContext(
 		ctx,
 		s.db.Rebind(`
 			INSERT INTO campfire_global_skip_dates (
@@ -120,6 +134,34 @@ func (s *SQLGlobalSkipDateStore) Delete(ctx context.Context, skipDateID domain.I
 	}
 
 	return nil
+}
+
+/*
+existsByDate returns true when a global skip date already exists for a date.
+*/
+func (s *SQLGlobalSkipDateStore) existsByDate(ctx context.Context, date domain.LocalDate) (bool, error) {
+	var existingID string
+
+	err := s.db.GetContext(
+		ctx,
+		&existingID,
+		s.db.Rebind(`
+			SELECT id
+			FROM campfire_global_skip_dates
+			WHERE date = ?
+			LIMIT 1
+		`),
+		date.String(),
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("check global skip date existence: %w", err)
+	}
+
+	return true, nil
 }
 
 /*
