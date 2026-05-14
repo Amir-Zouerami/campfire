@@ -26,11 +26,12 @@ It wires infrastructure, services, stores, and routes while keeping business
 logic out of the Mattermost plugin lifecycle layer.
 */
 type App struct {
-	Router           http.Handler
-	Logger           logger.Logger
-	Mattermost       mattermost.Client
-	Database         *store.Database
-	WorkspaceService *service.WorkspaceService
+	Router                http.Handler
+	Logger                logger.Logger
+	Mattermost            mattermost.Client
+	Database              *store.Database
+	WorkspaceService      *service.WorkspaceService
+	GlobalSkipDateService *service.GlobalSkipDateService
 }
 
 /*
@@ -60,18 +61,23 @@ func New(config Config) (*App, error) {
 	workspaceStore := store.NewSQLWorkspaceStore(database)
 	workspaceService := service.NewWorkspaceService(workspaceStore)
 
+	globalSkipDateStore := store.NewSQLGlobalSkipDateStore(database)
+	globalSkipDateService := service.NewGlobalSkipDateService(globalSkipDateStore)
+
 	router := api.NewRouter(api.RouterConfig{
-		Logger:           appLogger,
-		Mattermost:       mattermostClient,
-		WorkspaceService: workspaceService,
+		Logger:                appLogger,
+		Mattermost:            mattermostClient,
+		WorkspaceService:      workspaceService,
+		GlobalSkipDateService: globalSkipDateService,
 	})
 
 	return &App{
-		Router:           router,
-		Logger:           appLogger,
-		Mattermost:       mattermostClient,
-		Database:         database,
-		WorkspaceService: workspaceService,
+		Router:                router,
+		Logger:                appLogger,
+		Mattermost:            mattermostClient,
+		Database:              database,
+		WorkspaceService:      workspaceService,
+		GlobalSkipDateService: globalSkipDateService,
 	}, nil
 }
 

@@ -27,6 +27,11 @@ const (
 	ErrorCodeNotFound ErrorCode = "not_found"
 
 	/*
+		ErrorCodeConflict means the request conflicts with existing data.
+	*/
+	ErrorCodeConflict ErrorCode = "conflict"
+
+	/*
 		ErrorCodeWorkspaceNotConfigured means no workspace exists for a channel.
 	*/
 	ErrorCodeWorkspaceNotConfigured ErrorCode = "workspace_not_configured"

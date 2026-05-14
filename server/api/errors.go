@@ -30,6 +30,8 @@ func statusForServiceError(code service.ErrorCode) int {
 		return http.StatusForbidden
 	case service.ErrorCodeNotFound, service.ErrorCodeWorkspaceNotConfigured:
 		return http.StatusNotFound
+	case service.ErrorCodeConflict:
+		return http.StatusConflict
 	case service.ErrorCodeInternal:
 		return http.StatusInternalServerError
 	default:

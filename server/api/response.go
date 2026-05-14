@@ -84,6 +84,33 @@ func WriteCreateWorkspace(w http.ResponseWriter, statusCode int, payload CreateW
 }
 
 /*
+WriteListGlobalSkipDates writes the global skip date list response.
+*/
+func WriteListGlobalSkipDates(w http.ResponseWriter, statusCode int, payload ListGlobalSkipDatesResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode global off-day list response")
+}
+
+/*
+WriteCreateGlobalSkipDate writes the create global skip date response.
+*/
+func WriteCreateGlobalSkipDate(w http.ResponseWriter, statusCode int, payload CreateGlobalSkipDateResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode created global off-day response")
+}
+
+/*
+WriteDeleteGlobalSkipDate writes the delete global skip date response.
+*/
+func WriteDeleteGlobalSkipDate(w http.ResponseWriter, statusCode int, payload DeleteGlobalSkipDateResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode deleted global off-day response")
+}
+
+/*
 WriteError writes a standard Campfire API error response.
 */
 func WriteError(w http.ResponseWriter, statusCode int, code string, message string) {

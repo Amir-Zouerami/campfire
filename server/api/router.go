@@ -13,9 +13,10 @@ import (
 RouterConfig contains dependencies needed by the HTTP API layer.
 */
 type RouterConfig struct {
-	Logger           logger.Logger
-	Mattermost       mattermost.Client
-	WorkspaceService *service.WorkspaceService
+	Logger                logger.Logger
+	Mattermost            mattermost.Client
+	WorkspaceService      *service.WorkspaceService
+	GlobalSkipDateService *service.GlobalSkipDateService
 }
 
 /*
@@ -36,6 +37,19 @@ func NewRouter(config RouterConfig) http.Handler {
 			handleGetWorkspaceByChannel(config.Logger, config.WorkspaceService),
 		)
 		api.Post("/workspaces", handleCreateWorkspace(config.Logger, config.WorkspaceService))
+
+		api.Get(
+			"/settings/global/skip-dates",
+			handleListGlobalSkipDates(config.Logger, config.Mattermost, config.GlobalSkipDateService),
+		)
+		api.Post(
+			"/settings/global/skip-dates",
+			handleCreateGlobalSkipDate(config.Logger, config.Mattermost, config.GlobalSkipDateService),
+		)
+		api.Delete(
+			"/settings/global/skip-dates/{skipDateID}",
+			handleDeleteGlobalSkipDate(config.Logger, config.Mattermost, config.GlobalSkipDateService),
+		)
 	})
 
 	return router
@@ -61,21 +75,11 @@ func handleHealth(log logger.Logger) http.HandlerFunc {
 
 /*
 handleMe returns the currently authenticated Mattermost user.
-
-Mattermost injects the current user ID into plugin HTTP requests.
 */
 func handleMe(log logger.Logger, mm mattermost.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userID := r.Header.Get("Mattermost-User-Id")
-		if userID == "" {
-			WriteError(w, http.StatusUnauthorized, "not_authenticated", "You must be signed in to use Campfire.")
-			return
-		}
-
-		user, err := mm.GetUser(userID)
-		if err != nil {
-			log.Warn("failed to load current user", logger.String("user_id", userID))
-			WriteError(w, http.StatusInternalServerError, "internal_error", "Could not load the current user.")
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
 			return
 		}
 
