@@ -3,25 +3,14 @@ package store
 import "time"
 
 /*
-parseStoredTime parses timestamps returned by SQL drivers.
+parseStoredTime returns the stored SQL timestamp.
 
-Some drivers scan TIMESTAMP columns into time.Time, but this helper exists for
-stores that scan to string for portability. Empty or invalid values return zero.
+This exists as a named helper so timestamp mapping stays explicit in stores.
 */
-func parseStoredTime(value string) time.Time {
-	if value == "" {
+func parseStoredTime(value time.Time) time.Time {
+	if value.IsZero() {
 		return time.Time{}
 	}
 
-	parsed, err := time.Parse(time.RFC3339, value)
-	if err == nil {
-		return parsed
-	}
-
-	parsed, err = time.Parse("2006-01-02 15:04:05", value)
-	if err == nil {
-		return parsed
-	}
-
-	return time.Time{}
+	return value.UTC()
 }

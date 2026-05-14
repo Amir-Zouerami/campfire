@@ -1,5 +1,26 @@
 package domain
 
+import "time"
+
+/*
+LeaveType defines a workspace-level leave type.
+*/
+type LeaveType struct {
+	ID          ID
+	WorkspaceID ID
+
+	Name  string
+	Code  string
+	Color string
+
+	RequiresApproval bool
+	IsActive         bool
+
+	CreatedBy string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 /*
 LeaveDurationMode describes how much time a leave request covers.
 */

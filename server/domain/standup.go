@@ -1,5 +1,7 @@
 package domain
 
+import "time"
+
 /*
 StandupKind identifies the type of standup template or schedule.
 */
@@ -21,6 +23,24 @@ const (
 	*/
 	StandupKindCustom StandupKind = "custom"
 )
+
+/*
+StandupTemplate defines a dynamic standup form for a workspace.
+*/
+type StandupTemplate struct {
+	ID          ID
+	WorkspaceID ID
+
+	Name        string
+	Description string
+	Kind        StandupKind
+
+	IsActive bool
+
+	CreatedBy string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
 
 /*
 QuestionType identifies the supported dynamic standup question type.
@@ -68,6 +88,45 @@ const (
 	*/
 	QuestionDuration QuestionType = "duration"
 )
+
+/*
+StandupQuestion defines one dynamic question inside a standup template.
+*/
+type StandupQuestion struct {
+	ID          ID
+	TemplateID  ID
+	WorkspaceID ID
+
+	Section     string
+	Label       string
+	HelpText    string
+	Placeholder string
+
+	Type QuestionType
+
+	Required     bool
+	ShowInReport bool
+	IsPrivate    bool
+
+	Position int
+
+	OptionsJSON string
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+/*
+IsValid returns true when the standup kind is supported by Campfire.
+*/
+func (k StandupKind) IsValid() bool {
+	switch k {
+	case StandupKindDaily, StandupKindWeekly, StandupKindCustom:
+		return true
+	default:
+		return false
+	}
+}
 
 /*
 IsValid returns true when the question type is supported by Campfire MVP.
