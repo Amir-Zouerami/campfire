@@ -54,6 +54,7 @@ export type RegisterPlugin = (pluginID: string, plugin: MattermostWebappPlugin) 
 
 declare global {
 	interface Window {
+		basename?: string;
 		registerPlugin?: RegisterPlugin;
 	}
 }

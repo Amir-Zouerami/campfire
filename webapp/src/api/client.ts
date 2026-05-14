@@ -1,0 +1,97 @@
+import type { ApiErrorBody, HealthResponse, MeResponse } from '../types/api';
+
+const pluginID = 'dev.zouerami.campfire';
+
+/**
+ * ApiClientError represents a typed Campfire API failure.
+ */
+export class ApiClientError extends Error {
+	public readonly code: string;
+	public readonly statusCode: number;
+
+	/**
+	 * Creates an API client error.
+	 */
+	public constructor(code: string, message: string, statusCode: number) {
+		super(message);
+		this.name = 'ApiClientError';
+		this.code = code;
+		this.statusCode = statusCode;
+	}
+}
+
+/**
+ * getHealth loads backend health information.
+ */
+export async function getHealth(): Promise<HealthResponse> {
+	return apiGet<HealthResponse>('/health');
+}
+
+/**
+ * getMe loads the current Mattermost user from the backend.
+ */
+export async function getMe(): Promise<MeResponse> {
+	return apiGet<MeResponse>('/me');
+}
+
+/**
+ * apiGet performs a typed GET request against the Campfire plugin API.
+ */
+async function apiGet<TResponse>(path: string): Promise<TResponse> {
+	const response = await fetch(`${getAPIBaseURL()}${path}`, {
+		credentials: 'same-origin',
+		method: 'GET',
+	});
+
+	return readResponse<TResponse>(response);
+}
+
+/**
+ * readResponse parses a JSON response and raises typed API errors.
+ */
+async function readResponse<TResponse>(response: Response): Promise<TResponse> {
+	const body: unknown = await response.json();
+
+	if (!response.ok) {
+		if (isApiErrorBody(body)) {
+			throw new ApiClientError(body.error.code, body.error.message, response.status);
+		}
+
+		throw new ApiClientError('unknown_error', 'Campfire returned an unexpected error.', response.status);
+	}
+
+	return body as TResponse;
+}
+
+/**
+ * getAPIBaseURL returns the Mattermost plugin API base URL.
+ */
+function getAPIBaseURL(): string {
+	const basename = window.basename ?? '';
+
+	return `${basename}/plugins/${pluginID}/api/v1`;
+}
+
+/**
+ * isApiErrorBody narrows an unknown value to Campfire's API error body.
+ */
+function isApiErrorBody(value: unknown): value is ApiErrorBody {
+	if (!isRecord(value)) {
+		return false;
+	}
+
+	const error = value.error;
+
+	if (!isRecord(error)) {
+		return false;
+	}
+
+	return typeof error.code === 'string' && typeof error.message === 'string';
+}
+
+/**
+ * isRecord narrows an unknown value to a string-keyed object.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null;
+}

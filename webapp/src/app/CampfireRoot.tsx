@@ -1,7 +1,9 @@
-import type { ReactElement } from 'react';
 import { useEffect, useState } from 'react';
+import type { ReactElement } from 'react';
 
 import { CAMPFIRE_OPEN_EVENT } from './events';
+import { useCampfireBootstrap } from './useCampfireBootstrap';
+import type { BootstrapStatus } from './useCampfireBootstrap';
 
 /**
  * CampfireRoot is the plugin root mounted by Mattermost.
@@ -11,6 +13,7 @@ import { CAMPFIRE_OPEN_EVENT } from './events';
  */
 export function CampfireRoot(): ReactElement | null {
 	const [isOpen, setIsOpen] = useState(false);
+	const bootstrap = useCampfireBootstrap(isOpen);
 
 	useEffect(() => {
 		/**
@@ -54,11 +57,15 @@ export function CampfireRoot(): ReactElement | null {
 						<div>
 							<h2>Gather your team around the fire.</h2>
 							<p>
-								Campfire will become the workspace for standups, leaves, task time, and reports. This is
-								the Vite-powered React 18 shell; next we will connect it to the backend and current
-								channel.
+								Campfire will become the workspace for standups, leaves, task time, and reports. The
+								frontend now talks to the Go backend through a typed API client.
 							</p>
 						</div>
+					</section>
+
+					<section className="campfire-status-panel">
+						<h2>Backend connection</h2>
+						<BootstrapStatusView bootstrap={bootstrap} />
 					</section>
 
 					<section className="campfire-grid">
@@ -81,4 +88,45 @@ export function CampfireRoot(): ReactElement | null {
 			</div>
 		</div>
 	);
+}
+
+/**
+ * BootstrapStatusView renders initial API connection status.
+ */
+function BootstrapStatusView(props: { readonly bootstrap: BootstrapStatus }): ReactElement {
+	switch (props.bootstrap.state) {
+		case 'idle':
+		case 'loading':
+			return <p className="campfire-muted">Connecting to Campfire backend…</p>;
+
+		case 'error':
+			return (
+				<div className="campfire-error-box">
+					<strong>Could not connect</strong>
+					<p>{props.bootstrap.errorMessage}</p>
+				</div>
+			);
+
+		case 'ready':
+			return (
+				<div className="campfire-status-grid">
+					<div>
+						<span>API</span>
+						<strong>
+							{props.bootstrap.health.product} {props.bootstrap.health.version}
+						</strong>
+					</div>
+
+					<div>
+						<span>User</span>
+						<strong>{props.bootstrap.me.user.displayName || props.bootstrap.me.user.username}</strong>
+					</div>
+
+					<div>
+						<span>System admin</span>
+						<strong>{props.bootstrap.me.isSystemAdmin ? 'Yes' : 'No'}</strong>
+					</div>
+				</div>
+			);
+	}
 }
