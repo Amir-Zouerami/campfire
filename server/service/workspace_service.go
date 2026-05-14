@@ -189,6 +189,11 @@ func (s *WorkspaceService) Create(ctx context.Context, input CreateWorkspaceInpu
 			input.NamedApproverUserIDs,
 			now,
 		),
+		LeaveTypes: buildDefaultLeaveTypes(workspaceID, cleanActorUserID, now),
+	}
+
+	if input.CreateDefaultTemplates {
+		params.StandupTemplates = buildDefaultStandupTemplates(workspaceID, cleanActorUserID, now)
 	}
 
 	workspace, err := s.workspaceStore.Create(ctx, params)
