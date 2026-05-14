@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import cssInjectedByJsPlugin from 'vite-plugin-css-injected-by-js';
@@ -10,13 +11,14 @@ const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 /**
  * Vite configuration for the Campfire Mattermost webapp bundle.
  *
- * Mattermost loads webapp/dist/main.js through plugin.json, so Campfire builds
- * a single browser-ready IIFE bundle and injects CSS through JavaScript.
+ * Campfire uses Tailwind through the official Vite plugin. CSS is injected into
+ * the JavaScript bundle because Mattermost loads webapp/dist/main.js from the
+ * plugin manifest.
  *
  * @type {import('vite').UserConfig}
  */
 const config = defineConfig({
-	plugins: [react(), cssInjectedByJsPlugin()],
+	plugins: [react(), tailwindcss(), cssInjectedByJsPlugin()],
 	build: {
 		outDir: 'dist',
 		emptyOutDir: true,

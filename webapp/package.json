@@ -15,8 +15,10 @@
 	"license": "UNLICENSED",
 	"type": "commonjs",
 	"dependencies": {
+		"@tailwindcss/vite": "^4.3.0",
 		"react": "^18.3.1",
-		"react-dom": "^18.3.1"
+		"react-dom": "^18.3.1",
+		"tailwindcss": "^4.3.0"
 	},
 	"devDependencies": {
 		"@types/react": "^18.3.28",

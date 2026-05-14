@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
-import type { FormEvent, ReactElement } from 'react';
+import { useEffect, useState, type FormEvent, type ReactElement } from 'react';
 
 import { ApiClientError, createGlobalSkipDate, deleteGlobalSkipDate, listGlobalSkipDates } from '../api/client';
 import type { GlobalSkipDate } from '../types/domain';
+
+const globalOffDayDateInputID = 'campfire-global-offday-date';
+const globalOffDayLabelInputID = 'campfire-global-offday-label';
 
 /**
  * GlobalOffDaysCardProps contains the current user's global settings capability.
@@ -68,12 +70,12 @@ export function GlobalOffDaysCard(props: GlobalOffDaysCardProps): ReactElement {
 
 	if (!props.isSystemAdmin) {
 		return (
-			<section className="campfire-admin-card campfire-admin-card-muted">
-				<div>
-					<p className="campfire-eyebrow">Global settings</p>
-					<h2>Global off-days</h2>
-					<p>Global holiday and off-day settings are available to Mattermost system admins.</p>
-				</div>
+			<section className="mt-5 rounded-3xl border border-white/10 bg-white/4 p-6">
+				<p className="m-0 text-xs font-extrabold uppercase tracking-[0.18em] text-amber-300">Global settings</p>
+				<h2 className="m-0 mt-2 text-2xl font-black tracking-[-0.04em] text-white">Global off-days</h2>
+				<p className="m-0 mt-2 max-w-3xl leading-7 text-slate-300">
+					Global holiday and off-day settings are available to Mattermost system admins.
+				</p>
 			</section>
 		);
 	}
@@ -134,64 +136,94 @@ export function GlobalOffDaysCard(props: GlobalOffDaysCardProps): ReactElement {
 	const isBusy = loadState === 'loading' || loadState === 'saving' || loadState === 'deleting';
 
 	return (
-		<section className="campfire-admin-card">
-			<div className="campfire-admin-card-header">
+		<section className="mt-5 rounded-3xl border border-orange-400/20 bg-[radial-gradient(circle_at_top_right,rgba(249,115,22,0.12),transparent_34%)] bg-white/5.5 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+			<div className="grid gap-5 sm:grid-cols-[1fr_auto] sm:items-start">
 				<div>
-					<p className="campfire-eyebrow">Global settings</p>
-					<h2>Global off-days</h2>
-					<p>
+					<p className="m-0 text-xs font-extrabold uppercase tracking-[0.18em] text-amber-300">
+						Global settings
+					</p>
+					<h2 className="m-0 mt-2 text-2xl font-black tracking-[-0.04em] text-white">Global off-days</h2>
+					<p className="m-0 mt-2 max-w-3xl leading-7 text-slate-300">
 						Declare organization-wide holidays or off-days. Campfire will skip standups, suppress reminders,
 						and prevent leave requests on these dates.
 					</p>
 				</div>
 
-				<div className="campfire-admin-badge">Admin</div>
+				<div className="w-fit rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1.5 text-xs font-extrabold uppercase tracking-[0.12em] text-amber-300">
+					Admin
+				</div>
 			</div>
 
-			<form className="campfire-offday-form" onSubmit={handleCreate}>
-				<label>
-					<span>Date</span>
+			<form className="mt-6 grid gap-3 lg:grid-cols-[180px_1fr_auto] lg:items-end" onSubmit={handleCreate}>
+				<div className="grid gap-2">
+					<label
+						className="text-xs font-extrabold uppercase tracking-[0.14em] text-amber-300"
+						htmlFor={globalOffDayDateInputID}
+					>
+						Date
+					</label>
 					<input
+						className="w-full rounded-2xl border border-white/10 bg-slate-950/55 px-4 py-3 text-white scheme-dark outline-none transition placeholder:text-slate-500 focus:border-orange-400/60 focus:ring-4 focus:ring-orange-400/15"
+						id={globalOffDayDateInputID}
 						type="date"
 						value={date}
 						onChange={event => setDate(event.currentTarget.value)}
 						disabled={isBusy}
 					/>
-				</label>
+				</div>
 
-				<label>
-					<span>Label</span>
+				<div className="grid gap-2">
+					<label
+						className="text-xs font-extrabold uppercase tracking-[0.14em] text-amber-300"
+						htmlFor={globalOffDayLabelInputID}
+					>
+						Label
+					</label>
 					<input
+						className="w-full rounded-2xl border border-white/10 bg-slate-950/55 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-orange-400/60 focus:ring-4 focus:ring-orange-400/15"
+						id={globalOffDayLabelInputID}
 						type="text"
 						value={label}
 						placeholder="Company holiday, shutdown day..."
 						onChange={event => setLabel(event.currentTarget.value)}
 						disabled={isBusy}
 					/>
-				</label>
+				</div>
 
-				<button type="submit" disabled={isBusy}>
+				<button
+					className="rounded-2xl border border-orange-300/25 bg-linear-to-br from-orange-500 to-amber-300 px-5 py-3 font-black text-slate-950 shadow-[0_18px_50px_rgba(249,115,22,0.18)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+					type="submit"
+					disabled={isBusy}
+				>
 					Add off-day
 				</button>
 			</form>
 
-			{message !== '' && <p className="campfire-inline-message">{message}</p>}
+			{message !== '' && <p className="m-0 mt-4 text-sm font-bold text-amber-300">{message}</p>}
 
-			<div className="campfire-offday-list">
-				{loadState === 'loading' && <p className="campfire-muted">Loading global off-days…</p>}
+			<div className="mt-5 grid gap-3">
+				{loadState === 'loading' && <p className="m-0 text-slate-300">Loading global off-days…</p>}
 
 				{loadState !== 'loading' && skipDates.length === 0 && (
-					<p className="campfire-muted">No global off-days configured yet.</p>
+					<p className="m-0 text-slate-300">No global off-days configured yet.</p>
 				)}
 
 				{skipDates.map(skipDate => (
-					<article className="campfire-offday-row" key={skipDate.id}>
+					<article
+						className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-slate-950/40 p-4 sm:flex-row sm:items-center sm:justify-between"
+						key={skipDate.id}
+					>
 						<div>
-							<strong>{skipDate.label}</strong>
-							<span>{skipDate.date}</span>
+							<strong className="block text-base font-black text-white">{skipDate.label}</strong>
+							<span className="mt-1 block text-sm text-slate-300">{skipDate.date}</span>
 						</div>
 
-						<button type="button" onClick={() => void handleDelete(skipDate.id)} disabled={isBusy}>
+						<button
+							className="w-fit rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold text-white transition hover:border-red-300/30 hover:bg-red-400/15 disabled:cursor-not-allowed disabled:opacity-60"
+							type="button"
+							onClick={() => void handleDelete(skipDate.id)}
+							disabled={isBusy}
+						>
 							Remove
 						</button>
 					</article>
