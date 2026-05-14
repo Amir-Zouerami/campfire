@@ -1,4 +1,11 @@
-import type { ApiErrorBody, HealthResponse, MeResponse } from '../types/api';
+import type {
+	ApiErrorBody,
+	CreateWorkspaceRequest,
+	CreateWorkspaceResponse,
+	HealthResponse,
+	MeResponse,
+	WorkspaceByChannelResponse,
+} from '../types/api';
 
 const pluginID = 'dev.zouerami.campfire';
 
@@ -35,12 +42,42 @@ export async function getMe(): Promise<MeResponse> {
 }
 
 /**
+ * getWorkspaceByChannel loads the Campfire workspace for a Mattermost channel.
+ */
+export async function getWorkspaceByChannel(channelID: string): Promise<WorkspaceByChannelResponse> {
+	return apiGet<WorkspaceByChannelResponse>(`/workspaces/by-channel/${encodeURIComponent(channelID)}`);
+}
+
+/**
+ * createWorkspace creates a Campfire workspace.
+ */
+export async function createWorkspace(request: CreateWorkspaceRequest): Promise<CreateWorkspaceResponse> {
+	return apiPost<CreateWorkspaceRequest, CreateWorkspaceResponse>('/workspaces', request);
+}
+
+/**
  * apiGet performs a typed GET request against the Campfire plugin API.
  */
 async function apiGet<TResponse>(path: string): Promise<TResponse> {
 	const response = await fetch(`${getAPIBaseURL()}${path}`, {
 		credentials: 'same-origin',
 		method: 'GET',
+	});
+
+	return readResponse<TResponse>(response);
+}
+
+/**
+ * apiPost performs a typed POST request against the Campfire plugin API.
+ */
+async function apiPost<TRequest, TResponse>(path: string, body: TRequest): Promise<TResponse> {
+	const response = await fetch(`${getAPIBaseURL()}${path}`, {
+		body: JSON.stringify(body),
+		credentials: 'same-origin',
+		headers: {
+			'Content-Type': 'application/json',
+		},
+		method: 'POST',
 	});
 
 	return readResponse<TResponse>(response);

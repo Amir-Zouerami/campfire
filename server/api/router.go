@@ -28,6 +28,9 @@ func NewRouter(config RouterConfig) http.Handler {
 	router.Route("/api/v1", func(api chi.Router) {
 		api.Get("/health", handleHealth(config.Logger))
 		api.Get("/me", handleMe(config.Logger, config.Mattermost))
+
+		api.Get("/workspaces/by-channel/{channelID}", handleGetWorkspaceByChannel(config.Logger))
+		api.Post("/workspaces", handleCreateWorkspace(config.Logger))
 	})
 
 	return router
