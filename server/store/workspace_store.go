@@ -31,6 +31,9 @@ type CreateWorkspaceParams struct {
 	RoleAssignments  []domain.WorkspaceRoleAssignment
 	LeaveTypes       []domain.LeaveType
 	StandupTemplates []CreateStandupTemplateParams
+	StandupSchedules []domain.StandupSchedule
+	ReminderRules    []domain.ReminderRule
+	ReportRules      []domain.ReportRule
 }
 
 /*
@@ -150,6 +153,24 @@ func (s *SQLWorkspaceStore) Create(ctx context.Context, params CreateWorkspacePa
 			if err := s.insertStandupQuestion(ctx, transaction, question); err != nil {
 				return nil, err
 			}
+		}
+	}
+
+	for _, schedule := range params.StandupSchedules {
+		if err := s.insertStandupSchedule(ctx, transaction, schedule); err != nil {
+			return nil, err
+		}
+	}
+
+	for _, reminderRule := range params.ReminderRules {
+		if err := s.insertReminderRule(ctx, transaction, reminderRule); err != nil {
+			return nil, err
+		}
+	}
+
+	for _, reportRule := range params.ReportRules {
+		if err := s.insertReportRule(ctx, transaction, reportRule); err != nil {
+			return nil, err
 		}
 	}
 
@@ -427,6 +448,152 @@ func (s *SQLWorkspaceStore) insertStandupQuestion(
 	)
 	if err != nil {
 		return fmt.Errorf("insert standup question: %w", err)
+	}
+
+	return nil
+}
+
+/*
+insertStandupSchedule inserts a standup schedule.
+*/
+func (s *SQLWorkspaceStore) insertStandupSchedule(
+	ctx context.Context,
+	tx *sqlx.Tx,
+	schedule domain.StandupSchedule,
+) error {
+	_, err := tx.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			INSERT INTO campfire_standup_schedules (
+				id,
+				workspace_id,
+				template_id,
+				kind,
+				enabled,
+				time_of_day,
+				skip_non_working_days,
+				weekly_mode,
+				skip_daily_when_weekly_runs,
+				created_by,
+				created_at,
+				updated_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`),
+		schedule.ID.String(),
+		schedule.WorkspaceID.String(),
+		schedule.TemplateID.String(),
+		string(schedule.Kind),
+		schedule.Enabled,
+		schedule.TimeOfDay.String(),
+		schedule.SkipNonWorkingDays,
+		string(schedule.WeeklyMode),
+		schedule.SkipDailyWhenWeeklyRuns,
+		schedule.CreatedBy,
+		schedule.CreatedAt,
+		schedule.UpdatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("insert standup schedule: %w", err)
+	}
+
+	return nil
+}
+
+/*
+insertReminderRule inserts a reminder rule.
+*/
+func (s *SQLWorkspaceStore) insertReminderRule(
+	ctx context.Context,
+	tx *sqlx.Tx,
+	rule domain.ReminderRule,
+) error {
+	_, err := tx.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			INSERT INTO campfire_reminder_rules (
+				id,
+				workspace_id,
+				schedule_id,
+				enabled,
+				channel_reminder_enabled,
+				dm_reminder_enabled,
+				reminder_count,
+				interval_minutes,
+				start_offset_minutes,
+				mention_missing_in_channel,
+				created_by,
+				created_at,
+				updated_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`),
+		rule.ID.String(),
+		rule.WorkspaceID.String(),
+		rule.ScheduleID.String(),
+		rule.Enabled,
+		rule.ChannelReminderEnabled,
+		rule.DMReminderEnabled,
+		rule.ReminderCount,
+		rule.IntervalMinutes,
+		rule.StartOffsetMinutes,
+		rule.MentionMissingInChannel,
+		rule.CreatedBy,
+		rule.CreatedAt,
+		rule.UpdatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("insert reminder rule: %w", err)
+	}
+
+	return nil
+}
+
+/*
+insertReportRule inserts a report rule.
+*/
+func (s *SQLWorkspaceStore) insertReportRule(
+	ctx context.Context,
+	tx *sqlx.Tx,
+	rule domain.ReportRule,
+) error {
+	_, err := tx.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			INSERT INTO campfire_report_rules (
+				id,
+				workspace_id,
+				schedule_id,
+				enabled,
+				report_kind,
+				post_to_channel,
+				preview_required,
+				sort_mode,
+				include_on_leave,
+				include_missing,
+				include_time,
+				include_blockers,
+				created_by,
+				created_at,
+				updated_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`),
+		rule.ID.String(),
+		rule.WorkspaceID.String(),
+		rule.ScheduleID.String(),
+		rule.Enabled,
+		string(rule.ReportKind),
+		rule.PostToChannel,
+		rule.PreviewRequired,
+		string(rule.SortMode),
+		rule.IncludeOnLeave,
+		rule.IncludeMissing,
+		rule.IncludeTime,
+		rule.IncludeBlockers,
+		rule.CreatedBy,
+		rule.CreatedAt,
+		rule.UpdatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("insert report rule: %w", err)
 	}
 
 	return nil

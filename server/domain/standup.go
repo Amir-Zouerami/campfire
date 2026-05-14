@@ -25,6 +25,18 @@ const (
 )
 
 /*
+WeeklyMode identifies how weekly summaries are scheduled.
+*/
+type WeeklyMode string
+
+const (
+	/*
+		WeeklyModeLastWorkingDay runs weekly summaries on the workspace's last working day.
+	*/
+	WeeklyModeLastWorkingDay WeeklyMode = "last_working_day"
+)
+
+/*
 StandupTemplate defines a dynamic standup form for a workspace.
 */
 type StandupTemplate struct {
@@ -36,6 +48,31 @@ type StandupTemplate struct {
 	Kind        StandupKind
 
 	IsActive bool
+
+	CreatedBy string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+/*
+StandupSchedule defines when a daily or weekly standup runs.
+*/
+type StandupSchedule struct {
+	ID          ID
+	WorkspaceID ID
+	TemplateID  ID
+
+	Kind StandupKind
+
+	Enabled bool
+
+	TimeOfDay TimeOfDay
+
+	SkipNonWorkingDays bool
+
+	WeeklyMode WeeklyMode
+
+	SkipDailyWhenWeeklyRuns bool
 
 	CreatedBy string
 	CreatedAt time.Time
@@ -122,6 +159,18 @@ IsValid returns true when the standup kind is supported by Campfire.
 func (k StandupKind) IsValid() bool {
 	switch k {
 	case StandupKindDaily, StandupKindWeekly, StandupKindCustom:
+		return true
+	default:
+		return false
+	}
+}
+
+/*
+IsValid returns true when the weekly mode is supported by Campfire MVP.
+*/
+func (m WeeklyMode) IsValid() bool {
+	switch m {
+	case WeeklyModeLastWorkingDay:
 		return true
 	default:
 		return false
