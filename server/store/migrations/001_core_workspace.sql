@@ -90,6 +90,17 @@ CREATE UNIQUE INDEX ux_campfire_workspace_role_assignments_workspace_user_role
 CREATE INDEX idx_campfire_workspace_role_assignments_user
     ON campfire_workspace_role_assignments(user_id);
 
+CREATE TABLE IF NOT EXISTS campfire_global_skip_dates (
+    id VARCHAR(36) NOT NULL PRIMARY KEY,
+    date VARCHAR(10) NOT NULL,
+    label VARCHAR(255) NOT NULL,
+    created_by VARCHAR(64) NOT NULL,
+    created_at TIMESTAMP NOT NULL
+);
+
+CREATE UNIQUE INDEX ux_campfire_global_skip_dates_date
+    ON campfire_global_skip_dates(date);
+
 CREATE TABLE IF NOT EXISTS campfire_audit_log (
     id VARCHAR(36) NOT NULL PRIMARY KEY,
     workspace_id VARCHAR(36) NOT NULL,
@@ -114,4 +125,5 @@ DROP TABLE IF EXISTS campfire_workspace_role_assignments;
 DROP TABLE IF EXISTS campfire_workspace_role_settings;
 DROP TABLE IF EXISTS campfire_workspace_skip_dates;
 DROP TABLE IF EXISTS campfire_workspace_working_days;
+DROP TABLE IF EXISTS campfire_global_skip_dates;
 DROP TABLE IF EXISTS campfire_workspaces;

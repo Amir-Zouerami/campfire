@@ -193,7 +193,11 @@ func (s *WorkspaceService) Create(ctx context.Context, input CreateWorkspaceInpu
 	}
 
 	if input.CreateDefaultTemplates {
-		params.StandupTemplates = buildDefaultStandupTemplates(workspaceID, cleanActorUserID, now)
+		defaultSetup := buildDefaultWorkspaceSetup(workspaceID, cleanActorUserID, now)
+		params.StandupTemplates = defaultSetup.Templates
+		params.StandupSchedules = defaultSetup.Schedules
+		params.ReminderRules = defaultSetup.Reminders
+		params.ReportRules = defaultSetup.Reports
 	}
 
 	workspace, err := s.workspaceStore.Create(ctx, params)

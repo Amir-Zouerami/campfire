@@ -71,7 +71,7 @@ export function CampfireRoot(): ReactElement | null {
 					<section className="campfire-grid">
 						<article className="campfire-card">
 							<span>Today</span>
-							<strong>Standups, tasks, and who is out.</strong>
+							<strong>Standups, tasks, who is out, and a 09:00 → 09:55 reminder window.</strong>
 						</article>
 
 						<article className="campfire-card">

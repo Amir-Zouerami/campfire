@@ -517,14 +517,12 @@ func (s *SQLWorkspaceStore) insertReminderRule(
 				enabled,
 				channel_reminder_enabled,
 				dm_reminder_enabled,
-				reminder_count,
-				interval_minutes,
-				start_offset_minutes,
+				reminder_offsets_json,
 				mention_missing_in_channel,
 				created_by,
 				created_at,
 				updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`),
 		rule.ID.String(),
 		rule.WorkspaceID.String(),
@@ -532,9 +530,7 @@ func (s *SQLWorkspaceStore) insertReminderRule(
 		rule.Enabled,
 		rule.ChannelReminderEnabled,
 		rule.DMReminderEnabled,
-		rule.ReminderCount,
-		rule.IntervalMinutes,
-		rule.StartOffsetMinutes,
+		rule.ReminderOffsetsJSON,
 		rule.MentionMissingInChannel,
 		rule.CreatedBy,
 		rule.CreatedAt,

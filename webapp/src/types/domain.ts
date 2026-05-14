@@ -22,6 +22,11 @@ export type QuestionType =
 export type StandupKind = 'daily' | 'weekly' | 'custom';
 
 /**
+ * WeeklyMode identifies how weekly summaries are scheduled.
+ */
+export type WeeklyMode = 'last_working_day';
+
+/**
  * TaskStatus identifies the lifecycle state of a task.
  */
 export type TaskStatus = 'active' | 'completed' | 'blocked' | 'dropped' | 'archived';
@@ -40,6 +45,16 @@ export type LeaveHalfDayPart = 'morning' | 'afternoon';
  * LeaveStatus identifies the approval state of a leave request.
  */
 export type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+
+/**
+ * ReportKind identifies the type of report Campfire can generate.
+ */
+export type ReportKind = 'daily' | 'weekly' | 'blockers' | 'missing' | 'time';
+
+/**
+ * ReportSortMode identifies supported report sorting modes.
+ */
+export type ReportSortMode = 'name' | 'first_submitted' | 'last_submitted' | 'missing_first' | 'blockers_first';
 
 /**
  * LocalDate is a YYYY-MM-DD date string interpreted in a workspace timezone.
@@ -104,4 +119,75 @@ export type WorkspaceSkipDate = {
 	readonly label: string;
 	readonly createdBy: string;
 	readonly createdAt: string;
+};
+
+/**
+ * GlobalSkipDate describes a global Campfire off-day across all workspaces.
+ */
+export type GlobalSkipDate = {
+	readonly id: string;
+	readonly date: LocalDate;
+	readonly label: string;
+	readonly createdBy: string;
+	readonly createdAt: string;
+};
+
+/**
+ * StandupSchedule defines when a daily or weekly standup runs.
+ */
+export type StandupSchedule = {
+	readonly id: string;
+	readonly workspaceId: string;
+	readonly templateId: string;
+	readonly kind: StandupKind;
+	readonly enabled: boolean;
+	readonly timeOfDay: TimeOfDay;
+	readonly skipNonWorkingDays: boolean;
+	readonly weeklyMode: WeeklyMode | '';
+	readonly skipDailyWhenWeeklyRuns: boolean;
+	readonly createdBy: string;
+	readonly createdAt: string;
+	readonly updatedAt: string;
+};
+
+/**
+ * ReminderRule defines DM and channel reminder behavior.
+ *
+ * reminderOffsets are minute offsets from the schedule time.
+ * Example: schedule 09:00 with [0, 30, 45, 55] reminds at
+ * 09:00, 09:30, 09:45, and 09:55.
+ */
+export type ReminderRule = {
+	readonly id: string;
+	readonly workspaceId: string;
+	readonly scheduleId: string;
+	readonly enabled: boolean;
+	readonly channelReminderEnabled: boolean;
+	readonly dmReminderEnabled: boolean;
+	readonly reminderOffsets: readonly number[];
+	readonly mentionMissingInChannel: boolean;
+	readonly createdBy: string;
+	readonly createdAt: string;
+	readonly updatedAt: string;
+};
+
+/**
+ * ReportRule defines generated report behavior for a schedule.
+ */
+export type ReportRule = {
+	readonly id: string;
+	readonly workspaceId: string;
+	readonly scheduleId: string;
+	readonly enabled: boolean;
+	readonly reportKind: ReportKind;
+	readonly postToChannel: boolean;
+	readonly previewRequired: boolean;
+	readonly sortMode: ReportSortMode;
+	readonly includeOnLeave: boolean;
+	readonly includeMissing: boolean;
+	readonly includeTime: boolean;
+	readonly includeBlockers: boolean;
+	readonly createdBy: string;
+	readonly createdAt: string;
+	readonly updatedAt: string;
 };
