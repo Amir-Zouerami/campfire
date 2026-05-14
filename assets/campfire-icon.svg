@@ -1,0 +1,50 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="164" y1="104" x2="860" y2="920" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#172033"/>
+      <stop offset="1" stop-color="#0B1020"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(512 590) rotate(90) scale(370)">
+      <stop stop-color="#FFB45C" stop-opacity="0.34"/>
+      <stop offset="0.58" stop-color="#FF7A1A" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#FF7A1A" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="outerFlame" x1="510" y1="224" x2="510" y2="716" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFD166"/>
+      <stop offset="0.46" stop-color="#FF7A1A"/>
+      <stop offset="1" stop-color="#E84A1A"/>
+    </linearGradient>
+    <linearGradient id="innerFlame" x1="519" y1="386" x2="519" y2="690" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF3A3"/>
+      <stop offset="0.54" stop-color="#FFC247"/>
+      <stop offset="1" stop-color="#FF8A1F"/>
+    </linearGradient>
+    <linearGradient id="log" x1="298" y1="698" x2="732" y2="808" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFE2B6"/>
+      <stop offset="1" stop-color="#FF9C3A"/>
+    </linearGradient>
+    <filter id="softShadow" x="220" y="170" width="584" height="686" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="28" flood-color="#000000" flood-opacity="0.34"/>
+    </filter>
+    <filter id="logShadow" x="238" y="628" width="548" height="196" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <rect x="64" y="64" width="896" height="896" rx="220" fill="url(#bg)"/>
+  <circle cx="512" cy="590" r="360" fill="url(#glow)"/>
+
+  <g filter="url(#softShadow)">
+    <path d="M512 734C414 734 344 667 344 568C344 469 428 407 465 333C477 309 484 279 485 239C485 231 495 227 501 233C587 314 639 400 646 491C662 470 673 443 678 411C679 402 691 399 696 406C737 460 760 519 760 579C760 670 686 734 512 734Z" fill="url(#outerFlame)"/>
+    <path d="M516 717C447 717 398 671 398 604C398 547 439 511 472 464C495 431 508 397 511 366C512 358 522 355 527 361C594 438 625 499 616 570C631 555 642 537 650 514C653 506 664 505 668 512C688 546 699 578 699 608C699 674 634 717 516 717Z" fill="url(#innerFlame)"/>
+  </g>
+
+  <g filter="url(#logShadow)" stroke-linecap="round">
+    <path d="M321 735L704 662" stroke="url(#log)" stroke-width="72"/>
+    <path d="M703 735L320 662" stroke="url(#log)" stroke-width="72"/>
+    <path d="M322 662L700 734" stroke="#7A3216" stroke-opacity="0.22" stroke-width="22"/>
+    <path d="M704 662L324 734" stroke="#7A3216" stroke-opacity="0.22" stroke-width="22"/>
+  </g>
+
+  <circle cx="512" cy="512" r="454" stroke="#FFFFFF" stroke-opacity="0.06" stroke-width="12"/>
+</svg>

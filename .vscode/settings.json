@@ -1,0 +1,13 @@
+{
+    "workbench.colorCustomizations": {
+        "statusBar.background": "#c22cb0",
+        "statusBar.foreground": "#e7e7e7",
+        "statusBarItem.hoverBackground": "#d64bc5",
+        "statusBarItem.remoteBackground": "#c22cb0",
+        "statusBarItem.remoteForeground": "#e7e7e7"
+    },
+    "peacock.color": "#c22cb0",
+    "cSpell.words": [
+        "keyvals"
+    ]
+}
