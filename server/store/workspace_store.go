@@ -42,6 +42,7 @@ WorkspaceStore defines persistence operations for workspace configuration.
 type WorkspaceStore interface {
 	GetByID(ctx context.Context, workspaceID domain.ID) (*domain.Workspace, error)
 	GetByChannelID(ctx context.Context, channelID string) (*domain.Workspace, error)
+	ListActive(ctx context.Context) ([]domain.Workspace, error)
 	Create(ctx context.Context, params CreateWorkspaceParams) (*domain.Workspace, error)
 }
 
@@ -135,6 +136,42 @@ func (s *SQLWorkspaceStore) GetByChannelID(ctx context.Context, channelID string
 	workspace := record.toDomain()
 
 	return &workspace, nil
+}
+
+/*
+ListActive returns all active Campfire workspaces.
+*/
+func (s *SQLWorkspaceStore) ListActive(ctx context.Context) ([]domain.Workspace, error) {
+	records := []workspaceRecord{}
+
+	query := s.db.Rebind(`
+		SELECT
+			id,
+			team_id,
+			channel_id,
+			name,
+			description,
+			board_url,
+			timezone,
+			created_by,
+			created_at,
+			updated_at,
+			is_archived
+		FROM campfire_workspaces
+		WHERE is_archived = FALSE
+		ORDER BY created_at ASC
+	`)
+
+	if err := s.db.SelectContext(ctx, &records, query); err != nil {
+		return nil, fmt.Errorf("list active workspaces: %w", err)
+	}
+
+	workspaces := make([]domain.Workspace, 0, len(records))
+	for _, record := range records {
+		workspaces = append(workspaces, record.toDomain())
+	}
+
+	return workspaces, nil
 }
 
 /*

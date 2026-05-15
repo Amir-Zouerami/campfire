@@ -41,8 +41,12 @@ func (p *Plugin) OnActivate() error {
 	}
 
 	p.application = application
+	p.application.Start()
 
 	if err := p.registerCommands(); err != nil {
+		p.application.Shutdown()
+		p.application = nil
+
 		return err
 	}
 

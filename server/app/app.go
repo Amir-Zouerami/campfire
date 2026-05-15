@@ -3,10 +3,12 @@ package app
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/amir-zouerami/campfire/server/api"
 	"github.com/amir-zouerami/campfire/server/logger"
 	"github.com/amir-zouerami/campfire/server/mattermost"
+	"github.com/amir-zouerami/campfire/server/scheduler"
 	"github.com/amir-zouerami/campfire/server/service"
 	"github.com/amir-zouerami/campfire/server/store"
 	"github.com/mattermost/mattermost/server/public/model"
@@ -49,6 +51,7 @@ type App struct {
 	StandupRuntimeService    *service.StandupRuntimeService
 	StandupService           *service.StandupService
 	ReportService            *service.ReportService
+	Scheduler                *scheduler.Runner
 }
 
 /*
@@ -160,6 +163,12 @@ func New(config Config) (*App, error) {
 		reportPublisher,
 	)
 
+	schedulerRunner := scheduler.NewRunner(scheduler.Config{
+		Logger:            appLogger,
+		WorkspaceProvider: workspaceStore,
+		Interval:          time.Minute,
+	})
+
 	router := api.NewRouter(api.RouterConfig{
 		Logger:                   appLogger,
 		Mattermost:               mattermostClient,
@@ -189,13 +198,27 @@ func New(config Config) (*App, error) {
 		StandupRuntimeService:    standupRuntimeService,
 		StandupService:           standupService,
 		ReportService:            reportService,
+		Scheduler:                schedulerRunner,
 	}, nil
+}
+
+/*
+Start begins application-owned background work.
+*/
+func (a *App) Start() {
+	if a.Scheduler != nil {
+		a.Scheduler.Start()
+	}
 }
 
 /*
 Shutdown releases resources owned by the application container.
 */
 func (a *App) Shutdown() {
+	if a.Scheduler != nil {
+		a.Scheduler.Stop()
+	}
+
 	if a.Database != nil {
 		if err := a.Database.Close(); err != nil {
 			a.Logger.Warn("failed to close Campfire database", logger.String("message", err.Error()))
