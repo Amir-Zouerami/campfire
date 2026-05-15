@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 
-import { ApiClientError, cancelLeaveRequest, listMyPendingLeaveRequests } from '../api/client';
+import { ApiClientError, cancelLeaveRequest, listMyActiveLeaveRequests } from '../api/client';
 import type { PendingLeaveRequest, Workspace } from '../types/domain';
 
 /**
@@ -19,7 +19,9 @@ type MyPendingLeavesCardProps = {
 type LoadState = 'idle' | 'loading' | 'ready' | 'saving' | 'error';
 
 /**
- * MyPendingLeavesCard renders pending leave requests created by the current user.
+ * MyPendingLeavesCard renders active leave requests created by the current user.
+ *
+ * Active leave requests are pending or approved requests that can still be cancelled.
  */
 export function MyPendingLeavesCard(props: MyPendingLeavesCardProps): ReactElement {
 	const [loadState, setLoadState] = useState<LoadState>('idle');
@@ -29,12 +31,12 @@ export function MyPendingLeavesCard(props: MyPendingLeavesCardProps): ReactEleme
 	useEffect(() => {
 		let isActive = true;
 
-		async function loadMyPendingLeaves(): Promise<void> {
+		async function loadMyActiveLeaves(): Promise<void> {
 			setLoadState('loading');
 			setMessage('');
 
 			try {
-				const response = await listMyPendingLeaveRequests(props.workspace.id);
+				const response = await listMyActiveLeaveRequests(props.workspace.id);
 
 				if (!isActive) {
 					return;
@@ -52,7 +54,7 @@ export function MyPendingLeavesCard(props: MyPendingLeavesCardProps): ReactEleme
 			}
 		}
 
-		void loadMyPendingLeaves();
+		void loadMyActiveLeaves();
 
 		return () => {
 			isActive = false;
@@ -60,7 +62,7 @@ export function MyPendingLeavesCard(props: MyPendingLeavesCardProps): ReactEleme
 	}, [props.workspace.id, props.refreshToken]);
 
 	/**
-	 * Cancels a pending leave request.
+	 * Cancels a pending or approved leave request.
 	 */
 	async function handleCancel(leaveRequestID: string): Promise<void> {
 		setLoadState('saving');
@@ -89,16 +91,16 @@ export function MyPendingLeavesCard(props: MyPendingLeavesCardProps): ReactEleme
 						My leaves
 					</p>
 					<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-						My pending leave requests
+						My active leave requests
 					</h2>
 					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						Pending requests can be cancelled before an approver decides them. Approvers receive a Campfire
-						DM when you cancel.
+						Pending and approved requests can be cancelled. Approved cancellations are announced in the
+						channel.
 					</p>
 				</div>
 
 				<div className="cf:w-fit cf:rounded-full cf:border cf:border-sky-300/25 cf:bg-sky-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-sky-200">
-					{leaveRequests.length} pending
+					{leaveRequests.length} active
 				</div>
 			</div>
 
@@ -106,11 +108,11 @@ export function MyPendingLeavesCard(props: MyPendingLeavesCardProps): ReactEleme
 
 			<div className="cf:mt-5 cf:grid cf:gap-4">
 				{loadState === 'loading' && (
-					<p className="cf:m-0 cf:text-slate-300">Loading your pending leave requests…</p>
+					<p className="cf:m-0 cf:text-slate-300">Loading your active leave requests…</p>
 				)}
 
 				{loadState !== 'loading' && leaveRequests.length === 0 && (
-					<p className="cf:m-0 cf:text-slate-300">You have no pending leave requests.</p>
+					<p className="cf:m-0 cf:text-slate-300">You have no active leave requests.</p>
 				)}
 
 				{leaveRequests.map(item => (
@@ -193,5 +195,5 @@ function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not update your pending leave request.';
+	return 'Could not update your leave request.';
 }

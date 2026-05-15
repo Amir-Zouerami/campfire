@@ -30,6 +30,7 @@ import type {
 	PostDailyReportPreviewRequest,
 	PostDailyReportPreviewResponse,
 	ListDailyReportRunsResponse,
+	ListMyActiveLeaveRequestsResponse,
 } from '../types/api';
 
 const pluginID = 'dev.zouerami.campfire';
@@ -124,6 +125,13 @@ export async function listMyPendingLeaveRequests(workspaceID: string): Promise<L
 	return apiGet<ListMyPendingLeaveRequestsResponse>(
 		`/workspaces/${encodeURIComponent(workspaceID)}/leaves/my-pending`,
 	);
+}
+
+/**
+ * listMyActiveLeaveRequests loads the current user's pending and approved leave requests.
+ */
+export async function listMyActiveLeaveRequests(workspaceID: string): Promise<ListMyActiveLeaveRequestsResponse> {
+	return apiGet<ListMyActiveLeaveRequestsResponse>(`/workspaces/${encodeURIComponent(workspaceID)}/leaves/my-active`);
 }
 
 /**
@@ -261,7 +269,7 @@ export async function decideLeaveRequest(
 }
 
 /**
- * cancelLeaveRequest cancels a pending leave request.
+ * cancelLeaveRequest cancels a pending or approved leave request.
  */
 export async function cancelLeaveRequest(leaveRequestID: string): Promise<CancelLeaveRequestResponse> {
 	return apiPost<Record<string, never>, CancelLeaveRequestResponse>(

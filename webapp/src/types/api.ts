@@ -133,6 +133,13 @@ export type ListMyPendingLeaveRequestsResponse = {
 };
 
 /**
+ * ListMyActiveLeaveRequestsResponse is returned by the current user's active leave request endpoint.
+ */
+export type ListMyActiveLeaveRequestsResponse = {
+	readonly leaveRequests: readonly PendingLeaveRequest[];
+};
+
+/**
  * ListApprovedLeaveRequestsResponse is returned by GET /workspaces/{workspaceID}/leaves/approved.
  */
 export type ListApprovedLeaveRequestsResponse = {
