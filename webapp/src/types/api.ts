@@ -12,6 +12,9 @@ import type {
 	Workspace,
 	WorkspaceCapabilities,
 	StandupRunDecision,
+	StandupQuestion,
+	StandupTemplate,
+	StandupSchedule,
 } from './domain';
 
 /**
@@ -135,6 +138,15 @@ export type ListApprovedLeaveRequestsResponse = {
  */
 export type EvaluateStandupDayResponse = {
 	readonly decision: StandupRunDecision;
+};
+
+/**
+ * ListStandupConfigurationResponse is returned by GET /workspaces/{workspaceID}/standups/configuration.
+ */
+export type ListStandupConfigurationResponse = {
+	readonly templates: readonly StandupTemplate[];
+	readonly questions: readonly StandupQuestion[];
+	readonly schedules: readonly StandupSchedule[];
 };
 
 /**

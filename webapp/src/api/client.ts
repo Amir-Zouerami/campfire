@@ -21,6 +21,7 @@ import type {
 	WorkspaceByChannelResponse,
 	ListApprovedLeaveRequestsResponse,
 	EvaluateStandupDayResponse,
+	ListStandupConfigurationResponse,
 } from '../types/api';
 
 const pluginID = 'dev.zouerami.campfire';
@@ -145,6 +146,15 @@ export async function evaluateStandupDay(workspaceID: string, date: string): Pro
 
 	return apiGet<EvaluateStandupDayResponse>(
 		`/workspaces/${encodeURIComponent(workspaceID)}/standup-runtime/day?${params.toString()}`,
+	);
+}
+
+/**
+ * listStandupConfiguration loads standup templates, questions, and schedules.
+ */
+export async function listStandupConfiguration(workspaceID: string): Promise<ListStandupConfigurationResponse> {
+	return apiGet<ListStandupConfigurationResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/standups/configuration`,
 	);
 }
 

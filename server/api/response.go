@@ -237,3 +237,16 @@ func WriteEvaluateStandupDay(w http.ResponseWriter, statusCode int, payload Eval
 		return encoder.Encode(payload)
 	}, "failed to encode standup runtime day evaluation response")
 }
+
+/*
+WriteListStandupConfiguration writes the standup configuration response.
+*/
+func WriteListStandupConfiguration(
+	w http.ResponseWriter,
+	statusCode int,
+	payload ListStandupConfigurationResponse,
+) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode standup configuration response")
+}

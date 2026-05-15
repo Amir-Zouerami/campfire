@@ -239,6 +239,45 @@ export type StandupSchedule = {
 };
 
 /**
+ * StandupTemplate defines a reusable standup form.
+ */
+export type StandupTemplate = {
+	readonly id: string;
+	readonly workspaceId: string;
+	readonly name: string;
+	readonly description: string;
+	readonly kind: StandupKind;
+	readonly isDefault: boolean;
+	readonly isActive: boolean;
+	readonly createdBy: string;
+	readonly createdAt: string;
+	readonly updatedAt: string;
+};
+
+/**
+ * StandupQuestion defines one question inside a standup template.
+ */
+export type StandupQuestion = {
+	readonly id: string;
+	readonly workspaceId: string;
+	readonly templateId: string;
+	readonly section: string;
+	readonly questionKey: string;
+	readonly label: string;
+	readonly prompt: string;
+	readonly helpText: string;
+	readonly placeholder: string;
+	readonly type: QuestionType;
+	readonly required: boolean;
+	readonly showInReport: boolean;
+	readonly isPrivate: boolean;
+	readonly position: number;
+	readonly options: readonly string[];
+	readonly createdAt: string;
+	readonly updatedAt: string;
+};
+
+/**
  * ReminderRule defines DM and channel reminder behavior.
  *
  * reminderOffsets are minute offsets from the schedule time.

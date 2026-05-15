@@ -3,41 +3,7 @@ package domain
 import "time"
 
 /*
-StandupKind identifies the type of standup template or schedule.
-*/
-type StandupKind string
-
-const (
-	/*
-		StandupKindDaily identifies a daily standup.
-	*/
-	StandupKindDaily StandupKind = "daily"
-
-	/*
-		StandupKindWeekly identifies a weekly summary.
-	*/
-	StandupKindWeekly StandupKind = "weekly"
-
-	/*
-		StandupKindCustom identifies a custom future standup type.
-	*/
-	StandupKindCustom StandupKind = "custom"
-)
-
-/*
-WeeklyMode identifies how weekly summaries are scheduled.
-*/
-type WeeklyMode string
-
-const (
-	/*
-		WeeklyModeLastWorkingDay runs weekly summaries on the workspace's last working day.
-	*/
-	WeeklyModeLastWorkingDay WeeklyMode = "last_working_day"
-)
-
-/*
-StandupTemplate defines a dynamic standup form for a workspace.
+StandupTemplate defines a reusable standup form.
 */
 type StandupTemplate struct {
 	ID          ID
@@ -47,7 +13,8 @@ type StandupTemplate struct {
 	Description string
 	Kind        StandupKind
 
-	IsActive bool
+	IsDefault bool
+	IsActive  bool
 
 	CreatedBy string
 	CreatedAt time.Time
@@ -55,23 +22,54 @@ type StandupTemplate struct {
 }
 
 /*
-StandupSchedule defines when a daily or weekly standup runs.
+StandupQuestion defines one question inside a standup template.
+
+The fields intentionally match Campfire's seeded workspace schema so workspace
+creation, configuration listing, and future submission validation all use one
+domain model.
+*/
+type StandupQuestion struct {
+	ID          ID
+	WorkspaceID ID
+	TemplateID  ID
+
+	Section     string
+	QuestionKey string
+	Label       string
+	Prompt      string
+	HelpText    string
+	Placeholder string
+
+	Type     QuestionType
+	Required bool
+
+	ShowInReport bool
+	IsPrivate    bool
+
+	Position    int
+	SortOrder   int
+	OptionsJSON string
+	Options     []string
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+/*
+StandupSchedule defines when a standup template runs.
 */
 type StandupSchedule struct {
 	ID          ID
 	WorkspaceID ID
 	TemplateID  ID
 
-	Kind StandupKind
-
+	Kind    StandupKind
 	Enabled bool
 
 	TimeOfDay TimeOfDay
 
-	SkipNonWorkingDays bool
-
-	WeeklyMode WeeklyMode
-
+	SkipNonWorkingDays      bool
+	WeeklyMode              WeeklyMode
 	SkipDailyWhenWeeklyRuns bool
 
 	CreatedBy string
@@ -80,118 +78,129 @@ type StandupSchedule struct {
 }
 
 /*
-QuestionType identifies the supported dynamic standup question type.
+StandupKind identifies a standup template or schedule kind.
+*/
+type StandupKind string
+
+const (
+	/*
+		StandupKindDaily identifies daily standups.
+	*/
+	StandupKindDaily StandupKind = "daily"
+
+	/*
+		StandupKindWeekly identifies weekly summaries.
+	*/
+	StandupKindWeekly StandupKind = "weekly"
+
+	/*
+		StandupKindCustom identifies future custom standup schedules.
+	*/
+	StandupKindCustom StandupKind = "custom"
+)
+
+/*
+QuestionType identifies supported dynamic standup question types.
 */
 type QuestionType string
 
 const (
 	/*
-		QuestionText is a single-line text answer.
+		QuestionTypeText stores a short text answer.
 	*/
-	QuestionText QuestionType = "text"
+	QuestionTypeText QuestionType = "text"
 
 	/*
-		QuestionLongText is a multi-line text answer.
+		QuestionTypeLongText stores a longer text answer.
 	*/
-	QuestionLongText QuestionType = "long_text"
+	QuestionTypeLongText QuestionType = "long_text"
 
 	/*
-		QuestionCheckbox is a checkbox or checkbox-group answer.
+		QuestionTypeCheckbox stores a checkbox answer.
 	*/
-	QuestionCheckbox QuestionType = "checkbox"
+	QuestionTypeCheckbox QuestionType = "checkbox"
 
 	/*
-		QuestionBoolean is a true/false answer.
+		QuestionTypeBoolean stores a true/false answer.
 	*/
-	QuestionBoolean QuestionType = "boolean"
+	QuestionTypeBoolean QuestionType = "boolean"
 
 	/*
-		QuestionDropdown is a single-select dropdown answer.
+		QuestionTypeDropdown stores one selected option.
 	*/
-	QuestionDropdown QuestionType = "dropdown"
+	QuestionTypeDropdown QuestionType = "dropdown"
 
 	/*
-		QuestionMultiSelect is a multi-select answer.
+		QuestionTypeMultiSelect stores multiple selected options.
 	*/
-	QuestionMultiSelect QuestionType = "multi_select"
+	QuestionTypeMultiSelect QuestionType = "multi_select"
 
 	/*
-		QuestionNumber is a numeric answer.
+		QuestionTypeNumber stores a numeric answer.
 	*/
-	QuestionNumber QuestionType = "number"
+	QuestionTypeNumber QuestionType = "number"
 
 	/*
-		QuestionDuration is a duration answer stored in minutes.
+		QuestionTypeDuration stores a duration answer.
 	*/
-	QuestionDuration QuestionType = "duration"
+	QuestionTypeDuration QuestionType = "duration"
+)
+
+const (
+	/*
+		QuestionText is a backwards-compatible alias for short text questions.
+	*/
+	QuestionText = QuestionTypeText
+
+	/*
+		QuestionLongText is a backwards-compatible alias for long text questions.
+	*/
+	QuestionLongText = QuestionTypeLongText
+
+	/*
+		QuestionCheckbox is a backwards-compatible alias for checkbox questions.
+	*/
+	QuestionCheckbox = QuestionTypeCheckbox
+
+	/*
+		QuestionBoolean is a backwards-compatible alias for true/false questions.
+	*/
+	QuestionBoolean = QuestionTypeBoolean
+
+	/*
+		QuestionDropdown is a backwards-compatible alias for dropdown questions.
+	*/
+	QuestionDropdown = QuestionTypeDropdown
+
+	/*
+		QuestionMultiSelect is a backwards-compatible alias for multi-select questions.
+	*/
+	QuestionMultiSelect = QuestionTypeMultiSelect
+
+	/*
+		QuestionNumber is a backwards-compatible alias for number questions.
+	*/
+	QuestionNumber = QuestionTypeNumber
+
+	/*
+		QuestionDuration is a backwards-compatible alias for duration questions.
+	*/
+	QuestionDuration = QuestionTypeDuration
 )
 
 /*
-StandupQuestion defines one dynamic question inside a standup template.
+WeeklyMode identifies how weekly summaries are scheduled.
 */
-type StandupQuestion struct {
-	ID          ID
-	TemplateID  ID
-	WorkspaceID ID
+type WeeklyMode string
 
-	Section     string
-	Label       string
-	HelpText    string
-	Placeholder string
+const (
+	/*
+		WeeklyModeNone means no weekly mode is configured.
+	*/
+	WeeklyModeNone WeeklyMode = ""
 
-	Type QuestionType
-
-	Required     bool
-	ShowInReport bool
-	IsPrivate    bool
-
-	Position int
-
-	OptionsJSON string
-
-	CreatedAt time.Time
-	UpdatedAt time.Time
-}
-
-/*
-IsValid returns true when the standup kind is supported by Campfire.
-*/
-func (k StandupKind) IsValid() bool {
-	switch k {
-	case StandupKindDaily, StandupKindWeekly, StandupKindCustom:
-		return true
-	default:
-		return false
-	}
-}
-
-/*
-IsValid returns true when the weekly mode is supported by Campfire MVP.
-*/
-func (m WeeklyMode) IsValid() bool {
-	switch m {
-	case WeeklyModeLastWorkingDay:
-		return true
-	default:
-		return false
-	}
-}
-
-/*
-IsValid returns true when the question type is supported by Campfire MVP.
-*/
-func (q QuestionType) IsValid() bool {
-	switch q {
-	case QuestionText,
-		QuestionLongText,
-		QuestionCheckbox,
-		QuestionBoolean,
-		QuestionDropdown,
-		QuestionMultiSelect,
-		QuestionNumber,
-		QuestionDuration:
-		return true
-	default:
-		return false
-	}
-}
+	/*
+		WeeklyModeLastWorkingDay means the weekly summary runs on the last working day.
+	*/
+	WeeklyModeLastWorkingDay WeeklyMode = "last_working_day"
+)

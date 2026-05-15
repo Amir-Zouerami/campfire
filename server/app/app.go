@@ -44,6 +44,7 @@ type App struct {
 	LeaveValidationService *service.LeaveValidationService
 	LeaveService           *service.LeaveService
 	StandupRuntimeService  *service.StandupRuntimeService
+	StandupService         *service.StandupService
 }
 
 /*
@@ -96,6 +97,8 @@ func New(config Config) (*App, error) {
 	leaveValidationService := service.NewLeaveValidationService(globalSkipDateStore)
 
 	leaveStore := store.NewSQLLeaveStore(database)
+	standupStore := store.NewSQLStandupStore(database)
+
 	notificationPublisher := mattermost.NewNotificationPublisher(config.API, botUserID)
 	workspaceMemberProvider := mattermost.NewWorkspaceMemberProvider(config.API)
 
@@ -115,6 +118,11 @@ func New(config Config) (*App, error) {
 		workspaceMemberProvider,
 	)
 
+	standupService := service.NewStandupService(
+		workspaceStore,
+		standupStore,
+	)
+
 	router := api.NewRouter(api.RouterConfig{
 		Logger:                 appLogger,
 		Mattermost:             mattermostClient,
@@ -123,6 +131,7 @@ func New(config Config) (*App, error) {
 		LeaveValidationService: leaveValidationService,
 		LeaveService:           leaveService,
 		StandupRuntimeService:  standupRuntimeService,
+		StandupService:         standupService,
 	})
 
 	return &App{
@@ -135,6 +144,7 @@ func New(config Config) (*App, error) {
 		LeaveValidationService: leaveValidationService,
 		LeaveService:           leaveService,
 		StandupRuntimeService:  standupRuntimeService,
+		StandupService:         standupService,
 	}, nil
 }
 

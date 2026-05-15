@@ -20,6 +20,7 @@ type RouterConfig struct {
 	LeaveValidationService *service.LeaveValidationService
 	LeaveService           *service.LeaveService
 	StandupRuntimeService  *service.StandupRuntimeService
+	StandupService         *service.StandupService
 }
 
 /*
@@ -42,6 +43,15 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Post("/workspaces", handleCreateWorkspace(config.Logger, config.WorkspaceService))
 
 		api.Get(
+			"/workspaces/{workspaceID}/standups/configuration",
+			handleListStandupConfiguration(config.Logger, config.Mattermost, config.StandupService),
+		)
+		api.Get(
+			"/workspaces/{workspaceID}/standup-runtime/day",
+			handleEvaluateStandupDay(config.Logger, config.Mattermost, config.StandupRuntimeService),
+		)
+
+		api.Get(
 			"/workspaces/{workspaceID}/leave-types",
 			handleListLeaveTypes(config.Logger, config.Mattermost, config.LeaveService),
 		)
@@ -56,10 +66,6 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Get(
 			"/workspaces/{workspaceID}/leaves/approved",
 			handleListApprovedLeaveRequests(config.Logger, config.Mattermost, config.LeaveService),
-		)
-		api.Get(
-			"/workspaces/{workspaceID}/standup-runtime/day",
-			handleEvaluateStandupDay(config.Logger, config.Mattermost, config.StandupRuntimeService),
 		)
 
 		api.Get(
