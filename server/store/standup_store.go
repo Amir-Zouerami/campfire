@@ -35,6 +35,11 @@ type StandupStore interface {
 	ListTemplatesByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.StandupTemplate, error)
 	ListQuestionsByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.StandupQuestion, error)
 	ListSchedulesByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.StandupSchedule, error)
+	ListSubmissionsWithAnswersByWorkspaceIDAndDate(
+		ctx context.Context,
+		workspaceID domain.ID,
+		occurrenceDate domain.LocalDate,
+	) ([]domain.StandupSubmissionWithAnswers, error)
 	UpsertSubmission(ctx context.Context, params UpsertStandupSubmissionParams) (*UpsertStandupSubmissionResult, error)
 }
 
@@ -193,6 +198,92 @@ func (s *SQLStandupStore) ListSchedulesByWorkspaceID(
 	}
 
 	return schedules, nil
+}
+
+/*
+ListSubmissionsWithAnswersByWorkspaceIDAndDate returns submissions and answers for one occurrence date.
+*/
+func (s *SQLStandupStore) ListSubmissionsWithAnswersByWorkspaceIDAndDate(
+	ctx context.Context,
+	workspaceID domain.ID,
+	occurrenceDate domain.LocalDate,
+) ([]domain.StandupSubmissionWithAnswers, error) {
+	submissionRecords := []standupSubmissionRecord{}
+
+	err := s.db.SelectContext(
+		ctx,
+		&submissionRecords,
+		s.db.Rebind(`
+			SELECT
+				id,
+				workspace_id,
+				template_id,
+				schedule_id,
+				user_id,
+				occurrence_date,
+				first_submitted_at,
+				last_updated_at,
+				status,
+				created_at,
+				updated_at
+			FROM campfire_standup_submissions
+			WHERE workspace_id = ?
+				AND occurrence_date = ?
+			ORDER BY first_submitted_at ASC, user_id ASC
+		`),
+		workspaceID.String(),
+		occurrenceDate.String(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list standup submissions: %w", err)
+	}
+
+	answerRecords := []standupAnswerRecord{}
+
+	err = s.db.SelectContext(
+		ctx,
+		&answerRecords,
+		s.db.Rebind(`
+			SELECT
+				answers.id,
+				answers.submission_id,
+				answers.workspace_id,
+				answers.question_id,
+				answers.value_json,
+				answers.created_at,
+				answers.updated_at
+			FROM campfire_standup_answers answers
+			INNER JOIN campfire_standup_submissions submissions
+				ON submissions.id = answers.submission_id
+			WHERE submissions.workspace_id = ?
+				AND submissions.occurrence_date = ?
+			ORDER BY answers.submission_id ASC, answers.created_at ASC
+		`),
+		workspaceID.String(),
+		occurrenceDate.String(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list standup answers: %w", err)
+	}
+
+	answersBySubmissionID := map[string][]domain.StandupAnswer{}
+	for _, record := range answerRecords {
+		answer := record.toDomain()
+		submissionID := answer.SubmissionID.String()
+		answersBySubmissionID[submissionID] = append(answersBySubmissionID[submissionID], answer)
+	}
+
+	results := make([]domain.StandupSubmissionWithAnswers, 0, len(submissionRecords))
+	for _, record := range submissionRecords {
+		submission := record.toDomain()
+
+		results = append(results, domain.StandupSubmissionWithAnswers{
+			Submission: submission,
+			Answers:    answersBySubmissionID[submission.ID.String()],
+		})
+	}
+
+	return results, nil
 }
 
 /*
@@ -641,5 +732,33 @@ func (r standupSubmissionRecord) toDomain() domain.StandupSubmission {
 		Status:           domain.StandupSubmissionStatus(r.Status),
 		CreatedAt:        parseStoredTime(r.CreatedAt),
 		UpdatedAt:        parseStoredTime(r.UpdatedAt),
+	}
+}
+
+/*
+standupAnswerRecord represents a row from campfire_standup_answers.
+*/
+type standupAnswerRecord struct {
+	ID           string    `db:"id"`
+	SubmissionID string    `db:"submission_id"`
+	WorkspaceID  string    `db:"workspace_id"`
+	QuestionID   string    `db:"question_id"`
+	ValueJSON    string    `db:"value_json"`
+	CreatedAt    time.Time `db:"created_at"`
+	UpdatedAt    time.Time `db:"updated_at"`
+}
+
+/*
+toDomain maps a standup answer record to the domain model.
+*/
+func (r standupAnswerRecord) toDomain() domain.StandupAnswer {
+	return domain.StandupAnswer{
+		ID:           domain.ID(r.ID),
+		SubmissionID: domain.ID(r.SubmissionID),
+		WorkspaceID:  domain.ID(r.WorkspaceID),
+		QuestionID:   domain.ID(r.QuestionID),
+		ValueJSON:    r.ValueJSON,
+		CreatedAt:    parseStoredTime(r.CreatedAt),
+		UpdatedAt:    parseStoredTime(r.UpdatedAt),
 	}
 }

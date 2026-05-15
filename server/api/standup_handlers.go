@@ -46,6 +46,42 @@ func handleListStandupConfiguration(
 }
 
 /*
+handleListStandupSubmissions handles listing submissions for one workspace occurrence date.
+*/
+func handleListStandupSubmissions(
+	log logger.Logger,
+	mm mattermost.Client,
+	standupService *service.StandupService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+
+		summary, err := standupService.ListSubmissions(r.Context(), service.ListStandupSubmissionsInput{
+			ActorUserID:    user.ID,
+			WorkspaceID:    workspaceID,
+			OccurrenceDate: r.URL.Query().Get("occurrenceDate"),
+			SortMode:       r.URL.Query().Get("sortMode"),
+		})
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WriteListStandupSubmissions(
+			w,
+			http.StatusOK,
+			StandupOccurrenceSummaryToPayload(*summary),
+		)
+	}
+}
+
+/*
 handleSubmitStandup handles creating or updating a standup submission.
 */
 func handleSubmitStandup(

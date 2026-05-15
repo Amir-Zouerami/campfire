@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sort"
 	"strings"
 	"time"
 
@@ -19,6 +20,32 @@ type StandupConfiguration struct {
 	Templates []domain.StandupTemplate
 	Questions []domain.StandupQuestion
 	Schedules []domain.StandupSchedule
+}
+
+/*
+StandupOccurrenceSummary contains submissions and missing-user data for one date.
+*/
+type StandupOccurrenceSummary struct {
+	WorkspaceID    string
+	OccurrenceDate string
+	SortMode       domain.StandupSubmissionSortMode
+
+	MemberUserIDs    []string
+	SubmittedUserIDs []string
+	MissingUserIDs   []string
+	OnLeaveUserIDs   []string
+
+	Submissions []domain.StandupSubmissionWithAnswers
+}
+
+/*
+ListStandupSubmissionsInput contains standup occurrence listing filters.
+*/
+type ListStandupSubmissionsInput struct {
+	ActorUserID    string
+	WorkspaceID    string
+	OccurrenceDate string
+	SortMode       string
 }
 
 /*
@@ -63,6 +90,8 @@ StandupService owns standup template, schedule, and submission behavior.
 type StandupService struct {
 	workspaceStore store.WorkspaceStore
 	standupStore   store.StandupStore
+	leaveStore     store.LeaveStore
+	memberProvider WorkspaceMemberProvider
 }
 
 /*
@@ -71,10 +100,14 @@ NewStandupService creates a standup service.
 func NewStandupService(
 	workspaceStore store.WorkspaceStore,
 	standupStore store.StandupStore,
+	leaveStore store.LeaveStore,
+	memberProvider WorkspaceMemberProvider,
 ) *StandupService {
 	return &StandupService{
 		workspaceStore: workspaceStore,
 		standupStore:   standupStore,
+		leaveStore:     leaveStore,
+		memberProvider: memberProvider,
 	}
 }
 
@@ -110,6 +143,84 @@ func (s *StandupService) ListConfiguration(
 	}
 
 	return configuration, nil
+}
+
+/*
+ListSubmissions returns submissions, missing users, and on-leave users for one occurrence date.
+*/
+func (s *StandupService) ListSubmissions(
+	ctx context.Context,
+	input ListStandupSubmissionsInput,
+) (*StandupOccurrenceSummary, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to view standup submissions.")
+	}
+
+	cleanWorkspaceID := strings.TrimSpace(input.WorkspaceID)
+	if cleanWorkspaceID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
+	}
+
+	occurrenceDate := domain.LocalDate(strings.TrimSpace(input.OccurrenceDate))
+	if _, err := parseLocalDate(occurrenceDate); err != nil {
+		return nil, NewError(ErrorCodeValidationFailed, "Occurrence date must be a real YYYY-MM-DD calendar date.")
+	}
+
+	workspaceID := domain.ID(cleanWorkspaceID)
+	workspace, err := s.workspaceStore.GetByID(ctx, workspaceID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Workspace was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load workspace.")
+	}
+
+	submissions, err := s.standupStore.ListSubmissionsWithAnswersByWorkspaceIDAndDate(
+		ctx,
+		workspaceID,
+		occurrenceDate,
+	)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not load standup submissions.")
+	}
+
+	memberUserIDs, err := s.memberProvider.ListWorkspaceMemberUserIDs(ctx, *workspace)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not load workspace members.")
+	}
+
+	approvedLeaves, err := s.leaveStore.ListApprovedByWorkspaceIDBetween(
+		ctx,
+		workspaceID,
+		occurrenceDate,
+		occurrenceDate,
+	)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not load approved leave.")
+	}
+
+	sortMode := normalizeStandupSubmissionSortMode(input.SortMode)
+	sortStandupSubmissions(submissions, sortMode)
+
+	memberUserIDs = uniqueNonEmptyStrings(memberUserIDs)
+	submittedUserIDs := submittedUserIDsFromSubmissions(submissions)
+	onLeaveUserIDs := onLeaveMemberUserIDs(memberUserIDs, approvedLeaveUserIDSet(approvedLeaves))
+	missingUserIDs := missingStandupUserIDs(memberUserIDs, submittedUserIDs, onLeaveUserIDs)
+
+	return &StandupOccurrenceSummary{
+		WorkspaceID:    workspaceID.String(),
+		OccurrenceDate: occurrenceDate.String(),
+		SortMode:       sortMode,
+
+		MemberUserIDs:    memberUserIDs,
+		SubmittedUserIDs: submittedUserIDs,
+		MissingUserIDs:   missingUserIDs,
+		OnLeaveUserIDs:   onLeaveUserIDs,
+
+		Submissions: submissions,
+	}, nil
 }
 
 /*
@@ -403,4 +514,125 @@ func questionsForTemplate(
 	}
 
 	return results
+}
+
+/*
+normalizeStandupSubmissionSortMode returns a supported sort mode.
+*/
+func normalizeStandupSubmissionSortMode(value string) domain.StandupSubmissionSortMode {
+	switch domain.StandupSubmissionSortMode(strings.TrimSpace(value)) {
+	case domain.StandupSubmissionSortFirstSubmitted:
+		return domain.StandupSubmissionSortFirstSubmitted
+
+	case domain.StandupSubmissionSortLastSubmitted:
+		return domain.StandupSubmissionSortLastSubmitted
+
+	case domain.StandupSubmissionSortMissingFirst:
+		return domain.StandupSubmissionSortMissingFirst
+
+	default:
+		return domain.StandupSubmissionSortName
+	}
+}
+
+/*
+sortStandupSubmissions sorts submissions in place.
+*/
+func sortStandupSubmissions(
+	submissions []domain.StandupSubmissionWithAnswers,
+	sortMode domain.StandupSubmissionSortMode,
+) {
+	sort.SliceStable(submissions, func(firstIndex int, secondIndex int) bool {
+		first := submissions[firstIndex].Submission
+		second := submissions[secondIndex].Submission
+
+		switch sortMode {
+		case domain.StandupSubmissionSortFirstSubmitted:
+			if first.FirstSubmittedAt.Equal(second.FirstSubmittedAt) {
+				return first.UserID < second.UserID
+			}
+
+			return first.FirstSubmittedAt.Before(second.FirstSubmittedAt)
+
+		case domain.StandupSubmissionSortLastSubmitted:
+			if first.LastUpdatedAt.Equal(second.LastUpdatedAt) {
+				return first.UserID < second.UserID
+			}
+
+			return first.LastUpdatedAt.Before(second.LastUpdatedAt)
+
+		default:
+			return first.UserID < second.UserID
+		}
+	})
+}
+
+/*
+submittedUserIDsFromSubmissions returns unique submitting user IDs.
+*/
+func submittedUserIDsFromSubmissions(submissions []domain.StandupSubmissionWithAnswers) []string {
+	userIDs := make([]string, 0, len(submissions))
+
+	for _, submission := range submissions {
+		userIDs = append(userIDs, submission.Submission.UserID)
+	}
+
+	return uniqueNonEmptyStrings(userIDs)
+}
+
+/*
+onLeaveMemberUserIDs returns member user IDs that are on approved leave.
+*/
+func onLeaveMemberUserIDs(
+	memberUserIDs []string,
+	onLeaveUserIDSet map[string]bool,
+) []string {
+	userIDs := []string{}
+
+	for _, userID := range memberUserIDs {
+		if onLeaveUserIDSet[userID] {
+			userIDs = append(userIDs, userID)
+		}
+	}
+
+	return userIDs
+}
+
+/*
+missingStandupUserIDs returns members who have not submitted and are not on approved leave.
+*/
+func missingStandupUserIDs(
+	memberUserIDs []string,
+	submittedUserIDs []string,
+	onLeaveUserIDs []string,
+) []string {
+	submittedSet := stringSet(submittedUserIDs)
+	onLeaveSet := stringSet(onLeaveUserIDs)
+	missing := []string{}
+
+	for _, userID := range memberUserIDs {
+		if submittedSet[userID] || onLeaveSet[userID] {
+			continue
+		}
+
+		missing = append(missing, userID)
+	}
+
+	return missing
+}
+
+/*
+stringSet returns a set for string membership checks.
+*/
+func stringSet(values []string) map[string]bool {
+	set := map[string]bool{}
+
+	for _, value := range values {
+		cleanValue := strings.TrimSpace(value)
+		if cleanValue != "" {
+			set[cleanValue] = true
+		}
+	}
+
+	return set
 }

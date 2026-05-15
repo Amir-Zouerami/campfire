@@ -93,6 +93,14 @@ type StandupAnswerPayload struct {
 }
 
 /*
+StandupSubmissionWithAnswersPayload is the API representation of a submission with answers.
+*/
+type StandupSubmissionWithAnswersPayload struct {
+	Submission StandupSubmissionPayload `json:"submission"`
+	Answers    []StandupAnswerPayload   `json:"answers"`
+}
+
+/*
 SubmitStandupAnswerRequest is one submitted standup answer.
 */
 type SubmitStandupAnswerRequest struct {
@@ -118,6 +126,22 @@ type ListStandupConfigurationResponse struct {
 	Templates []StandupTemplatePayload `json:"templates"`
 	Questions []StandupQuestionPayload `json:"questions"`
 	Schedules []StandupSchedulePayload `json:"schedules"`
+}
+
+/*
+ListStandupSubmissionsResponse is returned by GET /workspaces/{workspaceID}/standups/submissions.
+*/
+type ListStandupSubmissionsResponse struct {
+	WorkspaceID    string `json:"workspaceId"`
+	OccurrenceDate string `json:"occurrenceDate"`
+	SortMode       string `json:"sortMode"`
+
+	MemberUserIDs    []string `json:"memberUserIds"`
+	SubmittedUserIDs []string `json:"submittedUserIds"`
+	MissingUserIDs   []string `json:"missingUserIds"`
+	OnLeaveUserIDs   []string `json:"onLeaveUserIds"`
+
+	Submissions []StandupSubmissionWithAnswersPayload `json:"submissions"`
 }
 
 /*
@@ -190,6 +214,44 @@ func StandupAnswersToPayload(answers []domain.StandupAnswer) []StandupAnswerPayl
 
 	for _, answer := range answers {
 		payloads = append(payloads, StandupAnswerToPayload(answer))
+	}
+
+	return payloads
+}
+
+/*
+StandupOccurrenceSummaryToPayload maps a service occurrence summary to an API response.
+*/
+func StandupOccurrenceSummaryToPayload(
+	summary service.StandupOccurrenceSummary,
+) ListStandupSubmissionsResponse {
+	return ListStandupSubmissionsResponse{
+		WorkspaceID:    summary.WorkspaceID,
+		OccurrenceDate: summary.OccurrenceDate,
+		SortMode:       string(summary.SortMode),
+
+		MemberUserIDs:    summary.MemberUserIDs,
+		SubmittedUserIDs: summary.SubmittedUserIDs,
+		MissingUserIDs:   summary.MissingUserIDs,
+		OnLeaveUserIDs:   summary.OnLeaveUserIDs,
+
+		Submissions: StandupSubmissionsWithAnswersToPayload(summary.Submissions),
+	}
+}
+
+/*
+StandupSubmissionsWithAnswersToPayload maps submission rows to API payloads.
+*/
+func StandupSubmissionsWithAnswersToPayload(
+	submissions []domain.StandupSubmissionWithAnswers,
+) []StandupSubmissionWithAnswersPayload {
+	payloads := make([]StandupSubmissionWithAnswersPayload, 0, len(submissions))
+
+	for _, submission := range submissions {
+		payloads = append(payloads, StandupSubmissionWithAnswersPayload{
+			Submission: StandupSubmissionToPayload(submission.Submission),
+			Answers:    StandupAnswersToPayload(submission.Answers),
+		})
 	}
 
 	return payloads

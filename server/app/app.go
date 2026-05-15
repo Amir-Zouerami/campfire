@@ -121,6 +121,8 @@ func New(config Config) (*App, error) {
 	standupService := service.NewStandupService(
 		workspaceStore,
 		standupStore,
+		leaveStore,
+		workspaceMemberProvider,
 	)
 
 	router := api.NewRouter(api.RouterConfig{

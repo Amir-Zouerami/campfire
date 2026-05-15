@@ -114,6 +114,44 @@ type StandupAnswer struct {
 }
 
 /*
+StandupSubmissionWithAnswers contains one submission and all stored answers.
+*/
+type StandupSubmissionWithAnswers struct {
+	Submission StandupSubmission
+	Answers    []StandupAnswer
+}
+
+/*
+StandupSubmissionSortMode identifies supported standup submission sorting modes.
+*/
+type StandupSubmissionSortMode string
+
+const (
+	/*
+		StandupSubmissionSortName sorts submissions by user ID for now.
+
+		Display-name sorting can be added after we introduce a user directory
+		read model.
+	*/
+	StandupSubmissionSortName StandupSubmissionSortMode = "name"
+
+	/*
+		StandupSubmissionSortFirstSubmitted sorts by first submission time.
+	*/
+	StandupSubmissionSortFirstSubmitted StandupSubmissionSortMode = "first_submitted"
+
+	/*
+		StandupSubmissionSortLastSubmitted sorts by last update time.
+	*/
+	StandupSubmissionSortLastSubmitted StandupSubmissionSortMode = "last_submitted"
+
+	/*
+		StandupSubmissionSortMissingFirst lets the UI put missing users before submissions.
+	*/
+	StandupSubmissionSortMissingFirst StandupSubmissionSortMode = "missing_first"
+)
+
+/*
 StandupKind identifies a standup template or schedule kind.
 */
 type StandupKind string

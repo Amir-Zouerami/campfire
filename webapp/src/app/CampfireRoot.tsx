@@ -13,6 +13,7 @@ import { ApprovedLeavesCard } from './ApprovedLeavesCard';
 import { StandupRuntimeCard } from './StandupRuntimeCard';
 import { StandupConfigurationCard } from './StandupConfigurationCard';
 import { StandupSubmissionCard } from './StandupSubmissionCard';
+import { StandupSubmissionsCard } from './StandupSubmissionsCard';
 
 /**
  * CampfireRoot is the plugin root mounted by Mattermost.
@@ -116,7 +117,8 @@ export function CampfireRoot(): ReactElement | null {
 					{bootstrap.state === 'ready' && bootstrap.workspace !== null && (
 						<>
 							<StandupSubmissionCard workspace={bootstrap.workspace} />
-							<StandupConfigurationCard workspace={bootstrap.workspace} />
+							<StandupSubmissionsCard workspace={bootstrap.workspace} refreshToken={leaveRefreshToken} />
+							<StandupConfigurationCard workspace={bootstrap.workspace} />{' '}
 							<StandupRuntimeCard workspace={bootstrap.workspace} refreshToken={leaveRefreshToken} />{' '}
 							<LeaveApprovalsCard
 								workspace={bootstrap.workspace}

@@ -17,6 +17,8 @@ import type {
 	StandupSchedule,
 	StandupAnswer,
 	StandupSubmission,
+	StandupOccurrenceSummary,
+	StandupSubmissionSortMode,
 } from './domain';
 
 /**
@@ -157,6 +159,20 @@ export type ListStandupConfigurationResponse = {
 export type SubmitStandupAnswerRequest = {
 	readonly questionId: string;
 	readonly valueJson: string;
+};
+
+/**
+ * ListStandupSubmissionsResponse is returned by GET /workspaces/{workspaceID}/standups/submissions.
+ */
+export type ListStandupSubmissionsResponse = StandupOccurrenceSummary;
+
+/**
+ * ListStandupSubmissionsRequest contains frontend query filters.
+ */
+export type ListStandupSubmissionsRequest = {
+	readonly workspaceId: string;
+	readonly occurrenceDate: LocalDate;
+	readonly sortMode: StandupSubmissionSortMode;
 };
 
 /**

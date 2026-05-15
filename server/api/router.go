@@ -46,6 +46,10 @@ func NewRouter(config RouterConfig) http.Handler {
 			"/workspaces/{workspaceID}/standups/configuration",
 			handleListStandupConfiguration(config.Logger, config.Mattermost, config.StandupService),
 		)
+		api.Get(
+			"/workspaces/{workspaceID}/standups/submissions",
+			handleListStandupSubmissions(config.Logger, config.Mattermost, config.StandupService),
+		)
 		api.Post(
 			"/standups/submissions",
 			handleSubmitStandup(config.Logger, config.Mattermost, config.StandupService),

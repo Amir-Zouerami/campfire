@@ -274,6 +274,33 @@ export type StandupAnswer = {
 };
 
 /**
+ * StandupSubmissionWithAnswers contains one submission and all stored answers.
+ */
+export type StandupSubmissionWithAnswers = {
+	readonly submission: StandupSubmission;
+	readonly answers: readonly StandupAnswer[];
+};
+
+/**
+ * StandupSubmissionSortMode identifies supported standup submission sorting modes.
+ */
+export type StandupSubmissionSortMode = 'name' | 'first_submitted' | 'last_submitted' | 'missing_first';
+
+/**
+ * StandupOccurrenceSummary contains submissions and missing-user data for one date.
+ */
+export type StandupOccurrenceSummary = {
+	readonly workspaceId: string;
+	readonly occurrenceDate: LocalDate;
+	readonly sortMode: StandupSubmissionSortMode;
+	readonly memberUserIds: readonly string[];
+	readonly submittedUserIds: readonly string[];
+	readonly missingUserIds: readonly string[];
+	readonly onLeaveUserIds: readonly string[];
+	readonly submissions: readonly StandupSubmissionWithAnswers[];
+};
+
+/**
  * StandupTemplate defines a reusable standup form.
  */
 export type StandupTemplate = {

@@ -259,3 +259,16 @@ func WriteSubmitStandup(w http.ResponseWriter, statusCode int, payload SubmitSta
 		return encoder.Encode(payload)
 	}, "failed to encode standup submission response")
 }
+
+/*
+WriteListStandupSubmissions writes the standup submissions list response.
+*/
+func WriteListStandupSubmissions(
+	w http.ResponseWriter,
+	statusCode int,
+	payload ListStandupSubmissionsResponse,
+) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode standup submissions response")
+}

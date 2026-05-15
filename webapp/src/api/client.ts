@@ -24,6 +24,8 @@ import type {
 	ListStandupConfigurationResponse,
 	SubmitStandupRequest,
 	SubmitStandupResponse,
+	ListStandupSubmissionsRequest,
+	ListStandupSubmissionsResponse,
 } from '../types/api';
 
 const pluginID = 'dev.zouerami.campfire';
@@ -165,6 +167,22 @@ export async function listStandupConfiguration(workspaceID: string): Promise<Lis
  */
 export async function submitStandup(request: SubmitStandupRequest): Promise<SubmitStandupResponse> {
 	return apiPost<SubmitStandupRequest, SubmitStandupResponse>('/standups/submissions', request);
+}
+
+/**
+ * listStandupSubmissions loads submissions for one workspace occurrence date.
+ */
+export async function listStandupSubmissions(
+	request: ListStandupSubmissionsRequest,
+): Promise<ListStandupSubmissionsResponse> {
+	const params = new URLSearchParams({
+		occurrenceDate: request.occurrenceDate,
+		sortMode: request.sortMode,
+	});
+
+	return apiGet<ListStandupSubmissionsResponse>(
+		`/workspaces/${encodeURIComponent(request.workspaceId)}/standups/submissions?${params.toString()}`,
+	);
 }
 
 /**
