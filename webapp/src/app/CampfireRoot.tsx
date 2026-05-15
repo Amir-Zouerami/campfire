@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 
 import { GlobalOffDaysCard } from './GlobalOffDaysCard';
 import { LeaveRequestCard } from './LeaveRequestCard';
+import { WorkspaceSetupCard } from './WorkspaceSetupCard';
 import { CAMPFIRE_OPEN_EVENT } from './events';
 import { useCampfireBootstrap } from './useCampfireBootstrap';
 import type { BootstrapStatus } from './useCampfireBootstrap';
@@ -15,7 +16,8 @@ import type { BootstrapStatus } from './useCampfireBootstrap';
  */
 export function CampfireRoot(): ReactElement | null {
 	const [isOpen, setIsOpen] = useState(false);
-	const bootstrap = useCampfireBootstrap(isOpen);
+	const [refreshToken, setRefreshToken] = useState(0);
+	const bootstrap = useCampfireBootstrap(isOpen, refreshToken);
 
 	useEffect(() => {
 		/**
@@ -82,8 +84,8 @@ export function CampfireRoot(): ReactElement | null {
 								Gather your team around the fire.
 							</h2>
 							<p className="cf:mt-3 cf:max-w-3xl cf:text-base cf:leading-7 cf:text-slate-300">
-								Campfire will become the workspace for standups, leaves, task time, and reports. The
-								frontend now talks to the Go backend through a typed API client.
+								Campfire turns a Mattermost channel into a warm workspace for standups, leave approvals,
+								task time, off-days, and reports.
 							</p>
 						</div>
 					</section>
@@ -101,9 +103,25 @@ export function CampfireRoot(): ReactElement | null {
 						<LeaveRequestCard workspace={bootstrap.workspace} />
 					)}
 
-					{bootstrap.state === 'ready' && bootstrap.workspace === null && (
-						<WorkspaceNotice message={bootstrap.workspaceNotice ?? 'No Campfire workspace is loaded.'} />
-					)}
+					{bootstrap.state === 'ready' &&
+						bootstrap.workspace === null &&
+						bootstrap.channelID !== null &&
+						bootstrap.teamID !== null && (
+							<WorkspaceSetupCard
+								channelID={bootstrap.channelID}
+								channelName={bootstrap.channelName}
+								teamID={bootstrap.teamID}
+								onWorkspaceCreated={() => setRefreshToken(current => current + 1)}
+							/>
+						)}
+
+					{bootstrap.state === 'ready' &&
+						bootstrap.workspace === null &&
+						(bootstrap.channelID === null || bootstrap.teamID === null) && (
+							<WorkspaceNotice
+								message={bootstrap.workspaceNotice ?? 'No Campfire workspace is loaded.'}
+							/>
+						)}
 
 					<section className="cf:mt-5 cf:grid cf:gap-4 cf:md:grid-cols-3">
 						<FeatureCard

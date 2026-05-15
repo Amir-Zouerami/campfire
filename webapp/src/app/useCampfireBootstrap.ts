@@ -4,7 +4,7 @@ import { ApiClientError, getHealth, getMe, getWorkspaceByChannel } from '../api/
 import type { HealthResponse, MeResponse } from '../types/api';
 import type { Workspace, WorkspaceCapabilities } from '../types/domain';
 
-import { getCurrentChannelID } from './mattermostHost';
+import { getMattermostHostContext } from './mattermostHost';
 
 /**
  * BootstrapIdleStatus means Campfire has not started loading startup data yet.
@@ -28,6 +28,8 @@ export type BootstrapReadyStatus = {
 	readonly health: HealthResponse;
 	readonly me: MeResponse;
 	readonly channelID: string | null;
+	readonly channelName: string | null;
+	readonly teamID: string | null;
 	readonly workspace: Workspace | null;
 	readonly capabilities: WorkspaceCapabilities | null;
 	readonly workspaceNotice: string | null;
@@ -53,7 +55,7 @@ export type BootstrapStatus =
 /**
  * useCampfireBootstrap loads initial backend data when Campfire opens.
  */
-export function useCampfireBootstrap(isOpen: boolean): BootstrapStatus {
+export function useCampfireBootstrap(isOpen: boolean, refreshToken: number): BootstrapStatus {
 	const [status, setStatus] = useState<BootstrapStatus>({
 		state: 'idle',
 	});
@@ -72,9 +74,9 @@ export function useCampfireBootstrap(isOpen: boolean): BootstrapStatus {
 
 			try {
 				const [health, me] = await Promise.all([getHealth(), getMe()]);
-				const channelID = getCurrentChannelID();
+				const hostContext = getMattermostHostContext();
 
-				if (channelID === null) {
+				if (hostContext.channelID === null) {
 					if (!isActive) {
 						return;
 					}
@@ -83,16 +85,18 @@ export function useCampfireBootstrap(isOpen: boolean): BootstrapStatus {
 						state: 'ready',
 						health,
 						me,
-						channelID,
+						channelID: null,
+						channelName: null,
+						teamID: hostContext.teamID,
 						workspace: null,
 						capabilities: null,
-						workspaceNotice: 'Open Campfire from a Mattermost channel to load a workspace.',
+						workspaceNotice: 'Open Campfire from a Mattermost channel to load or create a workspace.',
 					});
 
 					return;
 				}
 
-				const workspaceResult = await loadWorkspaceForChannel(channelID);
+				const workspaceResult = await loadWorkspaceForChannel(hostContext.channelID);
 
 				if (!isActive) {
 					return;
@@ -102,7 +106,9 @@ export function useCampfireBootstrap(isOpen: boolean): BootstrapStatus {
 					state: 'ready',
 					health,
 					me,
-					channelID,
+					channelID: hostContext.channelID,
+					channelName: hostContext.channelName,
+					teamID: hostContext.teamID,
 					workspace: workspaceResult.workspace,
 					capabilities: workspaceResult.capabilities,
 					workspaceNotice: workspaceResult.notice,
@@ -124,7 +130,7 @@ export function useCampfireBootstrap(isOpen: boolean): BootstrapStatus {
 		return () => {
 			isActive = false;
 		};
-	}, [isOpen]);
+	}, [isOpen, refreshToken]);
 
 	return status;
 }
