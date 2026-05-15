@@ -33,7 +33,8 @@ This method should stay focused on lifecycle wiring:
 */
 func (p *Plugin) OnActivate() error {
 	application, err := app.New(app.Config{
-		API: p.API,
+		API:    p.API,
+		Driver: p.Driver,
 	})
 	if err != nil {
 		return err

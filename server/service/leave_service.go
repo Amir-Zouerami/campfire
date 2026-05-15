@@ -34,6 +34,9 @@ LeaveService owns leave request business rules.
 type LeaveService struct {
 	leaveStore             store.LeaveStore
 	leaveValidationService *LeaveValidationService
+	workspaceStore         store.WorkspaceStore
+	workspaceRoleStore     store.WorkspaceRoleStore
+	notificationPublisher  NotificationPublisher
 }
 
 /*
@@ -42,10 +45,16 @@ NewLeaveService creates a leave service.
 func NewLeaveService(
 	leaveStore store.LeaveStore,
 	leaveValidationService *LeaveValidationService,
+	workspaceStore store.WorkspaceStore,
+	workspaceRoleStore store.WorkspaceRoleStore,
+	notificationPublisher NotificationPublisher,
 ) *LeaveService {
 	return &LeaveService{
 		leaveStore:             leaveStore,
 		leaveValidationService: leaveValidationService,
+		workspaceStore:         workspaceStore,
+		workspaceRoleStore:     workspaceRoleStore,
+		notificationPublisher:  notificationPublisher,
 	}
 }
 
@@ -78,7 +87,8 @@ func (s *LeaveService) ListTypes(
 Create validates and creates a pending leave request.
 
 All Campfire default leave types require approval, so new requests start as
-pending. Approver notifications are handled by the notification workflow layer.
+pending. Approver notifications are sent after persistence using the
+NotificationPublisher port.
 */
 func (s *LeaveService) Create(ctx context.Context, input CreateLeaveInput) (*domain.LeaveRequest, error) {
 	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
@@ -96,7 +106,16 @@ func (s *LeaveService) Create(ctx context.Context, input CreateLeaveInput) (*dom
 		return nil, NewError(ErrorCodeValidationFailed, "Leave type is required.")
 	}
 
-	_, err := s.leaveStore.GetActiveTypeByID(ctx, domain.ID(cleanWorkspaceID), domain.ID(cleanLeaveTypeID))
+	workspace, err := s.workspaceStore.GetByID(ctx, domain.ID(cleanWorkspaceID))
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Workspace was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load workspace.")
+	}
+
+	leaveType, err := s.leaveStore.GetActiveTypeByID(ctx, domain.ID(cleanWorkspaceID), domain.ID(cleanLeaveTypeID))
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return nil, NewError(ErrorCodeValidationFailed, "Leave type is invalid for this workspace.")
@@ -153,7 +172,59 @@ func (s *LeaveService) Create(ctx context.Context, input CreateLeaveInput) (*dom
 		return nil, NewError(ErrorCodeInternal, "Could not create leave request.")
 	}
 
+	approverUserIDs, err := s.workspaceRoleStore.ListUserIDsByRoles(
+		ctx,
+		domain.ID(cleanWorkspaceID),
+		[]domain.Role{domain.RoleLead, domain.RoleApprover},
+	)
+	if err == nil {
+		_ = s.notificationPublisher.NotifyLeaveRequested(ctx, LeaveRequestNotification{
+			LeaveRequestID: created.ID.String(),
+			WorkspaceID:    workspace.ID.String(),
+			WorkspaceName:  workspace.Name,
+			ChannelID:      workspace.ChannelID,
+
+			RequesterUserID: cleanActorUserID,
+			ApproverUserIDs: filterNotificationRecipients(approverUserIDs, cleanActorUserID),
+
+			LeaveTypeName: leaveType.Name,
+			StartDate:     created.StartDate.String(),
+			EndDate:       created.EndDate.String(),
+			DurationMode:  string(created.DurationMode),
+			HalfDayPart:   string(created.HalfDayPart),
+			StartTime:     created.StartTime.String(),
+			EndTime:       created.EndTime.String(),
+			Reason:        created.Reason,
+			BackupUserID:  created.BackupUserID,
+			Status:        string(created.Status),
+		})
+	}
+
 	return created, nil
+}
+
+/*
+filterNotificationRecipients removes empty IDs, duplicates, and the requester.
+
+The requester should not receive an approver notification for their own leave
+request.
+*/
+func filterNotificationRecipients(userIDs []string, requesterUserID string) []string {
+	recipients := make([]string, 0, len(userIDs))
+	seen := map[string]bool{}
+	cleanRequesterID := strings.TrimSpace(requesterUserID)
+
+	for _, userID := range userIDs {
+		cleanUserID := strings.TrimSpace(userID)
+		if cleanUserID == "" || cleanUserID == cleanRequesterID || seen[cleanUserID] {
+			continue
+		}
+
+		recipients = append(recipients, cleanUserID)
+		seen[cleanUserID] = true
+	}
+
+	return recipients
 }
 
 /*

@@ -40,6 +40,7 @@ type CreateWorkspaceParams struct {
 WorkspaceStore defines persistence operations for workspace configuration.
 */
 type WorkspaceStore interface {
+	GetByID(ctx context.Context, workspaceID domain.ID) (*domain.Workspace, error)
 	GetByChannelID(ctx context.Context, channelID string) (*domain.Workspace, error)
 	Create(ctx context.Context, params CreateWorkspaceParams) (*domain.Workspace, error)
 }
@@ -58,6 +59,44 @@ func NewSQLWorkspaceStore(database *Database) *SQLWorkspaceStore {
 	return &SQLWorkspaceStore{
 		db: database.DB,
 	}
+}
+
+/*
+GetByID returns an active Campfire workspace by ID.
+*/
+func (s *SQLWorkspaceStore) GetByID(ctx context.Context, workspaceID domain.ID) (*domain.Workspace, error) {
+	var record workspaceRecord
+
+	query := s.db.Rebind(`
+		SELECT
+			id,
+			team_id,
+			channel_id,
+			name,
+			description,
+			board_url,
+			timezone,
+			created_by,
+			created_at,
+			updated_at,
+			is_archived
+		FROM campfire_workspaces
+		WHERE id = ? AND is_archived = FALSE
+		LIMIT 1
+	`)
+
+	err := s.db.GetContext(ctx, &record, query, workspaceID.String())
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+
+		return nil, fmt.Errorf("get workspace by id: %w", err)
+	}
+
+	workspace := record.toDomain()
+
+	return &workspace, nil
 }
 
 /*
