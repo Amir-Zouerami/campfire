@@ -41,6 +41,9 @@ import type {
 	ListReminderRulesResponse,
 	UpdateReminderRuleRequest,
 	UpdateReminderRuleResponse,
+	ListReportRulesResponse,
+	UpdateReportRuleRequest,
+	UpdateReportRuleResponse,
 } from '../types/api';
 
 const pluginID = 'dev.zouerami.campfire';
@@ -277,6 +280,27 @@ export async function listStandupSubmissions(
 
 	return apiGet<ListStandupSubmissionsResponse>(
 		`/workspaces/${encodeURIComponent(request.workspaceId)}/standups/submissions?${params.toString()}`,
+	);
+}
+
+/**
+ * listReportRules loads workspace report settings.
+ */
+export async function listReportRules(workspaceID: string): Promise<ListReportRulesResponse> {
+	return apiGet<ListReportRulesResponse>(`/workspaces/${encodeURIComponent(workspaceID)}/reports/rules`);
+}
+
+/**
+ * updateReportRule updates one workspace report rule.
+ */
+export async function updateReportRule(
+	workspaceID: string,
+	reportRuleID: string,
+	request: UpdateReportRuleRequest,
+): Promise<UpdateReportRuleResponse> {
+	return apiPut<UpdateReportRuleRequest, UpdateReportRuleResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/reports/rules/${encodeURIComponent(reportRuleID)}`,
+		request,
 	);
 }
 
