@@ -20,6 +20,7 @@ For example offsets [0, 30, 45, 55] have sequence numbers 0, 1, 2, and 3.
 */
 type ExecuteReminderSequenceInput struct {
 	WorkspaceID    string
+	ScheduleID     string
 	OccurrenceDate string
 	SequenceNumber int
 }
@@ -88,8 +89,16 @@ func (s *ReminderExecutionService) ExecuteSequence(
 		return nil, NewError(ErrorCodeValidationFailed, "Occurrence date must be a real YYYY-MM-DD calendar date.")
 	}
 
+	cleanScheduleID := strings.TrimSpace(input.ScheduleID)
+	if cleanScheduleID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Schedule ID is required.")
+	}
+
 	workspaceID := domain.ID(cleanWorkspaceID)
+	scheduleID := domain.ID(cleanScheduleID)
+
 	workspace, err := s.workspaceStore.GetByID(ctx, workspaceID)
+
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return nil, NewError(ErrorCodeNotFound, "Workspace was not found.")
@@ -117,6 +126,11 @@ func (s *ReminderExecutionService) ExecuteSequence(
 
 	for _, rule := range rules {
 		if !rule.Enabled {
+			result.SkippedRules++
+			continue
+		}
+
+		if rule.ScheduleID != scheduleID {
 			result.SkippedRules++
 			continue
 		}

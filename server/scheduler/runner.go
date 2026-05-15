@@ -2,12 +2,14 @@ package scheduler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/amir-zouerami/campfire/server/domain"
 	"github.com/amir-zouerami/campfire/server/logger"
+	"github.com/amir-zouerami/campfire/server/service"
 )
 
 /*
@@ -20,21 +22,51 @@ type WorkspaceProvider interface {
 }
 
 /*
+StandupScheduleProvider defines the standup schedule reads needed by the scheduler.
+*/
+type StandupScheduleProvider interface {
+	ListSchedulesByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.StandupSchedule, error)
+}
+
+/*
+ReminderRuleProvider defines the reminder rule reads needed by the scheduler.
+*/
+type ReminderRuleProvider interface {
+	ListByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.ReminderRule, error)
+}
+
+/*
+ReminderSequenceExecutor defines reminder execution behavior used by the scheduler.
+*/
+type ReminderSequenceExecutor interface {
+	ExecuteSequence(
+		ctx context.Context,
+		input service.ExecuteReminderSequenceInput,
+	) (*service.ExecuteReminderSequenceResult, error)
+}
+
+/*
 Config contains dependencies and timing options for the scheduler runner.
 */
 type Config struct {
-	Logger            logger.Logger
-	WorkspaceProvider WorkspaceProvider
-	Interval          time.Duration
+	Logger                   logger.Logger
+	WorkspaceProvider        WorkspaceProvider
+	StandupScheduleProvider  StandupScheduleProvider
+	ReminderRuleProvider     ReminderRuleProvider
+	ReminderSequenceExecutor ReminderSequenceExecutor
+	Interval                 time.Duration
 }
 
 /*
 Runner owns Campfire's background scheduler loop.
 */
 type Runner struct {
-	logger            logger.Logger
-	workspaceProvider WorkspaceProvider
-	interval          time.Duration
+	logger                   logger.Logger
+	workspaceProvider        WorkspaceProvider
+	standupScheduleProvider  StandupScheduleProvider
+	reminderRuleProvider     ReminderRuleProvider
+	reminderSequenceExecutor ReminderSequenceExecutor
+	interval                 time.Duration
 
 	mutex  sync.Mutex
 	cancel context.CancelFunc
@@ -51,10 +83,13 @@ func NewRunner(config Config) *Runner {
 	}
 
 	return &Runner{
-		logger:            config.Logger,
-		workspaceProvider: config.WorkspaceProvider,
-		interval:          interval,
-		done:              make(chan struct{}),
+		logger:                   config.Logger,
+		workspaceProvider:        config.WorkspaceProvider,
+		standupScheduleProvider:  config.StandupScheduleProvider,
+		reminderRuleProvider:     config.ReminderRuleProvider,
+		reminderSequenceExecutor: config.ReminderSequenceExecutor,
+		interval:                 interval,
+		done:                     make(chan struct{}),
 	}
 }
 
@@ -111,26 +146,25 @@ func (r *Runner) run(ctx context.Context) {
 	ticker := time.NewTicker(r.interval)
 	defer ticker.Stop()
 
+	r.tick(ctx, time.Now().UTC())
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 
-		case <-ticker.C:
-			r.tick(ctx)
+		case tickTime := <-ticker.C:
+			r.tick(ctx, tickTime.UTC())
 		}
 	}
 }
 
 /*
 tick performs one scheduler pass.
-
-This foundation pass intentionally only loads active workspaces and logs the
-count. Reminder/report execution will be wired in subsequent passes.
 */
-func (r *Runner) tick(ctx context.Context) {
-	if r.workspaceProvider == nil {
-		r.logger.Warn("scheduler workspace provider is not configured")
+func (r *Runner) tick(ctx context.Context, now time.Time) {
+	if !r.isConfigured() {
+		r.logger.Warn("scheduler dependencies are not fully configured")
 		return
 	}
 
@@ -140,8 +174,199 @@ func (r *Runner) tick(ctx context.Context) {
 		return
 	}
 
-	r.logger.Debug(
-		"scheduler tick loaded active workspaces",
-		logger.String("count", fmt.Sprintf("%d", len(workspaces))),
-	)
+	for _, workspace := range workspaces {
+		r.tickWorkspace(ctx, workspace, now)
+	}
+}
+
+/*
+isConfigured returns true when all scheduler dependencies are present.
+*/
+func (r *Runner) isConfigured() bool {
+	return r.workspaceProvider != nil &&
+		r.standupScheduleProvider != nil &&
+		r.reminderRuleProvider != nil &&
+		r.reminderSequenceExecutor != nil
+}
+
+/*
+tickWorkspace evaluates due reminders for one workspace.
+*/
+func (r *Runner) tickWorkspace(ctx context.Context, workspace domain.Workspace, now time.Time) {
+	location, err := loadWorkspaceLocation(workspace.Timezone)
+	if err != nil {
+		r.logger.Warn(
+			"scheduler could not load workspace timezone",
+			logger.String("workspace_id", workspace.ID.String()),
+			logger.String("timezone", workspace.Timezone),
+			logger.String("error", err.Error()),
+		)
+		return
+	}
+
+	localNow := now.In(location)
+	occurrenceDate := domain.LocalDate(localNow.Format("2006-01-02"))
+
+	schedules, err := r.standupScheduleProvider.ListSchedulesByWorkspaceID(ctx, workspace.ID)
+	if err != nil {
+		r.logger.Warn(
+			"scheduler failed to load workspace standup schedules",
+			logger.String("workspace_id", workspace.ID.String()),
+			logger.String("error", err.Error()),
+		)
+		return
+	}
+
+	rules, err := r.reminderRuleProvider.ListByWorkspaceID(ctx, workspace.ID)
+	if err != nil {
+		r.logger.Warn(
+			"scheduler failed to load workspace reminder rules",
+			logger.String("workspace_id", workspace.ID.String()),
+			logger.String("error", err.Error()),
+		)
+		return
+	}
+
+	schedulesByID := schedulesByID(schedules)
+
+	for _, rule := range rules {
+		if !rule.Enabled {
+			continue
+		}
+
+		schedule, exists := schedulesByID[rule.ScheduleID]
+		if !exists || !schedule.Enabled {
+			continue
+		}
+
+		r.executeDueReminderSequences(ctx, workspace, schedule, rule, occurrenceDate, localNow)
+	}
+}
+
+/*
+executeDueReminderSequences executes reminder sequences due in the current local minute.
+*/
+func (r *Runner) executeDueReminderSequences(
+	ctx context.Context,
+	workspace domain.Workspace,
+	schedule domain.StandupSchedule,
+	rule domain.ReminderRule,
+	occurrenceDate domain.LocalDate,
+	localNow time.Time,
+) {
+	offsets := decodeReminderOffsets(rule.ReminderOffsetsJSON)
+	if len(offsets) == 0 {
+		return
+	}
+
+	scheduleTime, err := scheduleTimeForDate(localNow, schedule.TimeOfDay)
+	if err != nil {
+		r.logger.Warn(
+			"scheduler could not parse standup schedule time",
+			logger.String("workspace_id", workspace.ID.String()),
+			logger.String("schedule_id", schedule.ID.String()),
+			logger.String("time_of_day", schedule.TimeOfDay.String()),
+			logger.String("error", err.Error()),
+		)
+		return
+	}
+
+	for sequenceNumber, offsetMinutes := range offsets {
+		dueAt := scheduleTime.Add(time.Duration(offsetMinutes) * time.Minute)
+		if !sameLocalMinute(localNow, dueAt) {
+			continue
+		}
+
+		result, err := r.reminderSequenceExecutor.ExecuteSequence(ctx, service.ExecuteReminderSequenceInput{
+			WorkspaceID:    workspace.ID.String(),
+			ScheduleID:     schedule.ID.String(),
+			OccurrenceDate: occurrenceDate.String(),
+			SequenceNumber: sequenceNumber,
+		})
+		if err != nil {
+			r.logger.Warn(
+				"scheduler failed to execute reminder sequence",
+				logger.String("workspace_id", workspace.ID.String()),
+				logger.String("schedule_id", schedule.ID.String()),
+				logger.String("sequence_number", fmt.Sprintf("%d", sequenceNumber)),
+				logger.String("error", err.Error()),
+			)
+			continue
+		}
+
+		r.logger.Debug(
+			"scheduler executed reminder sequence",
+			logger.String("workspace_id", workspace.ID.String()),
+			logger.String("schedule_id", schedule.ID.String()),
+			logger.String("sequence_number", fmt.Sprintf("%d", sequenceNumber)),
+			logger.String("dm_sent", fmt.Sprintf("%d", result.DMRemindersSent)),
+			logger.String("channel_sent", fmt.Sprintf("%d", result.ChannelRemindersSent)),
+			logger.String("skipped_existing", fmt.Sprintf("%d", result.SkippedExistingRuns)),
+		)
+	}
+}
+
+/*
+loadWorkspaceLocation loads a workspace timezone with a UTC fallback for empty values.
+*/
+func loadWorkspaceLocation(timezone string) (*time.Location, error) {
+	if timezone == "" {
+		return time.UTC, nil
+	}
+
+	return time.LoadLocation(timezone)
+}
+
+/*
+schedulesByID indexes schedules by ID.
+*/
+func schedulesByID(schedules []domain.StandupSchedule) map[domain.ID]domain.StandupSchedule {
+	indexed := make(map[domain.ID]domain.StandupSchedule, len(schedules))
+
+	for _, schedule := range schedules {
+		indexed[schedule.ID] = schedule
+	}
+
+	return indexed
+}
+
+/*
+decodeReminderOffsets decodes reminder-rule offset JSON.
+*/
+func decodeReminderOffsets(value string) []int {
+	offsets := []int{}
+
+	if err := json.Unmarshal([]byte(value), &offsets); err != nil {
+		return []int{}
+	}
+
+	return offsets
+}
+
+/*
+scheduleTimeForDate returns the local datetime for a schedule on localNow's date.
+*/
+func scheduleTimeForDate(localNow time.Time, timeOfDay domain.TimeOfDay) (time.Time, error) {
+	parsed, err := time.Parse("15:04", timeOfDay.String())
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return time.Date(
+		localNow.Year(),
+		localNow.Month(),
+		localNow.Day(),
+		parsed.Hour(),
+		parsed.Minute(),
+		0,
+		0,
+		localNow.Location(),
+	), nil
+}
+
+/*
+sameLocalMinute returns true when two local times fall in the same minute.
+*/
+func sameLocalMinute(first time.Time, second time.Time) bool {
+	return first.Truncate(time.Minute).Equal(second.Truncate(time.Minute))
 }

@@ -164,9 +164,12 @@ func New(config Config) (*App, error) {
 	)
 
 	schedulerRunner := scheduler.NewRunner(scheduler.Config{
-		Logger:            appLogger,
-		WorkspaceProvider: workspaceStore,
-		Interval:          time.Minute,
+		Logger:                   appLogger,
+		WorkspaceProvider:        workspaceStore,
+		StandupScheduleProvider:  standupStore,
+		ReminderRuleProvider:     reminderStore,
+		ReminderSequenceExecutor: reminderExecutionService,
+		Interval:                 time.Minute,
 	})
 
 	router := api.NewRouter(api.RouterConfig{
