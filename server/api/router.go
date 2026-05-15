@@ -96,6 +96,14 @@ func NewRouter(config RouterConfig) http.Handler {
 			"/workspaces/{workspaceID}/standups/questions/{questionID}",
 			handleUpdateStandupQuestion(config.Logger, config.Mattermost, config.StandupService),
 		)
+		api.Post(
+			"/workspaces/{workspaceID}/standups/schedules",
+			handleCreateStandupSchedule(config.Logger, config.Mattermost, config.StandupService),
+		)
+		api.Put(
+			"/workspaces/{workspaceID}/standups/schedules/{scheduleID}",
+			handleUpdateStandupSchedule(config.Logger, config.Mattermost, config.StandupService),
+		)
 		api.Get(
 			"/workspaces/{workspaceID}/standups/submissions",
 			handleListStandupSubmissions(config.Logger, config.Mattermost, config.StandupService),

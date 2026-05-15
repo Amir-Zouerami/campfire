@@ -201,6 +201,100 @@ func handleUpdateStandupQuestion(
 }
 
 /*
+handleCreateStandupSchedule handles creating a standup schedule.
+*/
+func handleCreateStandupSchedule(
+	log logger.Logger,
+	mm mattermost.Client,
+	standupService *service.StandupService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+
+		var request CreateStandupScheduleRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			WriteError(w, http.StatusBadRequest, "invalid_request", "Request body must be valid JSON.")
+			return
+		}
+
+		schedule, err := standupService.CreateSchedule(r.Context(), service.CreateStandupScheduleInput{
+			ActorUserID:             user.ID,
+			IsSystemAdmin:           user.IsSystemAdmin,
+			WorkspaceID:             workspaceID,
+			TemplateID:              request.TemplateID,
+			Kind:                    request.Kind,
+			Enabled:                 request.Enabled,
+			TimeOfDay:               request.TimeOfDay,
+			SkipNonWorkingDays:      request.SkipNonWorkingDays,
+			WeeklyMode:              request.WeeklyMode,
+			SkipDailyWhenWeeklyRuns: request.SkipDailyWhenWeeklyRuns,
+		})
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WriteCreateStandupSchedule(w, http.StatusCreated, CreateStandupScheduleResponse{
+			Schedule: StandupScheduleToPayload(*schedule),
+		})
+	}
+}
+
+/*
+handleUpdateStandupSchedule handles updating a standup schedule.
+*/
+func handleUpdateStandupSchedule(
+	log logger.Logger,
+	mm mattermost.Client,
+	standupService *service.StandupService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		scheduleID := strings.TrimSpace(chi.URLParam(r, "scheduleID"))
+
+		var request UpdateStandupScheduleRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			WriteError(w, http.StatusBadRequest, "invalid_request", "Request body must be valid JSON.")
+			return
+		}
+
+		schedule, err := standupService.UpdateSchedule(r.Context(), service.UpdateStandupScheduleInput{
+			ActorUserID:             user.ID,
+			IsSystemAdmin:           user.IsSystemAdmin,
+			WorkspaceID:             workspaceID,
+			ScheduleID:              scheduleID,
+			TemplateID:              request.TemplateID,
+			Kind:                    request.Kind,
+			Enabled:                 request.Enabled,
+			TimeOfDay:               request.TimeOfDay,
+			SkipNonWorkingDays:      request.SkipNonWorkingDays,
+			WeeklyMode:              request.WeeklyMode,
+			SkipDailyWhenWeeklyRuns: request.SkipDailyWhenWeeklyRuns,
+		})
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WriteUpdateStandupSchedule(w, http.StatusOK, UpdateStandupScheduleResponse{
+			Schedule: StandupScheduleToPayload(*schedule),
+		})
+	}
+}
+
+/*
 handleListStandupConfiguration handles standup configuration listing.
 */
 func handleListStandupConfiguration(

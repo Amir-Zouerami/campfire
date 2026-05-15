@@ -210,6 +210,46 @@ type UpdateStandupQuestionResponse struct {
 }
 
 /*
+CreateStandupScheduleRequest is accepted by POST /workspaces/{workspaceID}/standups/schedules.
+*/
+type CreateStandupScheduleRequest struct {
+	TemplateID              string `json:"templateId"`
+	Kind                    string `json:"kind"`
+	Enabled                 bool   `json:"enabled"`
+	TimeOfDay               string `json:"timeOfDay"`
+	SkipNonWorkingDays      bool   `json:"skipNonWorkingDays"`
+	WeeklyMode              string `json:"weeklyMode"`
+	SkipDailyWhenWeeklyRuns bool   `json:"skipDailyWhenWeeklyRuns"`
+}
+
+/*
+CreateStandupScheduleResponse is returned by POST /workspaces/{workspaceID}/standups/schedules.
+*/
+type CreateStandupScheduleResponse struct {
+	Schedule StandupSchedulePayload `json:"schedule"`
+}
+
+/*
+UpdateStandupScheduleRequest is accepted by PUT /workspaces/{workspaceID}/standups/schedules/{scheduleID}.
+*/
+type UpdateStandupScheduleRequest struct {
+	TemplateID              string `json:"templateId"`
+	Kind                    string `json:"kind"`
+	Enabled                 bool   `json:"enabled"`
+	TimeOfDay               string `json:"timeOfDay"`
+	SkipNonWorkingDays      bool   `json:"skipNonWorkingDays"`
+	WeeklyMode              string `json:"weeklyMode"`
+	SkipDailyWhenWeeklyRuns bool   `json:"skipDailyWhenWeeklyRuns"`
+}
+
+/*
+UpdateStandupScheduleResponse is returned by PUT /workspaces/{workspaceID}/standups/schedules/{scheduleID}.
+*/
+type UpdateStandupScheduleResponse struct {
+	Schedule StandupSchedulePayload `json:"schedule"`
+}
+
+/*
 ListStandupSubmissionsResponse is returned by GET /workspaces/{workspaceID}/standups/submissions.
 */
 type ListStandupSubmissionsResponse struct {

@@ -144,6 +144,39 @@ type UpdateStandupQuestionInput struct {
 }
 
 /*
+CreateStandupScheduleInput contains user-submitted schedule data.
+*/
+type CreateStandupScheduleInput struct {
+	ActorUserID             string
+	IsSystemAdmin           bool
+	WorkspaceID             string
+	TemplateID              string
+	Kind                    string
+	Enabled                 bool
+	TimeOfDay               string
+	SkipNonWorkingDays      bool
+	WeeklyMode              string
+	SkipDailyWhenWeeklyRuns bool
+}
+
+/*
+UpdateStandupScheduleInput contains mutable schedule data.
+*/
+type UpdateStandupScheduleInput struct {
+	ActorUserID             string
+	IsSystemAdmin           bool
+	WorkspaceID             string
+	ScheduleID              string
+	TemplateID              string
+	Kind                    string
+	Enabled                 bool
+	TimeOfDay               string
+	SkipNonWorkingDays      bool
+	WeeklyMode              string
+	SkipDailyWhenWeeklyRuns bool
+}
+
+/*
 SubmitStandupResult contains the saved submission and answers.
 */
 type SubmitStandupResult struct {
@@ -437,6 +470,144 @@ func (s *StandupService) UpdateQuestion(
 		}
 
 		return nil, NewError(ErrorCodeInternal, "Could not update standup question.")
+	}
+
+	return updated, nil
+}
+
+/*
+CreateSchedule creates a standup schedule.
+*/
+func (s *StandupService) CreateSchedule(
+	ctx context.Context,
+	input CreateStandupScheduleInput,
+) (*domain.StandupSchedule, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to create standup schedules.")
+	}
+
+	workspaceID, err := s.requireStandupWorkspace(ctx, input.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.requireStandupManagement(ctx, cleanActorUserID, input.IsSystemAdmin, workspaceID); err != nil {
+		return nil, err
+	}
+
+	templateID := domain.ID(strings.TrimSpace(input.TemplateID))
+	if templateID.String() == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Template ID is required.")
+	}
+
+	if _, err := s.standupStore.GetTemplateByID(ctx, workspaceID, templateID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Standup template was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load standup template.")
+	}
+
+	schedule, err := buildStandupScheduleFromInput(
+		workspaceID,
+		templateID,
+		domain.ID(uuid.NewString()),
+		input.Kind,
+		input.Enabled,
+		input.TimeOfDay,
+		input.SkipNonWorkingDays,
+		input.WeeklyMode,
+		input.SkipDailyWhenWeeklyRuns,
+		cleanActorUserID,
+		time.Now().UTC(),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	created, err := s.standupStore.CreateSchedule(ctx, *schedule)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not create standup schedule.")
+	}
+
+	return created, nil
+}
+
+/*
+UpdateSchedule updates a standup schedule.
+*/
+func (s *StandupService) UpdateSchedule(
+	ctx context.Context,
+	input UpdateStandupScheduleInput,
+) (*domain.StandupSchedule, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to update standup schedules.")
+	}
+
+	workspaceID, err := s.requireStandupWorkspace(ctx, input.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.requireStandupManagement(ctx, cleanActorUserID, input.IsSystemAdmin, workspaceID); err != nil {
+		return nil, err
+	}
+
+	scheduleID := domain.ID(strings.TrimSpace(input.ScheduleID))
+	if scheduleID.String() == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Schedule ID is required.")
+	}
+
+	existingSchedule, err := s.standupStore.GetScheduleByID(ctx, workspaceID, scheduleID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Standup schedule was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load standup schedule.")
+	}
+
+	templateID := domain.ID(strings.TrimSpace(input.TemplateID))
+	if templateID.String() == "" {
+		templateID = existingSchedule.TemplateID
+	}
+
+	if _, err := s.standupStore.GetTemplateByID(ctx, workspaceID, templateID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Standup template was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load standup template.")
+	}
+
+	schedule, err := buildStandupScheduleFromInput(
+		workspaceID,
+		templateID,
+		scheduleID,
+		input.Kind,
+		input.Enabled,
+		input.TimeOfDay,
+		input.SkipNonWorkingDays,
+		input.WeeklyMode,
+		input.SkipDailyWhenWeeklyRuns,
+		existingSchedule.CreatedBy,
+		time.Now().UTC(),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	schedule.CreatedAt = existingSchedule.CreatedAt
+
+	updated, err := s.standupStore.UpdateSchedule(ctx, *schedule)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Standup schedule was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not update standup schedule.")
 	}
 
 	return updated, nil
@@ -841,6 +1012,90 @@ func questionTypeRequiresOptions(questionType domain.QuestionType) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+/*
+buildStandupScheduleFromInput validates and builds a standup schedule.
+*/
+func buildStandupScheduleFromInput(
+	workspaceID domain.ID,
+	templateID domain.ID,
+	scheduleID domain.ID,
+	kindValue string,
+	enabled bool,
+	timeOfDayValue string,
+	skipNonWorkingDays bool,
+	weeklyModeValue string,
+	skipDailyWhenWeeklyRuns bool,
+	createdBy string,
+	now time.Time,
+) (*domain.StandupSchedule, error) {
+	kind := domain.StandupKind(strings.TrimSpace(kindValue))
+	if !isValidStandupKind(kind) {
+		return nil, NewError(ErrorCodeValidationFailed, "Standup schedule kind is not supported.")
+	}
+
+	timeOfDay, err := parseStandupTimeOfDay(timeOfDayValue)
+	if err != nil {
+		return nil, err
+	}
+
+	weeklyMode := domain.WeeklyMode(strings.TrimSpace(weeklyModeValue))
+	if err := validateScheduleWeeklyMode(kind, weeklyMode); err != nil {
+		return nil, err
+	}
+
+	if kind != domain.StandupKindWeekly {
+		weeklyMode = domain.WeeklyModeNone
+		skipDailyWhenWeeklyRuns = false
+	}
+
+	return &domain.StandupSchedule{
+		ID:                      scheduleID,
+		WorkspaceID:             workspaceID,
+		TemplateID:              templateID,
+		Kind:                    kind,
+		Enabled:                 enabled,
+		TimeOfDay:               timeOfDay,
+		SkipNonWorkingDays:      skipNonWorkingDays,
+		WeeklyMode:              weeklyMode,
+		SkipDailyWhenWeeklyRuns: skipDailyWhenWeeklyRuns,
+		CreatedBy:               strings.TrimSpace(createdBy),
+		CreatedAt:               now,
+		UpdatedAt:               now,
+	}, nil
+}
+
+/*
+parseStandupTimeOfDay validates and returns a standup schedule time.
+*/
+func parseStandupTimeOfDay(value string) (domain.TimeOfDay, error) {
+	cleanValue := strings.TrimSpace(value)
+	if cleanValue == "" {
+		return "", NewError(ErrorCodeValidationFailed, "Schedule time is required.")
+	}
+
+	if _, err := time.Parse("15:04", cleanValue); err != nil {
+		return "", NewError(ErrorCodeValidationFailed, "Schedule time must be in HH:mm format.")
+	}
+
+	return domain.TimeOfDay(cleanValue), nil
+}
+
+/*
+validateScheduleWeeklyMode validates weekly-mode settings for a schedule.
+*/
+func validateScheduleWeeklyMode(kind domain.StandupKind, weeklyMode domain.WeeklyMode) error {
+	if kind != domain.StandupKindWeekly {
+		return nil
+	}
+
+	switch weeklyMode {
+	case domain.WeeklyModeLastWorkingDay:
+		return nil
+	default:
+		return NewError(ErrorCodeValidationFailed, "Weekly schedules must use last_working_day mode.")
 	}
 }
 

@@ -359,6 +359,24 @@ func WriteUpdateStandupQuestion(w http.ResponseWriter, statusCode int, payload U
 }
 
 /*
+WriteCreateStandupSchedule writes the created standup schedule response.
+*/
+func WriteCreateStandupSchedule(w http.ResponseWriter, statusCode int, payload CreateStandupScheduleResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode created standup schedule response")
+}
+
+/*
+WriteUpdateStandupSchedule writes the updated standup schedule response.
+*/
+func WriteUpdateStandupSchedule(w http.ResponseWriter, statusCode int, payload UpdateStandupScheduleResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode updated standup schedule response")
+}
+
+/*
 WriteListStandupConfiguration writes the standup configuration response.
 */
 func WriteListStandupConfiguration(

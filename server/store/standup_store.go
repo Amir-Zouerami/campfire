@@ -39,8 +39,11 @@ type StandupStore interface {
 	UpdateTemplate(ctx context.Context, template domain.StandupTemplate) (*domain.StandupTemplate, error)
 	CreateQuestion(ctx context.Context, question domain.StandupQuestion) (*domain.StandupQuestion, error)
 	UpdateQuestion(ctx context.Context, question domain.StandupQuestion) (*domain.StandupQuestion, error)
+	CreateSchedule(ctx context.Context, schedule domain.StandupSchedule) (*domain.StandupSchedule, error)
+	UpdateSchedule(ctx context.Context, schedule domain.StandupSchedule) (*domain.StandupSchedule, error)
 	GetTemplateByID(ctx context.Context, workspaceID domain.ID, templateID domain.ID) (*domain.StandupTemplate, error)
 	GetQuestionByID(ctx context.Context, workspaceID domain.ID, questionID domain.ID) (*domain.StandupQuestion, error)
+	GetScheduleByID(ctx context.Context, workspaceID domain.ID, scheduleID domain.ID) (*domain.StandupSchedule, error)
 	ListSubmissionsWithAnswersByWorkspaceIDAndDate(
 		ctx context.Context,
 		workspaceID domain.ID,
@@ -463,6 +466,157 @@ func (s *SQLStandupStore) UpdateQuestion(
 	}
 
 	updated, err := s.GetQuestionByID(ctx, question.WorkspaceID, question.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return updated, nil
+}
+
+/*
+GetScheduleByID returns one standup schedule by workspace and ID.
+*/
+func (s *SQLStandupStore) GetScheduleByID(
+	ctx context.Context,
+	workspaceID domain.ID,
+	scheduleID domain.ID,
+) (*domain.StandupSchedule, error) {
+	var record standupScheduleRecord
+
+	err := s.db.GetContext(
+		ctx,
+		&record,
+		s.db.Rebind(`
+			SELECT
+				id,
+				workspace_id,
+				template_id,
+				kind,
+				enabled,
+				time_of_day,
+				skip_non_working_days,
+				weekly_mode,
+				skip_daily_when_weekly_runs,
+				created_by,
+				created_at,
+				updated_at
+			FROM campfire_standup_schedules
+			WHERE workspace_id = ? AND id = ?
+			LIMIT 1
+		`),
+		workspaceID.String(),
+		scheduleID.String(),
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+
+		return nil, fmt.Errorf("get standup schedule by id: %w", err)
+	}
+
+	schedule := record.toDomain()
+
+	return &schedule, nil
+}
+
+/*
+CreateSchedule inserts a standup schedule.
+*/
+func (s *SQLStandupStore) CreateSchedule(
+	ctx context.Context,
+	schedule domain.StandupSchedule,
+) (*domain.StandupSchedule, error) {
+	_, err := s.db.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			INSERT INTO campfire_standup_schedules (
+				id,
+				workspace_id,
+				template_id,
+				kind,
+				enabled,
+				time_of_day,
+				skip_non_working_days,
+				weekly_mode,
+				skip_daily_when_weekly_runs,
+				created_by,
+				created_at,
+				updated_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`),
+		schedule.ID.String(),
+		schedule.WorkspaceID.String(),
+		schedule.TemplateID.String(),
+		string(schedule.Kind),
+		schedule.Enabled,
+		schedule.TimeOfDay.String(),
+		schedule.SkipNonWorkingDays,
+		string(schedule.WeeklyMode),
+		schedule.SkipDailyWhenWeeklyRuns,
+		schedule.CreatedBy,
+		schedule.CreatedAt,
+		schedule.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("insert standup schedule: %w", err)
+	}
+
+	created, err := s.GetScheduleByID(ctx, schedule.WorkspaceID, schedule.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return created, nil
+}
+
+/*
+UpdateSchedule updates mutable standup schedule fields.
+*/
+func (s *SQLStandupStore) UpdateSchedule(
+	ctx context.Context,
+	schedule domain.StandupSchedule,
+) (*domain.StandupSchedule, error) {
+	result, err := s.db.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			UPDATE campfire_standup_schedules
+			SET
+				template_id = ?,
+				kind = ?,
+				enabled = ?,
+				time_of_day = ?,
+				skip_non_working_days = ?,
+				weekly_mode = ?,
+				skip_daily_when_weekly_runs = ?,
+				updated_at = ?
+			WHERE workspace_id = ? AND id = ?
+		`),
+		schedule.TemplateID.String(),
+		string(schedule.Kind),
+		schedule.Enabled,
+		schedule.TimeOfDay.String(),
+		schedule.SkipNonWorkingDays,
+		string(schedule.WeeklyMode),
+		schedule.SkipDailyWhenWeeklyRuns,
+		schedule.UpdatedAt,
+		schedule.WorkspaceID.String(),
+		schedule.ID.String(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("update standup schedule: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("read standup schedule update result: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return nil, ErrNotFound
+	}
+
+	updated, err := s.GetScheduleByID(ctx, schedule.WorkspaceID, schedule.ID)
 	if err != nil {
 		return nil, err
 	}
