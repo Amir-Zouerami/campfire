@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 
-import { ApiClientError, getDailyReportPreview } from '../api/client';
+import { ApiClientError, getDailyReportPreview, postDailyReportPreview } from '../api/client';
 import type { DailyReportPreview, StandupSubmissionSortMode, Workspace } from '../types/domain';
 
 /**
@@ -23,11 +23,17 @@ type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 type ClipboardState = 'idle' | 'copied' | 'error';
 
 /**
+ * PostState describes the post-to-channel interaction state.
+ */
+type PostState = 'idle' | 'posting' | 'posted' | 'error';
+
+/**
  * DailyReportPreviewCard renders a Markdown preview of the daily report.
  */
 export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): ReactElement {
 	const [loadState, setLoadState] = useState<LoadState>('idle');
 	const [clipboardState, setClipboardState] = useState<ClipboardState>('idle');
+	const [postState, setPostState] = useState<PostState>('idle');
 	const [occurrenceDate, setOccurrenceDate] = useState(getTodayLocalDateString());
 	const [sortMode, setSortMode] = useState<StandupSubmissionSortMode>('first_submitted');
 	const [preview, setPreview] = useState<DailyReportPreview | null>(null);
@@ -39,6 +45,7 @@ export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): Reac
 		async function loadPreview(): Promise<void> {
 			setLoadState('loading');
 			setClipboardState('idle');
+			setPostState('idle');
 			setMessage('');
 
 			try {
@@ -80,6 +87,31 @@ export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): Reac
 			setClipboardState('copied');
 		} catch (_error: unknown) {
 			setClipboardState('error');
+		}
+	}
+
+	/**
+	 * Posts the current report preview to the Mattermost channel.
+	 */
+	async function handlePostToChannel(): Promise<void> {
+		if (preview === null) {
+			return;
+		}
+
+		setPostState('posting');
+		setMessage('');
+
+		try {
+			const response = await postDailyReportPreview(props.workspace.id, {
+				occurrenceDate,
+				sortMode,
+			});
+
+			setPreview(response.preview);
+			setPostState('posted');
+		} catch (error: unknown) {
+			setPostState('error');
+			setMessage(errorToMessage(error));
 		}
 	}
 
@@ -143,6 +175,15 @@ export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): Reac
 				>
 					Copy Markdown
 				</button>
+
+				<button
+					className="cf:w-fit cf:rounded-2xl cf:border cf:border-orange-300/25 cf:bg-orange-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-orange-50 cf:transition cf:hover:bg-orange-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
+					type="button"
+					disabled={preview === null || postState === 'posting'}
+					onClick={() => void handlePostToChannel()}
+				>
+					{postState === 'posting' ? 'Posting…' : 'Post to channel'}
+				</button>
 			</div>
 
 			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
@@ -154,6 +195,18 @@ export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): Reac
 			{clipboardState === 'error' && (
 				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-red-200">
 					Could not copy automatically. Select the preview text manually.
+				</p>
+			)}
+
+			{postState === 'posted' && (
+				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-emerald-200">
+					Posted daily report to the channel.
+				</p>
+			)}
+
+			{postState === 'error' && message === '' && (
+				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-red-200">
+					Could not post the daily report to the channel.
 				</p>
 			)}
 

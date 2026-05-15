@@ -268,6 +268,22 @@ export type GetDailyReportPreviewResponse = {
 };
 
 /**
+ * PostDailyReportPreviewRequest is sent to POST /workspaces/{workspaceID}/reports/daily-preview/post.
+ */
+export type PostDailyReportPreviewRequest = {
+	readonly occurrenceDate: LocalDate;
+	readonly sortMode: StandupSubmissionSortMode;
+};
+
+/**
+ * PostDailyReportPreviewResponse is returned after posting a daily report preview.
+ */
+export type PostDailyReportPreviewResponse = {
+	readonly preview: DailyReportPreview;
+	readonly posted: boolean;
+};
+
+/**
  * ApiErrorPayload is the standard Campfire API error payload.
  */
 export type ApiErrorPayload = {

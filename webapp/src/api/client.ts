@@ -27,6 +27,8 @@ import type {
 	ListStandupSubmissionsRequest,
 	ListStandupSubmissionsResponse,
 	GetDailyReportPreviewResponse,
+	PostDailyReportPreviewRequest,
+	PostDailyReportPreviewResponse,
 } from '../types/api';
 
 const pluginID = 'dev.zouerami.campfire';
@@ -201,6 +203,19 @@ export async function getDailyReportPreview(
 
 	return apiGet<GetDailyReportPreviewResponse>(
 		`/workspaces/${encodeURIComponent(workspaceID)}/reports/daily-preview?${params.toString()}`,
+	);
+}
+
+/**
+ * postDailyReportPreview posts a generated daily report preview to the workspace channel.
+ */
+export async function postDailyReportPreview(
+	workspaceID: string,
+	request: PostDailyReportPreviewRequest,
+): Promise<PostDailyReportPreviewResponse> {
+	return apiPost<PostDailyReportPreviewRequest, PostDailyReportPreviewResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/reports/daily-preview/post`,
+		request,
 	);
 }
 

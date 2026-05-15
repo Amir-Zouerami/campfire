@@ -126,7 +126,13 @@ func New(config Config) (*App, error) {
 		workspaceMemberProvider,
 	)
 
-	reportService := service.NewReportService(standupService)
+	reportPublisher := mattermost.NewReportPublisher(config.API, botUserID)
+	reportService := service.NewReportService(
+		standupService,
+		workspaceStore,
+		workspaceRoleStore,
+		reportPublisher,
+	)
 
 	router := api.NewRouter(api.RouterConfig{
 		Logger:                 appLogger,

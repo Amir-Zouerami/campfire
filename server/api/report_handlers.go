@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -40,6 +41,48 @@ func handleGetDailyReportPreview(
 
 		WriteGetDailyReportPreview(w, http.StatusOK, GetDailyReportPreviewResponse{
 			Preview: DailyReportPreviewToPayload(*preview),
+		})
+	}
+}
+
+/*
+handlePostDailyReportPreview handles posting a daily report preview to the channel.
+*/
+func handlePostDailyReportPreview(
+	log logger.Logger,
+	mm mattermost.Client,
+	reportService *service.ReportService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+
+		var request PostDailyReportPreviewRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			WriteError(w, http.StatusBadRequest, "invalid_request", "Request body must be valid JSON.")
+			return
+		}
+
+		result, err := reportService.PostDailyPreview(r.Context(), service.PostDailyReportPreviewInput{
+			ActorUserID:    user.ID,
+			IsSystemAdmin:  user.IsSystemAdmin,
+			WorkspaceID:    workspaceID,
+			OccurrenceDate: request.OccurrenceDate,
+			SortMode:       request.SortMode,
+		})
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WritePostDailyReportPreview(w, http.StatusOK, PostDailyReportPreviewResponse{
+			Preview: DailyReportPreviewToPayload(result.Preview),
+			Posted:  result.Posted,
 		})
 	}
 }

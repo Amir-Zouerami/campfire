@@ -48,6 +48,22 @@ type GetDailyReportPreviewResponse struct {
 }
 
 /*
+PostDailyReportPreviewRequest is accepted by POST /workspaces/{workspaceID}/reports/daily-preview/post.
+*/
+type PostDailyReportPreviewRequest struct {
+	OccurrenceDate string `json:"occurrenceDate"`
+	SortMode       string `json:"sortMode"`
+}
+
+/*
+PostDailyReportPreviewResponse is returned after posting a daily report preview.
+*/
+type PostDailyReportPreviewResponse struct {
+	Preview DailyReportPreviewPayload `json:"preview"`
+	Posted  bool                      `json:"posted"`
+}
+
+/*
 DailyReportPreviewToPayload maps a daily report preview to an API payload.
 */
 func DailyReportPreviewToPayload(preview domain.DailyReportPreview) DailyReportPreviewPayload {

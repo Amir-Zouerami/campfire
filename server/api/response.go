@@ -285,3 +285,16 @@ func WriteGetDailyReportPreview(
 		return encoder.Encode(payload)
 	}, "failed to encode daily report preview response")
 }
+
+/*
+WritePostDailyReportPreview writes the posted daily report preview response.
+*/
+func WritePostDailyReportPreview(
+	w http.ResponseWriter,
+	statusCode int,
+	payload PostDailyReportPreviewResponse,
+) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode posted daily report preview response")
+}

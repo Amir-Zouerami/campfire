@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/amir-zouerami/campfire/server/domain"
+	"github.com/amir-zouerami/campfire/server/store"
 )
 
 /*
@@ -23,18 +25,48 @@ type BuildDailyReportPreviewInput struct {
 }
 
 /*
-ReportService builds Campfire report previews.
+PostDailyReportPreviewInput contains filters and actor data for posting a daily report.
+*/
+type PostDailyReportPreviewInput struct {
+	ActorUserID    string
+	IsSystemAdmin  bool
+	WorkspaceID    string
+	OccurrenceDate string
+	SortMode       string
+}
+
+/*
+PostDailyReportPreviewResult contains the posted preview.
+*/
+type PostDailyReportPreviewResult struct {
+	Preview domain.DailyReportPreview
+	Posted  bool
+}
+
+/*
+ReportService builds and publishes Campfire report previews.
 */
 type ReportService struct {
-	standupService *StandupService
+	standupService     *StandupService
+	workspaceStore     store.WorkspaceStore
+	workspaceRoleStore store.WorkspaceRoleStore
+	reportPublisher    ReportPublisher
 }
 
 /*
 NewReportService creates a report service.
 */
-func NewReportService(standupService *StandupService) *ReportService {
+func NewReportService(
+	standupService *StandupService,
+	workspaceStore store.WorkspaceStore,
+	workspaceRoleStore store.WorkspaceRoleStore,
+	reportPublisher ReportPublisher,
+) *ReportService {
 	return &ReportService{
-		standupService: standupService,
+		standupService:     standupService,
+		workspaceStore:     workspaceStore,
+		workspaceRoleStore: workspaceRoleStore,
+		reportPublisher:    reportPublisher,
 	}
 }
 
@@ -83,6 +115,98 @@ func (s *ReportService) BuildDailyPreview(
 	preview.Markdown = buildDailyReportMarkdown(*preview)
 
 	return preview, nil
+}
+
+/*
+PostDailyPreview builds a daily report preview and posts it to the workspace channel.
+*/
+func (s *ReportService) PostDailyPreview(
+	ctx context.Context,
+	input PostDailyReportPreviewInput,
+) (*PostDailyReportPreviewResult, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to post daily reports.")
+	}
+
+	cleanWorkspaceID := strings.TrimSpace(input.WorkspaceID)
+	if cleanWorkspaceID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
+	}
+
+	workspaceID := domain.ID(cleanWorkspaceID)
+	workspace, err := s.workspaceStore.GetByID(ctx, workspaceID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Workspace was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load workspace.")
+	}
+
+	if err := s.requireReportPostPermission(ctx, cleanActorUserID, input.IsSystemAdmin, workspaceID); err != nil {
+		return nil, err
+	}
+
+	preview, err := s.BuildDailyPreview(ctx, BuildDailyReportPreviewInput{
+		ActorUserID:    cleanActorUserID,
+		WorkspaceID:    cleanWorkspaceID,
+		OccurrenceDate: input.OccurrenceDate,
+		SortMode:       input.SortMode,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if strings.TrimSpace(preview.Markdown) == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Daily report preview is empty.")
+	}
+
+	if err := s.reportPublisher.PostDailyReport(ctx, DailyReportPost{
+		WorkspaceID:    workspace.ID.String(),
+		WorkspaceName:  workspace.Name,
+		ChannelID:      workspace.ChannelID,
+		OccurrenceDate: preview.OccurrenceDate.String(),
+		Markdown:       preview.Markdown,
+		PostedByUserID: cleanActorUserID,
+	}); err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not post daily report to the channel.")
+	}
+
+	return &PostDailyReportPreviewResult{
+		Preview: *preview,
+		Posted:  true,
+	}, nil
+}
+
+/*
+requireReportPostPermission ensures the actor can post reports to the channel.
+*/
+func (s *ReportService) requireReportPostPermission(
+	ctx context.Context,
+	actorUserID string,
+	isSystemAdmin bool,
+	workspaceID domain.ID,
+) error {
+	if isSystemAdmin {
+		return nil
+	}
+
+	hasRole, err := s.workspaceRoleStore.UserHasAnyRole(
+		ctx,
+		workspaceID,
+		actorUserID,
+		[]domain.Role{domain.RoleLead, domain.RoleApprover},
+	)
+	if err != nil {
+		return NewError(ErrorCodeInternal, "Could not verify report posting permission.")
+	}
+
+	if !hasRole {
+		return NewError(ErrorCodePermissionDenied, "Only workspace Leads, Approvers, and System Admins can post reports.")
+	}
+
+	return nil
 }
 
 /*
