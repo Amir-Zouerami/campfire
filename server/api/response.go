@@ -173,6 +173,19 @@ func WriteListMyPendingLeaveRequests(
 }
 
 /*
+WriteListMyActiveLeaveRequests writes the current user's active leave request list response.
+*/
+func WriteListMyActiveLeaveRequests(
+	w http.ResponseWriter,
+	statusCode int,
+	payload ListMyActiveLeaveRequestsResponse,
+) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode my active leave request list response")
+}
+
+/*
 WriteListApprovedLeaveRequests writes the approved leave request list response.
 */
 func WriteListApprovedLeaveRequests(

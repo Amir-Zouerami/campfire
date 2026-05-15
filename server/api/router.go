@@ -85,6 +85,10 @@ func NewRouter(config RouterConfig) http.Handler {
 			handleListMyPendingLeaveRequests(config.Logger, config.Mattermost, config.LeaveService),
 		)
 		api.Get(
+			"/workspaces/{workspaceID}/leaves/my-active",
+			handleListMyActiveLeaveRequests(config.Logger, config.Mattermost, config.LeaveService),
+		)
+		api.Get(
 			"/workspaces/{workspaceID}/leaves/approved",
 			handleListApprovedLeaveRequests(config.Logger, config.Mattermost, config.LeaveService),
 		)

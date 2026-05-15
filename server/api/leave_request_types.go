@@ -111,6 +111,13 @@ type ListMyPendingLeaveRequestsResponse struct {
 }
 
 /*
+ListMyActiveLeaveRequestsResponse is returned by GET /workspaces/{workspaceID}/leaves/my-active.
+*/
+type ListMyActiveLeaveRequestsResponse struct {
+	LeaveRequests []PendingLeaveRequestPayload `json:"leaveRequests"`
+}
+
+/*
 ListApprovedLeaveRequestsResponse is returned by GET /workspaces/{workspaceID}/leaves/approved.
 */
 type ListApprovedLeaveRequestsResponse struct {
