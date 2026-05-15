@@ -72,3 +72,41 @@ func handleCreateLeave(
 		})
 	}
 }
+
+/*
+handleDecideLeave handles approving or rejecting a pending leave request.
+*/
+func handleDecideLeave(
+	log logger.Logger,
+	mm mattermost.Client,
+	leaveService *service.LeaveService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		leaveRequestID := strings.TrimSpace(chi.URLParam(r, "leaveRequestID"))
+
+		var request DecideLeaveRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			WriteError(w, http.StatusBadRequest, "invalid_request", "Request body must be valid JSON.")
+			return
+		}
+
+		leaveRequest, err := leaveService.Decide(
+			r.Context(),
+			request.ToServiceInput(user.ID, user.IsSystemAdmin, leaveRequestID),
+		)
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WriteDecideLeave(w, http.StatusOK, DecideLeaveResponse{
+			LeaveRequest: LeaveRequestToPayload(*leaveRequest),
+		})
+	}
+}

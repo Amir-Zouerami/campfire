@@ -4,6 +4,8 @@ import type {
 	CreateGlobalSkipDateResponse,
 	CreateLeaveRequest,
 	CreateLeaveResponse,
+	DecideLeaveRequest,
+	DecideLeaveResponse,
 	CreateWorkspaceRequest,
 	CreateWorkspaceResponse,
 	DeleteGlobalSkipDateResponse,
@@ -106,6 +108,19 @@ export async function validateLeaveRequest(request: ValidateLeaveRequest): Promi
  */
 export async function createLeaveRequest(request: CreateLeaveRequest): Promise<CreateLeaveResponse> {
 	return apiPost<CreateLeaveRequest, CreateLeaveResponse>('/leaves', request);
+}
+
+/**
+ * decideLeaveRequest approves or rejects a pending leave request.
+ */
+export async function decideLeaveRequest(
+	leaveRequestID: string,
+	request: DecideLeaveRequest,
+): Promise<DecideLeaveResponse> {
+	return apiPost<DecideLeaveRequest, DecideLeaveResponse>(
+		`/leaves/${encodeURIComponent(leaveRequestID)}/decision`,
+		request,
+	);
 }
 
 /**

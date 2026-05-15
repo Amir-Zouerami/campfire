@@ -66,6 +66,11 @@ func NewRouter(config RouterConfig) http.Handler {
 			"/leaves",
 			handleCreateLeave(config.Logger, config.Mattermost, config.LeaveService),
 		)
+
+		api.Post(
+			"/leaves/{leaveRequestID}/decision",
+			handleDecideLeave(config.Logger, config.Mattermost, config.LeaveService),
+		)
 	})
 
 	return router

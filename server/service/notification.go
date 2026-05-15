@@ -27,12 +27,37 @@ type LeaveRequestNotification struct {
 }
 
 /*
+LeaveDecisionNotification contains the data needed to notify a requester after a
+leave approval decision.
+*/
+type LeaveDecisionNotification struct {
+	LeaveRequestID string
+	WorkspaceID    string
+	WorkspaceName  string
+	ChannelID      string
+
+	RequesterUserID string
+	DeciderUserID   string
+
+	LeaveTypeName string
+	StartDate     string
+	EndDate       string
+	DurationMode  string
+	HalfDayPart   string
+	StartTime     string
+	EndTime       string
+	Decision      string
+	Comment       string
+}
+
+/*
 NotificationPublisher defines outbound notification behavior.
 
 Application services depend on this port instead of importing Mattermost APIs.
 */
 type NotificationPublisher interface {
 	NotifyLeaveRequested(ctx context.Context, notification LeaveRequestNotification) error
+	NotifyLeaveDecided(ctx context.Context, notification LeaveDecisionNotification) error
 }
 
 /*
@@ -56,6 +81,16 @@ NotifyLeaveRequested intentionally does nothing.
 func (p *NoopNotificationPublisher) NotifyLeaveRequested(
 	_ context.Context,
 	_ LeaveRequestNotification,
+) error {
+	return nil
+}
+
+/*
+NotifyLeaveDecided intentionally does nothing.
+*/
+func (p *NoopNotificationPublisher) NotifyLeaveDecided(
+	_ context.Context,
+	_ LeaveDecisionNotification,
 ) error {
 	return nil
 }

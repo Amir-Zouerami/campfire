@@ -44,6 +44,14 @@ type CreateLeaveRequest struct {
 }
 
 /*
+DecideLeaveRequest is accepted by POST /leaves/{leaveRequestID}/decision.
+*/
+type DecideLeaveRequest struct {
+	Decision string `json:"decision"`
+	Comment  string `json:"comment"`
+}
+
+/*
 LeaveRequestPayload is the API representation of a leave request.
 */
 type LeaveRequestPayload struct {
@@ -69,6 +77,13 @@ type LeaveRequestPayload struct {
 CreateLeaveResponse is returned by POST /leaves.
 */
 type CreateLeaveResponse struct {
+	LeaveRequest LeaveRequestPayload `json:"leaveRequest"`
+}
+
+/*
+DecideLeaveResponse is returned by POST /leaves/{leaveRequestID}/decision.
+*/
+type DecideLeaveResponse struct {
 	LeaveRequest LeaveRequestPayload `json:"leaveRequest"`
 }
 
@@ -140,6 +155,23 @@ func (r CreateLeaveRequest) ToServiceInput(actorUserID string) service.CreateLea
 		EndTime:      r.EndTime,
 		Reason:       r.Reason,
 		BackupUserID: r.BackupUserID,
+	}
+}
+
+/*
+ToServiceInput maps an API leave decision request to service input.
+*/
+func (r DecideLeaveRequest) ToServiceInput(
+	actorUserID string,
+	isSystemAdmin bool,
+	leaveRequestID string,
+) service.DecideLeaveInput {
+	return service.DecideLeaveInput{
+		ActorUserID:    actorUserID,
+		IsSystemAdmin:  isSystemAdmin,
+		LeaveRequestID: leaveRequestID,
+		Decision:       r.Decision,
+		Comment:        r.Comment,
 	}
 }
 

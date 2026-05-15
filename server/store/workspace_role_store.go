@@ -13,6 +13,7 @@ WorkspaceRoleStore defines persistence operations for workspace role lookups.
 */
 type WorkspaceRoleStore interface {
 	ListUserIDsByRoles(ctx context.Context, workspaceID domain.ID, roles []domain.Role) ([]string, error)
+	UserHasAnyRole(ctx context.Context, workspaceID domain.ID, userID string, roles []domain.Role) (bool, error)
 }
 
 /*
@@ -43,10 +44,7 @@ func (s *SQLWorkspaceRoleStore) ListUserIDsByRoles(
 		return []string{}, nil
 	}
 
-	roleValues := make([]string, 0, len(roles))
-	for _, role := range roles {
-		roleValues = append(roleValues, string(role))
-	}
+	roleValues := rolesToStrings(roles)
 
 	query, args, err := sqlx.In(
 		`
@@ -70,4 +68,56 @@ func (s *SQLWorkspaceRoleStore) ListUserIDsByRoles(
 	}
 
 	return userIDs, nil
+}
+
+/*
+UserHasAnyRole returns true when a user has at least one of the requested roles.
+*/
+func (s *SQLWorkspaceRoleStore) UserHasAnyRole(
+	ctx context.Context,
+	workspaceID domain.ID,
+	userID string,
+	roles []domain.Role,
+) (bool, error) {
+	if len(roles) == 0 {
+		return false, nil
+	}
+
+	roleValues := rolesToStrings(roles)
+
+	query, args, err := sqlx.In(
+		`
+		SELECT COUNT(1)
+		FROM campfire_workspace_role_assignments
+		WHERE workspace_id = ? AND user_id = ? AND role IN (?)
+		`,
+		workspaceID.String(),
+		userID,
+		roleValues,
+	)
+	if err != nil {
+		return false, fmt.Errorf("build workspace role existence query: %w", err)
+	}
+
+	query = s.db.Rebind(query)
+
+	var count int
+	if err := s.db.GetContext(ctx, &count, query, args...); err != nil {
+		return false, fmt.Errorf("check workspace role existence: %w", err)
+	}
+
+	return count > 0, nil
+}
+
+/*
+rolesToStrings maps domain roles to string values for SQL queries.
+*/
+func rolesToStrings(roles []domain.Role) []string {
+	roleValues := make([]string, 0, len(roles))
+
+	for _, role := range roles {
+		roleValues = append(roleValues, string(role))
+	}
+
+	return roleValues
 }

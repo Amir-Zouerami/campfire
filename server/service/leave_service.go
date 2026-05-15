@@ -29,6 +29,17 @@ type CreateLeaveInput struct {
 }
 
 /*
+DecideLeaveInput contains user-submitted leave decision data.
+*/
+type DecideLeaveInput struct {
+	ActorUserID    string
+	IsSystemAdmin  bool
+	LeaveRequestID string
+	Decision       string
+	Comment        string
+}
+
+/*
 LeaveService owns leave request business rules.
 */
 type LeaveService struct {
@@ -201,6 +212,138 @@ func (s *LeaveService) Create(ctx context.Context, input CreateLeaveInput) (*dom
 	}
 
 	return created, nil
+}
+
+/*
+Decide approves or rejects a pending leave request.
+*/
+func (s *LeaveService) Decide(ctx context.Context, input DecideLeaveInput) (*domain.LeaveRequest, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to decide leave requests.")
+	}
+
+	cleanLeaveRequestID := strings.TrimSpace(input.LeaveRequestID)
+	if cleanLeaveRequestID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Leave request ID is required.")
+	}
+
+	decisionStatus := domain.LeaveStatus(strings.TrimSpace(input.Decision))
+	if decisionStatus != domain.LeaveStatusApproved && decisionStatus != domain.LeaveStatusRejected {
+		return nil, NewError(ErrorCodeValidationFailed, "Decision must be approved or rejected.")
+	}
+
+	existingRequest, err := s.leaveStore.GetRequestByID(ctx, domain.ID(cleanLeaveRequestID))
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Leave request was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load leave request.")
+	}
+
+	if existingRequest.Status != domain.LeaveStatusPending {
+		return nil, NewError(ErrorCodeConflict, "Only pending leave requests can be approved or rejected.")
+	}
+
+	workspace, err := s.workspaceStore.GetByID(ctx, existingRequest.WorkspaceID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Workspace was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load workspace.")
+	}
+
+	if err := s.requireLeaveDecisionPermission(ctx, cleanActorUserID, input.IsSystemAdmin, workspace.ID); err != nil {
+		return nil, err
+	}
+
+	leaveType, err := s.leaveStore.GetActiveTypeByID(ctx, workspace.ID, existingRequest.LeaveTypeID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeValidationFailed, "Leave type is no longer active.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load leave type.")
+	}
+
+	now := time.Now().UTC()
+	decision := domain.LeaveDecision{
+		ID:             domain.ID(uuid.NewString()),
+		LeaveRequestID: existingRequest.ID,
+		WorkspaceID:    workspace.ID,
+		DecidedBy:      cleanActorUserID,
+		Decision:       decisionStatus,
+		Comment:        strings.TrimSpace(input.Comment),
+		CreatedAt:      now,
+	}
+
+	decidedRequest, err := s.leaveStore.DecideRequest(ctx, store.DecideLeaveRequestParams{
+		LeaveRequestID: existingRequest.ID,
+		NewStatus:      decisionStatus,
+		Decision:       decision,
+		UpdatedAt:      now,
+	})
+	if err != nil {
+		if errors.Is(err, store.ErrConflict) {
+			return nil, NewError(ErrorCodeConflict, "Only pending leave requests can be approved or rejected.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not update leave request.")
+	}
+
+	_ = s.notificationPublisher.NotifyLeaveDecided(ctx, LeaveDecisionNotification{
+		LeaveRequestID: decidedRequest.ID.String(),
+		WorkspaceID:    workspace.ID.String(),
+		WorkspaceName:  workspace.Name,
+		ChannelID:      workspace.ChannelID,
+
+		RequesterUserID: decidedRequest.UserID,
+		DeciderUserID:   cleanActorUserID,
+
+		LeaveTypeName: leaveType.Name,
+		StartDate:     decidedRequest.StartDate.String(),
+		EndDate:       decidedRequest.EndDate.String(),
+		DurationMode:  string(decidedRequest.DurationMode),
+		HalfDayPart:   string(decidedRequest.HalfDayPart),
+		StartTime:     decidedRequest.StartTime.String(),
+		EndTime:       decidedRequest.EndTime.String(),
+		Decision:      string(decisionStatus),
+		Comment:       decision.Comment,
+	})
+
+	return decidedRequest, nil
+}
+
+/*
+requireLeaveDecisionPermission ensures the actor can approve or reject leave.
+*/
+func (s *LeaveService) requireLeaveDecisionPermission(
+	ctx context.Context,
+	actorUserID string,
+	isSystemAdmin bool,
+	workspaceID domain.ID,
+) error {
+	if isSystemAdmin {
+		return nil
+	}
+
+	hasRole, err := s.workspaceRoleStore.UserHasAnyRole(
+		ctx,
+		workspaceID,
+		actorUserID,
+		[]domain.Role{domain.RoleLead, domain.RoleApprover},
+	)
+	if err != nil {
+		return NewError(ErrorCodeInternal, "Could not verify leave approval permission.")
+	}
+
+	if !hasRole {
+		return NewError(ErrorCodePermissionDenied, "Only workspace Leads and Approvers can decide leave requests.")
+	}
+
+	return nil
 }
 
 /*

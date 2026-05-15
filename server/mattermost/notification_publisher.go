@@ -51,6 +51,20 @@ func (p *NotificationPublisher) NotifyLeaveRequested(
 }
 
 /*
+NotifyLeaveDecided notifies the requester that their leave request was approved or rejected.
+*/
+func (p *NotificationPublisher) NotifyLeaveDecided(
+	_ context.Context,
+	notification service.LeaveDecisionNotification,
+) error {
+	if strings.TrimSpace(p.botUserID) == "" {
+		return fmt.Errorf("Campfire bot user ID is empty")
+	}
+
+	return p.sendDirectMessage(notification.RequesterUserID, formatLeaveDecidedMessage(p.api, notification))
+}
+
+/*
 sendDirectMessage sends a bot-authored direct message to a Mattermost user.
 */
 func (p *NotificationPublisher) sendDirectMessage(userID string, message string) error {
@@ -80,12 +94,7 @@ func (p *NotificationPublisher) sendDirectMessage(userID string, message string)
 formatLeaveRequestedMessage formats the leave request approval notification.
 */
 func formatLeaveRequestedMessage(api plugin.API, notification service.LeaveRequestNotification) string {
-	requesterLabel := notification.RequesterUserID
-
-	requester, appErr := api.GetUser(notification.RequesterUserID)
-	if appErr == nil && requester != nil && requester.Username != "" {
-		requesterLabel = "@" + requester.Username
-	}
+	requesterLabel := userMentionOrID(api, notification.RequesterUserID)
 
 	lines := []string{
 		"🔥 **Campfire leave request**",
@@ -95,7 +104,12 @@ func formatLeaveRequestedMessage(api plugin.API, notification service.LeaveReque
 		fmt.Sprintf("**Status:** %s", notification.Status),
 	}
 
-	details := formatLeaveDetails(notification)
+	details := formatLeaveRequestDetails(
+		notification.DurationMode,
+		notification.HalfDayPart,
+		notification.StartTime,
+		notification.EndTime,
+	)
 	if details != "" {
 		lines = append(lines, details)
 	}
@@ -114,25 +128,69 @@ func formatLeaveRequestedMessage(api plugin.API, notification service.LeaveReque
 }
 
 /*
-formatLeaveDetails returns mode-specific leave detail copy.
+formatLeaveDecidedMessage formats the leave approval/rejection notification.
 */
-func formatLeaveDetails(notification service.LeaveRequestNotification) string {
-	switch notification.DurationMode {
+func formatLeaveDecidedMessage(api plugin.API, notification service.LeaveDecisionNotification) string {
+	deciderLabel := userMentionOrID(api, notification.DeciderUserID)
+
+	lines := []string{
+		"🔥 **Campfire leave update**",
+		"",
+		fmt.Sprintf("Your **%s** leave request was **%s** by %s.", notification.LeaveTypeName, notification.Decision, deciderLabel),
+		fmt.Sprintf("**Dates:** %s → %s", notification.StartDate, notification.EndDate),
+	}
+
+	details := formatLeaveRequestDetails(
+		notification.DurationMode,
+		notification.HalfDayPart,
+		notification.StartTime,
+		notification.EndTime,
+	)
+	if details != "" {
+		lines = append(lines, details)
+	}
+
+	if strings.TrimSpace(notification.Comment) != "" {
+		lines = append(lines, fmt.Sprintf("**Comment:** %s", notification.Comment))
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+/*
+formatLeaveRequestDetails returns mode-specific leave detail copy.
+*/
+func formatLeaveRequestDetails(durationMode string, halfDayPart string, startTime string, endTime string) string {
+	switch durationMode {
 	case "half_day":
-		if strings.TrimSpace(notification.HalfDayPart) == "" {
+		if strings.TrimSpace(halfDayPart) == "" {
 			return "**Duration:** half day"
 		}
 
-		return fmt.Sprintf("**Duration:** half day, %s", notification.HalfDayPart)
+		return fmt.Sprintf("**Duration:** half day, %s", halfDayPart)
 
 	case "hourly":
-		if strings.TrimSpace(notification.StartTime) == "" || strings.TrimSpace(notification.EndTime) == "" {
+		if strings.TrimSpace(startTime) == "" || strings.TrimSpace(endTime) == "" {
 			return "**Duration:** hourly"
 		}
 
-		return fmt.Sprintf("**Duration:** %s → %s", notification.StartTime, notification.EndTime)
+		return fmt.Sprintf("**Duration:** %s → %s", startTime, endTime)
 
 	default:
 		return ""
 	}
+}
+
+/*
+userMentionOrID returns a Mattermost mention when the user can be loaded.
+*/
+func userMentionOrID(api plugin.API, userID string) string {
+	userLabel := userID
+
+	user, appErr := api.GetUser(userID)
+	if appErr == nil && user != nil && user.Username != "" {
+		userLabel = "@" + user.Username
+	}
+
+	return userLabel
 }

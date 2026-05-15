@@ -3,6 +3,7 @@ import type {
 	LeaveDurationMode,
 	LeaveHalfDayPart,
 	LeaveRequest,
+	LeaveStatus,
 	LeaveType,
 	LocalDate,
 	TimeOfDay,
@@ -145,6 +146,21 @@ export type CreateLeaveRequest = {
  * CreateLeaveResponse is returned by POST /leaves.
  */
 export type CreateLeaveResponse = {
+	readonly leaveRequest: LeaveRequest;
+};
+
+/**
+ * DecideLeaveRequest is sent to POST /leaves/{leaveRequestID}/decision.
+ */
+export type DecideLeaveRequest = {
+	readonly decision: Extract<LeaveStatus, 'approved' | 'rejected'>;
+	readonly comment: string;
+};
+
+/**
+ * DecideLeaveResponse is returned by POST /leaves/{leaveRequestID}/decision.
+ */
+export type DecideLeaveResponse = {
 	readonly leaveRequest: LeaveRequest;
 };
 
