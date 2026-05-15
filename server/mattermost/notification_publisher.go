@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/amir-zouerami/campfire/server/domain"
 	"github.com/amir-zouerami/campfire/server/service"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
@@ -52,6 +53,9 @@ func (p *NotificationPublisher) NotifyLeaveRequested(
 
 /*
 NotifyLeaveDecided notifies the requester that their leave request was approved or rejected.
+
+Approved leave is also announced in the workspace channel so the team has a
+shared availability signal.
 */
 func (p *NotificationPublisher) NotifyLeaveDecided(
 	_ context.Context,
@@ -61,7 +65,15 @@ func (p *NotificationPublisher) NotifyLeaveDecided(
 		return fmt.Errorf("Campfire bot user ID is empty")
 	}
 
-	return p.sendDirectMessage(notification.RequesterUserID, formatLeaveDecidedMessage(p.api, notification))
+	if err := p.sendDirectMessage(notification.RequesterUserID, formatLeaveDecidedMessage(p.api, notification)); err != nil {
+		return err
+	}
+
+	if domain.LeaveStatus(notification.Decision) != domain.LeaveStatusApproved {
+		return nil
+	}
+
+	return p.sendChannelMessage(notification.ChannelID, formatApprovedLeaveChannelMessage(p.api, notification))
 }
 
 /*
@@ -111,6 +123,32 @@ func (p *NotificationPublisher) sendDirectMessage(userID string, message string)
 }
 
 /*
+sendChannelMessage sends a bot-authored message to a Mattermost channel.
+*/
+func (p *NotificationPublisher) sendChannelMessage(channelID string, message string) error {
+	cleanChannelID := strings.TrimSpace(channelID)
+	if cleanChannelID == "" {
+		return nil
+	}
+
+	cleanMessage := strings.TrimSpace(message)
+	if cleanMessage == "" {
+		return nil
+	}
+
+	_, appErr := p.api.CreatePost(&model.Post{
+		UserId:    p.botUserID,
+		ChannelId: cleanChannelID,
+		Message:   cleanMessage,
+	})
+	if appErr != nil {
+		return appErr
+	}
+
+	return nil
+}
+
+/*
 formatLeaveRequestedMessage formats the leave request approval notification.
 */
 func formatLeaveRequestedMessage(api plugin.API, notification service.LeaveRequestNotification) string {
@@ -139,7 +177,7 @@ func formatLeaveRequestedMessage(api plugin.API, notification service.LeaveReque
 	}
 
 	if strings.TrimSpace(notification.BackupUserID) != "" {
-		lines = append(lines, fmt.Sprintf("**Backup:** %s", notification.BackupUserID))
+		lines = append(lines, fmt.Sprintf("**Backup:** %s", userMentionOrID(api, notification.BackupUserID)))
 	}
 
 	lines = append(lines, "", "Open Campfire to approve or reject this request.")
@@ -205,18 +243,50 @@ func formatLeaveCancelledMessage(api plugin.API, notification service.LeaveCance
 }
 
 /*
+formatApprovedLeaveChannelMessage formats the team-facing approved leave announcement.
+*/
+func formatApprovedLeaveChannelMessage(api plugin.API, notification service.LeaveDecisionNotification) string {
+	requesterLabel := userMentionOrID(api, notification.RequesterUserID)
+	deciderLabel := userMentionOrID(api, notification.DeciderUserID)
+
+	lines := []string{
+		"🔥 **Campfire availability update**",
+		"",
+		fmt.Sprintf("%s will be away on approved **%s** leave.", requesterLabel, notification.LeaveTypeName),
+		fmt.Sprintf("**Dates:** %s → %s", notification.StartDate, notification.EndDate),
+		fmt.Sprintf("**Approved by:** %s", deciderLabel),
+	}
+
+	details := formatLeaveRequestDetails(
+		notification.DurationMode,
+		notification.HalfDayPart,
+		notification.StartTime,
+		notification.EndTime,
+	)
+	if details != "" {
+		lines = append(lines, details)
+	}
+
+	if strings.TrimSpace(notification.Comment) != "" {
+		lines = append(lines, fmt.Sprintf("**Approval note:** %s", notification.Comment))
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+/*
 formatLeaveRequestDetails returns mode-specific leave detail copy.
 */
 func formatLeaveRequestDetails(durationMode string, halfDayPart string, startTime string, endTime string) string {
 	switch durationMode {
-	case "half_day":
+	case string(domain.LeaveDurationHalfDay):
 		if strings.TrimSpace(halfDayPart) == "" {
 			return "**Duration:** half day"
 		}
 
 		return fmt.Sprintf("**Duration:** half day, %s", halfDayPart)
 
-	case "hourly":
+	case string(domain.LeaveDurationHourly):
 		if strings.TrimSpace(startTime) == "" || strings.TrimSpace(endTime) == "" {
 			return "**Duration:** hourly"
 		}
