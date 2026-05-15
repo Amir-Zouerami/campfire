@@ -122,9 +122,28 @@ type PostDailyReportAutomationInput struct {
 }
 
 /*
+PostWeeklyReportAutomationInput identifies a scheduled weekly report attempt.
+*/
+type PostWeeklyReportAutomationInput struct {
+	WorkspaceID string
+	ScheduleID  string
+	PeriodStart string
+	PeriodEnd   string
+}
+
+/*
 PostDailyReportAutomationResult summarizes a scheduled daily report attempt.
 */
 type PostDailyReportAutomationResult struct {
+	Posted        bool
+	SkippedReason string
+	Run           *domain.ReportRun
+}
+
+/*
+PostWeeklyReportAutomationResult summarizes a scheduled weekly report attempt.
+*/
+type PostWeeklyReportAutomationResult struct {
 	Posted        bool
 	SkippedReason string
 	Run           *domain.ReportRun
@@ -771,6 +790,128 @@ func (s *ReportService) PostDailyAutomated(
 	}
 
 	return &PostDailyReportAutomationResult{
+		Posted:        result.Posted,
+		SkippedReason: "",
+		Run:           &result.Run,
+	}, nil
+}
+
+/*
+PostWeeklyAutomated posts a weekly report from scheduler automation.
+
+Automation only posts when the enabled weekly report rule:
+- belongs to the due schedule,
+- is configured to post to channel,
+- does not require manual preview.
+
+The caller supplies the weekly period so scheduler calendar logic stays outside
+the report service.
+*/
+func (s *ReportService) PostWeeklyAutomated(
+	ctx context.Context,
+	input PostWeeklyReportAutomationInput,
+) (*PostWeeklyReportAutomationResult, error) {
+	cleanWorkspaceID := strings.TrimSpace(input.WorkspaceID)
+	if cleanWorkspaceID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
+	}
+
+	cleanScheduleID := strings.TrimSpace(input.ScheduleID)
+	if cleanScheduleID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Schedule ID is required.")
+	}
+
+	periodStart := domain.LocalDate(strings.TrimSpace(input.PeriodStart))
+	if _, err := parseLocalDate(periodStart); err != nil {
+		return nil, NewError(ErrorCodeValidationFailed, "Period start must be a real YYYY-MM-DD calendar date.")
+	}
+
+	periodEnd := domain.LocalDate(strings.TrimSpace(input.PeriodEnd))
+	if _, err := parseLocalDate(periodEnd); err != nil {
+		return nil, NewError(ErrorCodeValidationFailed, "Period end must be a real YYYY-MM-DD calendar date.")
+	}
+
+	if periodEnd.String() < periodStart.String() {
+		return nil, NewError(ErrorCodeValidationFailed, "Period end cannot be before period start.")
+	}
+
+	workspaceID := domain.ID(cleanWorkspaceID)
+	scheduleID := domain.ID(cleanScheduleID)
+
+	reportRule, err := s.reportStore.GetEnabledRuleByWorkspaceIDAndKind(
+		ctx,
+		workspaceID,
+		domain.ReportKindWeekly,
+	)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return &PostWeeklyReportAutomationResult{
+				Posted:        false,
+				SkippedReason: "no_enabled_weekly_report_rule",
+				Run:           nil,
+			}, nil
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load weekly report rule.")
+	}
+
+	if reportRule.ScheduleID != scheduleID {
+		return &PostWeeklyReportAutomationResult{
+			Posted:        false,
+			SkippedReason: "report_rule_not_for_schedule",
+			Run:           nil,
+		}, nil
+	}
+
+	if !reportRule.PostToChannel {
+		return &PostWeeklyReportAutomationResult{
+			Posted:        false,
+			SkippedReason: "post_to_channel_disabled",
+			Run:           nil,
+		}, nil
+	}
+
+	if reportRule.PreviewRequired {
+		return &PostWeeklyReportAutomationResult{
+			Posted:        false,
+			SkippedReason: "manual_preview_required",
+			Run:           nil,
+		}, nil
+	}
+
+	existingRun, err := s.reportStore.GetRunByRuleAndPeriod(
+		ctx,
+		workspaceID,
+		reportRule.ID,
+		domain.ReportKindWeekly,
+		periodStart,
+		periodEnd,
+	)
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
+		return nil, NewError(ErrorCodeInternal, "Could not check weekly report history.")
+	}
+
+	if existingRun != nil {
+		return &PostWeeklyReportAutomationResult{
+			Posted:        false,
+			SkippedReason: "already_processed",
+			Run:           existingRun,
+		}, nil
+	}
+
+	result, err := s.PostWeeklyPreview(ctx, PostWeeklyReportPreviewInput{
+		ActorUserID:   reportAutomationActorUserID,
+		IsSystemAdmin: true,
+		WorkspaceID:   cleanWorkspaceID,
+		PeriodStart:   periodStart.String(),
+		PeriodEnd:     periodEnd.String(),
+		SortMode:      string(reportRule.SortMode),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &PostWeeklyReportAutomationResult{
 		Posted:        result.Posted,
 		SkippedReason: "",
 		Run:           &result.Run,

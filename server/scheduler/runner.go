@@ -63,6 +63,11 @@ type ReportAutomationExecutor interface {
 		ctx context.Context,
 		input service.PostDailyReportAutomationInput,
 	) (*service.PostDailyReportAutomationResult, error)
+
+	PostWeeklyAutomated(
+		ctx context.Context,
+		input service.PostWeeklyReportAutomationInput,
+	) (*service.PostWeeklyReportAutomationResult, error)
 }
 
 /*
@@ -358,8 +363,27 @@ func (r *Runner) executeDueReminderSequences(
 		)
 
 		if sequenceNumber == len(offsets)-1 {
-			r.executeDueDailyReport(ctx, workspace, schedule, occurrenceDate)
+			r.executeDueReports(ctx, workspace, schedule, occurrenceDate, localNow)
 		}
+	}
+}
+
+/*
+executeDueReports posts due automated reports after the final reminder sequence.
+*/
+func (r *Runner) executeDueReports(
+	ctx context.Context,
+	workspace domain.Workspace,
+	schedule domain.StandupSchedule,
+	occurrenceDate domain.LocalDate,
+	localNow time.Time,
+) {
+	switch schedule.Kind {
+	case domain.StandupKindDaily:
+		r.executeDueDailyReport(ctx, workspace, schedule, occurrenceDate)
+
+	case domain.StandupKindWeekly:
+		r.executeDueWeeklyReport(ctx, workspace, schedule, occurrenceDate, localNow)
 	}
 }
 
@@ -405,6 +429,153 @@ func (r *Runner) executeDueDailyReport(
 		logger.String("schedule_id", schedule.ID.String()),
 		logger.String("date", occurrenceDate.String()),
 	)
+}
+
+/*
+executeDueWeeklyReport posts the automated weekly report on the last working day.
+
+The MVP period is the seven calendar days ending on the weekly report date.
+*/
+func (r *Runner) executeDueWeeklyReport(
+	ctx context.Context,
+	workspace domain.Workspace,
+	schedule domain.StandupSchedule,
+	occurrenceDate domain.LocalDate,
+	localNow time.Time,
+) {
+	if schedule.WeeklyMode != domain.WeeklyModeLastWorkingDay {
+		r.logger.Debug(
+			"scheduler skipped weekly report because weekly mode is not last working day",
+			logger.String("workspace_id", workspace.ID.String()),
+			logger.String("schedule_id", schedule.ID.String()),
+			logger.String("date", occurrenceDate.String()),
+		)
+		return
+	}
+
+	isLastWorkingDay, err := r.isLastWorkingDayOfLocalWeek(ctx, workspace, localNow)
+	if err != nil {
+		r.logger.Warn(
+			"scheduler failed to evaluate weekly report day",
+			logger.String("workspace_id", workspace.ID.String()),
+			logger.String("schedule_id", schedule.ID.String()),
+			logger.String("date", occurrenceDate.String()),
+			logger.String("error", err.Error()),
+		)
+		return
+	}
+
+	if !isLastWorkingDay {
+		r.logger.Debug(
+			"scheduler skipped weekly report because today is not the last working day",
+			logger.String("workspace_id", workspace.ID.String()),
+			logger.String("schedule_id", schedule.ID.String()),
+			logger.String("date", occurrenceDate.String()),
+		)
+		return
+	}
+
+	periodStart, periodEnd := weeklyReportPeriodEnding(localNow)
+
+	result, err := r.reportAutomationExecutor.PostWeeklyAutomated(ctx, service.PostWeeklyReportAutomationInput{
+		WorkspaceID: workspace.ID.String(),
+		ScheduleID:  schedule.ID.String(),
+		PeriodStart: periodStart.String(),
+		PeriodEnd:   periodEnd.String(),
+	})
+	if err != nil {
+		r.logger.Warn(
+			"scheduler failed to post automated weekly report",
+			logger.String("workspace_id", workspace.ID.String()),
+			logger.String("schedule_id", schedule.ID.String()),
+			logger.String("period_start", periodStart.String()),
+			logger.String("period_end", periodEnd.String()),
+			logger.String("error", err.Error()),
+		)
+		return
+	}
+
+	if !result.Posted {
+		r.logger.Debug(
+			"scheduler skipped automated weekly report",
+			logger.String("workspace_id", workspace.ID.String()),
+			logger.String("schedule_id", schedule.ID.String()),
+			logger.String("period_start", periodStart.String()),
+			logger.String("period_end", periodEnd.String()),
+			logger.String("reason", result.SkippedReason),
+		)
+		return
+	}
+
+	r.logger.Debug(
+		"scheduler posted automated weekly report",
+		logger.String("workspace_id", workspace.ID.String()),
+		logger.String("schedule_id", schedule.ID.String()),
+		logger.String("period_start", periodStart.String()),
+		logger.String("period_end", periodEnd.String()),
+	)
+}
+
+/*
+isLastWorkingDayOfLocalWeek returns true when no later day in the local week is runnable.
+
+The scheduler uses the runtime provider so global off-days, workspace off-days,
+working days, and everyone-on-leave behavior stay centralized.
+*/
+func (r *Runner) isLastWorkingDayOfLocalWeek(
+	ctx context.Context,
+	workspace domain.Workspace,
+	localNow time.Time,
+) (bool, error) {
+	weekEnd := localWeekEnd(localNow)
+
+	for next := localNow.AddDate(0, 0, 1); !next.After(weekEnd); next = next.AddDate(0, 0, 1) {
+		nextDate := domain.LocalDate(next.Format("2006-01-02"))
+
+		decision, err := r.standupRuntimeProvider.EvaluateDay(ctx, service.EvaluateStandupDayInput{
+			ActorUserID: schedulerActorUserID,
+			WorkspaceID: workspace.ID.String(),
+			Date:        nextDate.String(),
+		})
+		if err != nil {
+			return false, err
+		}
+
+		if decision.ShouldRun {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+/*
+localWeekEnd returns the Sunday at the end of localNow's ISO-like week.
+*/
+func localWeekEnd(localNow time.Time) time.Time {
+	daysUntilSunday := (int(time.Sunday) - int(localNow.Weekday()) + 7) % 7
+
+	return time.Date(
+		localNow.Year(),
+		localNow.Month(),
+		localNow.Day()+daysUntilSunday,
+		23,
+		59,
+		59,
+		int(time.Second-time.Nanosecond),
+		localNow.Location(),
+	)
+}
+
+/*
+weeklyReportPeriodEnding returns a seven-day period ending on localNow's date.
+*/
+func weeklyReportPeriodEnding(localNow time.Time) (domain.LocalDate, domain.LocalDate) {
+	periodEnd := domain.LocalDate(localNow.Format("2006-01-02"))
+	periodStartTime := localNow.AddDate(0, 0, -6)
+	periodStart := domain.LocalDate(periodStartTime.Format("2006-01-02"))
+
+	return periodStart, periodEnd
 }
 
 /*
