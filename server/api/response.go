@@ -421,6 +421,19 @@ func WriteUpdateReportRule(w http.ResponseWriter, statusCode int, payload Update
 }
 
 /*
+WriteGetWeeklyReportPreview writes the weekly report preview response.
+*/
+func WriteGetWeeklyReportPreview(
+	w http.ResponseWriter,
+	statusCode int,
+	payload GetWeeklyReportPreviewResponse,
+) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode weekly report preview response")
+}
+
+/*
 WriteGetDailyReportPreview writes the daily report preview response.
 */
 func WriteGetDailyReportPreview(

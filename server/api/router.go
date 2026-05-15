@@ -113,6 +113,10 @@ func NewRouter(config RouterConfig) http.Handler {
 			handleUpdateReportRule(config.Logger, config.Mattermost, config.ReportService),
 		)
 		api.Get(
+			"/workspaces/{workspaceID}/reports/weekly-preview",
+			handleGetWeeklyReportPreview(config.Logger, config.Mattermost, config.ReportService),
+		)
+		api.Get(
 			"/workspaces/{workspaceID}/reports/daily-preview",
 			handleGetDailyReportPreview(config.Logger, config.Mattermost, config.ReportService),
 		)

@@ -22,6 +22,24 @@ type DailyReportPreview struct {
 }
 
 /*
+WeeklyReportPreview is a generated weekly report preview.
+*/
+type WeeklyReportPreview struct {
+	WorkspaceID ID
+	PeriodStart LocalDate
+	PeriodEnd   LocalDate
+	SortMode    StandupSubmissionSortMode
+
+	DailyPreviews []DailyReportPreview
+
+	SubmittedCount int
+	MissingCount   int
+	OnLeaveCount   int
+
+	Markdown string
+}
+
+/*
 DailyReportSubmissionRow contains one user's submitted standup data for a report.
 */
 type DailyReportSubmissionRow struct {

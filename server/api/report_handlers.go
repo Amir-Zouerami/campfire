@@ -94,6 +94,41 @@ func handleUpdateReportRule(
 }
 
 /*
+handleGetWeeklyReportPreview handles weekly report preview generation.
+*/
+func handleGetWeeklyReportPreview(
+	log logger.Logger,
+	mm mattermost.Client,
+	reportService *service.ReportService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+
+		preview, err := reportService.BuildWeeklyPreview(r.Context(), service.BuildWeeklyReportPreviewInput{
+			ActorUserID: user.ID,
+			WorkspaceID: workspaceID,
+			PeriodStart: r.URL.Query().Get("periodStart"),
+			PeriodEnd:   r.URL.Query().Get("periodEnd"),
+			SortMode:    r.URL.Query().Get("sortMode"),
+		})
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WriteGetWeeklyReportPreview(w, http.StatusOK, GetWeeklyReportPreviewResponse{
+			Preview: WeeklyReportPreviewToPayload(*preview),
+		})
+	}
+}
+
+/*
 handleGetDailyReportPreview handles daily report preview generation.
 */
 func handleGetDailyReportPreview(

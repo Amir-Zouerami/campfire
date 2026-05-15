@@ -118,6 +118,28 @@ type GetDailyReportPreviewResponse struct {
 }
 
 /*
+WeeklyReportPreviewPayload is the API representation of a weekly report preview.
+*/
+type WeeklyReportPreviewPayload struct {
+	WorkspaceID    string                      `json:"workspaceId"`
+	PeriodStart    string                      `json:"periodStart"`
+	PeriodEnd      string                      `json:"periodEnd"`
+	SortMode       string                      `json:"sortMode"`
+	DailyPreviews  []DailyReportPreviewPayload `json:"dailyPreviews"`
+	SubmittedCount int                         `json:"submittedCount"`
+	MissingCount   int                         `json:"missingCount"`
+	OnLeaveCount   int                         `json:"onLeaveCount"`
+	Markdown       string                      `json:"markdown"`
+}
+
+/*
+GetWeeklyReportPreviewResponse is returned by GET /workspaces/{workspaceID}/reports/weekly-preview.
+*/
+type GetWeeklyReportPreviewResponse struct {
+	Preview WeeklyReportPreviewPayload `json:"preview"`
+}
+
+/*
 ListDailyReportRunsResponse is returned by GET /workspaces/{workspaceID}/reports/daily-runs.
 */
 type ListDailyReportRunsResponse struct {
@@ -192,6 +214,29 @@ func DailyReportPreviewToPayload(preview domain.DailyReportPreview) DailyReportP
 
 		Rows:     DailyReportSubmissionRowsToPayload(preview.Rows),
 		Markdown: preview.Markdown,
+	}
+}
+
+/*
+WeeklyReportPreviewToPayload maps a weekly report preview to API payload.
+*/
+func WeeklyReportPreviewToPayload(preview domain.WeeklyReportPreview) WeeklyReportPreviewPayload {
+	dailyPreviews := make([]DailyReportPreviewPayload, 0, len(preview.DailyPreviews))
+
+	for _, dailyPreview := range preview.DailyPreviews {
+		dailyPreviews = append(dailyPreviews, DailyReportPreviewToPayload(dailyPreview))
+	}
+
+	return WeeklyReportPreviewPayload{
+		WorkspaceID:    preview.WorkspaceID.String(),
+		PeriodStart:    preview.PeriodStart.String(),
+		PeriodEnd:      preview.PeriodEnd.String(),
+		SortMode:       string(preview.SortMode),
+		DailyPreviews:  dailyPreviews,
+		SubmittedCount: preview.SubmittedCount,
+		MissingCount:   preview.MissingCount,
+		OnLeaveCount:   preview.OnLeaveCount,
+		Markdown:       preview.Markdown,
 	}
 }
 

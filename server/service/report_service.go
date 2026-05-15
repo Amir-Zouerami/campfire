@@ -26,6 +26,17 @@ type BuildDailyReportPreviewInput struct {
 }
 
 /*
+BuildWeeklyReportPreviewInput contains filters for weekly report preview generation.
+*/
+type BuildWeeklyReportPreviewInput struct {
+	ActorUserID string
+	WorkspaceID string
+	PeriodStart string
+	PeriodEnd   string
+	SortMode    string
+}
+
+/*
 ListDailyReportRunsInput contains filters for daily report history.
 */
 type ListDailyReportRunsInput struct {
@@ -262,6 +273,101 @@ func (s *ReportService) UpdateRule(
 	}
 
 	return updated, nil
+}
+
+/*
+BuildWeeklyPreview builds a Markdown weekly report preview.
+
+The weekly preview combines daily report previews across an inclusive date range.
+*/
+func (s *ReportService) BuildWeeklyPreview(
+	ctx context.Context,
+	input BuildWeeklyReportPreviewInput,
+) (*domain.WeeklyReportPreview, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to view weekly reports.")
+	}
+
+	cleanWorkspaceID := strings.TrimSpace(input.WorkspaceID)
+	if cleanWorkspaceID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
+	}
+
+	periodStart := domain.LocalDate(strings.TrimSpace(input.PeriodStart))
+	if _, err := parseLocalDate(periodStart); err != nil {
+		return nil, NewError(ErrorCodeValidationFailed, "Period start must be a real YYYY-MM-DD calendar date.")
+	}
+
+	periodEnd := domain.LocalDate(strings.TrimSpace(input.PeriodEnd))
+	if _, err := parseLocalDate(periodEnd); err != nil {
+		return nil, NewError(ErrorCodeValidationFailed, "Period end must be a real YYYY-MM-DD calendar date.")
+	}
+
+	if periodEnd.String() < periodStart.String() {
+		return nil, NewError(ErrorCodeValidationFailed, "Period end cannot be before period start.")
+	}
+
+	dates, err := datesInInclusiveRange(periodStart, periodEnd)
+	if err != nil {
+		return nil, NewError(ErrorCodeValidationFailed, "Weekly report period is invalid.")
+	}
+
+	if len(dates) == 0 || len(dates) > 14 {
+		return nil, NewError(ErrorCodeValidationFailed, "Weekly report period must contain 1 to 14 days.")
+	}
+
+	sortMode := strings.TrimSpace(input.SortMode)
+	if sortMode == "" {
+		sortMode = string(domain.StandupSubmissionSortFirstSubmitted)
+	}
+
+	dailyPreviews := make([]domain.DailyReportPreview, 0, len(dates))
+	submittedUserIDs := map[string]bool{}
+	missingUserIDs := map[string]bool{}
+	onLeaveUserIDs := map[string]bool{}
+
+	for _, date := range dates {
+		dailyPreview, err := s.BuildDailyPreview(ctx, BuildDailyReportPreviewInput{
+			ActorUserID:    cleanActorUserID,
+			WorkspaceID:    cleanWorkspaceID,
+			OccurrenceDate: date.String(),
+			SortMode:       sortMode,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		dailyPreviews = append(dailyPreviews, *dailyPreview)
+
+		for _, userID := range dailyPreview.SubmittedUserIDs {
+			submittedUserIDs[userID] = true
+		}
+
+		for _, userID := range dailyPreview.MissingUserIDs {
+			missingUserIDs[userID] = true
+		}
+
+		for _, userID := range dailyPreview.OnLeaveUserIDs {
+			onLeaveUserIDs[userID] = true
+		}
+	}
+
+	preview := &domain.WeeklyReportPreview{
+		WorkspaceID:    domain.ID(cleanWorkspaceID),
+		PeriodStart:    periodStart,
+		PeriodEnd:      periodEnd,
+		SortMode:       domain.StandupSubmissionSortMode(sortMode),
+		DailyPreviews:  dailyPreviews,
+		SubmittedCount: len(submittedUserIDs),
+		MissingCount:   len(missingUserIDs),
+		OnLeaveCount:   len(onLeaveUserIDs),
+		Markdown:       "",
+	}
+
+	preview.Markdown = buildWeeklyReportMarkdown(*preview)
+
+	return preview, nil
 }
 
 /*
@@ -620,6 +726,64 @@ func buildDailyReportRows(
 }
 
 /*
+buildWeeklyReportMarkdown builds the Markdown weekly report body.
+*/
+func buildWeeklyReportMarkdown(preview domain.WeeklyReportPreview) string {
+	lines := []string{
+		fmt.Sprintf("# Weekly Standup Summary — %s → %s", preview.PeriodStart.String(), preview.PeriodEnd.String()),
+		"",
+		fmt.Sprintf("- Unique submitted users: %d", preview.SubmittedCount),
+		fmt.Sprintf("- Unique missing users: %d", preview.MissingCount),
+		fmt.Sprintf("- Unique users on approved leave: %d", preview.OnLeaveCount),
+		"",
+	}
+
+	if len(preview.DailyPreviews) == 0 {
+		lines = append(lines, "No daily report data for this period.", "")
+		return strings.Join(lines, "\n")
+	}
+
+	for _, dailyPreview := range preview.DailyPreviews {
+		lines = append(lines,
+			fmt.Sprintf("## %s", dailyPreview.OccurrenceDate.String()),
+			"",
+			fmt.Sprintf("- Submitted: %d", len(dailyPreview.SubmittedUserIDs)),
+			fmt.Sprintf("- Missing: %d", len(dailyPreview.MissingUserIDs)),
+			fmt.Sprintf("- On approved leave: %d", len(dailyPreview.OnLeaveUserIDs)),
+			"",
+		)
+
+		if len(dailyPreview.Rows) == 0 {
+			lines = append(lines, "No submitted standups.", "")
+			continue
+		}
+
+		for _, row := range dailyPreview.Rows {
+			lines = append(lines, fmt.Sprintf("### %s", sanitizeMarkdownLine(row.UserID)))
+
+			for _, answer := range row.Answers {
+				if strings.TrimSpace(answer.ValueText) == "" {
+					continue
+				}
+
+				lines = append(
+					lines,
+					fmt.Sprintf(
+						"- **%s:** %s",
+						sanitizeMarkdownLine(answer.QuestionLabel),
+						sanitizeMarkdownLine(answer.ValueText),
+					),
+				)
+			}
+
+			lines = append(lines, "")
+		}
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+/*
 buildDailyReportMarkdown builds the Markdown report body.
 */
 func buildDailyReportMarkdown(preview domain.DailyReportPreview) string {
@@ -800,6 +964,28 @@ func findReportRule(rules []domain.ReportRule, reportRuleID domain.ID) *domain.R
 	}
 
 	return nil
+}
+
+/*
+datesInInclusiveRange returns every local date in an inclusive date range.
+*/
+func datesInInclusiveRange(startDate domain.LocalDate, endDate domain.LocalDate) ([]domain.LocalDate, error) {
+	start, err := time.Parse("2006-01-02", startDate.String())
+	if err != nil {
+		return nil, err
+	}
+
+	end, err := time.Parse("2006-01-02", endDate.String())
+	if err != nil {
+		return nil, err
+	}
+
+	dates := []domain.LocalDate{}
+	for current := start; !current.After(end); current = current.AddDate(0, 0, 1) {
+		dates = append(dates, domain.LocalDate(current.Format("2006-01-02")))
+	}
+
+	return dates, nil
 }
 
 /*
