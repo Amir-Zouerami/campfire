@@ -108,55 +108,172 @@ func (p *NotificationPublisher) NotifyLeaveCancelled(
 }
 
 /*
-sendDirectMessage sends a bot-authored direct message to a Mattermost user.
+SendStandupDMReminder sends a direct standup reminder to one user.
 */
-func (p *NotificationPublisher) sendDirectMessage(userID string, message string) error {
-	cleanUserID := strings.TrimSpace(userID)
-	if cleanUserID == "" {
-		return nil
+func (p *NotificationPublisher) SendStandupDMReminder(
+	ctx context.Context,
+	reminder service.StandupDMReminder,
+) (string, error) {
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	default:
 	}
 
-	channel, appErr := p.api.GetDirectChannel(p.botUserID, cleanUserID)
-	if appErr != nil {
-		return appErr
+	if strings.TrimSpace(p.botUserID) == "" {
+		return "", fmt.Errorf("Campfire bot user ID is empty")
 	}
 
-	_, appErr = p.api.CreatePost(&model.Post{
-		UserId:    p.botUserID,
-		ChannelId: channel.Id,
-		Message:   message,
-	})
-	if appErr != nil {
-		return appErr
-	}
-
-	return nil
+	return p.sendDirectMessageWithPostID(
+		reminder.TargetUserID,
+		formatStandupDMReminderMessage(p.api, reminder),
+	)
 }
 
 /*
-sendChannelMessage sends a bot-authored message to a Mattermost channel.
+SendChannelMissingReminder posts a channel reminder for missing standup users.
 */
-func (p *NotificationPublisher) sendChannelMessage(channelID string, message string) error {
-	cleanChannelID := strings.TrimSpace(channelID)
-	if cleanChannelID == "" {
-		return nil
+func (p *NotificationPublisher) SendChannelMissingReminder(
+	ctx context.Context,
+	reminder service.StandupChannelMissingReminder,
+) (string, error) {
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	default:
+	}
+
+	if strings.TrimSpace(p.botUserID) == "" {
+		return "", fmt.Errorf("Campfire bot user ID is empty")
+	}
+
+	return p.sendChannelMessageWithPostID(
+		reminder.ChannelID,
+		formatChannelMissingReminderMessage(p.api, reminder),
+	)
+}
+
+func (p *NotificationPublisher) sendDirectMessage(userID string, message string) error {
+	_, err := p.sendDirectMessageWithPostID(userID, message)
+
+	return err
+}
+
+/*
+sendDirectMessageWithPostID sends a bot-authored direct message and returns the post ID.
+*/
+func (p *NotificationPublisher) sendDirectMessageWithPostID(userID string, message string) (string, error) {
+	cleanUserID := strings.TrimSpace(userID)
+	if cleanUserID == "" {
+		return "", nil
 	}
 
 	cleanMessage := strings.TrimSpace(message)
 	if cleanMessage == "" {
-		return nil
+		return "", nil
 	}
 
-	_, appErr := p.api.CreatePost(&model.Post{
+	channel, appErr := p.api.GetDirectChannel(p.botUserID, cleanUserID)
+	if appErr != nil {
+		return "", appErr
+	}
+
+	post, appErr := p.api.CreatePost(&model.Post{
+		UserId:    p.botUserID,
+		ChannelId: channel.Id,
+		Message:   cleanMessage,
+	})
+	if appErr != nil {
+		return "", appErr
+	}
+
+	if post == nil {
+		return "", fmt.Errorf("Mattermost returned an empty direct-message post")
+	}
+
+	return post.Id, nil
+}
+
+func (p *NotificationPublisher) sendChannelMessage(channelID string, message string) error {
+	_, err := p.sendChannelMessageWithPostID(channelID, message)
+
+	return err
+}
+
+/*
+sendChannelMessageWithPostID sends a bot-authored channel message and returns the post ID.
+*/
+func (p *NotificationPublisher) sendChannelMessageWithPostID(channelID string, message string) (string, error) {
+	cleanChannelID := strings.TrimSpace(channelID)
+	if cleanChannelID == "" {
+		return "", nil
+	}
+
+	cleanMessage := strings.TrimSpace(message)
+	if cleanMessage == "" {
+		return "", nil
+	}
+
+	post, appErr := p.api.CreatePost(&model.Post{
 		UserId:    p.botUserID,
 		ChannelId: cleanChannelID,
 		Message:   cleanMessage,
 	})
 	if appErr != nil {
-		return appErr
+		return "", appErr
 	}
 
-	return nil
+	if post == nil {
+		return "", fmt.Errorf("Mattermost returned an empty channel post")
+	}
+
+	return post.Id, nil
+}
+
+/*
+formatStandupDMReminderMessage formats a direct standup reminder.
+*/
+func formatStandupDMReminderMessage(api plugin.API, reminder service.StandupDMReminder) string {
+	targetLabel := userMentionOrID(api, reminder.TargetUserID)
+
+	lines := []string{
+		"🔥 **Campfire standup reminder**",
+		"",
+		fmt.Sprintf("%s, your standup for **%s** is still missing.", targetLabel, reminder.OccurrenceDate),
+		"Open Campfire in this channel to submit your update.",
+	}
+
+	if reminder.SequenceNumber > 0 {
+		lines = append(lines, "", fmt.Sprintf("_Reminder #%d_", reminder.SequenceNumber+1))
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+/*
+formatChannelMissingReminderMessage formats a channel reminder for missing standup users.
+*/
+func formatChannelMissingReminderMessage(api plugin.API, reminder service.StandupChannelMissingReminder) string {
+	lines := []string{
+		"🔥 **Campfire standup reminder**",
+		"",
+		fmt.Sprintf("Missing standups for **%s**:", reminder.OccurrenceDate),
+	}
+
+	if len(reminder.MissingUserIDs) == 0 {
+		lines = append(lines, "- No missing users.")
+		return strings.Join(lines, "\n")
+	}
+
+	for _, userID := range reminder.MissingUserIDs {
+		lines = append(lines, fmt.Sprintf("- %s", userMentionOrID(api, userID)))
+	}
+
+	if reminder.SequenceNumber > 0 {
+		lines = append(lines, "", fmt.Sprintf("_Reminder #%d_", reminder.SequenceNumber+1))
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 /*
