@@ -74,10 +74,26 @@ type LeaveRequestPayload struct {
 }
 
 /*
+PendingLeaveRequestPayload is the API representation of a pending approval row.
+*/
+type PendingLeaveRequestPayload struct {
+	LeaveRequest   LeaveRequestPayload `json:"leaveRequest"`
+	LeaveTypeName  string              `json:"leaveTypeName"`
+	LeaveTypeColor string              `json:"leaveTypeColor"`
+}
+
+/*
 CreateLeaveResponse is returned by POST /leaves.
 */
 type CreateLeaveResponse struct {
 	LeaveRequest LeaveRequestPayload `json:"leaveRequest"`
+}
+
+/*
+ListPendingLeaveRequestsResponse is returned by GET /workspaces/{workspaceID}/leaves/pending.
+*/
+type ListPendingLeaveRequestsResponse struct {
+	LeaveRequests []PendingLeaveRequestPayload `json:"leaveRequests"`
 }
 
 /*
@@ -137,6 +153,25 @@ func LeaveRequestToPayload(leaveRequest domain.LeaveRequest) LeaveRequestPayload
 		UpdatedAt:    formatAPITime(leaveRequest.UpdatedAt),
 		CancelledAt:  formatOptionalAPITime(leaveRequest.CancelledAt),
 	}
+}
+
+/*
+PendingLeaveRequestsToPayload maps pending domain rows to API payloads.
+*/
+func PendingLeaveRequestsToPayload(
+	leaveRequests []domain.LeaveRequestWithType,
+) []PendingLeaveRequestPayload {
+	payloads := make([]PendingLeaveRequestPayload, 0, len(leaveRequests))
+
+	for _, leaveRequest := range leaveRequests {
+		payloads = append(payloads, PendingLeaveRequestPayload{
+			LeaveRequest:   LeaveRequestToPayload(leaveRequest.LeaveRequest),
+			LeaveTypeName:  leaveRequest.LeaveTypeName,
+			LeaveTypeColor: leaveRequest.LeaveTypeColor,
+		})
+	}
+
+	return payloads
 }
 
 /*

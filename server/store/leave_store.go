@@ -28,6 +28,7 @@ type LeaveStore interface {
 	ListTypesByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.LeaveType, error)
 	GetActiveTypeByID(ctx context.Context, workspaceID domain.ID, leaveTypeID domain.ID) (*domain.LeaveType, error)
 	GetRequestByID(ctx context.Context, leaveRequestID domain.ID) (*domain.LeaveRequest, error)
+	ListPendingByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.LeaveRequestWithType, error)
 	CreateRequest(ctx context.Context, leaveRequest domain.LeaveRequest) (*domain.LeaveRequest, error)
 	DecideRequest(ctx context.Context, params DecideLeaveRequestParams) (*domain.LeaveRequest, error)
 }
@@ -182,6 +183,60 @@ func (s *SQLLeaveStore) GetRequestByID(
 	leaveRequest := record.toDomain()
 
 	return &leaveRequest, nil
+}
+
+/*
+ListPendingByWorkspaceID returns pending leave requests for approval UI.
+*/
+func (s *SQLLeaveStore) ListPendingByWorkspaceID(
+	ctx context.Context,
+	workspaceID domain.ID,
+) ([]domain.LeaveRequestWithType, error) {
+	records := []leaveRequestWithTypeRecord{}
+
+	err := s.db.SelectContext(
+		ctx,
+		&records,
+		s.db.Rebind(`
+			SELECT
+				requests.id,
+				requests.workspace_id,
+				requests.user_id,
+				requests.leave_type_id,
+				requests.start_date,
+				requests.end_date,
+				requests.duration_mode,
+				requests.half_day_part,
+				requests.start_time,
+				requests.end_time,
+				requests.reason,
+				requests.backup_user_id,
+				requests.status,
+				requests.created_at,
+				requests.updated_at,
+				requests.cancelled_at,
+				types.name AS leave_type_name,
+				types.color AS leave_type_color
+			FROM campfire_leave_requests requests
+			INNER JOIN campfire_leave_types types
+				ON types.id = requests.leave_type_id
+			WHERE requests.workspace_id = ?
+				AND requests.status = ?
+			ORDER BY requests.created_at ASC
+		`),
+		workspaceID.String(),
+		string(domain.LeaveStatusPending),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list pending leave requests: %w", err)
+	}
+
+	results := make([]domain.LeaveRequestWithType, 0, len(records))
+	for _, record := range records {
+		results = append(results, record.toDomain())
+	}
+
+	return results, nil
 }
 
 /*
@@ -444,6 +499,27 @@ func (r leaveRequestRecord) toDomain() domain.LeaveRequest {
 		CreatedAt:    parseStoredTime(r.CreatedAt),
 		UpdatedAt:    parseStoredTime(r.UpdatedAt),
 		CancelledAt:  nullTimeToPointer(r.CancelledAt),
+	}
+}
+
+/*
+leaveRequestWithTypeRecord represents a pending leave request plus leave type data.
+*/
+type leaveRequestWithTypeRecord struct {
+	leaveRequestRecord
+
+	LeaveTypeName  string `db:"leave_type_name"`
+	LeaveTypeColor string `db:"leave_type_color"`
+}
+
+/*
+toDomain maps a leave request/type record to the domain model.
+*/
+func (r leaveRequestWithTypeRecord) toDomain() domain.LeaveRequestWithType {
+	return domain.LeaveRequestWithType{
+		LeaveRequest:   r.leaveRequestRecord.toDomain(),
+		LeaveTypeName:  r.LeaveTypeName,
+		LeaveTypeColor: r.LeaveTypeColor,
 	}
 }
 

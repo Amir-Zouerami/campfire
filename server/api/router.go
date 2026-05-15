@@ -41,8 +41,8 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Post("/workspaces", handleCreateWorkspace(config.Logger, config.WorkspaceService))
 
 		api.Get(
-			"/workspaces/{workspaceID}/leave-types",
-			handleListLeaveTypes(config.Logger, config.Mattermost, config.LeaveService),
+			"/workspaces/{workspaceID}/leaves/pending",
+			handleListPendingLeaveRequests(config.Logger, config.Mattermost, config.LeaveService),
 		)
 
 		api.Get(

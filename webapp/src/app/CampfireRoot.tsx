@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 
 import { GlobalOffDaysCard } from './GlobalOffDaysCard';
+import { LeaveApprovalsCard } from './LeaveApprovalsCard';
 import { LeaveRequestCard } from './LeaveRequestCard';
 import { WorkspaceSetupCard } from './WorkspaceSetupCard';
 import { CAMPFIRE_OPEN_EVENT } from './events';
@@ -100,7 +101,10 @@ export function CampfireRoot(): ReactElement | null {
 					{bootstrap.state === 'ready' && <GlobalOffDaysCard isSystemAdmin={bootstrap.me.isSystemAdmin} />}
 
 					{bootstrap.state === 'ready' && bootstrap.workspace !== null && (
-						<LeaveRequestCard workspace={bootstrap.workspace} />
+						<>
+							<LeaveApprovalsCard workspace={bootstrap.workspace} />
+							<LeaveRequestCard workspace={bootstrap.workspace} />
+						</>
 					)}
 
 					{bootstrap.state === 'ready' &&

@@ -168,6 +168,15 @@ export type LeaveRequest = {
 };
 
 /**
+ * PendingLeaveRequest is a pending approval row with leave type display data.
+ */
+export type PendingLeaveRequest = {
+	readonly leaveRequest: LeaveRequest;
+	readonly leaveTypeName: string;
+	readonly leaveTypeColor: string;
+};
+
+/**
  * StandupSchedule defines when a daily or weekly standup runs.
  */
 export type StandupSchedule = {

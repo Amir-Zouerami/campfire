@@ -50,6 +50,18 @@ type LeaveRequest struct {
 }
 
 /*
+LeaveRequestWithType contains a leave request plus display data for its type.
+
+This is used by approval lists so the UI can render useful rows without doing
+N+1 leave type lookups.
+*/
+type LeaveRequestWithType struct {
+	LeaveRequest   LeaveRequest
+	LeaveTypeName  string
+	LeaveTypeColor string
+}
+
+/*
 LeaveDecision records an approval or rejection decision for a leave request.
 */
 type LeaveDecision struct {

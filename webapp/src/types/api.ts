@@ -6,6 +6,7 @@ import type {
 	LeaveStatus,
 	LeaveType,
 	LocalDate,
+	PendingLeaveRequest,
 	TimeOfDay,
 	Workspace,
 	WorkspaceCapabilities,
@@ -104,6 +105,13 @@ export type DeleteGlobalSkipDateResponse = {
  */
 export type ListLeaveTypesResponse = {
 	readonly leaveTypes: readonly LeaveType[];
+};
+
+/**
+ * ListPendingLeaveRequestsResponse is returned by GET /workspaces/{workspaceID}/leaves/pending.
+ */
+export type ListPendingLeaveRequestsResponse = {
+	readonly leaveRequests: readonly PendingLeaveRequest[];
 };
 
 /**

@@ -41,6 +41,39 @@ func handleListLeaveTypes(
 }
 
 /*
+handleListPendingLeaveRequests handles listing pending leave requests for approvers.
+*/
+func handleListPendingLeaveRequests(
+	log logger.Logger,
+	mm mattermost.Client,
+	leaveService *service.LeaveService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+
+		leaveRequests, err := leaveService.ListPending(r.Context(), service.ListPendingLeavesInput{
+			ActorUserID:   user.ID,
+			IsSystemAdmin: user.IsSystemAdmin,
+			WorkspaceID:   workspaceID,
+		})
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WriteListPendingLeaveRequests(w, http.StatusOK, ListPendingLeaveRequestsResponse{
+			LeaveRequests: PendingLeaveRequestsToPayload(leaveRequests),
+		})
+	}
+}
+
+/*
 handleCreateLeave handles creating a pending leave request.
 */
 func handleCreateLeave(

@@ -138,6 +138,19 @@ func WriteCreateLeave(w http.ResponseWriter, statusCode int, payload CreateLeave
 }
 
 /*
+WriteListPendingLeaveRequests writes the pending leave request list response.
+*/
+func WriteListPendingLeaveRequests(
+	w http.ResponseWriter,
+	statusCode int,
+	payload ListPendingLeaveRequestsResponse,
+) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode pending leave request list response")
+}
+
+/*
 WriteDecideLeave writes the leave decision response.
 */
 func WriteDecideLeave(w http.ResponseWriter, statusCode int, payload DecideLeaveResponse) {

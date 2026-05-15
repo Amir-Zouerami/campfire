@@ -29,6 +29,15 @@ type CreateLeaveInput struct {
 }
 
 /*
+ListPendingLeavesInput contains pending leave list filters.
+*/
+type ListPendingLeavesInput struct {
+	ActorUserID   string
+	IsSystemAdmin bool
+	WorkspaceID   string
+}
+
+/*
 DecideLeaveInput contains user-submitted leave decision data.
 */
 type DecideLeaveInput struct {
@@ -92,6 +101,36 @@ func (s *LeaveService) ListTypes(
 	}
 
 	return leaveTypes, nil
+}
+
+/*
+ListPending returns pending leave requests for workspace approvers.
+*/
+func (s *LeaveService) ListPending(
+	ctx context.Context,
+	input ListPendingLeavesInput,
+) ([]domain.LeaveRequestWithType, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to view pending leave requests.")
+	}
+
+	cleanWorkspaceID := strings.TrimSpace(input.WorkspaceID)
+	if cleanWorkspaceID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
+	}
+
+	workspaceID := domain.ID(cleanWorkspaceID)
+	if err := s.requireLeaveDecisionPermission(ctx, cleanActorUserID, input.IsSystemAdmin, workspaceID); err != nil {
+		return nil, err
+	}
+
+	leaveRequests, err := s.leaveStore.ListPendingByWorkspaceID(ctx, workspaceID)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not load pending leave requests.")
+	}
+
+	return leaveRequests, nil
 }
 
 /*
