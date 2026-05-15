@@ -111,9 +111,9 @@ func WriteDeleteGlobalSkipDate(w http.ResponseWriter, statusCode int, payload De
 }
 
 /*
-WriteValidateLeaveRequest writes the leave validation response.
+WriteValidateLeave writes the leave validation response.
 */
-func WriteValidateLeaveRequest(w http.ResponseWriter, statusCode int, payload ValidateLeaveRequestResponse) {
+func WriteValidateLeave(w http.ResponseWriter, statusCode int, payload ValidateLeaveResponse) {
 	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
 		return encoder.Encode(payload)
 	}, "failed to encode leave validation response")

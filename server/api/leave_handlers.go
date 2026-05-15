@@ -10,12 +10,12 @@ import (
 )
 
 /*
-handleValidateLeaveRequest handles leave request validation.
+handleValidateLeave handles leave request pre-validation.
 */
-func handleValidateLeaveRequest(
+func handleValidateLeave(
 	log logger.Logger,
 	mm mattermost.Client,
-	leaveService *service.LeaveService,
+	leaveValidationService *service.LeaveValidationService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -23,19 +23,21 @@ func handleValidateLeaveRequest(
 			return
 		}
 
-		var request ValidateLeaveRequestRequest
+		var request ValidateLeaveRequest
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			WriteError(w, http.StatusBadRequest, "invalid_request", "Request body must be valid JSON.")
 			return
 		}
 
-		result, err := leaveService.ValidateRequest(r.Context(), request.ToServiceInput(user.ID))
+		result, err := leaveValidationService.ValidateForCreate(r.Context(), request.ToServiceInput(user.ID))
 		if err != nil {
 			logServiceError(log, err)
 			WriteServiceError(w, err)
 			return
 		}
 
-		WriteValidateLeaveRequest(w, http.StatusOK, LeaveValidationResultToResponse(*result))
+		WriteValidateLeave(w, http.StatusOK, ValidateLeaveResponse{
+			Valid: result.Valid,
+		})
 	}
 }

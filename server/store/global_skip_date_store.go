@@ -62,9 +62,7 @@ func (s *SQLGlobalSkipDateStore) List(ctx context.Context) ([]domain.GlobalSkipD
 }
 
 /*
-ListBetween returns global skip dates between two local dates, inclusive.
-
-Dates are stored as YYYY-MM-DD strings, so lexical comparison is safe.
+ListBetween returns global skip dates overlapping an inclusive date range.
 */
 func (s *SQLGlobalSkipDateStore) ListBetween(
 	ctx context.Context,
@@ -216,7 +214,7 @@ func (r globalSkipDateRecord) toDomain() domain.GlobalSkipDate {
 }
 
 /*
-globalSkipDateRecordsToDomain maps global skip date database records to domain models.
+globalSkipDateRecordsToDomain maps global skip date records to domain models.
 */
 func globalSkipDateRecordsToDomain(records []globalSkipDateRecord) []domain.GlobalSkipDate {
 	skipDates := make([]domain.GlobalSkipDate, 0, len(records))

@@ -97,9 +97,9 @@ export type DeleteGlobalSkipDateResponse = {
 };
 
 /**
- * ValidateLeaveRequestRequest is sent to POST /leaves/validate.
+ * ValidateLeaveRequest is sent to POST /leaves/validate.
  */
-export type ValidateLeaveRequestRequest = {
+export type ValidateLeaveRequest = {
 	readonly workspaceId: string;
 	readonly startDate: LocalDate;
 	readonly endDate: LocalDate;
@@ -110,12 +110,10 @@ export type ValidateLeaveRequestRequest = {
 };
 
 /**
- * ValidateLeaveRequestResponse is returned by POST /leaves/validate.
+ * ValidateLeaveResponse is returned by POST /leaves/validate.
  */
-export type ValidateLeaveRequestResponse = {
-	readonly allowed: boolean;
-	readonly message: string;
-	readonly globalSkipDates: readonly GlobalSkipDate[];
+export type ValidateLeaveResponse = {
+	readonly valid: boolean;
 };
 
 /**

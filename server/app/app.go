@@ -26,13 +26,13 @@ It wires infrastructure, services, stores, and routes while keeping business
 logic out of the Mattermost plugin lifecycle layer.
 */
 type App struct {
-	Router                http.Handler
-	Logger                logger.Logger
-	Mattermost            mattermost.Client
-	Database              *store.Database
-	WorkspaceService      *service.WorkspaceService
-	GlobalSkipDateService *service.GlobalSkipDateService
-	LeaveService          *service.LeaveService
+	Router                 http.Handler
+	Logger                 logger.Logger
+	Mattermost             mattermost.Client
+	Database               *store.Database
+	WorkspaceService       *service.WorkspaceService
+	GlobalSkipDateService  *service.GlobalSkipDateService
+	LeaveValidationService *service.LeaveValidationService
 }
 
 /*
@@ -64,25 +64,24 @@ func New(config Config) (*App, error) {
 
 	globalSkipDateStore := store.NewSQLGlobalSkipDateStore(database)
 	globalSkipDateService := service.NewGlobalSkipDateService(globalSkipDateStore)
-
-	leaveService := service.NewLeaveService(globalSkipDateStore)
+	leaveValidationService := service.NewLeaveValidationService(globalSkipDateStore)
 
 	router := api.NewRouter(api.RouterConfig{
-		Logger:                appLogger,
-		Mattermost:            mattermostClient,
-		WorkspaceService:      workspaceService,
-		GlobalSkipDateService: globalSkipDateService,
-		LeaveService:          leaveService,
+		Logger:                 appLogger,
+		Mattermost:             mattermostClient,
+		WorkspaceService:       workspaceService,
+		GlobalSkipDateService:  globalSkipDateService,
+		LeaveValidationService: leaveValidationService,
 	})
 
 	return &App{
-		Router:                router,
-		Logger:                appLogger,
-		Mattermost:            mattermostClient,
-		Database:              database,
-		WorkspaceService:      workspaceService,
-		GlobalSkipDateService: globalSkipDateService,
-		LeaveService:          leaveService,
+		Router:                 router,
+		Logger:                 appLogger,
+		Mattermost:             mattermostClient,
+		Database:               database,
+		WorkspaceService:       workspaceService,
+		GlobalSkipDateService:  globalSkipDateService,
+		LeaveValidationService: leaveValidationService,
 	}, nil
 }
 

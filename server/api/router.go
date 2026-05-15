@@ -13,11 +13,11 @@ import (
 RouterConfig contains dependencies needed by the HTTP API layer.
 */
 type RouterConfig struct {
-	Logger                logger.Logger
-	Mattermost            mattermost.Client
-	WorkspaceService      *service.WorkspaceService
-	GlobalSkipDateService *service.GlobalSkipDateService
-	LeaveService          *service.LeaveService
+	Logger                 logger.Logger
+	Mattermost             mattermost.Client
+	WorkspaceService       *service.WorkspaceService
+	GlobalSkipDateService  *service.GlobalSkipDateService
+	LeaveValidationService *service.LeaveValidationService
 }
 
 /*
@@ -39,11 +39,6 @@ func NewRouter(config RouterConfig) http.Handler {
 		)
 		api.Post("/workspaces", handleCreateWorkspace(config.Logger, config.WorkspaceService))
 
-		api.Post(
-			"/leaves/validate",
-			handleValidateLeaveRequest(config.Logger, config.Mattermost, config.LeaveService),
-		)
-
 		api.Get(
 			"/settings/global/skip-dates",
 			handleListGlobalSkipDates(config.Logger, config.Mattermost, config.GlobalSkipDateService),
@@ -55,6 +50,11 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Delete(
 			"/settings/global/skip-dates/{skipDateID}",
 			handleDeleteGlobalSkipDate(config.Logger, config.Mattermost, config.GlobalSkipDateService),
+		)
+
+		api.Post(
+			"/leaves/validate",
+			handleValidateLeave(config.Logger, config.Mattermost, config.LeaveValidationService),
 		)
 	})
 

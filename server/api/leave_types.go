@@ -3,9 +3,9 @@ package api
 import "github.com/amir-zouerami/campfire/server/service"
 
 /*
-ValidateLeaveRequestRequest is accepted by POST /leaves/validate.
+ValidateLeaveRequest is accepted by POST /leaves/validate.
 */
-type ValidateLeaveRequestRequest struct {
+type ValidateLeaveRequest struct {
 	WorkspaceID  string `json:"workspaceId"`
 	StartDate    string `json:"startDate"`
 	EndDate      string `json:"endDate"`
@@ -16,19 +16,17 @@ type ValidateLeaveRequestRequest struct {
 }
 
 /*
-ValidateLeaveRequestResponse is returned by POST /leaves/validate.
+ValidateLeaveResponse is returned by POST /leaves/validate.
 */
-type ValidateLeaveRequestResponse struct {
-	Allowed         bool                    `json:"allowed"`
-	Message         string                  `json:"message"`
-	GlobalSkipDates []GlobalSkipDatePayload `json:"globalSkipDates"`
+type ValidateLeaveResponse struct {
+	Valid bool `json:"valid"`
 }
 
 /*
-ToServiceInput maps an API leave validation request to a service input.
+ToServiceInput maps an API leave validation request to service input.
 */
-func (r ValidateLeaveRequestRequest) ToServiceInput(actorUserID string) service.ValidateLeaveRequestInput {
-	return service.ValidateLeaveRequestInput{
+func (r ValidateLeaveRequest) ToServiceInput(actorUserID string) service.ValidateLeaveInput {
+	return service.ValidateLeaveInput{
 		ActorUserID:  actorUserID,
 		WorkspaceID:  r.WorkspaceID,
 		StartDate:    r.StartDate,
@@ -37,16 +35,5 @@ func (r ValidateLeaveRequestRequest) ToServiceInput(actorUserID string) service.
 		HalfDayPart:  r.HalfDayPart,
 		StartTime:    r.StartTime,
 		EndTime:      r.EndTime,
-	}
-}
-
-/*
-LeaveValidationResultToResponse maps a service result to an API response.
-*/
-func LeaveValidationResultToResponse(result service.ValidateLeaveRequestResult) ValidateLeaveRequestResponse {
-	return ValidateLeaveRequestResponse{
-		Allowed:         result.Allowed,
-		Message:         result.Message,
-		GlobalSkipDates: GlobalSkipDatesToPayload(result.GlobalSkipDates),
 	}
 }

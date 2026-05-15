@@ -8,9 +8,9 @@ import type {
 	HealthResponse,
 	ListGlobalSkipDatesResponse,
 	MeResponse,
+	ValidateLeaveRequest,
+	ValidateLeaveResponse,
 	WorkspaceByChannelResponse,
-	ValidateLeaveRequestRequest,
-	ValidateLeaveRequestResponse,
 } from '../types/api';
 
 const pluginID = 'dev.zouerami.campfire';
@@ -85,12 +85,10 @@ export async function deleteGlobalSkipDate(skipDateID: string): Promise<DeleteGl
 }
 
 /**
- * validateLeaveRequest validates a leave request before creation.
+ * validateLeaveRequest validates a leave request before creating it.
  */
-export async function validateLeaveRequest(
-	request: ValidateLeaveRequestRequest,
-): Promise<ValidateLeaveRequestResponse> {
-	return apiPost<ValidateLeaveRequestRequest, ValidateLeaveRequestResponse>('/leaves/validate', request);
+export async function validateLeaveRequest(request: ValidateLeaveRequest): Promise<ValidateLeaveResponse> {
+	return apiPost<ValidateLeaveRequest, ValidateLeaveResponse>('/leaves/validate', request);
 }
 
 /**
