@@ -12,6 +12,7 @@ import (
 
 	"github.com/amir-zouerami/campfire/server/domain"
 	"github.com/amir-zouerami/campfire/server/store"
+	"github.com/google/uuid"
 )
 
 /*
@@ -22,6 +23,15 @@ type BuildDailyReportPreviewInput struct {
 	WorkspaceID    string
 	OccurrenceDate string
 	SortMode       string
+}
+
+/*
+ListDailyReportRunsInput contains filters for daily report history.
+*/
+type ListDailyReportRunsInput struct {
+	ActorUserID string
+	WorkspaceID string
+	Limit       int
 }
 
 /*
@@ -36,10 +46,11 @@ type PostDailyReportPreviewInput struct {
 }
 
 /*
-PostDailyReportPreviewResult contains the posted preview.
+PostDailyReportPreviewResult contains the posted preview and report run.
 */
 type PostDailyReportPreviewResult struct {
 	Preview domain.DailyReportPreview
+	Run     domain.ReportRun
 	Posted  bool
 }
 
@@ -50,6 +61,7 @@ type ReportService struct {
 	standupService     *StandupService
 	workspaceStore     store.WorkspaceStore
 	workspaceRoleStore store.WorkspaceRoleStore
+	reportStore        store.ReportStore
 	reportPublisher    ReportPublisher
 }
 
@@ -60,12 +72,14 @@ func NewReportService(
 	standupService *StandupService,
 	workspaceStore store.WorkspaceStore,
 	workspaceRoleStore store.WorkspaceRoleStore,
+	reportStore store.ReportStore,
 	reportPublisher ReportPublisher,
 ) *ReportService {
 	return &ReportService{
 		standupService:     standupService,
 		workspaceStore:     workspaceStore,
 		workspaceRoleStore: workspaceRoleStore,
+		reportStore:        reportStore,
 		reportPublisher:    reportPublisher,
 	}
 }
@@ -118,7 +132,49 @@ func (s *ReportService) BuildDailyPreview(
 }
 
 /*
+ListDailyRuns returns recent daily report posting history for a workspace.
+*/
+func (s *ReportService) ListDailyRuns(
+	ctx context.Context,
+	input ListDailyReportRunsInput,
+) ([]domain.ReportRun, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to view report history.")
+	}
+
+	cleanWorkspaceID := strings.TrimSpace(input.WorkspaceID)
+	if cleanWorkspaceID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
+	}
+
+	workspaceID := domain.ID(cleanWorkspaceID)
+	if _, err := s.workspaceStore.GetByID(ctx, workspaceID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Workspace was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load workspace.")
+	}
+
+	runs, err := s.reportStore.ListRunsByWorkspaceIDAndKind(
+		ctx,
+		workspaceID,
+		domain.ReportKindDaily,
+		input.Limit,
+	)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not load report history.")
+	}
+
+	return runs, nil
+}
+
+/*
 PostDailyPreview builds a daily report preview and posts it to the workspace channel.
+
+It reserves a report run before posting so duplicate clicks are blocked by the
+report run uniqueness constraint.
 */
 func (s *ReportService) PostDailyPreview(
 	ctx context.Context,
@@ -148,11 +204,24 @@ func (s *ReportService) PostDailyPreview(
 		return nil, err
 	}
 
+	reportRule, err := s.reportStore.GetEnabledRuleByWorkspaceIDAndKind(
+		ctx,
+		workspaceID,
+		domain.ReportKindDaily,
+	)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeValidationFailed, "No enabled daily report rule exists for this workspace.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load daily report rule.")
+	}
+
 	preview, err := s.BuildDailyPreview(ctx, BuildDailyReportPreviewInput{
 		ActorUserID:    cleanActorUserID,
 		WorkspaceID:    cleanWorkspaceID,
 		OccurrenceDate: input.OccurrenceDate,
-		SortMode:       input.SortMode,
+		SortMode:       firstNonEmptyReportString(input.SortMode, string(reportRule.SortMode)),
 	})
 	if err != nil {
 		return nil, err
@@ -162,19 +231,68 @@ func (s *ReportService) PostDailyPreview(
 		return nil, NewError(ErrorCodeValidationFailed, "Daily report preview is empty.")
 	}
 
-	if err := s.reportPublisher.PostDailyReport(ctx, DailyReportPost{
+	existingRun, err := s.reportStore.GetRunByRuleAndPeriod(
+		ctx,
+		workspaceID,
+		reportRule.ID,
+		domain.ReportKindDaily,
+		preview.OccurrenceDate,
+		preview.OccurrenceDate,
+	)
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
+		return nil, NewError(ErrorCodeInternal, "Could not check daily report history.")
+	}
+
+	if existingRun != nil && existingRun.Status == domain.ReportRunStatusPosted {
+		return nil, NewError(ErrorCodeConflict, "Daily report was already posted for this date.")
+	}
+
+	now := time.Now().UTC()
+	reservedRun := domain.ReportRun{
+		ID:               domain.ID(uuid.NewString()),
+		WorkspaceID:      workspaceID,
+		ReportRuleID:     reportRule.ID,
+		ScheduleID:       reportRule.ScheduleID,
+		ReportKind:       domain.ReportKindDaily,
+		PeriodStart:      preview.OccurrenceDate,
+		PeriodEnd:        preview.OccurrenceDate,
+		GeneratedAt:      now,
+		PostedAt:         nil,
+		PostedBy:         cleanActorUserID,
+		MattermostPostID: "",
+		Markdown:         preview.Markdown,
+		Status:           domain.ReportRunStatusPosting,
+		CreatedAt:        now,
+		UpdatedAt:        now,
+	}
+
+	createdRun, err := s.reportStore.CreateRun(ctx, reservedRun)
+	if err != nil {
+		return nil, NewError(ErrorCodeConflict, "Daily report was already posted or reserved for this date.")
+	}
+
+	postID, err := s.reportPublisher.PostDailyReport(ctx, DailyReportPost{
 		WorkspaceID:    workspace.ID.String(),
 		WorkspaceName:  workspace.Name,
 		ChannelID:      workspace.ChannelID,
 		OccurrenceDate: preview.OccurrenceDate.String(),
 		Markdown:       preview.Markdown,
 		PostedByUserID: cleanActorUserID,
-	}); err != nil {
+	})
+	if err != nil {
+		_ = s.reportStore.MarkRunFailed(ctx, createdRun.ID, time.Now().UTC())
 		return nil, NewError(ErrorCodeInternal, "Could not post daily report to the channel.")
+	}
+
+	postedAt := time.Now().UTC()
+	postedRun, err := s.reportStore.MarkRunPosted(ctx, createdRun.ID, postID, postedAt)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Daily report posted, but Campfire could not update report history.")
 	}
 
 	return &PostDailyReportPreviewResult{
 		Preview: *preview,
+		Run:     *postedRun,
 		Posted:  true,
 	}, nil
 }

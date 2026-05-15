@@ -3,85 +3,102 @@ package domain
 import "time"
 
 /*
-ReportKind identifies the type of report Campfire can generate.
+ReportKind identifies a generated report kind.
 */
 type ReportKind string
 
 const (
 	/*
-		ReportKindDaily identifies the daily standup report.
+		ReportKindDaily identifies daily standup reports.
 	*/
 	ReportKindDaily ReportKind = "daily"
 
 	/*
-		ReportKindWeekly identifies the weekly summary report.
+		ReportKindWeekly identifies weekly standup reports.
 	*/
 	ReportKindWeekly ReportKind = "weekly"
 
 	/*
-		ReportKindBlockers identifies a blockers report.
+		ReportKindBlockers identifies blocker-focused reports.
 	*/
 	ReportKindBlockers ReportKind = "blockers"
 
 	/*
-		ReportKindMissing identifies a missing/late report.
+		ReportKindMissing identifies missing-submission reports.
 	*/
 	ReportKindMissing ReportKind = "missing"
 
 	/*
-		ReportKindTime identifies a time report.
+		ReportKindTime identifies time-focused reports.
 	*/
 	ReportKindTime ReportKind = "time"
 )
 
 /*
-ReportSortMode identifies supported report sorting modes.
+ReportSortMode identifies report row ordering behavior.
 */
 type ReportSortMode string
 
 const (
 	/*
-		ReportSortName sorts users by name.
+		ReportSortName sorts report rows by user name or user ID.
 	*/
 	ReportSortName ReportSortMode = "name"
 
 	/*
-		ReportSortFirstSubmitted sorts users by first submitted time.
+		ReportSortFirstSubmitted sorts report rows by first submitted timestamp.
 	*/
 	ReportSortFirstSubmitted ReportSortMode = "first_submitted"
 
 	/*
-		ReportSortLastSubmitted sorts users by last submitted time.
+		ReportSortLastSubmitted sorts report rows by last submitted timestamp.
 	*/
 	ReportSortLastSubmitted ReportSortMode = "last_submitted"
 
 	/*
-		ReportSortMissingFirst moves missing users first.
-	*/
-	ReportSortMissingFirst ReportSortMode = "missing_first"
+		ReportSortBlockersFirst sorts blocker rows before non-blocker rows.
 
-	/*
-		ReportSortBlockersFirst moves blockers first.
+		This is used by seeded report rules and will become more important once
+		blocker-specific report sections are wired into the report builder.
 	*/
 	ReportSortBlockersFirst ReportSortMode = "blockers_first"
 )
 
 /*
-ReportRule defines generated report behavior for a schedule.
+ReportRunStatus identifies the lifecycle state of a generated report run.
+*/
+type ReportRunStatus string
+
+const (
+	/*
+		ReportRunStatusPosting means Campfire reserved the run and is posting it.
+	*/
+	ReportRunStatusPosting ReportRunStatus = "posting"
+
+	/*
+		ReportRunStatusPosted means the report was posted successfully.
+	*/
+	ReportRunStatusPosted ReportRunStatus = "posted"
+
+	/*
+		ReportRunStatusFailed means Campfire reserved the run but posting failed.
+	*/
+	ReportRunStatusFailed ReportRunStatus = "failed"
+)
+
+/*
+ReportRule describes a workspace report automation rule.
 */
 type ReportRule struct {
 	ID          ID
 	WorkspaceID ID
 	ScheduleID  ID
 
-	Enabled bool
-
-	ReportKind ReportKind
-
+	Enabled         bool
+	ReportKind      ReportKind
 	PostToChannel   bool
 	PreviewRequired bool
-
-	SortMode ReportSortMode
+	SortMode        ReportSortMode
 
 	IncludeOnLeave  bool
 	IncludeMissing  bool
@@ -94,29 +111,26 @@ type ReportRule struct {
 }
 
 /*
-IsValid returns true when the report kind is supported by Campfire MVP.
+ReportRun records one generated or posted report.
 */
-func (k ReportKind) IsValid() bool {
-	switch k {
-	case ReportKindDaily, ReportKindWeekly, ReportKindBlockers, ReportKindMissing, ReportKindTime:
-		return true
-	default:
-		return false
-	}
-}
+type ReportRun struct {
+	ID           ID
+	WorkspaceID  ID
+	ReportRuleID ID
+	ScheduleID   ID
 
-/*
-IsValid returns true when the report sort mode is supported by Campfire MVP.
-*/
-func (m ReportSortMode) IsValid() bool {
-	switch m {
-	case ReportSortName,
-		ReportSortFirstSubmitted,
-		ReportSortLastSubmitted,
-		ReportSortMissingFirst,
-		ReportSortBlockersFirst:
-		return true
-	default:
-		return false
-	}
+	ReportKind  ReportKind
+	PeriodStart LocalDate
+	PeriodEnd   LocalDate
+
+	GeneratedAt      time.Time
+	PostedAt         *time.Time
+	PostedBy         string
+	MattermostPostID string
+
+	Markdown string
+	Status   ReportRunStatus
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }

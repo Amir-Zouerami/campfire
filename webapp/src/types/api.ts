@@ -20,6 +20,7 @@ import type {
 	StandupOccurrenceSummary,
 	StandupSubmissionSortMode,
 	DailyReportPreview,
+	ReportRun,
 } from './domain';
 
 /**
@@ -268,6 +269,13 @@ export type GetDailyReportPreviewResponse = {
 };
 
 /**
+ * ListDailyReportRunsResponse is returned by GET /workspaces/{workspaceID}/reports/daily-runs.
+ */
+export type ListDailyReportRunsResponse = {
+	readonly runs: readonly ReportRun[];
+};
+
+/**
  * PostDailyReportPreviewRequest is sent to POST /workspaces/{workspaceID}/reports/daily-preview/post.
  */
 export type PostDailyReportPreviewRequest = {
@@ -280,6 +288,7 @@ export type PostDailyReportPreviewRequest = {
  */
 export type PostDailyReportPreviewResponse = {
 	readonly preview: DailyReportPreview;
+	readonly run: ReportRun;
 	readonly posted: boolean;
 };
 

@@ -57,6 +57,32 @@ export type ReportKind = 'daily' | 'weekly' | 'blockers' | 'missing' | 'time';
 export type ReportSortMode = 'name' | 'first_submitted' | 'last_submitted' | 'missing_first' | 'blockers_first';
 
 /**
+ * ReportRunStatus identifies the lifecycle state of a generated report run.
+ */
+export type ReportRunStatus = 'posting' | 'posted' | 'failed';
+
+/**
+ * ReportRun records one generated or posted report.
+ */
+export type ReportRun = {
+	readonly id: string;
+	readonly workspaceId: string;
+	readonly reportRuleId: string;
+	readonly scheduleId: string;
+	readonly reportKind: ReportKind;
+	readonly periodStart: LocalDate;
+	readonly periodEnd: LocalDate;
+	readonly generatedAt: string;
+	readonly postedAt: string;
+	readonly postedBy: string;
+	readonly mattermostPostId: string;
+	readonly markdown: string;
+	readonly status: ReportRunStatus;
+	readonly createdAt: string;
+	readonly updatedAt: string;
+};
+
+/**
  * LocalDate is a YYYY-MM-DD date string interpreted in a workspace timezone.
  */
 export type LocalDate = string;

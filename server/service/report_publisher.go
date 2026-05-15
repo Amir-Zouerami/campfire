@@ -20,7 +20,7 @@ ReportPublisher defines outbound report publishing behavior.
 Application services depend on this port instead of importing Mattermost APIs.
 */
 type ReportPublisher interface {
-	PostDailyReport(ctx context.Context, post DailyReportPost) error
+	PostDailyReport(ctx context.Context, post DailyReportPost) (string, error)
 }
 
 /*
@@ -38,8 +38,8 @@ func NewNoopReportPublisher() *NoopReportPublisher {
 }
 
 /*
-PostDailyReport intentionally does nothing.
+PostDailyReport intentionally does nothing and returns an empty post ID.
 */
-func (p *NoopReportPublisher) PostDailyReport(_ context.Context, _ DailyReportPost) error {
-	return nil
+func (p *NoopReportPublisher) PostDailyReport(_ context.Context, _ DailyReportPost) (string, error) {
+	return "", nil
 }

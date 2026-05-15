@@ -34,35 +34,39 @@ PostDailyReport posts a generated daily report to the workspace channel.
 func (p *ReportPublisher) PostDailyReport(
 	ctx context.Context,
 	post service.DailyReportPost,
-) error {
+) (string, error) {
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return "", ctx.Err()
 	default:
 	}
 
 	if strings.TrimSpace(p.botUserID) == "" {
-		return fmt.Errorf("Campfire bot user ID is empty")
+		return "", fmt.Errorf("Campfire bot user ID is empty")
 	}
 
 	cleanChannelID := strings.TrimSpace(post.ChannelID)
 	if cleanChannelID == "" {
-		return fmt.Errorf("Campfire report channel ID is empty")
+		return "", fmt.Errorf("Campfire report channel ID is empty")
 	}
 
 	message := strings.TrimSpace(post.Markdown)
 	if message == "" {
-		return fmt.Errorf("Campfire daily report Markdown is empty")
+		return "", fmt.Errorf("Campfire daily report Markdown is empty")
 	}
 
-	_, appErr := p.api.CreatePost(&model.Post{
+	createdPost, appErr := p.api.CreatePost(&model.Post{
 		UserId:    p.botUserID,
 		ChannelId: cleanChannelID,
 		Message:   message,
 	})
 	if appErr != nil {
-		return appErr
+		return "", appErr
 	}
 
-	return nil
+	if createdPost == nil {
+		return "", fmt.Errorf("Mattermost returned an empty post")
+	}
+
+	return createdPost.Id, nil
 }

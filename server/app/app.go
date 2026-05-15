@@ -99,6 +99,7 @@ func New(config Config) (*App, error) {
 
 	leaveStore := store.NewSQLLeaveStore(database)
 	standupStore := store.NewSQLStandupStore(database)
+	reportStore := store.NewSQLReportStore(database)
 
 	notificationPublisher := mattermost.NewNotificationPublisher(config.API, botUserID)
 	workspaceMemberProvider := mattermost.NewWorkspaceMemberProvider(config.API)
@@ -131,6 +132,7 @@ func New(config Config) (*App, error) {
 		standupService,
 		workspaceStore,
 		workspaceRoleStore,
+		reportStore,
 		reportPublisher,
 	)
 

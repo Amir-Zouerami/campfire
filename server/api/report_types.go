@@ -41,10 +41,38 @@ type DailyReportPreviewPayload struct {
 }
 
 /*
+ReportRunPayload is the API representation of a report run.
+*/
+type ReportRunPayload struct {
+	ID               string `json:"id"`
+	WorkspaceID      string `json:"workspaceId"`
+	ReportRuleID     string `json:"reportRuleId"`
+	ScheduleID       string `json:"scheduleId"`
+	ReportKind       string `json:"reportKind"`
+	PeriodStart      string `json:"periodStart"`
+	PeriodEnd        string `json:"periodEnd"`
+	GeneratedAt      string `json:"generatedAt"`
+	PostedAt         string `json:"postedAt"`
+	PostedBy         string `json:"postedBy"`
+	MattermostPostID string `json:"mattermostPostId"`
+	Markdown         string `json:"markdown"`
+	Status           string `json:"status"`
+	CreatedAt        string `json:"createdAt"`
+	UpdatedAt        string `json:"updatedAt"`
+}
+
+/*
 GetDailyReportPreviewResponse is returned by GET /workspaces/{workspaceID}/reports/daily-preview.
 */
 type GetDailyReportPreviewResponse struct {
 	Preview DailyReportPreviewPayload `json:"preview"`
+}
+
+/*
+ListDailyReportRunsResponse is returned by GET /workspaces/{workspaceID}/reports/daily-runs.
+*/
+type ListDailyReportRunsResponse struct {
+	Runs []ReportRunPayload `json:"runs"`
 }
 
 /*
@@ -60,6 +88,7 @@ PostDailyReportPreviewResponse is returned after posting a daily report preview.
 */
 type PostDailyReportPreviewResponse struct {
 	Preview DailyReportPreviewPayload `json:"preview"`
+	Run     ReportRunPayload          `json:"run"`
 	Posted  bool                      `json:"posted"`
 }
 
@@ -79,6 +108,42 @@ func DailyReportPreviewToPayload(preview domain.DailyReportPreview) DailyReportP
 		Rows:     DailyReportSubmissionRowsToPayload(preview.Rows),
 		Markdown: preview.Markdown,
 	}
+}
+
+/*
+ReportRunToPayload maps a report run to an API payload.
+*/
+func ReportRunToPayload(run domain.ReportRun) ReportRunPayload {
+	return ReportRunPayload{
+		ID:               run.ID.String(),
+		WorkspaceID:      run.WorkspaceID.String(),
+		ReportRuleID:     run.ReportRuleID.String(),
+		ScheduleID:       run.ScheduleID.String(),
+		ReportKind:       string(run.ReportKind),
+		PeriodStart:      run.PeriodStart.String(),
+		PeriodEnd:        run.PeriodEnd.String(),
+		GeneratedAt:      formatAPITime(run.GeneratedAt),
+		PostedAt:         formatOptionalAPITime(run.PostedAt),
+		PostedBy:         run.PostedBy,
+		MattermostPostID: run.MattermostPostID,
+		Markdown:         run.Markdown,
+		Status:           string(run.Status),
+		CreatedAt:        formatAPITime(run.CreatedAt),
+		UpdatedAt:        formatAPITime(run.UpdatedAt),
+	}
+}
+
+/*
+ReportRunsToPayload maps report runs to API payloads.
+*/
+func ReportRunsToPayload(runs []domain.ReportRun) []ReportRunPayload {
+	payloads := make([]ReportRunPayload, 0, len(runs))
+
+	for _, run := range runs {
+		payloads = append(payloads, ReportRunToPayload(run))
+	}
+
+	return payloads
 }
 
 /*

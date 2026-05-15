@@ -29,6 +29,7 @@ import type {
 	GetDailyReportPreviewResponse,
 	PostDailyReportPreviewRequest,
 	PostDailyReportPreviewResponse,
+	ListDailyReportRunsResponse,
 } from '../types/api';
 
 const pluginID = 'dev.zouerami.campfire';
@@ -203,6 +204,19 @@ export async function getDailyReportPreview(
 
 	return apiGet<GetDailyReportPreviewResponse>(
 		`/workspaces/${encodeURIComponent(workspaceID)}/reports/daily-preview?${params.toString()}`,
+	);
+}
+
+/**
+ * listDailyReportRuns loads recent daily report posting history.
+ */
+export async function listDailyReportRuns(workspaceID: string, limit: number): Promise<ListDailyReportRunsResponse> {
+	const params = new URLSearchParams({
+		limit: String(limit),
+	});
+
+	return apiGet<ListDailyReportRunsResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/reports/daily-runs?${params.toString()}`,
 	);
 }
 

@@ -55,6 +55,10 @@ func NewRouter(config RouterConfig) http.Handler {
 			"/workspaces/{workspaceID}/reports/daily-preview",
 			handleGetDailyReportPreview(config.Logger, config.Mattermost, config.ReportService),
 		)
+		api.Get(
+			"/workspaces/{workspaceID}/reports/daily-runs",
+			handleListDailyReportRuns(config.Logger, config.Mattermost, config.ReportService),
+		)
 		api.Post(
 			"/workspaces/{workspaceID}/reports/daily-preview/post",
 			handlePostDailyReportPreview(config.Logger, config.Mattermost, config.ReportService),

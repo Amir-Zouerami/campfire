@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/amir-zouerami/campfire/server/logger"
@@ -46,6 +47,40 @@ func handleGetDailyReportPreview(
 }
 
 /*
+handleListDailyReportRuns handles daily report posting history.
+*/
+func handleListDailyReportRuns(
+	log logger.Logger,
+	mm mattermost.Client,
+	reportService *service.ReportService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		limit := parsePositiveIntOrDefault(r.URL.Query().Get("limit"), 20)
+
+		runs, err := reportService.ListDailyRuns(r.Context(), service.ListDailyReportRunsInput{
+			ActorUserID: user.ID,
+			WorkspaceID: workspaceID,
+			Limit:       limit,
+		})
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WriteListDailyReportRuns(w, http.StatusOK, ListDailyReportRunsResponse{
+			Runs: ReportRunsToPayload(runs),
+		})
+	}
+}
+
+/*
 handlePostDailyReportPreview handles posting a daily report preview to the channel.
 */
 func handlePostDailyReportPreview(
@@ -82,7 +117,20 @@ func handlePostDailyReportPreview(
 
 		WritePostDailyReportPreview(w, http.StatusOK, PostDailyReportPreviewResponse{
 			Preview: DailyReportPreviewToPayload(result.Preview),
+			Run:     ReportRunToPayload(result.Run),
 			Posted:  result.Posted,
 		})
 	}
+}
+
+/*
+parsePositiveIntOrDefault parses a positive integer query parameter.
+*/
+func parsePositiveIntOrDefault(value string, fallback int) int {
+	parsed, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil || parsed <= 0 {
+		return fallback
+	}
+
+	return parsed
 }

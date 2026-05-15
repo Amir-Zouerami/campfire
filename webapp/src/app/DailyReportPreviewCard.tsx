@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 
-import { ApiClientError, getDailyReportPreview, postDailyReportPreview } from '../api/client';
-import type { DailyReportPreview, StandupSubmissionSortMode, Workspace } from '../types/domain';
+import { ApiClientError, getDailyReportPreview, listDailyReportRuns, postDailyReportPreview } from '../api/client';
+import type { DailyReportPreview, ReportRun, StandupSubmissionSortMode, Workspace } from '../types/domain';
 
 /**
  * DailyReportPreviewCardProps contains workspace and refresh data.
@@ -37,6 +37,7 @@ export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): Reac
 	const [occurrenceDate, setOccurrenceDate] = useState(getTodayLocalDateString());
 	const [sortMode, setSortMode] = useState<StandupSubmissionSortMode>('first_submitted');
 	const [preview, setPreview] = useState<DailyReportPreview | null>(null);
+	const [runs, setRuns] = useState<readonly ReportRun[]>([]);
 	const [message, setMessage] = useState('');
 
 	useEffect(() => {
@@ -49,13 +50,17 @@ export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): Reac
 			setMessage('');
 
 			try {
-				const response = await getDailyReportPreview(props.workspace.id, occurrenceDate, sortMode);
+				const [previewResponse, runsResponse] = await Promise.all([
+					getDailyReportPreview(props.workspace.id, occurrenceDate, sortMode),
+					listDailyReportRuns(props.workspace.id, 20),
+				]);
 
 				if (!isActive) {
 					return;
 				}
 
-				setPreview(response.preview);
+				setPreview(previewResponse.preview);
+				setRuns(runsResponse.runs);
 				setLoadState('ready');
 			} catch (error: unknown) {
 				if (!isActive) {
@@ -73,6 +78,18 @@ export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): Reac
 			isActive = false;
 		};
 	}, [props.workspace.id, props.refreshToken, occurrenceDate, sortMode]);
+
+	const existingRunForDate = useMemo(
+		() =>
+			runs.find(
+				run =>
+					run.reportKind === 'daily' &&
+					run.periodStart === occurrenceDate &&
+					run.periodEnd === occurrenceDate &&
+					run.status === 'posted',
+			) ?? null,
+		[occurrenceDate, runs],
+	);
 
 	/**
 	 * Copies report Markdown to the user's clipboard.
@@ -94,7 +111,7 @@ export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): Reac
 	 * Posts the current report preview to the Mattermost channel.
 	 */
 	async function handlePostToChannel(): Promise<void> {
-		if (preview === null) {
+		if (preview === null || existingRunForDate !== null) {
 			return;
 		}
 
@@ -108,12 +125,15 @@ export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): Reac
 			});
 
 			setPreview(response.preview);
+			setRuns(current => [response.run, ...current.filter(run => run.id !== response.run.id)]);
 			setPostState('posted');
 		} catch (error: unknown) {
 			setPostState('error');
 			setMessage(errorToMessage(error));
 		}
 	}
+
+	const isPostDisabled = preview === null || postState === 'posting' || existingRunForDate !== null;
 
 	return (
 		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-fuchsia-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
@@ -126,13 +146,12 @@ export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): Reac
 						Daily report preview
 					</h2>
 					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						Generate a Markdown preview from submitted standups, missing users, and approved leave. Posting
-						and approval workflow come later.
+						Generate a Markdown preview, post it once, and keep a history of posted daily reports.
 					</p>
 				</div>
 
-				<div className="cf:w-fit cf:rounded-full cf:border cf:border-fuchsia-300/25 cf:bg-fuchsia-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-fuchsia-200">
-					Markdown
+				<div className={existingRunForDate === null ? previewBadgeClassName : postedBadgeClassName}>
+					{existingRunForDate === null ? 'Preview' : 'Already posted'}
 				</div>
 			</div>
 
@@ -175,15 +194,23 @@ export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): Reac
 				>
 					Copy Markdown
 				</button>
+			</div>
 
+			<div className="cf:mt-4 cf:flex cf:flex-col cf:gap-3 cf:sm:flex-row cf:sm:items-center">
 				<button
 					className="cf:w-fit cf:rounded-2xl cf:border cf:border-orange-300/25 cf:bg-orange-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-orange-50 cf:transition cf:hover:bg-orange-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
 					type="button"
-					disabled={preview === null || postState === 'posting'}
+					disabled={isPostDisabled}
 					onClick={() => void handlePostToChannel()}
 				>
 					{postState === 'posting' ? 'Posting…' : 'Post to channel'}
 				</button>
+
+				{existingRunForDate !== null && (
+					<p className="cf:m-0 cf:text-sm cf:font-bold cf:text-amber-200">
+						Posted by {existingRunForDate.postedBy} at {formatDateTime(existingRunForDate.postedAt)}.
+					</p>
+				)}
 			</div>
 
 			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
@@ -224,6 +251,8 @@ export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): Reac
 					<pre className="cf:max-h-[34rem] cf:overflow-auto cf:whitespace-pre-wrap cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/55 cf:p-5 cf:text-sm cf:leading-6 cf:text-slate-100">
 						{preview.markdown}
 					</pre>
+
+					<ReportHistory runs={runs} />
 				</div>
 			)}
 		</section>
@@ -232,6 +261,12 @@ export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): Reac
 
 const inputClassName =
 	'cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/55 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:transition cf:[color-scheme:dark] cf:placeholder:text-slate-500 cf:focus:border-fuchsia-300/60 cf:focus:ring-4 cf:focus:ring-fuchsia-300/15';
+
+const previewBadgeClassName =
+	'cf:w-fit cf:rounded-full cf:border cf:border-fuchsia-300/25 cf:bg-fuchsia-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-fuchsia-200';
+
+const postedBadgeClassName =
+	'cf:w-fit cf:rounded-full cf:border cf:border-emerald-300/25 cf:bg-emerald-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-emerald-200';
 
 /**
  * Field renders a labeled control shell.
@@ -262,6 +297,64 @@ function Metric(props: { readonly label: string; readonly value: string }): Reac
 }
 
 /**
+ * ReportHistory renders recent daily report posting history.
+ */
+function ReportHistory(props: { readonly runs: readonly ReportRun[] }): ReactElement {
+	return (
+		<article className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/35 cf:p-4">
+			<strong className="cf:block cf:text-base cf:font-black cf:text-white">Posting history</strong>
+
+			{props.runs.length === 0 && (
+				<p className="cf:m-0 cf:mt-2 cf:text-sm cf:text-slate-300">No daily reports have been posted yet.</p>
+			)}
+
+			{props.runs.length > 0 && (
+				<div className="cf:mt-3 cf:grid cf:gap-3">
+					{props.runs.map(run => (
+						<div
+							className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-3"
+							key={run.id}
+						>
+							<div className="cf:flex cf:flex-col cf:gap-2 cf:sm:flex-row cf:sm:items-start cf:sm:justify-between">
+								<div>
+									<p className="cf:m-0 cf:text-sm cf:font-black cf:text-white">
+										{run.periodStart} · {run.reportKind}
+									</p>
+									<p className="cf:m-0 cf:mt-1 cf:text-xs cf:text-slate-400">
+										Posted by {run.postedBy || 'unknown'} ·{' '}
+										{formatDateTime(run.postedAt || run.generatedAt)}
+									</p>
+								</div>
+
+								<span
+									className={
+										run.status === 'posted' ? historyPostedClassName : historyFailedClassName
+									}
+								>
+									{run.status}
+								</span>
+							</div>
+
+							{run.mattermostPostId !== '' && (
+								<p className="cf:m-0 cf:mt-2 cf:text-xs cf:text-slate-500">
+									Mattermost post: {run.mattermostPostId}
+								</p>
+							)}
+						</div>
+					))}
+				</div>
+			)}
+		</article>
+	);
+}
+
+const historyPostedClassName =
+	'cf:w-fit cf:rounded-full cf:border cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:px-2.5 cf:py-1 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.1em] cf:text-emerald-200';
+
+const historyFailedClassName =
+	'cf:w-fit cf:rounded-full cf:border cf:border-red-300/20 cf:bg-red-300/10 cf:px-2.5 cf:py-1 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.1em] cf:text-red-200';
+
+/**
  * toSortMode narrows strings to supported sort modes.
  */
 function toSortMode(value: string): StandupSubmissionSortMode {
@@ -275,6 +368,19 @@ function toSortMode(value: string): StandupSubmissionSortMode {
 		default:
 			return 'first_submitted';
 	}
+}
+
+/**
+ * formatDateTime formats an API timestamp for compact display.
+ */
+function formatDateTime(value: string): string {
+	const date = new Date(value);
+
+	if (Number.isNaN(date.getTime())) {
+		return value;
+	}
+
+	return date.toLocaleString();
 }
 
 /**
