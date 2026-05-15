@@ -80,6 +80,22 @@ func NewRouter(config RouterConfig) http.Handler {
 			"/workspaces/{workspaceID}/standups/configuration",
 			handleListStandupConfiguration(config.Logger, config.Mattermost, config.StandupService),
 		)
+		api.Post(
+			"/workspaces/{workspaceID}/standups/templates",
+			handleCreateStandupTemplate(config.Logger, config.Mattermost, config.StandupService),
+		)
+		api.Put(
+			"/workspaces/{workspaceID}/standups/templates/{templateID}",
+			handleUpdateStandupTemplate(config.Logger, config.Mattermost, config.StandupService),
+		)
+		api.Post(
+			"/workspaces/{workspaceID}/standups/questions",
+			handleCreateStandupQuestion(config.Logger, config.Mattermost, config.StandupService),
+		)
+		api.Put(
+			"/workspaces/{workspaceID}/standups/questions/{questionID}",
+			handleUpdateStandupQuestion(config.Logger, config.Mattermost, config.StandupService),
+		)
 		api.Get(
 			"/workspaces/{workspaceID}/standups/submissions",
 			handleListStandupSubmissions(config.Logger, config.Mattermost, config.StandupService),

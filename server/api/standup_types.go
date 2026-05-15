@@ -129,6 +129,87 @@ type ListStandupConfigurationResponse struct {
 }
 
 /*
+CreateStandupTemplateRequest is accepted by POST /workspaces/{workspaceID}/standups/templates.
+*/
+type CreateStandupTemplateRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Kind        string `json:"kind"`
+}
+
+/*
+CreateStandupTemplateResponse is returned by POST /workspaces/{workspaceID}/standups/templates.
+*/
+type CreateStandupTemplateResponse struct {
+	Template StandupTemplatePayload `json:"template"`
+}
+
+/*
+UpdateStandupTemplateRequest is accepted by PUT /workspaces/{workspaceID}/standups/templates/{templateID}.
+*/
+type UpdateStandupTemplateRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Kind        string `json:"kind"`
+	IsActive    bool   `json:"isActive"`
+}
+
+/*
+UpdateStandupTemplateResponse is returned by PUT /workspaces/{workspaceID}/standups/templates/{templateID}.
+*/
+type UpdateStandupTemplateResponse struct {
+	Template StandupTemplatePayload `json:"template"`
+}
+
+/*
+CreateStandupQuestionRequest is accepted by POST /workspaces/{workspaceID}/standups/questions.
+*/
+type CreateStandupQuestionRequest struct {
+	TemplateID   string   `json:"templateId"`
+	Section      string   `json:"section"`
+	Label        string   `json:"label"`
+	HelpText     string   `json:"helpText"`
+	Placeholder  string   `json:"placeholder"`
+	Type         string   `json:"type"`
+	Required     bool     `json:"required"`
+	ShowInReport bool     `json:"showInReport"`
+	IsPrivate    bool     `json:"isPrivate"`
+	Position     int      `json:"position"`
+	Options      []string `json:"options"`
+}
+
+/*
+CreateStandupQuestionResponse is returned by POST /workspaces/{workspaceID}/standups/questions.
+*/
+type CreateStandupQuestionResponse struct {
+	Question StandupQuestionPayload `json:"question"`
+}
+
+/*
+UpdateStandupQuestionRequest is accepted by PUT /workspaces/{workspaceID}/standups/questions/{questionID}.
+*/
+type UpdateStandupQuestionRequest struct {
+	TemplateID   string   `json:"templateId"`
+	Section      string   `json:"section"`
+	Label        string   `json:"label"`
+	HelpText     string   `json:"helpText"`
+	Placeholder  string   `json:"placeholder"`
+	Type         string   `json:"type"`
+	Required     bool     `json:"required"`
+	ShowInReport bool     `json:"showInReport"`
+	IsPrivate    bool     `json:"isPrivate"`
+	Position     int      `json:"position"`
+	Options      []string `json:"options"`
+}
+
+/*
+UpdateStandupQuestionResponse is returned by PUT /workspaces/{workspaceID}/standups/questions/{questionID}.
+*/
+type UpdateStandupQuestionResponse struct {
+	Question StandupQuestionPayload `json:"question"`
+}
+
+/*
 ListStandupSubmissionsResponse is returned by GET /workspaces/{workspaceID}/standups/submissions.
 */
 type ListStandupSubmissionsResponse struct {

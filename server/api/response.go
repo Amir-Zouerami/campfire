@@ -323,6 +323,42 @@ func WriteEvaluateStandupDay(w http.ResponseWriter, statusCode int, payload Eval
 }
 
 /*
+WriteCreateStandupTemplate writes the created standup template response.
+*/
+func WriteCreateStandupTemplate(w http.ResponseWriter, statusCode int, payload CreateStandupTemplateResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode created standup template response")
+}
+
+/*
+WriteUpdateStandupTemplate writes the updated standup template response.
+*/
+func WriteUpdateStandupTemplate(w http.ResponseWriter, statusCode int, payload UpdateStandupTemplateResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode updated standup template response")
+}
+
+/*
+WriteCreateStandupQuestion writes the created standup question response.
+*/
+func WriteCreateStandupQuestion(w http.ResponseWriter, statusCode int, payload CreateStandupQuestionResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode created standup question response")
+}
+
+/*
+WriteUpdateStandupQuestion writes the updated standup question response.
+*/
+func WriteUpdateStandupQuestion(w http.ResponseWriter, statusCode int, payload UpdateStandupQuestionResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode updated standup question response")
+}
+
+/*
 WriteListStandupConfiguration writes the standup configuration response.
 */
 func WriteListStandupConfiguration(
