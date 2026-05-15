@@ -1,5 +1,6 @@
 import type {
 	ApiErrorBody,
+	CancelLeaveRequestResponse,
 	CreateGlobalSkipDateRequest,
 	CreateGlobalSkipDateResponse,
 	CreateLeaveRequest,
@@ -12,6 +13,7 @@ import type {
 	HealthResponse,
 	ListGlobalSkipDatesResponse,
 	ListLeaveTypesResponse,
+	ListMyPendingLeaveRequestsResponse,
 	ListPendingLeaveRequestsResponse,
 	MeResponse,
 	ValidateLeaveRequest,
@@ -105,6 +107,15 @@ export async function listPendingLeaveRequests(workspaceID: string): Promise<Lis
 }
 
 /**
+ * listMyPendingLeaveRequests loads the current user's pending leave requests.
+ */
+export async function listMyPendingLeaveRequests(workspaceID: string): Promise<ListMyPendingLeaveRequestsResponse> {
+	return apiGet<ListMyPendingLeaveRequestsResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/leaves/my-pending`,
+	);
+}
+
+/**
  * validateLeaveRequest validates a leave request before creating it.
  */
 export async function validateLeaveRequest(request: ValidateLeaveRequest): Promise<ValidateLeaveResponse> {
@@ -128,6 +139,16 @@ export async function decideLeaveRequest(
 	return apiPost<DecideLeaveRequest, DecideLeaveResponse>(
 		`/leaves/${encodeURIComponent(leaveRequestID)}/decision`,
 		request,
+	);
+}
+
+/**
+ * cancelLeaveRequest cancels a pending leave request.
+ */
+export async function cancelLeaveRequest(leaveRequestID: string): Promise<CancelLeaveRequestResponse> {
+	return apiPost<Record<string, never>, CancelLeaveRequestResponse>(
+		`/leaves/${encodeURIComponent(leaveRequestID)}/cancel`,
+		{},
 	);
 }
 

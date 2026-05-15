@@ -38,6 +38,14 @@ type ListPendingLeavesInput struct {
 }
 
 /*
+ListMyPendingLeavesInput contains current-user pending leave list filters.
+*/
+type ListMyPendingLeavesInput struct {
+	ActorUserID string
+	WorkspaceID string
+}
+
+/*
 DecideLeaveInput contains user-submitted leave decision data.
 */
 type DecideLeaveInput struct {
@@ -46,6 +54,14 @@ type DecideLeaveInput struct {
 	LeaveRequestID string
 	Decision       string
 	Comment        string
+}
+
+/*
+CancelLeaveInput contains data needed to cancel a pending leave request.
+*/
+type CancelLeaveInput struct {
+	ActorUserID    string
+	LeaveRequestID string
 }
 
 /*
@@ -128,6 +144,35 @@ func (s *LeaveService) ListPending(
 	leaveRequests, err := s.leaveStore.ListPendingByWorkspaceID(ctx, workspaceID)
 	if err != nil {
 		return nil, NewError(ErrorCodeInternal, "Could not load pending leave requests.")
+	}
+
+	return leaveRequests, nil
+}
+
+/*
+ListMyPending returns pending leave requests created by the current user.
+*/
+func (s *LeaveService) ListMyPending(
+	ctx context.Context,
+	input ListMyPendingLeavesInput,
+) ([]domain.LeaveRequestWithType, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to view your leave requests.")
+	}
+
+	cleanWorkspaceID := strings.TrimSpace(input.WorkspaceID)
+	if cleanWorkspaceID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
+	}
+
+	leaveRequests, err := s.leaveStore.ListPendingByWorkspaceIDAndUserID(
+		ctx,
+		domain.ID(cleanWorkspaceID),
+		cleanActorUserID,
+	)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not load your pending leave requests.")
 	}
 
 	return leaveRequests, nil
@@ -353,6 +398,98 @@ func (s *LeaveService) Decide(ctx context.Context, input DecideLeaveInput) (*dom
 	})
 
 	return decidedRequest, nil
+}
+
+/*
+Cancel cancels a pending leave request created by the current user.
+*/
+func (s *LeaveService) Cancel(ctx context.Context, input CancelLeaveInput) (*domain.LeaveRequest, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to cancel leave requests.")
+	}
+
+	cleanLeaveRequestID := strings.TrimSpace(input.LeaveRequestID)
+	if cleanLeaveRequestID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Leave request ID is required.")
+	}
+
+	existingRequest, err := s.leaveStore.GetRequestByID(ctx, domain.ID(cleanLeaveRequestID))
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Leave request was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load leave request.")
+	}
+
+	if existingRequest.UserID != cleanActorUserID {
+		return nil, NewError(ErrorCodePermissionDenied, "Only the requester can cancel this leave request.")
+	}
+
+	if existingRequest.Status != domain.LeaveStatusPending {
+		return nil, NewError(ErrorCodeConflict, "Only pending leave requests can be cancelled.")
+	}
+
+	workspace, err := s.workspaceStore.GetByID(ctx, existingRequest.WorkspaceID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Workspace was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load workspace.")
+	}
+
+	leaveType, err := s.leaveStore.GetActiveTypeByID(ctx, workspace.ID, existingRequest.LeaveTypeID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeValidationFailed, "Leave type is no longer active.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load leave type.")
+	}
+
+	now := time.Now().UTC()
+	cancelledRequest, err := s.leaveStore.CancelRequest(ctx, store.CancelLeaveRequestParams{
+		LeaveRequestID: existingRequest.ID,
+		CancelledAt:    now,
+		UpdatedAt:      now,
+	})
+	if err != nil {
+		if errors.Is(err, store.ErrConflict) {
+			return nil, NewError(ErrorCodeConflict, "Only pending leave requests can be cancelled.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not cancel leave request.")
+	}
+
+	approverUserIDs, err := s.workspaceRoleStore.ListUserIDsByRoles(
+		ctx,
+		workspace.ID,
+		[]domain.Role{domain.RoleLead, domain.RoleApprover},
+	)
+	if err == nil {
+		_ = s.notificationPublisher.NotifyLeaveCancelled(ctx, LeaveCancellationNotification{
+			LeaveRequestID: cancelledRequest.ID.String(),
+			WorkspaceID:    workspace.ID.String(),
+			WorkspaceName:  workspace.Name,
+			ChannelID:      workspace.ChannelID,
+
+			RequesterUserID: cleanActorUserID,
+			ApproverUserIDs: filterNotificationRecipients(approverUserIDs, cleanActorUserID),
+
+			LeaveTypeName: leaveType.Name,
+			StartDate:     cancelledRequest.StartDate.String(),
+			EndDate:       cancelledRequest.EndDate.String(),
+			DurationMode:  string(cancelledRequest.DurationMode),
+			HalfDayPart:   string(cancelledRequest.HalfDayPart),
+			StartTime:     cancelledRequest.StartTime.String(),
+			EndTime:       cancelledRequest.EndTime.String(),
+			Status:        string(cancelledRequest.Status),
+		})
+	}
+
+	return cancelledRequest, nil
 }
 
 /*

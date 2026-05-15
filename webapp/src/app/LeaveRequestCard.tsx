@@ -9,6 +9,7 @@ import type { LeaveDurationMode, LeaveHalfDayPart, LeaveRequest, LeaveType, Work
  */
 type LeaveRequestCardProps = {
 	readonly workspace: Workspace;
+	readonly onLeaveCreated: () => void;
 };
 
 /**
@@ -140,6 +141,7 @@ export function LeaveRequestCard(props: LeaveRequestCardProps): ReactElement {
 				reason: '',
 				backupUserID: '',
 			}));
+			props.onLeaveCreated();
 		} catch (error: unknown) {
 			setMessage(errorToMessage(error));
 			setLoadState('error');

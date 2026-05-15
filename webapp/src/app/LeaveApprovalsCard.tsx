@@ -9,6 +9,8 @@ import type { PendingLeaveRequest, Workspace } from '../types/domain';
  */
 type LeaveApprovalsCardProps = {
 	readonly workspace: Workspace;
+	readonly refreshToken: number;
+	readonly onLeaveDecided: () => void;
 };
 
 /**
@@ -66,7 +68,7 @@ export function LeaveApprovalsCard(props: LeaveApprovalsCardProps): ReactElement
 		return () => {
 			isActive = false;
 		};
-	}, [props.workspace.id]);
+	}, [props.workspace.id, props.refreshToken]);
 
 	if (loadState === 'hidden') {
 		return null;
@@ -89,6 +91,7 @@ export function LeaveApprovalsCard(props: LeaveApprovalsCardProps): ReactElement
 			setComments(current => removeComment(current, leaveRequestID));
 			setLoadState('ready');
 			setMessage(decision === 'approved' ? 'Leave request approved.' : 'Leave request rejected.');
+			props.onLeaveDecided();
 		} catch (error: unknown) {
 			setMessage(errorToMessage(error));
 			setLoadState('error');

@@ -65,6 +65,26 @@ func (p *NotificationPublisher) NotifyLeaveDecided(
 }
 
 /*
+NotifyLeaveCancelled notifies approvers that a requester cancelled a pending leave request.
+*/
+func (p *NotificationPublisher) NotifyLeaveCancelled(
+	_ context.Context,
+	notification service.LeaveCancellationNotification,
+) error {
+	if strings.TrimSpace(p.botUserID) == "" {
+		return fmt.Errorf("Campfire bot user ID is empty")
+	}
+
+	for _, approverUserID := range notification.ApproverUserIDs {
+		if err := p.sendDirectMessage(approverUserID, formatLeaveCancelledMessage(p.api, notification)); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+/*
 sendDirectMessage sends a bot-authored direct message to a Mattermost user.
 */
 func (p *NotificationPublisher) sendDirectMessage(userID string, message string) error {
@@ -152,6 +172,33 @@ func formatLeaveDecidedMessage(api plugin.API, notification service.LeaveDecisio
 
 	if strings.TrimSpace(notification.Comment) != "" {
 		lines = append(lines, fmt.Sprintf("**Comment:** %s", notification.Comment))
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+/*
+formatLeaveCancelledMessage formats the leave cancellation notification.
+*/
+func formatLeaveCancelledMessage(api plugin.API, notification service.LeaveCancellationNotification) string {
+	requesterLabel := userMentionOrID(api, notification.RequesterUserID)
+
+	lines := []string{
+		"🔥 **Campfire leave cancelled**",
+		"",
+		fmt.Sprintf("%s cancelled their pending **%s** leave request.", requesterLabel, notification.LeaveTypeName),
+		fmt.Sprintf("**Dates:** %s → %s", notification.StartDate, notification.EndDate),
+		fmt.Sprintf("**Status:** %s", notification.Status),
+	}
+
+	details := formatLeaveRequestDetails(
+		notification.DurationMode,
+		notification.HalfDayPart,
+		notification.StartTime,
+		notification.EndTime,
+	)
+	if details != "" {
+		lines = append(lines, details)
 	}
 
 	return strings.Join(lines, "\n")

@@ -4,6 +4,7 @@ import type { ReactElement } from 'react';
 import { GlobalOffDaysCard } from './GlobalOffDaysCard';
 import { LeaveApprovalsCard } from './LeaveApprovalsCard';
 import { LeaveRequestCard } from './LeaveRequestCard';
+import { MyPendingLeavesCard } from './MyPendingLeavesCard';
 import { WorkspaceSetupCard } from './WorkspaceSetupCard';
 import { CAMPFIRE_OPEN_EVENT } from './events';
 import { useCampfireBootstrap } from './useCampfireBootstrap';
@@ -18,7 +19,15 @@ import type { BootstrapStatus } from './useCampfireBootstrap';
 export function CampfireRoot(): ReactElement | null {
 	const [isOpen, setIsOpen] = useState(false);
 	const [refreshToken, setRefreshToken] = useState(0);
+	const [leaveRefreshToken, setLeaveRefreshToken] = useState(0);
 	const bootstrap = useCampfireBootstrap(isOpen, refreshToken);
+
+	/**
+	 * Refreshes leave panels.
+	 */
+	function refreshLeaves(): void {
+		setLeaveRefreshToken(current => current + 1);
+	}
 
 	useEffect(() => {
 		/**
@@ -102,8 +111,17 @@ export function CampfireRoot(): ReactElement | null {
 
 					{bootstrap.state === 'ready' && bootstrap.workspace !== null && (
 						<>
-							<LeaveApprovalsCard workspace={bootstrap.workspace} />
-							<LeaveRequestCard workspace={bootstrap.workspace} />
+							<LeaveApprovalsCard
+								workspace={bootstrap.workspace}
+								refreshToken={leaveRefreshToken}
+								onLeaveDecided={refreshLeaves}
+							/>
+							<MyPendingLeavesCard
+								workspace={bootstrap.workspace}
+								refreshToken={leaveRefreshToken}
+								onLeaveCancelled={refreshLeaves}
+							/>
+							<LeaveRequestCard workspace={bootstrap.workspace} onLeaveCreated={refreshLeaves} />
 						</>
 					)}
 

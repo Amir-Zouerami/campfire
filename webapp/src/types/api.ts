@@ -115,6 +115,13 @@ export type ListPendingLeaveRequestsResponse = {
 };
 
 /**
+ * ListMyPendingLeaveRequestsResponse is returned by GET /workspaces/{workspaceID}/leaves/my-pending.
+ */
+export type ListMyPendingLeaveRequestsResponse = {
+	readonly leaveRequests: readonly PendingLeaveRequest[];
+};
+
+/**
  * ValidateLeaveRequest is sent to POST /leaves/validate.
  */
 export type ValidateLeaveRequest = {
@@ -169,6 +176,13 @@ export type DecideLeaveRequest = {
  * DecideLeaveResponse is returned by POST /leaves/{leaveRequestID}/decision.
  */
 export type DecideLeaveResponse = {
+	readonly leaveRequest: LeaveRequest;
+};
+
+/**
+ * CancelLeaveRequestResponse is returned by POST /leaves/{leaveRequestID}/cancel.
+ */
+export type CancelLeaveRequestResponse = {
 	readonly leaveRequest: LeaveRequest;
 };
 

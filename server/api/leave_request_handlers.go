@@ -74,6 +74,38 @@ func handleListPendingLeaveRequests(
 }
 
 /*
+handleListMyPendingLeaveRequests handles listing the current user's pending leave requests.
+*/
+func handleListMyPendingLeaveRequests(
+	log logger.Logger,
+	mm mattermost.Client,
+	leaveService *service.LeaveService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+
+		leaveRequests, err := leaveService.ListMyPending(r.Context(), service.ListMyPendingLeavesInput{
+			ActorUserID: user.ID,
+			WorkspaceID: workspaceID,
+		})
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WriteListMyPendingLeaveRequests(w, http.StatusOK, ListMyPendingLeaveRequestsResponse{
+			LeaveRequests: PendingLeaveRequestsToPayload(leaveRequests),
+		})
+	}
+}
+
+/*
 handleCreateLeave handles creating a pending leave request.
 */
 func handleCreateLeave(
@@ -139,6 +171,38 @@ func handleDecideLeave(
 		}
 
 		WriteDecideLeave(w, http.StatusOK, DecideLeaveResponse{
+			LeaveRequest: LeaveRequestToPayload(*leaveRequest),
+		})
+	}
+}
+
+/*
+handleCancelLeave handles requester cancellation for a pending leave request.
+*/
+func handleCancelLeave(
+	log logger.Logger,
+	mm mattermost.Client,
+	leaveService *service.LeaveService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		leaveRequestID := strings.TrimSpace(chi.URLParam(r, "leaveRequestID"))
+
+		leaveRequest, err := leaveService.Cancel(r.Context(), service.CancelLeaveInput{
+			ActorUserID:    user.ID,
+			LeaveRequestID: leaveRequestID,
+		})
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WriteCancelLeave(w, http.StatusOK, CancelLeaveRequestResponse{
 			LeaveRequest: LeaveRequestToPayload(*leaveRequest),
 		})
 	}

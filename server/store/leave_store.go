@@ -22,6 +22,15 @@ type DecideLeaveRequestParams struct {
 }
 
 /*
+CancelLeaveRequestParams contains the data needed to cancel a pending leave request.
+*/
+type CancelLeaveRequestParams struct {
+	LeaveRequestID domain.ID
+	CancelledAt    time.Time
+	UpdatedAt      time.Time
+}
+
+/*
 LeaveStore defines persistence operations for leave types and leave requests.
 */
 type LeaveStore interface {
@@ -29,8 +38,14 @@ type LeaveStore interface {
 	GetActiveTypeByID(ctx context.Context, workspaceID domain.ID, leaveTypeID domain.ID) (*domain.LeaveType, error)
 	GetRequestByID(ctx context.Context, leaveRequestID domain.ID) (*domain.LeaveRequest, error)
 	ListPendingByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.LeaveRequestWithType, error)
+	ListPendingByWorkspaceIDAndUserID(
+		ctx context.Context,
+		workspaceID domain.ID,
+		userID string,
+	) ([]domain.LeaveRequestWithType, error)
 	CreateRequest(ctx context.Context, leaveRequest domain.LeaveRequest) (*domain.LeaveRequest, error)
 	DecideRequest(ctx context.Context, params DecideLeaveRequestParams) (*domain.LeaveRequest, error)
+	CancelRequest(ctx context.Context, params CancelLeaveRequestParams) (*domain.LeaveRequest, error)
 }
 
 /*
@@ -192,41 +207,71 @@ func (s *SQLLeaveStore) ListPendingByWorkspaceID(
 	ctx context.Context,
 	workspaceID domain.ID,
 ) ([]domain.LeaveRequestWithType, error) {
-	records := []leaveRequestWithTypeRecord{}
+	return s.listPending(ctx, workspaceID, "")
+}
 
-	err := s.db.SelectContext(
-		ctx,
-		&records,
-		s.db.Rebind(`
-			SELECT
-				requests.id,
-				requests.workspace_id,
-				requests.user_id,
-				requests.leave_type_id,
-				requests.start_date,
-				requests.end_date,
-				requests.duration_mode,
-				requests.half_day_part,
-				requests.start_time,
-				requests.end_time,
-				requests.reason,
-				requests.backup_user_id,
-				requests.status,
-				requests.created_at,
-				requests.updated_at,
-				requests.cancelled_at,
-				types.name AS leave_type_name,
-				types.color AS leave_type_color
-			FROM campfire_leave_requests requests
-			INNER JOIN campfire_leave_types types
-				ON types.id = requests.leave_type_id
-			WHERE requests.workspace_id = ?
-				AND requests.status = ?
-			ORDER BY requests.created_at ASC
-		`),
+/*
+ListPendingByWorkspaceIDAndUserID returns a user's pending leave requests.
+*/
+func (s *SQLLeaveStore) ListPendingByWorkspaceIDAndUserID(
+	ctx context.Context,
+	workspaceID domain.ID,
+	userID string,
+) ([]domain.LeaveRequestWithType, error) {
+	return s.listPending(ctx, workspaceID, userID)
+}
+
+/*
+listPending returns pending leave requests with optional user filtering.
+*/
+func (s *SQLLeaveStore) listPending(
+	ctx context.Context,
+	workspaceID domain.ID,
+	userID string,
+) ([]domain.LeaveRequestWithType, error) {
+	records := []leaveRequestWithTypeRecord{}
+	cleanUserID := userID
+
+	query := `
+		SELECT
+			requests.id,
+			requests.workspace_id,
+			requests.user_id,
+			requests.leave_type_id,
+			requests.start_date,
+			requests.end_date,
+			requests.duration_mode,
+			requests.half_day_part,
+			requests.start_time,
+			requests.end_time,
+			requests.reason,
+			requests.backup_user_id,
+			requests.status,
+			requests.created_at,
+			requests.updated_at,
+			requests.cancelled_at,
+			types.name AS leave_type_name,
+			types.color AS leave_type_color
+		FROM campfire_leave_requests requests
+		INNER JOIN campfire_leave_types types
+			ON types.id = requests.leave_type_id
+		WHERE requests.workspace_id = ?
+			AND requests.status = ?
+	`
+
+	args := []interface{}{
 		workspaceID.String(),
 		string(domain.LeaveStatusPending),
-	)
+	}
+
+	if cleanUserID != "" {
+		query += " AND requests.user_id = ?"
+		args = append(args, cleanUserID)
+	}
+
+	query += " ORDER BY requests.created_at ASC"
+
+	err := s.db.SelectContext(ctx, &records, s.db.Rebind(query), args...)
 	if err != nil {
 		return nil, fmt.Errorf("list pending leave requests: %w", err)
 	}
@@ -344,35 +389,9 @@ func (s *SQLLeaveStore) DecideRequest(
 		return nil, err
 	}
 
-	var record leaveRequestRecord
-	if err := transaction.GetContext(
-		ctx,
-		&record,
-		s.db.Rebind(`
-			SELECT
-				id,
-				workspace_id,
-				user_id,
-				leave_type_id,
-				start_date,
-				end_date,
-				duration_mode,
-				half_day_part,
-				start_time,
-				end_time,
-				reason,
-				backup_user_id,
-				status,
-				created_at,
-				updated_at,
-				cancelled_at
-			FROM campfire_leave_requests
-			WHERE id = ?
-			LIMIT 1
-		`),
-		params.LeaveRequestID.String(),
-	); err != nil {
-		return nil, fmt.Errorf("reload decided leave request: %w", err)
+	leaveRequest, err := reloadLeaveRequest(ctx, transaction, s.db, params.LeaveRequestID)
+	if err != nil {
+		return nil, err
 	}
 
 	if err := transaction.Commit(); err != nil {
@@ -380,9 +399,71 @@ func (s *SQLLeaveStore) DecideRequest(
 	}
 
 	committed = true
-	leaveRequest := record.toDomain()
 
-	return &leaveRequest, nil
+	return leaveRequest, nil
+}
+
+/*
+CancelRequest cancels a pending leave request.
+*/
+func (s *SQLLeaveStore) CancelRequest(
+	ctx context.Context,
+	params CancelLeaveRequestParams,
+) (*domain.LeaveRequest, error) {
+	transaction, err := s.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin leave cancellation transaction: %w", err)
+	}
+
+	committed := false
+
+	defer func() {
+		if !committed {
+			rollbackErr := transaction.Rollback()
+			if rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+				return
+			}
+		}
+	}()
+
+	result, err := transaction.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			UPDATE campfire_leave_requests
+			SET status = ?, updated_at = ?, cancelled_at = ?
+			WHERE id = ? AND status = ?
+		`),
+		string(domain.LeaveStatusCancelled),
+		params.UpdatedAt,
+		params.CancelledAt,
+		params.LeaveRequestID.String(),
+		string(domain.LeaveStatusPending),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("update leave request cancellation status: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("read leave request cancellation update result: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return nil, ErrConflict
+	}
+
+	leaveRequest, err := reloadLeaveRequest(ctx, transaction, s.db, params.LeaveRequestID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := transaction.Commit(); err != nil {
+		return nil, fmt.Errorf("commit leave cancellation transaction: %w", err)
+	}
+
+	committed = true
+
+	return leaveRequest, nil
 }
 
 /*
@@ -420,6 +501,52 @@ func insertLeaveDecision(
 	}
 
 	return nil
+}
+
+/*
+reloadLeaveRequest reloads a leave request inside a transaction.
+*/
+func reloadLeaveRequest(
+	ctx context.Context,
+	tx *sqlx.Tx,
+	db *sqlx.DB,
+	leaveRequestID domain.ID,
+) (*domain.LeaveRequest, error) {
+	var record leaveRequestRecord
+
+	if err := tx.GetContext(
+		ctx,
+		&record,
+		db.Rebind(`
+			SELECT
+				id,
+				workspace_id,
+				user_id,
+				leave_type_id,
+				start_date,
+				end_date,
+				duration_mode,
+				half_day_part,
+				start_time,
+				end_time,
+				reason,
+				backup_user_id,
+				status,
+				created_at,
+				updated_at,
+				cancelled_at
+			FROM campfire_leave_requests
+			WHERE id = ?
+			LIMIT 1
+		`),
+		leaveRequestID.String(),
+	); err != nil {
+		return nil, fmt.Errorf("reload leave request: %w", err)
+	}
+
+	leaveRequest := record.toDomain()
+
+	return &leaveRequest, nil
 }
 
 /*

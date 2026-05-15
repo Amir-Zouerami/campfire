@@ -52,6 +52,13 @@ type DecideLeaveRequest struct {
 }
 
 /*
+CancelLeaveRequestResponse is returned by POST /leaves/{leaveRequestID}/cancel.
+*/
+type CancelLeaveRequestResponse struct {
+	LeaveRequest LeaveRequestPayload `json:"leaveRequest"`
+}
+
+/*
 LeaveRequestPayload is the API representation of a leave request.
 */
 type LeaveRequestPayload struct {
@@ -93,6 +100,13 @@ type CreateLeaveResponse struct {
 ListPendingLeaveRequestsResponse is returned by GET /workspaces/{workspaceID}/leaves/pending.
 */
 type ListPendingLeaveRequestsResponse struct {
+	LeaveRequests []PendingLeaveRequestPayload `json:"leaveRequests"`
+}
+
+/*
+ListMyPendingLeaveRequestsResponse is returned by GET /workspaces/{workspaceID}/leaves/my-pending.
+*/
+type ListMyPendingLeaveRequestsResponse struct {
 	LeaveRequests []PendingLeaveRequestPayload `json:"leaveRequests"`
 }
 

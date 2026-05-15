@@ -46,6 +46,11 @@ func NewRouter(config RouterConfig) http.Handler {
 		)
 
 		api.Get(
+			"/workspaces/{workspaceID}/leaves/my-pending",
+			handleListMyPendingLeaveRequests(config.Logger, config.Mattermost, config.LeaveService),
+		)
+
+		api.Get(
 			"/settings/global/skip-dates",
 			handleListGlobalSkipDates(config.Logger, config.Mattermost, config.GlobalSkipDateService),
 		)
@@ -70,6 +75,11 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Post(
 			"/leaves/{leaveRequestID}/decision",
 			handleDecideLeave(config.Logger, config.Mattermost, config.LeaveService),
+		)
+
+		api.Post(
+			"/leaves/{leaveRequestID}/cancel",
+			handleCancelLeave(config.Logger, config.Mattermost, config.LeaveService),
 		)
 	})
 

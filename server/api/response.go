@@ -160,6 +160,28 @@ func WriteDecideLeave(w http.ResponseWriter, statusCode int, payload DecideLeave
 }
 
 /*
+WriteListMyPendingLeaveRequests writes the current user's pending leave request list response.
+*/
+func WriteListMyPendingLeaveRequests(
+	w http.ResponseWriter,
+	statusCode int,
+	payload ListMyPendingLeaveRequestsResponse,
+) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode my pending leave request list response")
+}
+
+/*
+WriteCancelLeave writes the leave cancellation response.
+*/
+func WriteCancelLeave(w http.ResponseWriter, statusCode int, payload CancelLeaveRequestResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode leave cancellation response")
+}
+
+/*
 WriteError writes a standard Campfire API error response.
 */
 func WriteError(w http.ResponseWriter, statusCode int, code string, message string) {
