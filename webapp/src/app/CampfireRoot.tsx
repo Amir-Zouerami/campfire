@@ -25,13 +25,20 @@ export function CampfireRoot(): ReactElement | null {
 	const [isOpen, setIsOpen] = useState(false);
 	const [refreshToken, setRefreshToken] = useState(0);
 	const [leaveRefreshToken, setLeaveRefreshToken] = useState(0);
+	const [standupRefreshToken, setStandupRefreshToken] = useState(0);
 	const bootstrap = useCampfireBootstrap(isOpen, refreshToken);
-
 	/**
 	 * Refreshes leave panels.
 	 */
 	function refreshLeaves(): void {
 		setLeaveRefreshToken(current => current + 1);
+	}
+
+	/**
+	 * Refreshes standup panels.
+	 */
+	function refreshStandups(): void {
+		setStandupRefreshToken(current => current + 1);
 	}
 
 	useEffect(() => {
@@ -116,8 +123,14 @@ export function CampfireRoot(): ReactElement | null {
 
 					{bootstrap.state === 'ready' && bootstrap.workspace !== null && (
 						<>
-							<StandupSubmissionCard workspace={bootstrap.workspace} />
-							<StandupSubmissionsCard workspace={bootstrap.workspace} refreshToken={leaveRefreshToken} />
+							<StandupSubmissionCard
+								workspace={bootstrap.workspace}
+								onStandupSubmitted={refreshStandups}
+							/>
+							<StandupSubmissionsCard
+								workspace={bootstrap.workspace}
+								refreshToken={standupRefreshToken + leaveRefreshToken}
+							/>
 							<StandupConfigurationCard workspace={bootstrap.workspace} />{' '}
 							<StandupRuntimeCard workspace={bootstrap.workspace} refreshToken={leaveRefreshToken} />{' '}
 							<LeaveApprovalsCard

@@ -9,6 +9,7 @@ import type { QuestionType, StandupQuestion, StandupSchedule, StandupTemplate, W
  */
 type StandupSubmissionCardProps = {
 	readonly workspace: Workspace;
+	readonly onStandupSubmitted: () => void;
 };
 
 /**
@@ -144,6 +145,7 @@ export function StandupSubmissionCard(props: StandupSubmissionCardProps): ReactE
 
 			setLoadState('ready');
 			setMessage(`Standup submitted. Submission ${response.submission.id} is saved.`);
+			props.onStandupSubmitted();
 		} catch (error: unknown) {
 			setLoadState('error');
 			setMessage(errorToMessage(error));
