@@ -33,3 +33,54 @@ type ReminderRule struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
+
+/*
+NotificationRun records one sent scheduler notification.
+
+Notification runs make reminders idempotent so restarts or repeated scheduler
+ticks do not resend the same DM or channel reminder.
+*/
+type NotificationRun struct {
+	ID             ID
+	WorkspaceID    ID
+	ReminderRuleID ID
+	ScheduleID     ID
+
+	NotificationKind NotificationKind
+	OccurrenceDate   LocalDate
+	SequenceNumber   int
+	TargetUserID     string
+	MattermostPostID string
+
+	SentAt    time.Time
+	CreatedAt time.Time
+}
+
+/*
+NotificationKind identifies scheduler notification types.
+*/
+type NotificationKind string
+
+const (
+	/*
+		NotificationKindDMReminder identifies a direct-message standup reminder.
+	*/
+	NotificationKindDMReminder NotificationKind = "dm_reminder"
+
+	/*
+		NotificationKindChannelMissingReminder identifies a channel post for missing users.
+	*/
+	NotificationKindChannelMissingReminder NotificationKind = "channel_missing_reminder"
+)
+
+/*
+IsValid returns true when the notification kind is supported by Campfire.
+*/
+func (k NotificationKind) IsValid() bool {
+	switch k {
+	case NotificationKindDMReminder, NotificationKindChannelMissingReminder:
+		return true
+	default:
+		return false
+	}
+}
