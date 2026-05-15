@@ -55,6 +55,24 @@ type PostDailyReportPreviewResult struct {
 }
 
 /*
+PostDailyReportAutomationInput identifies a scheduled daily report attempt.
+*/
+type PostDailyReportAutomationInput struct {
+	WorkspaceID    string
+	ScheduleID     string
+	OccurrenceDate string
+}
+
+/*
+PostDailyReportAutomationResult summarizes a scheduled daily report attempt.
+*/
+type PostDailyReportAutomationResult struct {
+	Posted        bool
+	SkippedReason string
+	Run           *domain.ReportRun
+}
+
+/*
 ReportService builds and publishes Campfire report previews.
 */
 type ReportService struct {
@@ -298,6 +316,118 @@ func (s *ReportService) PostDailyPreview(
 }
 
 /*
+PostDailyAutomated posts a daily report from scheduler automation.
+
+Automation only posts when the enabled daily report rule:
+- belongs to the due schedule,
+- is configured to post to channel,
+- does not require manual preview.
+
+The method reuses PostDailyPreview so manual and automated posting share the
+same report generation, publishing, and report-run idempotency path.
+*/
+func (s *ReportService) PostDailyAutomated(
+	ctx context.Context,
+	input PostDailyReportAutomationInput,
+) (*PostDailyReportAutomationResult, error) {
+	cleanWorkspaceID := strings.TrimSpace(input.WorkspaceID)
+	if cleanWorkspaceID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
+	}
+
+	cleanScheduleID := strings.TrimSpace(input.ScheduleID)
+	if cleanScheduleID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Schedule ID is required.")
+	}
+
+	occurrenceDate := domain.LocalDate(strings.TrimSpace(input.OccurrenceDate))
+	if _, err := parseLocalDate(occurrenceDate); err != nil {
+		return nil, NewError(ErrorCodeValidationFailed, "Occurrence date must be a real YYYY-MM-DD calendar date.")
+	}
+
+	workspaceID := domain.ID(cleanWorkspaceID)
+	scheduleID := domain.ID(cleanScheduleID)
+
+	reportRule, err := s.reportStore.GetEnabledRuleByWorkspaceIDAndKind(
+		ctx,
+		workspaceID,
+		domain.ReportKindDaily,
+	)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return &PostDailyReportAutomationResult{
+				Posted:        false,
+				SkippedReason: "no_enabled_daily_report_rule",
+				Run:           nil,
+			}, nil
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load daily report rule.")
+	}
+
+	if reportRule.ScheduleID != scheduleID {
+		return &PostDailyReportAutomationResult{
+			Posted:        false,
+			SkippedReason: "report_rule_not_for_schedule",
+			Run:           nil,
+		}, nil
+	}
+
+	if !reportRule.PostToChannel {
+		return &PostDailyReportAutomationResult{
+			Posted:        false,
+			SkippedReason: "post_to_channel_disabled",
+			Run:           nil,
+		}, nil
+	}
+
+	if reportRule.PreviewRequired {
+		return &PostDailyReportAutomationResult{
+			Posted:        false,
+			SkippedReason: "manual_preview_required",
+			Run:           nil,
+		}, nil
+	}
+
+	existingRun, err := s.reportStore.GetRunByRuleAndPeriod(
+		ctx,
+		workspaceID,
+		reportRule.ID,
+		domain.ReportKindDaily,
+		occurrenceDate,
+		occurrenceDate,
+	)
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
+		return nil, NewError(ErrorCodeInternal, "Could not check daily report history.")
+	}
+
+	if existingRun != nil {
+		return &PostDailyReportAutomationResult{
+			Posted:        false,
+			SkippedReason: "already_processed",
+			Run:           existingRun,
+		}, nil
+	}
+
+	result, err := s.PostDailyPreview(ctx, PostDailyReportPreviewInput{
+		ActorUserID:    reportAutomationActorUserID,
+		IsSystemAdmin:  true,
+		WorkspaceID:    cleanWorkspaceID,
+		OccurrenceDate: occurrenceDate.String(),
+		SortMode:       string(reportRule.SortMode),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &PostDailyReportAutomationResult{
+		Posted:        result.Posted,
+		SkippedReason: "",
+		Run:           &result.Run,
+	}, nil
+}
+
+/*
 requireReportPostPermission ensures the actor can post reports to the channel.
 */
 func (s *ReportService) requireReportPostPermission(
@@ -504,6 +634,8 @@ func answerValueJSONToText(valueJSON string) string {
 
 	return cleanValueJSON
 }
+
+const reportAutomationActorUserID = "campfire-report-automation"
 
 /*
 firstNonEmptyReportString returns the first non-empty value.
