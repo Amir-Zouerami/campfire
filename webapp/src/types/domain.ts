@@ -133,6 +133,41 @@ export type GlobalSkipDate = {
 };
 
 /**
+ * LeaveType defines a workspace-level leave type.
+ */
+export type LeaveType = {
+	readonly id: string;
+	readonly workspaceId: string;
+	readonly name: string;
+	readonly code: string;
+	readonly color: string;
+	readonly requiresApproval: boolean;
+	readonly isActive: boolean;
+};
+
+/**
+ * LeaveRequest represents one user leave request.
+ */
+export type LeaveRequest = {
+	readonly id: string;
+	readonly workspaceId: string;
+	readonly userId: string;
+	readonly leaveTypeId: string;
+	readonly startDate: LocalDate;
+	readonly endDate: LocalDate;
+	readonly durationMode: LeaveDurationMode;
+	readonly halfDayPart: LeaveHalfDayPart | '';
+	readonly startTime: TimeOfDay | '';
+	readonly endTime: TimeOfDay | '';
+	readonly reason: string;
+	readonly backupUserId: string;
+	readonly status: LeaveStatus;
+	readonly createdAt: string;
+	readonly updatedAt: string;
+	readonly cancelledAt: string;
+};
+
+/**
  * StandupSchedule defines when a daily or weekly standup runs.
  */
 export type StandupSchedule = {

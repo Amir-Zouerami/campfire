@@ -2,11 +2,14 @@ import type {
 	ApiErrorBody,
 	CreateGlobalSkipDateRequest,
 	CreateGlobalSkipDateResponse,
+	CreateLeaveRequest,
+	CreateLeaveResponse,
 	CreateWorkspaceRequest,
 	CreateWorkspaceResponse,
 	DeleteGlobalSkipDateResponse,
 	HealthResponse,
 	ListGlobalSkipDatesResponse,
+	ListLeaveTypesResponse,
 	MeResponse,
 	ValidateLeaveRequest,
 	ValidateLeaveResponse,
@@ -85,10 +88,24 @@ export async function deleteGlobalSkipDate(skipDateID: string): Promise<DeleteGl
 }
 
 /**
+ * listLeaveTypes loads active leave types for a workspace.
+ */
+export async function listLeaveTypes(workspaceID: string): Promise<ListLeaveTypesResponse> {
+	return apiGet<ListLeaveTypesResponse>(`/workspaces/${encodeURIComponent(workspaceID)}/leave-types`);
+}
+
+/**
  * validateLeaveRequest validates a leave request before creating it.
  */
 export async function validateLeaveRequest(request: ValidateLeaveRequest): Promise<ValidateLeaveResponse> {
 	return apiPost<ValidateLeaveRequest, ValidateLeaveResponse>('/leaves/validate', request);
+}
+
+/**
+ * createLeaveRequest creates a pending leave request.
+ */
+export async function createLeaveRequest(request: CreateLeaveRequest): Promise<CreateLeaveResponse> {
+	return apiPost<CreateLeaveRequest, CreateLeaveResponse>('/leaves', request);
 }
 
 /**

@@ -2,175 +2,194 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
 	"github.com/amir-zouerami/campfire/server/domain"
 	"github.com/amir-zouerami/campfire/server/store"
+	"github.com/google/uuid"
 )
 
 /*
-ValidateLeaveRequestInput contains leave fields that must be checked before a
-leave request can be created.
+CreateLeaveInput contains user-submitted leave request data.
 */
-type ValidateLeaveRequestInput struct {
-	ActorUserID string
-
-	WorkspaceID string
-
-	StartDate string
-	EndDate   string
-
+type CreateLeaveInput struct {
+	ActorUserID  string
+	WorkspaceID  string
+	LeaveTypeID  string
+	StartDate    string
+	EndDate      string
 	DurationMode string
 	HalfDayPart  string
-
-	StartTime string
-	EndTime   string
+	StartTime    string
+	EndTime      string
+	Reason       string
+	BackupUserID string
 }
 
 /*
-ValidateLeaveRequestResult describes whether a leave request is currently allowed.
-*/
-type ValidateLeaveRequestResult struct {
-	Allowed bool
-	Message string
-
-	GlobalSkipDates []domain.GlobalSkipDate
-}
-
-/*
-LeaveService owns leave workflow business rules.
+LeaveService owns leave request business rules.
 */
 type LeaveService struct {
-	globalSkipDateStore store.GlobalSkipDateStore
+	leaveStore             store.LeaveStore
+	leaveValidationService *LeaveValidationService
 }
 
 /*
 NewLeaveService creates a leave service.
 */
-func NewLeaveService(globalSkipDateStore store.GlobalSkipDateStore) *LeaveService {
+func NewLeaveService(
+	leaveStore store.LeaveStore,
+	leaveValidationService *LeaveValidationService,
+) *LeaveService {
 	return &LeaveService{
-		globalSkipDateStore: globalSkipDateStore,
+		leaveStore:             leaveStore,
+		leaveValidationService: leaveValidationService,
 	}
 }
 
 /*
-ValidateRequest validates a leave request before creation.
-
-This does not persist a leave request. Full create/approval workflows will call
-this validation before notifying approvers.
+ListTypes returns active leave types for a workspace.
 */
-func (s *LeaveService) ValidateRequest(
+func (s *LeaveService) ListTypes(
 	ctx context.Context,
-	input ValidateLeaveRequestInput,
-) (*ValidateLeaveRequestResult, error) {
-	if strings.TrimSpace(input.ActorUserID) == "" {
-		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to request leave.")
+	actorUserID string,
+	workspaceID string,
+) ([]domain.LeaveType, error) {
+	if strings.TrimSpace(actorUserID) == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to view leave types.")
 	}
 
-	if strings.TrimSpace(input.WorkspaceID) == "" {
+	cleanWorkspaceID := strings.TrimSpace(workspaceID)
+	if cleanWorkspaceID == "" {
 		return nil, NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
 	}
 
-	startDate, endDate, err := validateLeaveDateRange(input.StartDate, input.EndDate)
+	leaveTypes, err := s.leaveStore.ListTypesByWorkspaceID(ctx, domain.ID(cleanWorkspaceID))
 	if err != nil {
-		return nil, err
+		return nil, NewError(ErrorCodeInternal, "Could not load leave types.")
 	}
 
-	durationMode := domain.LeaveDurationMode(strings.TrimSpace(input.DurationMode))
-	if !durationMode.IsValid() {
-		return nil, NewError(ErrorCodeValidationFailed, "Leave duration mode is invalid.")
-	}
-
-	if err := validateLeaveDurationFields(durationMode, input.HalfDayPart, input.StartTime, input.EndTime); err != nil {
-		return nil, err
-	}
-
-	globalSkipDates, err := s.globalSkipDateStore.ListBetween(ctx, startDate, endDate)
-	if err != nil {
-		return nil, NewError(ErrorCodeInternal, "Could not validate global off-days.")
-	}
-
-	if len(globalSkipDates) > 0 {
-		return &ValidateLeaveRequestResult{
-			Allowed:         false,
-			Message:         "Leave cannot be requested on global holidays or off-days.",
-			GlobalSkipDates: globalSkipDates,
-		}, nil
-	}
-
-	return &ValidateLeaveRequestResult{
-		Allowed:         true,
-		Message:         "Leave request is valid.",
-		GlobalSkipDates: []domain.GlobalSkipDate{},
-	}, nil
+	return leaveTypes, nil
 }
 
 /*
-validateLeaveDateRange validates and returns parsed local date strings.
+Create validates and creates a pending leave request.
+
+All Campfire default leave types require approval, so new requests start as
+pending. Approver notifications are handled by the notification workflow layer.
 */
-func validateLeaveDateRange(startDateValue string, endDateValue string) (domain.LocalDate, domain.LocalDate, error) {
-	startDate := domain.LocalDate(strings.TrimSpace(startDateValue))
-	if !startDate.IsValid() {
-		return "", "", NewError(ErrorCodeValidationFailed, "Start date must use YYYY-MM-DD format.")
+func (s *LeaveService) Create(ctx context.Context, input CreateLeaveInput) (*domain.LeaveRequest, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to request leave.")
 	}
 
-	endDate := domain.LocalDate(strings.TrimSpace(endDateValue))
-	if !endDate.IsValid() {
-		return "", "", NewError(ErrorCodeValidationFailed, "End date must use YYYY-MM-DD format.")
+	cleanWorkspaceID := strings.TrimSpace(input.WorkspaceID)
+	if cleanWorkspaceID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
 	}
 
-	parsedStartDate, err := parseLocalDate(startDate)
+	cleanLeaveTypeID := strings.TrimSpace(input.LeaveTypeID)
+	if cleanLeaveTypeID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Leave type is required.")
+	}
+
+	_, err := s.leaveStore.GetActiveTypeByID(ctx, domain.ID(cleanWorkspaceID), domain.ID(cleanLeaveTypeID))
 	if err != nil {
-		return "", "", NewError(ErrorCodeValidationFailed, "Start date must be a real calendar date.")
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeValidationFailed, "Leave type is invalid for this workspace.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not validate leave type.")
 	}
 
-	parsedEndDate, err := parseLocalDate(endDate)
+	validationResult, err := s.leaveValidationService.ValidateForCreate(ctx, ValidateLeaveInput{
+		ActorUserID:  cleanActorUserID,
+		WorkspaceID:  cleanWorkspaceID,
+		StartDate:    input.StartDate,
+		EndDate:      input.EndDate,
+		DurationMode: input.DurationMode,
+		HalfDayPart:  input.HalfDayPart,
+		StartTime:    input.StartTime,
+		EndTime:      input.EndTime,
+	})
 	if err != nil {
-		return "", "", NewError(ErrorCodeValidationFailed, "End date must be a real calendar date.")
+		return nil, err
 	}
 
-	if parsedEndDate.Before(parsedStartDate) {
-		return "", "", NewError(ErrorCodeValidationFailed, "End date cannot be before start date.")
+	if !validationResult.Valid {
+		return nil, NewError(ErrorCodeValidationFailed, "Leave request is invalid.")
 	}
 
-	return startDate, endDate, nil
+	startDate := domain.LocalDate(strings.TrimSpace(input.StartDate))
+	endDate := domain.LocalDate(strings.TrimSpace(input.EndDate))
+	durationMode := domain.LeaveDurationMode(strings.TrimSpace(input.DurationMode))
+
+	now := time.Now().UTC()
+
+	leaveRequest := domain.LeaveRequest{
+		ID:           domain.ID(uuid.NewString()),
+		WorkspaceID:  domain.ID(cleanWorkspaceID),
+		UserID:       cleanActorUserID,
+		LeaveTypeID:  domain.ID(cleanLeaveTypeID),
+		StartDate:    startDate,
+		EndDate:      endDate,
+		DurationMode: durationMode,
+		HalfDayPart:  domain.LeaveHalfDayPart(strings.TrimSpace(input.HalfDayPart)),
+		StartTime:    domain.TimeOfDay(strings.TrimSpace(input.StartTime)),
+		EndTime:      domain.TimeOfDay(strings.TrimSpace(input.EndTime)),
+		Reason:       strings.TrimSpace(input.Reason),
+		BackupUserID: strings.TrimSpace(input.BackupUserID),
+		Status:       domain.LeaveStatusPending,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+		CancelledAt:  nil,
+	}
+
+	created, err := s.leaveStore.CreateRequest(ctx, leaveRequest)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not create leave request.")
+	}
+
+	return created, nil
 }
 
 /*
-validateLeaveDurationFields validates duration-mode-specific leave fields.
+validateLeaveDurationFields validates mode-specific leave fields.
 */
 func validateLeaveDurationFields(
 	durationMode domain.LeaveDurationMode,
-	halfDayPartValue string,
-	startTimeValue string,
-	endTimeValue string,
+	halfDayPart string,
+	startTime string,
+	endTime string,
 ) error {
+	if !durationMode.IsValid() {
+		return NewError(ErrorCodeValidationFailed, "Leave duration mode is invalid.")
+	}
+
 	switch durationMode {
 	case domain.LeaveDurationFullDay:
 		return nil
 
 	case domain.LeaveDurationHalfDay:
-		halfDayPart := domain.LeaveHalfDayPart(strings.TrimSpace(halfDayPartValue))
-		if halfDayPart != domain.LeaveHalfDayMorning && halfDayPart != domain.LeaveHalfDayAfternoon {
-			return NewError(ErrorCodeValidationFailed, "Half-day leave must be morning or afternoon.")
+		part := domain.LeaveHalfDayPart(strings.TrimSpace(halfDayPart))
+		if !isValidHalfDayPart(part) {
+			return NewError(ErrorCodeValidationFailed, "Half-day leave must specify morning or afternoon.")
 		}
 
 		return nil
 
 	case domain.LeaveDurationHourly:
-		startTime := domain.TimeOfDay(strings.TrimSpace(startTimeValue))
-		endTime := domain.TimeOfDay(strings.TrimSpace(endTimeValue))
+		cleanStartTime := domain.TimeOfDay(strings.TrimSpace(startTime))
+		cleanEndTime := domain.TimeOfDay(strings.TrimSpace(endTime))
 
-		if !isValidTimeOfDay(startTime) {
-			return NewError(ErrorCodeValidationFailed, "Hourly leave start time must use HH:mm format.")
+		if !isValidTimeOfDay(cleanStartTime) || !isValidTimeOfDay(cleanEndTime) {
+			return NewError(ErrorCodeValidationFailed, "Hourly leave must include valid HH:mm start and end times.")
 		}
 
-		if !isValidTimeOfDay(endTime) {
-			return NewError(ErrorCodeValidationFailed, "Hourly leave end time must use HH:mm format.")
-		}
-
-		if !isEndTimeAfterStartTime(startTime, endTime) {
+		if cleanStartTime.String() >= cleanEndTime.String() {
 			return NewError(ErrorCodeValidationFailed, "Hourly leave end time must be after start time.")
 		}
 
@@ -182,33 +201,44 @@ func validateLeaveDurationFields(
 }
 
 /*
-parseLocalDate parses a YYYY-MM-DD local date.
+parseLocalDate parses and validates a YYYY-MM-DD local date.
 */
 func parseLocalDate(value domain.LocalDate) (time.Time, error) {
-	return time.Parse("2006-01-02", value.String())
+	if !value.IsValid() {
+		return time.Time{}, NewError(ErrorCodeValidationFailed, "Date must use YYYY-MM-DD format.")
+	}
+
+	parsed, err := time.Parse(localDateLayout, value.String())
+	if err != nil {
+		return time.Time{}, NewError(ErrorCodeValidationFailed, "Date must be a real calendar date.")
+	}
+
+	return parsed, nil
 }
 
 /*
-isValidTimeOfDay returns true when a time string is valid HH:mm.
+isValidTimeOfDay returns true for an HH:mm local time string.
 */
 func isValidTimeOfDay(value domain.TimeOfDay) bool {
+	if len(value.String()) != 5 {
+		return false
+	}
+
 	_, err := time.Parse("15:04", value.String())
+
 	return err == nil
 }
 
 /*
-isEndTimeAfterStartTime returns true when the end time is after the start time.
+isValidHalfDayPart returns true when the half-day part is supported.
 */
-func isEndTimeAfterStartTime(startTime domain.TimeOfDay, endTime domain.TimeOfDay) bool {
-	parsedStartTime, startErr := time.Parse("15:04", startTime.String())
-	if startErr != nil {
+func isValidHalfDayPart(part domain.LeaveHalfDayPart) bool {
+	switch part {
+	case domain.LeaveHalfDayMorning, domain.LeaveHalfDayAfternoon:
+		return true
+	default:
 		return false
 	}
-
-	parsedEndTime, endErr := time.Parse("15:04", endTime.String())
-	if endErr != nil {
-		return false
-	}
-
-	return parsedEndTime.After(parsedStartTime)
 }
+
+const localDateLayout = "2006-01-02"

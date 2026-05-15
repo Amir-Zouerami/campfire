@@ -33,6 +33,7 @@ type App struct {
 	WorkspaceService       *service.WorkspaceService
 	GlobalSkipDateService  *service.GlobalSkipDateService
 	LeaveValidationService *service.LeaveValidationService
+	LeaveService           *service.LeaveService
 }
 
 /*
@@ -66,12 +67,16 @@ func New(config Config) (*App, error) {
 	globalSkipDateService := service.NewGlobalSkipDateService(globalSkipDateStore)
 	leaveValidationService := service.NewLeaveValidationService(globalSkipDateStore)
 
+	leaveStore := store.NewSQLLeaveStore(database)
+	leaveService := service.NewLeaveService(leaveStore, leaveValidationService)
+
 	router := api.NewRouter(api.RouterConfig{
 		Logger:                 appLogger,
 		Mattermost:             mattermostClient,
 		WorkspaceService:       workspaceService,
 		GlobalSkipDateService:  globalSkipDateService,
 		LeaveValidationService: leaveValidationService,
+		LeaveService:           leaveService,
 	})
 
 	return &App{
@@ -82,6 +87,7 @@ func New(config Config) (*App, error) {
 		WorkspaceService:       workspaceService,
 		GlobalSkipDateService:  globalSkipDateService,
 		LeaveValidationService: leaveValidationService,
+		LeaveService:           leaveService,
 	}, nil
 }
 

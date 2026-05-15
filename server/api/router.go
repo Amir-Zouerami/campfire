@@ -18,6 +18,7 @@ type RouterConfig struct {
 	WorkspaceService       *service.WorkspaceService
 	GlobalSkipDateService  *service.GlobalSkipDateService
 	LeaveValidationService *service.LeaveValidationService
+	LeaveService           *service.LeaveService
 }
 
 /*
@@ -40,6 +41,11 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Post("/workspaces", handleCreateWorkspace(config.Logger, config.WorkspaceService))
 
 		api.Get(
+			"/workspaces/{workspaceID}/leave-types",
+			handleListLeaveTypes(config.Logger, config.Mattermost, config.LeaveService),
+		)
+
+		api.Get(
 			"/settings/global/skip-dates",
 			handleListGlobalSkipDates(config.Logger, config.Mattermost, config.GlobalSkipDateService),
 		)
@@ -55,6 +61,10 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Post(
 			"/leaves/validate",
 			handleValidateLeave(config.Logger, config.Mattermost, config.LeaveValidationService),
+		)
+		api.Post(
+			"/leaves",
+			handleCreateLeave(config.Logger, config.Mattermost, config.LeaveService),
 		)
 	})
 

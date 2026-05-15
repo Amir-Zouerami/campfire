@@ -120,6 +120,24 @@ func WriteValidateLeave(w http.ResponseWriter, statusCode int, payload ValidateL
 }
 
 /*
+WriteListLeaveTypes writes the leave type list response.
+*/
+func WriteListLeaveTypes(w http.ResponseWriter, statusCode int, payload ListLeaveTypesResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode leave type list response")
+}
+
+/*
+WriteCreateLeave writes the create leave response.
+*/
+func WriteCreateLeave(w http.ResponseWriter, statusCode int, payload CreateLeaveResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode created leave response")
+}
+
+/*
 WriteError writes a standard Campfire API error response.
 */
 func WriteError(w http.ResponseWriter, statusCode int, code string, message string) {

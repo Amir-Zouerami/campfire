@@ -22,6 +22,49 @@ type LeaveType struct {
 }
 
 /*
+LeaveRequest represents one user leave request.
+*/
+type LeaveRequest struct {
+	ID          ID
+	WorkspaceID ID
+	UserID      string
+	LeaveTypeID ID
+
+	StartDate LocalDate
+	EndDate   LocalDate
+
+	DurationMode LeaveDurationMode
+	HalfDayPart  LeaveHalfDayPart
+
+	StartTime TimeOfDay
+	EndTime   TimeOfDay
+
+	Reason       string
+	BackupUserID string
+
+	Status LeaveStatus
+
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	CancelledAt *time.Time
+}
+
+/*
+LeaveDecision records an approval or rejection decision for a leave request.
+*/
+type LeaveDecision struct {
+	ID             ID
+	LeaveRequestID ID
+	WorkspaceID    ID
+
+	DecidedBy string
+	Decision  LeaveStatus
+	Comment   string
+
+	CreatedAt time.Time
+}
+
+/*
 LeaveDurationMode describes how much time a leave request covers.
 */
 type LeaveDurationMode string

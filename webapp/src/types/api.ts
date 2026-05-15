@@ -2,6 +2,8 @@ import type {
 	GlobalSkipDate,
 	LeaveDurationMode,
 	LeaveHalfDayPart,
+	LeaveRequest,
+	LeaveType,
 	LocalDate,
 	TimeOfDay,
 	Workspace,
@@ -97,6 +99,13 @@ export type DeleteGlobalSkipDateResponse = {
 };
 
 /**
+ * ListLeaveTypesResponse is returned by GET /workspaces/{workspaceID}/leave-types.
+ */
+export type ListLeaveTypesResponse = {
+	readonly leaveTypes: readonly LeaveType[];
+};
+
+/**
  * ValidateLeaveRequest is sent to POST /leaves/validate.
  */
 export type ValidateLeaveRequest = {
@@ -114,6 +123,29 @@ export type ValidateLeaveRequest = {
  */
 export type ValidateLeaveResponse = {
 	readonly valid: boolean;
+};
+
+/**
+ * CreateLeaveRequest is sent to POST /leaves.
+ */
+export type CreateLeaveRequest = {
+	readonly workspaceId: string;
+	readonly leaveTypeId: string;
+	readonly startDate: LocalDate;
+	readonly endDate: LocalDate;
+	readonly durationMode: LeaveDurationMode;
+	readonly halfDayPart: LeaveHalfDayPart | '';
+	readonly startTime: TimeOfDay | '';
+	readonly endTime: TimeOfDay | '';
+	readonly reason: string;
+	readonly backupUserId: string;
+};
+
+/**
+ * CreateLeaveResponse is returned by POST /leaves.
+ */
+export type CreateLeaveResponse = {
+	readonly leaveRequest: LeaveRequest;
 };
 
 /**
