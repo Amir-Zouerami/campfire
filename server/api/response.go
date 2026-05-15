@@ -358,6 +358,51 @@ func WriteListStandupSubmissions(
 }
 
 /*
+WriteListMyTasks writes the current-user task list response.
+*/
+func WriteListMyTasks(w http.ResponseWriter, statusCode int, payload ListMyTasksResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode task list response")
+}
+
+/*
+WriteCreateTask writes the created task response.
+*/
+func WriteCreateTask(w http.ResponseWriter, statusCode int, payload CreateTaskResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode created task response")
+}
+
+/*
+WriteUpdateTask writes the updated task response.
+*/
+func WriteUpdateTask(w http.ResponseWriter, statusCode int, payload UpdateTaskResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode updated task response")
+}
+
+/*
+WriteListMyTimeEntries writes the current-user time-entry list response.
+*/
+func WriteListMyTimeEntries(w http.ResponseWriter, statusCode int, payload ListMyTimeEntriesResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode time-entry list response")
+}
+
+/*
+WriteCreateTimeEntry writes the created time-entry response.
+*/
+func WriteCreateTimeEntry(w http.ResponseWriter, statusCode int, payload CreateTimeEntryResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode created time-entry response")
+}
+
+/*
 WriteListReportRules writes the report rule list response.
 */
 func WriteListReportRules(w http.ResponseWriter, statusCode int, payload ListReportRulesResponse) {

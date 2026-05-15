@@ -24,6 +24,7 @@ type RouterConfig struct {
 	StandupRuntimeService    *service.StandupRuntimeService
 	StandupService           *service.StandupService
 	ReportService            *service.ReportService
+	TaskService              *service.TaskService
 }
 
 /*
@@ -82,6 +83,26 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Get(
 			"/workspaces/{workspaceID}/standups/submissions",
 			handleListStandupSubmissions(config.Logger, config.Mattermost, config.StandupService),
+		)
+		api.Get(
+			"/workspaces/{workspaceID}/tasks/my",
+			handleListMyTasks(config.Logger, config.Mattermost, config.TaskService),
+		)
+		api.Post(
+			"/workspaces/{workspaceID}/tasks",
+			handleCreateTask(config.Logger, config.Mattermost, config.TaskService),
+		)
+		api.Put(
+			"/workspaces/{workspaceID}/tasks/{taskID}",
+			handleUpdateTask(config.Logger, config.Mattermost, config.TaskService),
+		)
+		api.Get(
+			"/workspaces/{workspaceID}/time-entries/my",
+			handleListMyTimeEntries(config.Logger, config.Mattermost, config.TaskService),
+		)
+		api.Post(
+			"/workspaces/{workspaceID}/time-entries",
+			handleCreateTimeEntry(config.Logger, config.Mattermost, config.TaskService),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/reports/rules",
