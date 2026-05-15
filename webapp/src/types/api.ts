@@ -28,6 +28,8 @@ import type {
 	Task,
 	TimeEntry,
 	TaskStatus,
+	WeeklyReportPreview,
+	ReportSortMode,
 } from './domain';
 
 /**
@@ -333,6 +335,13 @@ export type GetDailyReportPreviewResponse = {
 };
 
 /**
+ * GetWeeklyReportPreviewResponse is returned by GET /workspaces/{workspaceID}/reports/weekly-preview.
+ */
+export type GetWeeklyReportPreviewResponse = {
+	readonly preview: WeeklyReportPreview;
+};
+
+/**
  * ListDailyReportRunsResponse is returned by GET /workspaces/{workspaceID}/reports/daily-runs.
  */
 export type ListDailyReportRunsResponse = {
@@ -469,6 +478,24 @@ export type PostDailyReportPreviewRequest = {
  */
 export type PostDailyReportPreviewResponse = {
 	readonly preview: DailyReportPreview;
+	readonly run: ReportRun;
+	readonly posted: boolean;
+};
+
+/**
+ * PostWeeklyReportPreviewRequest is sent to POST /workspaces/{workspaceID}/reports/weekly-preview/post.
+ */
+export type PostWeeklyReportPreviewRequest = {
+	readonly periodStart: LocalDate;
+	readonly periodEnd: LocalDate;
+	readonly sortMode: ReportSortMode;
+};
+
+/**
+ * PostWeeklyReportPreviewResponse is returned after posting a weekly report preview.
+ */
+export type PostWeeklyReportPreviewResponse = {
+	readonly preview: WeeklyReportPreview;
 	readonly run: ReportRun;
 	readonly posted: boolean;
 };

@@ -17,6 +17,7 @@ import { StandupSubmissionsCard } from './StandupSubmissionsCard';
 import { TasksAndTimeCard } from './TasksAndTimeCard';
 import { DailyReportPreviewCard } from './DailyReportPreviewCard';
 import { ReportSettingsCard } from './ReportSettingsCard';
+import { WeeklyReportPreviewCard } from './WeeklyReportPreviewCard';
 import { WorkspaceOffDaysCard } from './WorkspaceOffDaysCard';
 import { WorkspaceWorkingDaysCard } from './WorkspaceWorkingDaysCard';
 import { ReminderSettingsCard } from './ReminderSettingsCard';
@@ -179,11 +180,15 @@ export function CampfireRoot(): ReactElement | null {
 								workspace={bootstrap.workspace}
 								refreshToken={standupRefreshToken}
 							/>
-							<StandupConfigurationCard workspace={bootstrap.workspace} />{' '}
+							<WeeklyReportPreviewCard
+								workspace={bootstrap.workspace}
+								refreshToken={standupRefreshToken}
+							/>
+							<StandupConfigurationCard workspace={bootstrap.workspace} />
 							<StandupRuntimeCard
 								workspace={bootstrap.workspace}
 								refreshToken={leaveRefreshToken + workspaceCalendarRefreshToken}
-							/>{' '}
+							/>
 							<LeaveApprovalsCard
 								workspace={bootstrap.workspace}
 								refreshToken={leaveRefreshToken}
@@ -195,7 +200,7 @@ export function CampfireRoot(): ReactElement | null {
 								onLeaveCancelled={refreshLeaves}
 							/>
 							<ApprovedLeavesCard workspace={bootstrap.workspace} refreshToken={leaveRefreshToken} />
-							<LeaveRequestCard workspace={bootstrap.workspace} onLeaveCreated={refreshLeaves} />{' '}
+							<LeaveRequestCard workspace={bootstrap.workspace} onLeaveCreated={refreshLeaves} />
 						</>
 					)}
 

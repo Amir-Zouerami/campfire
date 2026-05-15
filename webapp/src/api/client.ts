@@ -52,6 +52,9 @@ import type {
 	ListMyTimeEntriesResponse,
 	UpdateTaskRequest,
 	UpdateTaskResponse,
+	GetWeeklyReportPreviewResponse,
+	PostWeeklyReportPreviewRequest,
+	PostWeeklyReportPreviewResponse,
 } from '../types/api';
 
 const pluginID = 'dev.zouerami.campfire';
@@ -379,6 +382,26 @@ export async function updateReportRule(
 }
 
 /**
+ * getWeeklyReportPreview loads a generated weekly report Markdown preview.
+ */
+export async function getWeeklyReportPreview(
+	workspaceID: string,
+	periodStart: string,
+	periodEnd: string,
+	sortMode: string,
+): Promise<GetWeeklyReportPreviewResponse> {
+	const params = new URLSearchParams({
+		periodStart,
+		periodEnd,
+		sortMode,
+	});
+
+	return apiGet<GetWeeklyReportPreviewResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/reports/weekly-preview?${params.toString()}`,
+	);
+}
+
+/**
  * getDailyReportPreview loads a generated daily report Markdown preview.
  */
 export async function getDailyReportPreview(
@@ -418,6 +441,19 @@ export async function postDailyReportPreview(
 ): Promise<PostDailyReportPreviewResponse> {
 	return apiPost<PostDailyReportPreviewRequest, PostDailyReportPreviewResponse>(
 		`/workspaces/${encodeURIComponent(workspaceID)}/reports/daily-preview/post`,
+		request,
+	);
+}
+
+/**
+ * postWeeklyReportPreview posts a generated weekly report preview to the workspace channel.
+ */
+export async function postWeeklyReportPreview(
+	workspaceID: string,
+	request: PostWeeklyReportPreviewRequest,
+): Promise<PostWeeklyReportPreviewResponse> {
+	return apiPost<PostWeeklyReportPreviewRequest, PostWeeklyReportPreviewResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/reports/weekly-preview/post`,
 		request,
 	);
 }

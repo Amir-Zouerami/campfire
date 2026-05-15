@@ -481,3 +481,18 @@ export type DailyReportPreview = {
 	readonly rows: readonly DailyReportSubmissionRow[];
 	readonly markdown: string;
 };
+
+/**
+ * WeeklyReportPreview is a generated weekly report preview.
+ */
+export type WeeklyReportPreview = {
+	readonly workspaceId: string;
+	readonly periodStart: LocalDate;
+	readonly periodEnd: LocalDate;
+	readonly sortMode: ReportSortMode;
+	readonly dailyPreviews: readonly DailyReportPreview[];
+	readonly submittedCount: number;
+	readonly missingCount: number;
+	readonly onLeaveCount: number;
+	readonly markdown: string;
+};
