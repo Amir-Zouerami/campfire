@@ -22,6 +22,7 @@ import type {
 	DailyReportPreview,
 	ReportRun,
 	WorkspaceOffDay,
+	WorkspaceWorkingDay,
 } from './domain';
 
 /**
@@ -88,6 +89,27 @@ export type CreateWorkspaceResponse = {
  */
 export type ListGlobalSkipDatesResponse = {
 	readonly skipDates: readonly GlobalSkipDate[];
+};
+
+/**
+ * ListWorkspaceWorkingDaysResponse is returned by GET /workspaces/{workspaceID}/working-days.
+ */
+export type ListWorkspaceWorkingDaysResponse = {
+	readonly workingDays: readonly WorkspaceWorkingDay[];
+};
+
+/**
+ * UpdateWorkspaceWorkingDaysRequest is sent to PUT /workspaces/{workspaceID}/working-days.
+ */
+export type UpdateWorkspaceWorkingDaysRequest = {
+	readonly workingDays: readonly number[];
+};
+
+/**
+ * UpdateWorkspaceWorkingDaysResponse is returned by PUT /workspaces/{workspaceID}/working-days.
+ */
+export type UpdateWorkspaceWorkingDaysResponse = {
+	readonly workingDays: readonly WorkspaceWorkingDay[];
 };
 
 /**

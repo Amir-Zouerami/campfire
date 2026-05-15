@@ -35,6 +35,9 @@ import type {
 	CreateWorkspaceOffDayResponse,
 	DeleteWorkspaceOffDayResponse,
 	ListWorkspaceOffDaysResponse,
+	ListWorkspaceWorkingDaysResponse,
+	UpdateWorkspaceWorkingDaysRequest,
+	UpdateWorkspaceWorkingDaysResponse,
 } from '../types/api';
 
 const pluginID = 'dev.zouerami.campfire';
@@ -90,6 +93,26 @@ export async function createWorkspace(request: CreateWorkspaceRequest): Promise<
  */
 export async function listGlobalSkipDates(): Promise<ListGlobalSkipDatesResponse> {
 	return apiGet<ListGlobalSkipDatesResponse>('/settings/global/skip-dates');
+}
+
+/**
+ * listWorkspaceWorkingDays loads workspace working-day settings.
+ */
+export async function listWorkspaceWorkingDays(workspaceID: string): Promise<ListWorkspaceWorkingDaysResponse> {
+	return apiGet<ListWorkspaceWorkingDaysResponse>(`/workspaces/${encodeURIComponent(workspaceID)}/working-days`);
+}
+
+/**
+ * updateWorkspaceWorkingDays replaces workspace working-day settings.
+ */
+export async function updateWorkspaceWorkingDays(
+	workspaceID: string,
+	request: UpdateWorkspaceWorkingDaysRequest,
+): Promise<UpdateWorkspaceWorkingDaysResponse> {
+	return apiPut<UpdateWorkspaceWorkingDaysRequest, UpdateWorkspaceWorkingDaysResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/working-days`,
+		request,
+	);
 }
 
 /**
@@ -337,6 +360,22 @@ async function apiPost<TRequest, TResponse>(path: string, body: TRequest): Promi
 			'Content-Type': 'application/json',
 		},
 		method: 'POST',
+	});
+
+	return readResponse<TResponse>(response);
+}
+
+/**
+ * apiPut performs a typed PUT request against the Campfire plugin API.
+ */
+async function apiPut<TRequest, TResponse>(path: string, body: TRequest): Promise<TResponse> {
+	const response = await fetch(`${getAPIBaseURL()}${path}`, {
+		body: JSON.stringify(body),
+		credentials: 'same-origin',
+		headers: {
+			'Content-Type': 'application/json',
+		},
+		method: 'PUT',
 	});
 
 	return readResponse<TResponse>(response);

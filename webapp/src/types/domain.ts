@@ -229,6 +229,7 @@ export type WorkspaceOffDay = {
 	readonly createdAt: string;
 };
 
+
 /**
  * StandupRunDecision describes whether standup automation should run for a date.
  */
