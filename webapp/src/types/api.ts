@@ -25,6 +25,9 @@ import type {
 	WorkspaceWorkingDay,
 	ReminderRule,
 	ReportRule,
+	Task,
+	TimeEntry,
+	TaskStatus,
 } from './domain';
 
 /**
@@ -362,6 +365,70 @@ export type UpdateReportRuleRequest = {
  */
 export type UpdateReportRuleResponse = {
 	readonly reportRule: ReportRule;
+};
+
+/**
+ * ListMyTasksResponse is returned by GET /workspaces/{workspaceID}/tasks/my.
+ */
+export type ListMyTasksResponse = {
+	readonly tasks: readonly Task[];
+};
+
+/**
+ * CreateTaskRequest is sent to POST /workspaces/{workspaceID}/tasks.
+ */
+export type CreateTaskRequest = {
+	readonly title: string;
+	readonly description: string;
+	readonly boardUrl: string;
+};
+
+/**
+ * CreateTaskResponse is returned by POST /workspaces/{workspaceID}/tasks.
+ */
+export type CreateTaskResponse = {
+	readonly task: Task;
+};
+
+/**
+ * UpdateTaskRequest is sent to PUT /workspaces/{workspaceID}/tasks/{taskID}.
+ */
+export type UpdateTaskRequest = {
+	readonly title: string;
+	readonly description: string;
+	readonly status: TaskStatus;
+	readonly boardUrl: string;
+};
+
+/**
+ * UpdateTaskResponse is returned by PUT /workspaces/{workspaceID}/tasks/{taskID}.
+ */
+export type UpdateTaskResponse = {
+	readonly task: Task;
+};
+
+/**
+ * ListMyTimeEntriesResponse is returned by GET /workspaces/{workspaceID}/time-entries/my.
+ */
+export type ListMyTimeEntriesResponse = {
+	readonly timeEntries: readonly TimeEntry[];
+};
+
+/**
+ * CreateTimeEntryRequest is sent to POST /workspaces/{workspaceID}/time-entries.
+ */
+export type CreateTimeEntryRequest = {
+	readonly taskId: string;
+	readonly entryDate: LocalDate;
+	readonly minutes: number;
+	readonly note: string;
+};
+
+/**
+ * CreateTimeEntryResponse is returned by POST /workspaces/{workspaceID}/time-entries.
+ */
+export type CreateTimeEntryResponse = {
+	readonly timeEntry: TimeEntry;
 };
 
 /**

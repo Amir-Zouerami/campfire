@@ -14,6 +14,7 @@ import { StandupRuntimeCard } from './StandupRuntimeCard';
 import { StandupConfigurationCard } from './StandupConfigurationCard';
 import { StandupSubmissionCard } from './StandupSubmissionCard';
 import { StandupSubmissionsCard } from './StandupSubmissionsCard';
+import { TasksAndTimeCard } from './TasksAndTimeCard';
 import { DailyReportPreviewCard } from './DailyReportPreviewCard';
 import { ReportSettingsCard } from './ReportSettingsCard';
 import { WorkspaceOffDaysCard } from './WorkspaceOffDaysCard';
@@ -165,8 +166,9 @@ export function CampfireRoot(): ReactElement | null {
 							/>
 							<StandupSubmissionsCard
 								workspace={bootstrap.workspace}
-								refreshToken={standupRefreshToken + leaveRefreshToken}
+								refreshToken={standupRefreshToken}
 							/>
+							<TasksAndTimeCard workspace={bootstrap.workspace} />
 							<ReportSettingsCard
 								workspace={bootstrap.workspace}
 								canManageWorkspace={

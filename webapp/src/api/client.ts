@@ -44,6 +44,14 @@ import type {
 	ListReportRulesResponse,
 	UpdateReportRuleRequest,
 	UpdateReportRuleResponse,
+	CreateTaskRequest,
+	CreateTaskResponse,
+	CreateTimeEntryRequest,
+	CreateTimeEntryResponse,
+	ListMyTasksResponse,
+	ListMyTimeEntriesResponse,
+	UpdateTaskRequest,
+	UpdateTaskResponse,
 } from '../types/api';
 
 const pluginID = 'dev.zouerami.campfire';
@@ -280,6 +288,72 @@ export async function listStandupSubmissions(
 
 	return apiGet<ListStandupSubmissionsResponse>(
 		`/workspaces/${encodeURIComponent(request.workspaceId)}/standups/submissions?${params.toString()}`,
+	);
+}
+
+/**
+ * listMyTasks loads the current user's tasks for a workspace.
+ */
+export async function listMyTasks(workspaceID: string, includeArchived: boolean): Promise<ListMyTasksResponse> {
+	const params = new URLSearchParams({
+		includeArchived: String(includeArchived),
+	});
+
+	return apiGet<ListMyTasksResponse>(`/workspaces/${encodeURIComponent(workspaceID)}/tasks/my?${params.toString()}`);
+}
+
+/**
+ * createTask creates a current-user task.
+ */
+export async function createTask(workspaceID: string, request: CreateTaskRequest): Promise<CreateTaskResponse> {
+	return apiPost<CreateTaskRequest, CreateTaskResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/tasks`,
+		request,
+	);
+}
+
+/**
+ * updateTask updates a current-user task.
+ */
+export async function updateTask(
+	workspaceID: string,
+	taskID: string,
+	request: UpdateTaskRequest,
+): Promise<UpdateTaskResponse> {
+	return apiPut<UpdateTaskRequest, UpdateTaskResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/tasks/${encodeURIComponent(taskID)}`,
+		request,
+	);
+}
+
+/**
+ * listMyTimeEntries loads the current user's time entries for a workspace date range.
+ */
+export async function listMyTimeEntries(
+	workspaceID: string,
+	startDate: string,
+	endDate: string,
+): Promise<ListMyTimeEntriesResponse> {
+	const params = new URLSearchParams({
+		startDate,
+		endDate,
+	});
+
+	return apiGet<ListMyTimeEntriesResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/time-entries/my?${params.toString()}`,
+	);
+}
+
+/**
+ * createTimeEntry creates a time entry for the current user.
+ */
+export async function createTimeEntry(
+	workspaceID: string,
+	request: CreateTimeEntryRequest,
+): Promise<CreateTimeEntryResponse> {
+	return apiPost<CreateTimeEntryRequest, CreateTimeEntryResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/time-entries`,
+		request,
 	);
 }
 

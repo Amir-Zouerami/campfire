@@ -229,7 +229,6 @@ export type WorkspaceOffDay = {
 	readonly createdAt: string;
 };
 
-
 /**
  * StandupRunDecision describes whether standup automation should run for a date.
  */
@@ -382,6 +381,45 @@ export type ReminderRule = {
 	readonly dmReminderEnabled: boolean;
 	readonly reminderOffsets: readonly number[];
 	readonly mentionMissingInChannel: boolean;
+	readonly createdBy: string;
+	readonly createdAt: string;
+	readonly updatedAt: string;
+};
+
+/**
+ * Task represents work tracked by Campfire.
+ */
+export type Task = {
+	readonly id: string;
+	readonly workspaceId: string;
+	readonly userId: string;
+	readonly sourceSubmissionId: string;
+	readonly sourceAnswerId: string;
+	readonly title: string;
+	readonly description: string;
+	readonly projectId: string;
+	readonly categoryId: string;
+	readonly status: TaskStatus;
+	readonly boardUrl: string;
+	readonly createdBy: string;
+	readonly createdAt: string;
+	readonly updatedAt: string;
+	readonly completedAt: string;
+};
+
+/**
+ * TimeEntry records time spent on a task for one local date.
+ */
+export type TimeEntry = {
+	readonly id: string;
+	readonly workspaceId: string;
+	readonly taskId: string;
+	readonly userId: string;
+	readonly entryDate: LocalDate;
+	readonly minutes: number;
+	readonly note: string;
+	readonly projectId: string;
+	readonly categoryId: string;
 	readonly createdBy: string;
 	readonly createdAt: string;
 	readonly updatedAt: string;
