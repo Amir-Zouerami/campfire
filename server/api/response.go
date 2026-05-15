@@ -173,6 +173,19 @@ func WriteListMyPendingLeaveRequests(
 }
 
 /*
+WriteListApprovedLeaveRequests writes the approved leave request list response.
+*/
+func WriteListApprovedLeaveRequests(
+	w http.ResponseWriter,
+	statusCode int,
+	payload ListApprovedLeaveRequestsResponse,
+) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode approved leave request list response")
+}
+
+/*
 WriteCancelLeave writes the leave cancellation response.
 */
 func WriteCancelLeave(w http.ResponseWriter, statusCode int, payload CancelLeaveRequestResponse) {

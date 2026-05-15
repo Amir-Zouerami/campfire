@@ -19,6 +19,7 @@ import type {
 	ValidateLeaveRequest,
 	ValidateLeaveResponse,
 	WorkspaceByChannelResponse,
+	ListApprovedLeaveRequestsResponse,
 } from '../types/api';
 
 const pluginID = 'dev.zouerami.campfire';
@@ -112,6 +113,24 @@ export async function listPendingLeaveRequests(workspaceID: string): Promise<Lis
 export async function listMyPendingLeaveRequests(workspaceID: string): Promise<ListMyPendingLeaveRequestsResponse> {
 	return apiGet<ListMyPendingLeaveRequestsResponse>(
 		`/workspaces/${encodeURIComponent(workspaceID)}/leaves/my-pending`,
+	);
+}
+
+/**
+ * listApprovedLeaveRequests loads approved leave requests overlapping a date range.
+ */
+export async function listApprovedLeaveRequests(
+	workspaceID: string,
+	startDate: string,
+	endDate: string,
+): Promise<ListApprovedLeaveRequestsResponse> {
+	const params = new URLSearchParams({
+		startDate,
+		endDate,
+	});
+
+	return apiGet<ListApprovedLeaveRequestsResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/leaves/approved?${params.toString()}`,
 	);
 }
 

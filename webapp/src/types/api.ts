@@ -7,6 +7,7 @@ import type {
 	LeaveType,
 	LocalDate,
 	PendingLeaveRequest,
+	ApprovedLeaveRequest,
 	TimeOfDay,
 	Workspace,
 	WorkspaceCapabilities,
@@ -119,6 +120,13 @@ export type ListPendingLeaveRequestsResponse = {
  */
 export type ListMyPendingLeaveRequestsResponse = {
 	readonly leaveRequests: readonly PendingLeaveRequest[];
+};
+
+/**
+ * ListApprovedLeaveRequestsResponse is returned by GET /workspaces/{workspaceID}/leaves/approved.
+ */
+export type ListApprovedLeaveRequestsResponse = {
+	readonly leaveRequests: readonly ApprovedLeaveRequest[];
 };
 
 /**

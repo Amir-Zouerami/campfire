@@ -46,6 +46,16 @@ type ListMyPendingLeavesInput struct {
 }
 
 /*
+ListApprovedLeavesInput contains approved leave calendar query filters.
+*/
+type ListApprovedLeavesInput struct {
+	ActorUserID string
+	WorkspaceID string
+	StartDate   string
+	EndDate     string
+}
+
+/*
 DecideLeaveInput contains user-submitted leave decision data.
 */
 type DecideLeaveInput struct {
@@ -173,6 +183,55 @@ func (s *LeaveService) ListMyPending(
 	)
 	if err != nil {
 		return nil, NewError(ErrorCodeInternal, "Could not load your pending leave requests.")
+	}
+
+	return leaveRequests, nil
+}
+
+/*
+ListApproved returns approved leave requests overlapping a date range.
+
+Approved leave rows are used by the leave calendar, standup scheduling, and
+future report generation.
+*/
+func (s *LeaveService) ListApproved(
+	ctx context.Context,
+	input ListApprovedLeavesInput,
+) ([]domain.LeaveRequestWithType, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to view approved leave.")
+	}
+
+	cleanWorkspaceID := strings.TrimSpace(input.WorkspaceID)
+	if cleanWorkspaceID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
+	}
+
+	startDateValue := domain.LocalDate(strings.TrimSpace(input.StartDate))
+	startDate, err := parseLocalDate(startDateValue)
+	if err != nil {
+		return nil, NewError(ErrorCodeValidationFailed, "Start date must be a real YYYY-MM-DD calendar date.")
+	}
+
+	endDateValue := domain.LocalDate(strings.TrimSpace(input.EndDate))
+	endDate, err := parseLocalDate(endDateValue)
+	if err != nil {
+		return nil, NewError(ErrorCodeValidationFailed, "End date must be a real YYYY-MM-DD calendar date.")
+	}
+
+	if endDate.Before(startDate) {
+		return nil, NewError(ErrorCodeValidationFailed, "End date must be on or after start date.")
+	}
+
+	leaveRequests, err := s.leaveStore.ListApprovedByWorkspaceIDBetween(
+		ctx,
+		domain.ID(cleanWorkspaceID),
+		startDateValue,
+		endDateValue,
+	)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not load approved leave.")
 	}
 
 	return leaveRequests, nil

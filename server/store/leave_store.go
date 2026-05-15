@@ -43,6 +43,12 @@ type LeaveStore interface {
 		workspaceID domain.ID,
 		userID string,
 	) ([]domain.LeaveRequestWithType, error)
+	ListApprovedByWorkspaceIDBetween(
+		ctx context.Context,
+		workspaceID domain.ID,
+		startDate domain.LocalDate,
+		endDate domain.LocalDate,
+	) ([]domain.LeaveRequestWithType, error)
 	CreateRequest(ctx context.Context, leaveRequest domain.LeaveRequest) (*domain.LeaveRequest, error)
 	DecideRequest(ctx context.Context, params DecideLeaveRequestParams) (*domain.LeaveRequest, error)
 	CancelRequest(ctx context.Context, params CancelLeaveRequestParams) (*domain.LeaveRequest, error)
@@ -219,6 +225,66 @@ func (s *SQLLeaveStore) ListPendingByWorkspaceIDAndUserID(
 	userID string,
 ) ([]domain.LeaveRequestWithType, error) {
 	return s.listPending(ctx, workspaceID, userID)
+}
+
+/*
+ListApprovedByWorkspaceIDBetween returns approved leave requests overlapping an inclusive date range.
+*/
+func (s *SQLLeaveStore) ListApprovedByWorkspaceIDBetween(
+	ctx context.Context,
+	workspaceID domain.ID,
+	startDate domain.LocalDate,
+	endDate domain.LocalDate,
+) ([]domain.LeaveRequestWithType, error) {
+	records := []leaveRequestWithTypeRecord{}
+
+	err := s.db.SelectContext(
+		ctx,
+		&records,
+		s.db.Rebind(`
+			SELECT
+				requests.id,
+				requests.workspace_id,
+				requests.user_id,
+				requests.leave_type_id,
+				requests.start_date,
+				requests.end_date,
+				requests.duration_mode,
+				requests.half_day_part,
+				requests.start_time,
+				requests.end_time,
+				requests.reason,
+				requests.backup_user_id,
+				requests.status,
+				requests.created_at,
+				requests.updated_at,
+				requests.cancelled_at,
+				types.name AS leave_type_name,
+				types.color AS leave_type_color
+			FROM campfire_leave_requests requests
+			INNER JOIN campfire_leave_types types
+				ON types.id = requests.leave_type_id
+			WHERE requests.workspace_id = ?
+				AND requests.status = ?
+				AND requests.start_date <= ?
+				AND requests.end_date >= ?
+			ORDER BY requests.start_date ASC, requests.created_at ASC
+		`),
+		workspaceID.String(),
+		string(domain.LeaveStatusApproved),
+		endDate.String(),
+		startDate.String(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list approved leave requests: %w", err)
+	}
+
+	results := make([]domain.LeaveRequestWithType, 0, len(records))
+	for _, record := range records {
+		results = append(results, record.toDomain())
+	}
+
+	return results, nil
 }
 
 /*

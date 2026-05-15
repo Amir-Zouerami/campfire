@@ -106,6 +106,40 @@ func handleListMyPendingLeaveRequests(
 }
 
 /*
+handleListApprovedLeaveRequests handles listing approved leave requests for a date range.
+*/
+func handleListApprovedLeaveRequests(
+	log logger.Logger,
+	mm mattermost.Client,
+	leaveService *service.LeaveService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+
+		leaveRequests, err := leaveService.ListApproved(r.Context(), service.ListApprovedLeavesInput{
+			ActorUserID: user.ID,
+			WorkspaceID: workspaceID,
+			StartDate:   r.URL.Query().Get("startDate"),
+			EndDate:     r.URL.Query().Get("endDate"),
+		})
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WriteListApprovedLeaveRequests(w, http.StatusOK, ListApprovedLeaveRequestsResponse{
+			LeaveRequests: PendingLeaveRequestsToPayload(leaveRequests),
+		})
+	}
+}
+
+/*
 handleCreateLeave handles creating a pending leave request.
 */
 func handleCreateLeave(

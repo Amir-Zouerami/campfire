@@ -9,6 +9,7 @@ import { WorkspaceSetupCard } from './WorkspaceSetupCard';
 import { CAMPFIRE_OPEN_EVENT } from './events';
 import { useCampfireBootstrap } from './useCampfireBootstrap';
 import type { BootstrapStatus } from './useCampfireBootstrap';
+import { ApprovedLeavesCard } from './ApprovedLeavesCard';
 
 /**
  * CampfireRoot is the plugin root mounted by Mattermost.
@@ -121,7 +122,8 @@ export function CampfireRoot(): ReactElement | null {
 								refreshToken={leaveRefreshToken}
 								onLeaveCancelled={refreshLeaves}
 							/>
-							<LeaveRequestCard workspace={bootstrap.workspace} onLeaveCreated={refreshLeaves} />
+							<ApprovedLeavesCard workspace={bootstrap.workspace} refreshToken={leaveRefreshToken} />
+							<LeaveRequestCard workspace={bootstrap.workspace} onLeaveCreated={refreshLeaves} />{' '}
 						</>
 					)}
 
