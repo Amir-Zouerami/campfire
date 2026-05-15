@@ -22,6 +22,8 @@ import type {
 	ListApprovedLeaveRequestsResponse,
 	EvaluateStandupDayResponse,
 	ListStandupConfigurationResponse,
+	SubmitStandupRequest,
+	SubmitStandupResponse,
 } from '../types/api';
 
 const pluginID = 'dev.zouerami.campfire';
@@ -156,6 +158,13 @@ export async function listStandupConfiguration(workspaceID: string): Promise<Lis
 	return apiGet<ListStandupConfigurationResponse>(
 		`/workspaces/${encodeURIComponent(workspaceID)}/standups/configuration`,
 	);
+}
+
+/**
+ * submitStandup creates or updates the current user's standup submission.
+ */
+export async function submitStandup(request: SubmitStandupRequest): Promise<SubmitStandupResponse> {
+	return apiPost<SubmitStandupRequest, SubmitStandupResponse>('/standups/submissions', request);
 }
 
 /**

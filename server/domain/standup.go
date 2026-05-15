@@ -78,6 +78,42 @@ type StandupSchedule struct {
 }
 
 /*
+StandupSubmission is one user's submission for one standup occurrence.
+*/
+type StandupSubmission struct {
+	ID          ID
+	WorkspaceID ID
+	TemplateID  ID
+	ScheduleID  ID
+
+	UserID         string
+	OccurrenceDate LocalDate
+
+	FirstSubmittedAt time.Time
+	LastUpdatedAt    time.Time
+
+	Status StandupSubmissionStatus
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+/*
+StandupAnswer is one answer inside a standup submission.
+*/
+type StandupAnswer struct {
+	ID           ID
+	SubmissionID ID
+	WorkspaceID  ID
+	QuestionID   ID
+
+	ValueJSON string
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+/*
 StandupKind identifies a standup template or schedule kind.
 */
 type StandupKind string
@@ -203,4 +239,16 @@ const (
 		WeeklyModeLastWorkingDay means the weekly summary runs on the last working day.
 	*/
 	WeeklyModeLastWorkingDay WeeklyMode = "last_working_day"
+)
+
+/*
+StandupSubmissionStatus identifies a submission lifecycle state.
+*/
+type StandupSubmissionStatus string
+
+const (
+	/*
+		StandupSubmissionStatusSubmitted means the user submitted their standup.
+	*/
+	StandupSubmissionStatusSubmitted StandupSubmissionStatus = "submitted"
 )

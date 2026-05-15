@@ -63,12 +63,69 @@ type StandupSchedulePayload struct {
 }
 
 /*
+StandupSubmissionPayload is the API representation of a standup submission.
+*/
+type StandupSubmissionPayload struct {
+	ID               string `json:"id"`
+	WorkspaceID      string `json:"workspaceId"`
+	TemplateID       string `json:"templateId"`
+	ScheduleID       string `json:"scheduleId"`
+	UserID           string `json:"userId"`
+	OccurrenceDate   string `json:"occurrenceDate"`
+	FirstSubmittedAt string `json:"firstSubmittedAt"`
+	LastUpdatedAt    string `json:"lastUpdatedAt"`
+	Status           string `json:"status"`
+	CreatedAt        string `json:"createdAt"`
+	UpdatedAt        string `json:"updatedAt"`
+}
+
+/*
+StandupAnswerPayload is the API representation of a standup answer.
+*/
+type StandupAnswerPayload struct {
+	ID           string `json:"id"`
+	SubmissionID string `json:"submissionId"`
+	WorkspaceID  string `json:"workspaceId"`
+	QuestionID   string `json:"questionId"`
+	ValueJSON    string `json:"valueJson"`
+	CreatedAt    string `json:"createdAt"`
+	UpdatedAt    string `json:"updatedAt"`
+}
+
+/*
+SubmitStandupAnswerRequest is one submitted standup answer.
+*/
+type SubmitStandupAnswerRequest struct {
+	QuestionID string `json:"questionId"`
+	ValueJSON  string `json:"valueJson"`
+}
+
+/*
+SubmitStandupRequest is accepted by POST /standups/submissions.
+*/
+type SubmitStandupRequest struct {
+	WorkspaceID    string                       `json:"workspaceId"`
+	TemplateID     string                       `json:"templateId"`
+	ScheduleID     string                       `json:"scheduleId"`
+	OccurrenceDate string                       `json:"occurrenceDate"`
+	Answers        []SubmitStandupAnswerRequest `json:"answers"`
+}
+
+/*
 ListStandupConfigurationResponse is returned by GET /workspaces/{workspaceID}/standups/configuration.
 */
 type ListStandupConfigurationResponse struct {
 	Templates []StandupTemplatePayload `json:"templates"`
 	Questions []StandupQuestionPayload `json:"questions"`
 	Schedules []StandupSchedulePayload `json:"schedules"`
+}
+
+/*
+SubmitStandupResponse is returned by POST /standups/submissions.
+*/
+type SubmitStandupResponse struct {
+	Submission StandupSubmissionPayload `json:"submission"`
+	Answers    []StandupAnswerPayload   `json:"answers"`
 }
 
 /*
@@ -81,6 +138,75 @@ func StandupConfigurationToPayload(
 		Templates: StandupTemplatesToPayload(configuration.Templates),
 		Questions: StandupQuestionsToPayload(configuration.Questions),
 		Schedules: StandupSchedulesToPayload(configuration.Schedules),
+	}
+}
+
+/*
+ToServiceInput maps an API standup submission request to service input.
+*/
+func (r SubmitStandupRequest) ToServiceInput(actorUserID string) service.SubmitStandupInput {
+	answers := make([]service.SubmitStandupAnswerInput, 0, len(r.Answers))
+	for _, answer := range r.Answers {
+		answers = append(answers, service.SubmitStandupAnswerInput{
+			QuestionID: answer.QuestionID,
+			ValueJSON:  answer.ValueJSON,
+		})
+	}
+
+	return service.SubmitStandupInput{
+		ActorUserID:    actorUserID,
+		WorkspaceID:    r.WorkspaceID,
+		TemplateID:     r.TemplateID,
+		ScheduleID:     r.ScheduleID,
+		OccurrenceDate: r.OccurrenceDate,
+		Answers:        answers,
+	}
+}
+
+/*
+StandupSubmissionToPayload maps a domain submission to its API representation.
+*/
+func StandupSubmissionToPayload(submission domain.StandupSubmission) StandupSubmissionPayload {
+	return StandupSubmissionPayload{
+		ID:               submission.ID.String(),
+		WorkspaceID:      submission.WorkspaceID.String(),
+		TemplateID:       submission.TemplateID.String(),
+		ScheduleID:       submission.ScheduleID.String(),
+		UserID:           submission.UserID,
+		OccurrenceDate:   submission.OccurrenceDate.String(),
+		FirstSubmittedAt: formatAPITime(submission.FirstSubmittedAt),
+		LastUpdatedAt:    formatAPITime(submission.LastUpdatedAt),
+		Status:           string(submission.Status),
+		CreatedAt:        formatAPITime(submission.CreatedAt),
+		UpdatedAt:        formatAPITime(submission.UpdatedAt),
+	}
+}
+
+/*
+StandupAnswersToPayload maps standup answers to API payloads.
+*/
+func StandupAnswersToPayload(answers []domain.StandupAnswer) []StandupAnswerPayload {
+	payloads := make([]StandupAnswerPayload, 0, len(answers))
+
+	for _, answer := range answers {
+		payloads = append(payloads, StandupAnswerToPayload(answer))
+	}
+
+	return payloads
+}
+
+/*
+StandupAnswerToPayload maps a standup answer to its API representation.
+*/
+func StandupAnswerToPayload(answer domain.StandupAnswer) StandupAnswerPayload {
+	return StandupAnswerPayload{
+		ID:           answer.ID.String(),
+		SubmissionID: answer.SubmissionID.String(),
+		WorkspaceID:  answer.WorkspaceID.String(),
+		QuestionID:   answer.QuestionID.String(),
+		ValueJSON:    answer.ValueJSON,
+		CreatedAt:    formatAPITime(answer.CreatedAt),
+		UpdatedAt:    formatAPITime(answer.UpdatedAt),
 	}
 }
 

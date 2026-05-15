@@ -239,6 +239,41 @@ export type StandupSchedule = {
 };
 
 /**
+ * StandupSubmissionStatus identifies a submission lifecycle state.
+ */
+export type StandupSubmissionStatus = 'submitted';
+
+/**
+ * StandupSubmission is one user's submission for one standup occurrence.
+ */
+export type StandupSubmission = {
+	readonly id: string;
+	readonly workspaceId: string;
+	readonly templateId: string;
+	readonly scheduleId: string;
+	readonly userId: string;
+	readonly occurrenceDate: LocalDate;
+	readonly firstSubmittedAt: string;
+	readonly lastUpdatedAt: string;
+	readonly status: StandupSubmissionStatus;
+	readonly createdAt: string;
+	readonly updatedAt: string;
+};
+
+/**
+ * StandupAnswer is one answer inside a standup submission.
+ */
+export type StandupAnswer = {
+	readonly id: string;
+	readonly submissionId: string;
+	readonly workspaceId: string;
+	readonly questionId: string;
+	readonly valueJson: string;
+	readonly createdAt: string;
+	readonly updatedAt: string;
+};
+
+/**
  * StandupTemplate defines a reusable standup form.
  */
 export type StandupTemplate = {

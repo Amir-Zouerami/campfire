@@ -15,6 +15,8 @@ import type {
 	StandupQuestion,
 	StandupTemplate,
 	StandupSchedule,
+	StandupAnswer,
+	StandupSubmission,
 } from './domain';
 
 /**
@@ -147,6 +149,33 @@ export type ListStandupConfigurationResponse = {
 	readonly templates: readonly StandupTemplate[];
 	readonly questions: readonly StandupQuestion[];
 	readonly schedules: readonly StandupSchedule[];
+};
+
+/**
+ * SubmitStandupAnswerRequest is one submitted standup answer.
+ */
+export type SubmitStandupAnswerRequest = {
+	readonly questionId: string;
+	readonly valueJson: string;
+};
+
+/**
+ * SubmitStandupRequest is sent to POST /standups/submissions.
+ */
+export type SubmitStandupRequest = {
+	readonly workspaceId: string;
+	readonly templateId: string;
+	readonly scheduleId: string;
+	readonly occurrenceDate: LocalDate;
+	readonly answers: readonly SubmitStandupAnswerRequest[];
+};
+
+/**
+ * SubmitStandupResponse is returned by POST /standups/submissions.
+ */
+export type SubmitStandupResponse = {
+	readonly submission: StandupSubmission;
+	readonly answers: readonly StandupAnswer[];
 };
 
 /**

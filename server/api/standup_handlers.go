@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -41,5 +42,39 @@ func handleListStandupConfiguration(
 			http.StatusOK,
 			StandupConfigurationToPayload(*configuration),
 		)
+	}
+}
+
+/*
+handleSubmitStandup handles creating or updating a standup submission.
+*/
+func handleSubmitStandup(
+	log logger.Logger,
+	mm mattermost.Client,
+	standupService *service.StandupService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		var request SubmitStandupRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			WriteError(w, http.StatusBadRequest, "invalid_request", "Request body must be valid JSON.")
+			return
+		}
+
+		result, err := standupService.Submit(r.Context(), request.ToServiceInput(user.ID))
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WriteSubmitStandup(w, http.StatusCreated, SubmitStandupResponse{
+			Submission: StandupSubmissionToPayload(result.Submission),
+			Answers:    StandupAnswersToPayload(result.Answers),
+		})
 	}
 }
