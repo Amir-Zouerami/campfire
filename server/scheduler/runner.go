@@ -36,6 +36,16 @@ type ReminderRuleProvider interface {
 }
 
 /*
+StandupRuntimeProvider defines the runtime eligibility decision needed by the scheduler.
+*/
+type StandupRuntimeProvider interface {
+	EvaluateDay(
+		ctx context.Context,
+		input service.EvaluateStandupDayInput,
+	) (*domain.StandupRunDecision, error)
+}
+
+/*
 ReminderSequenceExecutor defines reminder execution behavior used by the scheduler.
 */
 type ReminderSequenceExecutor interface {
@@ -53,6 +63,7 @@ type Config struct {
 	WorkspaceProvider        WorkspaceProvider
 	StandupScheduleProvider  StandupScheduleProvider
 	ReminderRuleProvider     ReminderRuleProvider
+	StandupRuntimeProvider   StandupRuntimeProvider
 	ReminderSequenceExecutor ReminderSequenceExecutor
 	Interval                 time.Duration
 }
@@ -65,6 +76,7 @@ type Runner struct {
 	workspaceProvider        WorkspaceProvider
 	standupScheduleProvider  StandupScheduleProvider
 	reminderRuleProvider     ReminderRuleProvider
+	standupRuntimeProvider   StandupRuntimeProvider
 	reminderSequenceExecutor ReminderSequenceExecutor
 	interval                 time.Duration
 
@@ -87,6 +99,7 @@ func NewRunner(config Config) *Runner {
 		workspaceProvider:        config.WorkspaceProvider,
 		standupScheduleProvider:  config.StandupScheduleProvider,
 		reminderRuleProvider:     config.ReminderRuleProvider,
+		standupRuntimeProvider:   config.StandupRuntimeProvider,
 		reminderSequenceExecutor: config.ReminderSequenceExecutor,
 		interval:                 interval,
 		done:                     make(chan struct{}),
@@ -186,6 +199,7 @@ func (r *Runner) isConfigured() bool {
 	return r.workspaceProvider != nil &&
 		r.standupScheduleProvider != nil &&
 		r.reminderRuleProvider != nil &&
+		r.standupRuntimeProvider != nil &&
 		r.reminderSequenceExecutor != nil
 }
 
@@ -206,6 +220,31 @@ func (r *Runner) tickWorkspace(ctx context.Context, workspace domain.Workspace, 
 
 	localNow := now.In(location)
 	occurrenceDate := domain.LocalDate(localNow.Format("2006-01-02"))
+
+	decision, err := r.standupRuntimeProvider.EvaluateDay(ctx, service.EvaluateStandupDayInput{
+		ActorUserID: schedulerActorUserID,
+		WorkspaceID: workspace.ID.String(),
+		Date:        occurrenceDate.String(),
+	})
+	if err != nil {
+		r.logger.Warn(
+			"scheduler failed to evaluate standup runtime",
+			logger.String("workspace_id", workspace.ID.String()),
+			logger.String("date", occurrenceDate.String()),
+			logger.String("error", err.Error()),
+		)
+		return
+	}
+
+	if !decision.ShouldRun {
+		r.logger.Debug(
+			"scheduler skipped workspace because standup runtime is not due",
+			logger.String("workspace_id", workspace.ID.String()),
+			logger.String("date", occurrenceDate.String()),
+			logger.String("reason", string(decision.Reason)),
+		)
+		return
+	}
 
 	schedules, err := r.standupScheduleProvider.ListSchedulesByWorkspaceID(ctx, workspace.ID)
 	if err != nil {
@@ -370,3 +409,5 @@ sameLocalMinute returns true when two local times fall in the same minute.
 func sameLocalMinute(first time.Time, second time.Time) bool {
 	return first.Truncate(time.Minute).Equal(second.Truncate(time.Minute))
 }
+
+const schedulerActorUserID = "campfire-scheduler"

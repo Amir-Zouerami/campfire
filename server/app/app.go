@@ -168,6 +168,7 @@ func New(config Config) (*App, error) {
 		WorkspaceProvider:        workspaceStore,
 		StandupScheduleProvider:  standupStore,
 		ReminderRuleProvider:     reminderStore,
+		StandupRuntimeProvider:   standupRuntimeService,
 		ReminderSequenceExecutor: reminderExecutionService,
 		Interval:                 time.Minute,
 	})
