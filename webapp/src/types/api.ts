@@ -222,6 +222,87 @@ export type ListStandupConfigurationResponse = {
 };
 
 /**
+ * CreateStandupTemplateRequest is sent to POST /workspaces/{workspaceID}/standups/templates.
+ */
+export type CreateStandupTemplateRequest = {
+	readonly name: string;
+	readonly description: string;
+	readonly kind: string;
+};
+
+/**
+ * CreateStandupTemplateResponse is returned by POST /workspaces/{workspaceID}/standups/templates.
+ */
+export type CreateStandupTemplateResponse = {
+	readonly template: StandupTemplate;
+};
+
+/**
+ * UpdateStandupTemplateRequest is sent to PUT /workspaces/{workspaceID}/standups/templates/{templateID}.
+ */
+export type UpdateStandupTemplateRequest = {
+	readonly name: string;
+	readonly description: string;
+	readonly kind: string;
+	readonly isActive: boolean;
+};
+
+/**
+ * UpdateStandupTemplateResponse is returned by PUT /workspaces/{workspaceID}/standups/templates/{templateID}.
+ */
+export type UpdateStandupTemplateResponse = {
+	readonly template: StandupTemplate;
+};
+
+/**
+ * CreateStandupQuestionRequest is sent to POST /workspaces/{workspaceID}/standups/questions.
+ */
+export type CreateStandupQuestionRequest = {
+	readonly templateId: string;
+	readonly section: string;
+	readonly label: string;
+	readonly helpText: string;
+	readonly placeholder: string;
+	readonly type: string;
+	readonly required: boolean;
+	readonly showInReport: boolean;
+	readonly isPrivate: boolean;
+	readonly position: number;
+	readonly options: readonly string[];
+};
+
+/**
+ * CreateStandupQuestionResponse is returned by POST /workspaces/{workspaceID}/standups/questions.
+ */
+export type CreateStandupQuestionResponse = {
+	readonly question: StandupQuestion;
+};
+
+/**
+ * UpdateStandupQuestionRequest is sent to PUT /workspaces/{workspaceID}/standups/questions/{questionID}.
+ */
+export type UpdateStandupQuestionRequest = {
+	readonly templateId: string;
+	readonly section: string;
+	readonly label: string;
+	readonly helpText: string;
+	readonly placeholder: string;
+	readonly type: string;
+	readonly required: boolean;
+	readonly showInReport: boolean;
+	readonly isPrivate: boolean;
+	readonly position: number;
+	readonly options: readonly string[];
+};
+
+/**
+ * UpdateStandupQuestionResponse is returned by PUT /workspaces/{workspaceID}/standups/questions/{questionID}.
+ */
+export type UpdateStandupQuestionResponse = {
+	readonly question: StandupQuestion;
+};
+
+/**
  * SubmitStandupAnswerRequest is one submitted standup answer.
  */
 export type SubmitStandupAnswerRequest = {

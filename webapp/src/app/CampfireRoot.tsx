@@ -12,6 +12,7 @@ import type { BootstrapStatus } from './useCampfireBootstrap';
 import { ApprovedLeavesCard } from './ApprovedLeavesCard';
 import { StandupRuntimeCard } from './StandupRuntimeCard';
 import { StandupConfigurationCard } from './StandupConfigurationCard';
+import { StandupFormBuilderCard } from './StandupFormBuilderCard';
 import { StandupSubmissionCard } from './StandupSubmissionCard';
 import { StandupSubmissionsCard } from './StandupSubmissionsCard';
 import { TasksAndTimeCard } from './TasksAndTimeCard';
@@ -183,6 +184,13 @@ export function CampfireRoot(): ReactElement | null {
 							<WeeklyReportPreviewCard
 								workspace={bootstrap.workspace}
 								refreshToken={standupRefreshToken}
+							/>
+							<StandupFormBuilderCard
+								workspace={bootstrap.workspace}
+								canManageWorkspace={
+									bootstrap.capabilities?.canManageWorkspace ?? bootstrap.me.isSystemAdmin
+								}
+								onConfigurationChanged={refreshStandups}
 							/>
 							<StandupConfigurationCard workspace={bootstrap.workspace} />
 							<StandupRuntimeCard

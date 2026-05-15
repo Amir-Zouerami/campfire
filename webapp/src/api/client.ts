@@ -55,6 +55,14 @@ import type {
 	GetWeeklyReportPreviewResponse,
 	PostWeeklyReportPreviewRequest,
 	PostWeeklyReportPreviewResponse,
+	CreateStandupQuestionRequest,
+	CreateStandupQuestionResponse,
+	CreateStandupTemplateRequest,
+	CreateStandupTemplateResponse,
+	UpdateStandupQuestionRequest,
+	UpdateStandupQuestionResponse,
+	UpdateStandupTemplateRequest,
+	UpdateStandupTemplateResponse,
 } from '../types/api';
 
 const pluginID = 'dev.zouerami.campfire';
@@ -268,6 +276,60 @@ export async function evaluateStandupDay(workspaceID: string, date: string): Pro
 export async function listStandupConfiguration(workspaceID: string): Promise<ListStandupConfigurationResponse> {
 	return apiGet<ListStandupConfigurationResponse>(
 		`/workspaces/${encodeURIComponent(workspaceID)}/standups/configuration`,
+	);
+}
+
+/**
+ * createStandupTemplate creates a standup template.
+ */
+export async function createStandupTemplate(
+	workspaceID: string,
+	request: CreateStandupTemplateRequest,
+): Promise<CreateStandupTemplateResponse> {
+	return apiPost<CreateStandupTemplateRequest, CreateStandupTemplateResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/standups/templates`,
+		request,
+	);
+}
+
+/**
+ * updateStandupTemplate updates a standup template.
+ */
+export async function updateStandupTemplate(
+	workspaceID: string,
+	templateID: string,
+	request: UpdateStandupTemplateRequest,
+): Promise<UpdateStandupTemplateResponse> {
+	return apiPut<UpdateStandupTemplateRequest, UpdateStandupTemplateResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/standups/templates/${encodeURIComponent(templateID)}`,
+		request,
+	);
+}
+
+/**
+ * createStandupQuestion creates a standup question.
+ */
+export async function createStandupQuestion(
+	workspaceID: string,
+	request: CreateStandupQuestionRequest,
+): Promise<CreateStandupQuestionResponse> {
+	return apiPost<CreateStandupQuestionRequest, CreateStandupQuestionResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/standups/questions`,
+		request,
+	);
+}
+
+/**
+ * updateStandupQuestion updates a standup question.
+ */
+export async function updateStandupQuestion(
+	workspaceID: string,
+	questionID: string,
+	request: UpdateStandupQuestionRequest,
+): Promise<UpdateStandupQuestionResponse> {
+	return apiPut<UpdateStandupQuestionRequest, UpdateStandupQuestionResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/standups/questions/${encodeURIComponent(questionID)}`,
+		request,
 	);
 }
 
