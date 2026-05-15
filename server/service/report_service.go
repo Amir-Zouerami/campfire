@@ -92,6 +92,27 @@ type PostDailyReportPreviewResult struct {
 }
 
 /*
+PostWeeklyReportPreviewInput contains filters and actor data for posting a weekly report.
+*/
+type PostWeeklyReportPreviewInput struct {
+	ActorUserID   string
+	IsSystemAdmin bool
+	WorkspaceID   string
+	PeriodStart   string
+	PeriodEnd     string
+	SortMode      string
+}
+
+/*
+PostWeeklyReportPreviewResult contains the posted weekly preview and report run.
+*/
+type PostWeeklyReportPreviewResult struct {
+	Preview domain.WeeklyReportPreview
+	Run     domain.ReportRun
+	Posted  bool
+}
+
+/*
 PostDailyReportAutomationInput identifies a scheduled daily report attempt.
 */
 type PostDailyReportAutomationInput struct {
@@ -407,6 +428,114 @@ func (s *ReportService) ListDailyRuns(
 	}
 
 	return runs, nil
+}
+
+/*
+PostWeeklyPreview builds a weekly report preview and posts it to the workspace channel.
+
+It reserves a report run before posting so duplicate clicks are blocked by the
+report run uniqueness constraint.
+*/
+func (s *ReportService) PostWeeklyPreview(
+	ctx context.Context,
+	input PostWeeklyReportPreviewInput,
+) (*PostWeeklyReportPreviewResult, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to post weekly reports.")
+	}
+
+	cleanWorkspaceID := strings.TrimSpace(input.WorkspaceID)
+	if cleanWorkspaceID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
+	}
+
+	workspaceID := domain.ID(cleanWorkspaceID)
+	workspace, err := s.workspaceStore.GetByID(ctx, workspaceID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Workspace was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load workspace.")
+	}
+
+	if err := s.requireReportPostPermission(ctx, cleanActorUserID, input.IsSystemAdmin, workspaceID); err != nil {
+		return nil, err
+	}
+
+	reportRule, err := s.reportStore.GetEnabledRuleByWorkspaceIDAndKind(
+		ctx,
+		workspaceID,
+		domain.ReportKindWeekly,
+	)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeValidationFailed, "No enabled weekly report rule is configured.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load weekly report rule.")
+	}
+
+	preview, err := s.BuildWeeklyPreview(ctx, BuildWeeklyReportPreviewInput{
+		ActorUserID: cleanActorUserID,
+		WorkspaceID: cleanWorkspaceID,
+		PeriodStart: input.PeriodStart,
+		PeriodEnd:   input.PeriodEnd,
+		SortMode:    firstNonEmptyReportString(input.SortMode, string(reportRule.SortMode)),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now().UTC()
+	run := domain.ReportRun{
+		ID:           domain.ID(uuid.NewString()),
+		WorkspaceID:  workspaceID,
+		ReportRuleID: reportRule.ID,
+		ScheduleID:   reportRule.ScheduleID,
+		ReportKind:   domain.ReportKindWeekly,
+		PeriodStart:  preview.PeriodStart,
+		PeriodEnd:    preview.PeriodEnd,
+		GeneratedAt:  now,
+		PostedAt:     nil,
+		PostedBy:     cleanActorUserID,
+		Markdown:     preview.Markdown,
+		Status:       domain.ReportRunStatusPosting,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+
+	createdRun, err := s.reportStore.CreateRun(ctx, run)
+	if err != nil {
+		return nil, NewError(ErrorCodeConflict, "This weekly report has already been posted or is currently posting.")
+	}
+
+	postID, err := s.reportPublisher.PostWeeklyReport(ctx, WeeklyReportPost{
+		WorkspaceID:    workspace.ID.String(),
+		WorkspaceName:  workspace.Name,
+		ChannelID:      workspace.ChannelID,
+		PeriodStart:    preview.PeriodStart.String(),
+		PeriodEnd:      preview.PeriodEnd.String(),
+		Markdown:       preview.Markdown,
+		PostedByUserID: cleanActorUserID,
+	})
+	if err != nil {
+		_ = s.reportStore.MarkRunFailed(ctx, createdRun.ID, time.Now().UTC())
+
+		return nil, NewError(ErrorCodeInternal, "Could not post weekly report to Mattermost.")
+	}
+
+	postedRun, err := s.reportStore.MarkRunPosted(ctx, createdRun.ID, postID, time.Now().UTC())
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not update weekly report history.")
+	}
+
+	return &PostWeeklyReportPreviewResult{
+		Preview: *preview,
+		Run:     *postedRun,
+		Posted:  true,
+	}, nil
 }
 
 /*

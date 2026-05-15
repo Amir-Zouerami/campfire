@@ -197,6 +197,50 @@ func handleListDailyReportRuns(
 }
 
 /*
+handlePostWeeklyReportPreview handles posting a weekly report preview to the channel.
+*/
+func handlePostWeeklyReportPreview(
+	log logger.Logger,
+	mm mattermost.Client,
+	reportService *service.ReportService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+
+		var request PostWeeklyReportPreviewRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			WriteError(w, http.StatusBadRequest, "invalid_request", "Request body must be valid JSON.")
+			return
+		}
+
+		result, err := reportService.PostWeeklyPreview(r.Context(), service.PostWeeklyReportPreviewInput{
+			ActorUserID:   user.ID,
+			IsSystemAdmin: user.IsSystemAdmin,
+			WorkspaceID:   workspaceID,
+			PeriodStart:   request.PeriodStart,
+			PeriodEnd:     request.PeriodEnd,
+			SortMode:      request.SortMode,
+		})
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WritePostWeeklyReportPreview(w, http.StatusOK, PostWeeklyReportPreviewResponse{
+			Preview: WeeklyReportPreviewToPayload(result.Preview),
+			Run:     ReportRunToPayload(result.Run),
+			Posted:  result.Posted,
+		})
+	}
+}
+
+/*
 handlePostDailyReportPreview handles posting a daily report preview to the channel.
 */
 func handlePostDailyReportPreview(

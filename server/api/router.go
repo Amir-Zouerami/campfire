@@ -116,6 +116,10 @@ func NewRouter(config RouterConfig) http.Handler {
 			"/workspaces/{workspaceID}/reports/weekly-preview",
 			handleGetWeeklyReportPreview(config.Logger, config.Mattermost, config.ReportService),
 		)
+		api.Post(
+			"/workspaces/{workspaceID}/reports/weekly-preview/post",
+			handlePostWeeklyReportPreview(config.Logger, config.Mattermost, config.ReportService),
+		)
 		api.Get(
 			"/workspaces/{workspaceID}/reports/daily-preview",
 			handleGetDailyReportPreview(config.Logger, config.Mattermost, config.ReportService),

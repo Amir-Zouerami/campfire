@@ -15,12 +15,26 @@ type DailyReportPost struct {
 }
 
 /*
+WeeklyReportPost contains data needed to post a generated weekly report.
+*/
+type WeeklyReportPost struct {
+	WorkspaceID    string
+	WorkspaceName  string
+	ChannelID      string
+	PeriodStart    string
+	PeriodEnd      string
+	Markdown       string
+	PostedByUserID string
+}
+
+/*
 ReportPublisher defines outbound report publishing behavior.
 
 Application services depend on this port instead of importing Mattermost APIs.
 */
 type ReportPublisher interface {
 	PostDailyReport(ctx context.Context, post DailyReportPost) (string, error)
+	PostWeeklyReport(ctx context.Context, post WeeklyReportPost) (string, error)
 }
 
 /*
@@ -41,5 +55,12 @@ func NewNoopReportPublisher() *NoopReportPublisher {
 PostDailyReport intentionally does nothing and returns an empty post ID.
 */
 func (p *NoopReportPublisher) PostDailyReport(_ context.Context, _ DailyReportPost) (string, error) {
+	return "", nil
+}
+
+/*
+PostWeeklyReport intentionally does nothing and returns an empty post ID.
+*/
+func (p *NoopReportPublisher) PostWeeklyReport(_ context.Context, _ WeeklyReportPost) (string, error) {
 	return "", nil
 }

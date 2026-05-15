@@ -155,12 +155,30 @@ type PostDailyReportPreviewRequest struct {
 }
 
 /*
+PostWeeklyReportPreviewRequest is accepted by POST /workspaces/{workspaceID}/reports/weekly-preview/post.
+*/
+type PostWeeklyReportPreviewRequest struct {
+	PeriodStart string `json:"periodStart"`
+	PeriodEnd   string `json:"periodEnd"`
+	SortMode    string `json:"sortMode"`
+}
+
+/*
 PostDailyReportPreviewResponse is returned after posting a daily report preview.
 */
 type PostDailyReportPreviewResponse struct {
 	Preview DailyReportPreviewPayload `json:"preview"`
 	Run     ReportRunPayload          `json:"run"`
 	Posted  bool                      `json:"posted"`
+}
+
+/*
+PostWeeklyReportPreviewResponse is returned after posting a weekly report preview.
+*/
+type PostWeeklyReportPreviewResponse struct {
+	Preview WeeklyReportPreviewPayload `json:"preview"`
+	Run     ReportRunPayload           `json:"run"`
+	Posted  bool                       `json:"posted"`
 }
 
 /*

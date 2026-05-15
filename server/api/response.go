@@ -447,6 +447,19 @@ func WriteGetDailyReportPreview(
 }
 
 /*
+WritePostWeeklyReportPreview writes the posted weekly report preview response.
+*/
+func WritePostWeeklyReportPreview(
+	w http.ResponseWriter,
+	statusCode int,
+	payload PostWeeklyReportPreviewResponse,
+) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode posted weekly report preview response")
+}
+
+/*
 WritePostDailyReportPreview writes the posted daily report preview response.
 */
 func WritePostDailyReportPreview(
