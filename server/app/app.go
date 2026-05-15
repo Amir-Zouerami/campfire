@@ -170,6 +170,7 @@ func New(config Config) (*App, error) {
 		ReminderRuleProvider:     reminderStore,
 		StandupRuntimeProvider:   standupRuntimeService,
 		ReminderSequenceExecutor: reminderExecutionService,
+		ReportAutomationExecutor: reportService,
 		Interval:                 time.Minute,
 	})
 

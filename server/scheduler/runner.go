@@ -56,6 +56,16 @@ type ReminderSequenceExecutor interface {
 }
 
 /*
+ReportAutomationExecutor defines automated report posting behavior used by the scheduler.
+*/
+type ReportAutomationExecutor interface {
+	PostDailyAutomated(
+		ctx context.Context,
+		input service.PostDailyReportAutomationInput,
+	) (*service.PostDailyReportAutomationResult, error)
+}
+
+/*
 Config contains dependencies and timing options for the scheduler runner.
 */
 type Config struct {
@@ -65,6 +75,7 @@ type Config struct {
 	ReminderRuleProvider     ReminderRuleProvider
 	StandupRuntimeProvider   StandupRuntimeProvider
 	ReminderSequenceExecutor ReminderSequenceExecutor
+	ReportAutomationExecutor ReportAutomationExecutor
 	Interval                 time.Duration
 }
 
@@ -78,6 +89,7 @@ type Runner struct {
 	reminderRuleProvider     ReminderRuleProvider
 	standupRuntimeProvider   StandupRuntimeProvider
 	reminderSequenceExecutor ReminderSequenceExecutor
+	reportAutomationExecutor ReportAutomationExecutor
 	interval                 time.Duration
 
 	mutex  sync.Mutex
@@ -101,6 +113,7 @@ func NewRunner(config Config) *Runner {
 		reminderRuleProvider:     config.ReminderRuleProvider,
 		standupRuntimeProvider:   config.StandupRuntimeProvider,
 		reminderSequenceExecutor: config.ReminderSequenceExecutor,
+		reportAutomationExecutor: config.ReportAutomationExecutor,
 		interval:                 interval,
 		done:                     make(chan struct{}),
 	}
@@ -200,7 +213,8 @@ func (r *Runner) isConfigured() bool {
 		r.standupScheduleProvider != nil &&
 		r.reminderRuleProvider != nil &&
 		r.standupRuntimeProvider != nil &&
-		r.reminderSequenceExecutor != nil
+		r.reminderSequenceExecutor != nil &&
+		r.reportAutomationExecutor != nil
 }
 
 /*
@@ -342,7 +356,55 @@ func (r *Runner) executeDueReminderSequences(
 			logger.String("channel_sent", fmt.Sprintf("%d", result.ChannelRemindersSent)),
 			logger.String("skipped_existing", fmt.Sprintf("%d", result.SkippedExistingRuns)),
 		)
+
+		if sequenceNumber == len(offsets)-1 {
+			r.executeDueDailyReport(ctx, workspace, schedule, occurrenceDate)
+		}
 	}
+}
+
+/*
+executeDueDailyReport posts the automated daily report after the final reminder sequence.
+*/
+func (r *Runner) executeDueDailyReport(
+	ctx context.Context,
+	workspace domain.Workspace,
+	schedule domain.StandupSchedule,
+	occurrenceDate domain.LocalDate,
+) {
+	result, err := r.reportAutomationExecutor.PostDailyAutomated(ctx, service.PostDailyReportAutomationInput{
+		WorkspaceID:    workspace.ID.String(),
+		ScheduleID:     schedule.ID.String(),
+		OccurrenceDate: occurrenceDate.String(),
+	})
+	if err != nil {
+		r.logger.Warn(
+			"scheduler failed to post automated daily report",
+			logger.String("workspace_id", workspace.ID.String()),
+			logger.String("schedule_id", schedule.ID.String()),
+			logger.String("date", occurrenceDate.String()),
+			logger.String("error", err.Error()),
+		)
+		return
+	}
+
+	if !result.Posted {
+		r.logger.Debug(
+			"scheduler skipped automated daily report",
+			logger.String("workspace_id", workspace.ID.String()),
+			logger.String("schedule_id", schedule.ID.String()),
+			logger.String("date", occurrenceDate.String()),
+			logger.String("reason", result.SkippedReason),
+		)
+		return
+	}
+
+	r.logger.Debug(
+		"scheduler posted automated daily report",
+		logger.String("workspace_id", workspace.ID.String()),
+		logger.String("schedule_id", schedule.ID.String()),
+		logger.String("date", occurrenceDate.String()),
+	)
 }
 
 /*
