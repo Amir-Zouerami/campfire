@@ -106,6 +106,38 @@ func handleListMyPendingLeaveRequests(
 }
 
 /*
+handleListMyActiveLeaveRequests handles listing the current user's pending and approved leave requests.
+*/
+func handleListMyActiveLeaveRequests(
+	log logger.Logger,
+	mm mattermost.Client,
+	leaveService *service.LeaveService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+
+		leaveRequests, err := leaveService.ListMyActive(r.Context(), service.ListMyActiveLeavesInput{
+			ActorUserID: user.ID,
+			WorkspaceID: workspaceID,
+		})
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WriteListMyActiveLeaveRequests(w, http.StatusOK, ListMyActiveLeaveRequestsResponse{
+			LeaveRequests: PendingLeaveRequestsToPayload(leaveRequests),
+		})
+	}
+}
+
+/*
 handleListApprovedLeaveRequests handles listing approved leave requests for a date range.
 */
 func handleListApprovedLeaveRequests(
@@ -211,7 +243,7 @@ func handleDecideLeave(
 }
 
 /*
-handleCancelLeave handles requester cancellation for a pending leave request.
+handleCancelLeave handles requester cancellation for a pending or approved leave request.
 */
 func handleCancelLeave(
 	log logger.Logger,

@@ -51,8 +51,8 @@ type LeaveDecisionNotification struct {
 }
 
 /*
-LeaveCancellationNotification contains the data needed to notify approvers after
-a requester cancels a pending leave request.
+LeaveCancellationNotification contains the data needed to notify relevant users
+after a requester cancels a pending or approved leave request.
 */
 type LeaveCancellationNotification struct {
 	LeaveRequestID string
@@ -71,6 +71,7 @@ type LeaveCancellationNotification struct {
 	StartTime     string
 	EndTime       string
 	Status        string
+	WasApproved   bool
 }
 
 /*

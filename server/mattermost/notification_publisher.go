@@ -77,7 +77,11 @@ func (p *NotificationPublisher) NotifyLeaveDecided(
 }
 
 /*
-NotifyLeaveCancelled notifies approvers that a requester cancelled a pending leave request.
+NotifyLeaveCancelled notifies approvers that a requester cancelled leave.
+
+When the cancelled request was previously approved, Campfire also posts an
+availability update to the workspace channel so the team knows the requester is
+no longer marked away.
 */
 func (p *NotificationPublisher) NotifyLeaveCancelled(
 	_ context.Context,
@@ -93,7 +97,14 @@ func (p *NotificationPublisher) NotifyLeaveCancelled(
 		}
 	}
 
-	return nil
+	if !notification.WasApproved {
+		return nil
+	}
+
+	return p.sendChannelMessage(
+		notification.ChannelID,
+		formatApprovedLeaveCancelledChannelMessage(p.api, notification),
+	)
 }
 
 /*
@@ -220,13 +231,57 @@ formatLeaveCancelledMessage formats the leave cancellation notification.
 */
 func formatLeaveCancelledMessage(api plugin.API, notification service.LeaveCancellationNotification) string {
 	requesterLabel := userMentionOrID(api, notification.RequesterUserID)
+	previousStatus := "pending"
+	if notification.WasApproved {
+		previousStatus = "approved"
+	}
 
 	lines := []string{
 		"🔥 **Campfire leave cancelled**",
 		"",
-		fmt.Sprintf("%s cancelled their pending **%s** leave request.", requesterLabel, notification.LeaveTypeName),
+		fmt.Sprintf(
+			"%s cancelled their %s **%s** leave request.",
+			requesterLabel,
+			previousStatus,
+			notification.LeaveTypeName,
+		),
 		fmt.Sprintf("**Dates:** %s → %s", notification.StartDate, notification.EndDate),
 		fmt.Sprintf("**Status:** %s", notification.Status),
+	}
+
+	details := formatLeaveRequestDetails(
+		notification.DurationMode,
+		notification.HalfDayPart,
+		notification.StartTime,
+		notification.EndTime,
+	)
+	if details != "" {
+		lines = append(lines, details)
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+/*
+formatApprovedLeaveCancelledChannelMessage formats the team-facing announcement
+for a cancelled approved leave request.
+*/
+func formatApprovedLeaveCancelledChannelMessage(
+	api plugin.API,
+	notification service.LeaveCancellationNotification,
+) string {
+	requesterLabel := userMentionOrID(api, notification.RequesterUserID)
+
+	lines := []string{
+		"🔥 **Campfire availability update**",
+		"",
+		fmt.Sprintf(
+			"%s cancelled their approved **%s** leave.",
+			requesterLabel,
+			notification.LeaveTypeName,
+		),
+		fmt.Sprintf("**Dates:** %s → %s", notification.StartDate, notification.EndDate),
+		"They are no longer marked as away for this period.",
 	}
 
 	details := formatLeaveRequestDetails(

@@ -46,6 +46,55 @@ type ListMyPendingLeavesInput struct {
 }
 
 /*
+ListMyActiveLeavesInput contains current-user active leave list filters.
+*/
+type ListMyActiveLeavesInput struct {
+	ActorUserID string
+	WorkspaceID string
+}
+
+/*
+ListMyActive returns pending and approved leave requests created by the current user.
+
+Cancelled and rejected requests are intentionally excluded from this active list
+because this endpoint powers immediate user actions such as cancellation.
+*/
+func (s *LeaveService) ListMyActive(
+	ctx context.Context,
+	input ListMyActiveLeavesInput,
+) ([]domain.LeaveRequestWithType, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to view your leave requests.")
+	}
+
+	cleanWorkspaceID := strings.TrimSpace(input.WorkspaceID)
+	if cleanWorkspaceID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
+	}
+
+	workspaceID := domain.ID(cleanWorkspaceID)
+	if _, err := s.workspaceStore.GetByID(ctx, workspaceID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Workspace was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load workspace.")
+	}
+
+	leaveRequests, err := s.leaveStore.ListActiveByWorkspaceIDAndUserID(
+		ctx,
+		workspaceID,
+		cleanActorUserID,
+	)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not load your active leave requests.")
+	}
+
+	return leaveRequests, nil
+}
+
+/*
 ListApprovedLeavesInput contains approved leave calendar query filters.
 */
 type ListApprovedLeavesInput struct {
@@ -67,7 +116,7 @@ type DecideLeaveInput struct {
 }
 
 /*
-CancelLeaveInput contains data needed to cancel a pending leave request.
+CancelLeaveInput contains data needed to cancel a pending or approved leave request.
 */
 type CancelLeaveInput struct {
 	ActorUserID    string
@@ -460,7 +509,12 @@ func (s *LeaveService) Decide(ctx context.Context, input DecideLeaveInput) (*dom
 }
 
 /*
-Cancel cancels a pending leave request created by the current user.
+Cancel cancels a pending or approved leave request created by the current user.
+
+Pending cancellation removes the request from the approval queue. Approved
+cancellation immediately removes the approved leave from availability, standup
+missing-user checks, and approved-leave calendar queries because the request is
+no longer approved after this operation.
 */
 func (s *LeaveService) Cancel(ctx context.Context, input CancelLeaveInput) (*domain.LeaveRequest, error) {
 	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
@@ -486,9 +540,12 @@ func (s *LeaveService) Cancel(ctx context.Context, input CancelLeaveInput) (*dom
 		return nil, NewError(ErrorCodePermissionDenied, "Only the requester can cancel this leave request.")
 	}
 
-	if existingRequest.Status != domain.LeaveStatusPending {
-		return nil, NewError(ErrorCodeConflict, "Only pending leave requests can be cancelled.")
+	if existingRequest.Status != domain.LeaveStatusPending &&
+		existingRequest.Status != domain.LeaveStatusApproved {
+		return nil, NewError(ErrorCodeConflict, "Only pending or approved leave requests can be cancelled.")
 	}
+
+	wasApproved := existingRequest.Status == domain.LeaveStatusApproved
 
 	workspace, err := s.workspaceStore.GetByID(ctx, existingRequest.WorkspaceID)
 	if err != nil {
@@ -516,7 +573,7 @@ func (s *LeaveService) Cancel(ctx context.Context, input CancelLeaveInput) (*dom
 	})
 	if err != nil {
 		if errors.Is(err, store.ErrConflict) {
-			return nil, NewError(ErrorCodeConflict, "Only pending leave requests can be cancelled.")
+			return nil, NewError(ErrorCodeConflict, "Only pending or approved leave requests can be cancelled.")
 		}
 
 		return nil, NewError(ErrorCodeInternal, "Could not cancel leave request.")
@@ -545,6 +602,7 @@ func (s *LeaveService) Cancel(ctx context.Context, input CancelLeaveInput) (*dom
 			StartTime:     cancelledRequest.StartTime.String(),
 			EndTime:       cancelledRequest.EndTime.String(),
 			Status:        string(cancelledRequest.Status),
+			WasApproved:   wasApproved,
 		})
 	}
 
