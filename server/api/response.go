@@ -84,6 +84,32 @@ func WriteCreateWorkspace(w http.ResponseWriter, statusCode int, payload CreateW
 }
 
 /*
+WriteListWorkspaceWorkingDays writes the workspace working-day list response.
+*/
+func WriteListWorkspaceWorkingDays(
+	w http.ResponseWriter,
+	statusCode int,
+	payload ListWorkspaceWorkingDaysResponse,
+) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode workspace working-day list response")
+}
+
+/*
+WriteUpdateWorkspaceWorkingDays writes the updated workspace working-day response.
+*/
+func WriteUpdateWorkspaceWorkingDays(
+	w http.ResponseWriter,
+	statusCode int,
+	payload UpdateWorkspaceWorkingDaysResponse,
+) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode updated workspace working-day response")
+}
+
+/*
 WriteListWorkspaceOffDays writes the workspace off-day list response.
 */
 func WriteListWorkspaceOffDays(w http.ResponseWriter, statusCode int, payload ListWorkspaceOffDaysResponse) {

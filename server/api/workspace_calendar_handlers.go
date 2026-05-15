@@ -12,6 +12,81 @@ import (
 )
 
 /*
+handleListWorkspaceWorkingDays handles listing workspace working-day settings.
+*/
+func handleListWorkspaceWorkingDays(
+	log logger.Logger,
+	mm mattermost.Client,
+	workspaceCalendarService *service.WorkspaceCalendarService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+
+		workingDays, err := workspaceCalendarService.ListWorkingDays(r.Context(), service.ListWorkspaceWorkingDaysInput{
+			ActorUserID: user.ID,
+			WorkspaceID: workspaceID,
+		})
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WriteListWorkspaceWorkingDays(w, http.StatusOK, ListWorkspaceWorkingDaysResponse{
+			WorkingDays: WorkspaceWorkingDaysToPayload(workingDays),
+		})
+	}
+}
+
+/*
+handleUpdateWorkspaceWorkingDays handles replacing workspace working-day settings.
+*/
+func handleUpdateWorkspaceWorkingDays(
+	log logger.Logger,
+	mm mattermost.Client,
+	workspaceCalendarService *service.WorkspaceCalendarService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+
+		var request UpdateWorkspaceWorkingDaysRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			WriteError(w, http.StatusBadRequest, "invalid_request", "Request body must be valid JSON.")
+			return
+		}
+
+		workingDays, err := workspaceCalendarService.UpdateWorkingDays(
+			r.Context(),
+			service.UpdateWorkspaceWorkingDaysInput{
+				ActorUserID:   user.ID,
+				IsSystemAdmin: user.IsSystemAdmin,
+				WorkspaceID:   workspaceID,
+				WorkingDays:   request.WorkingDays,
+			},
+		)
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WriteUpdateWorkspaceWorkingDays(w, http.StatusOK, UpdateWorkspaceWorkingDaysResponse{
+			WorkingDays: WorkspaceWorkingDaysToPayload(workingDays),
+		})
+	}
+}
+
+/*
 handleListWorkspaceOffDays handles listing workspace-specific holidays and no-standup days.
 */
 func handleListWorkspaceOffDays(

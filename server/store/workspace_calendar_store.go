@@ -16,6 +16,12 @@ WorkspaceCalendarStore defines workspace working-day and off-day persistence ope
 */
 type WorkspaceCalendarStore interface {
 	IsWorkingDay(ctx context.Context, workspaceID domain.ID, weekday int) (bool, error)
+	ListWorkingDaysByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.WorkspaceWorkingDay, error)
+	ReplaceWorkingDays(
+		ctx context.Context,
+		workspaceID domain.ID,
+		workingDays []domain.WorkspaceWorkingDay,
+	) ([]domain.WorkspaceWorkingDay, error)
 	ListOffDaysByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.WorkspaceOffDay, error)
 	ListOffDaysBetween(
 		ctx context.Context,
@@ -77,6 +83,131 @@ func (s *SQLWorkspaceCalendarStore) IsWorkingDay(
 	}
 
 	return enabled, nil
+}
+
+/*
+ListWorkingDaysByWorkspaceID returns stored working-day rows for a workspace.
+*/
+func (s *SQLWorkspaceCalendarStore) ListWorkingDaysByWorkspaceID(
+	ctx context.Context,
+	workspaceID domain.ID,
+) ([]domain.WorkspaceWorkingDay, error) {
+	records := []workspaceWorkingDayRecord{}
+
+	err := s.db.SelectContext(
+		ctx,
+		&records,
+		s.db.Rebind(`
+			SELECT
+				id,
+				workspace_id,
+				weekday,
+				enabled,
+				created_at,
+				updated_at
+			FROM campfire_workspace_working_days
+			WHERE workspace_id = ?
+			ORDER BY weekday ASC
+		`),
+		workspaceID.String(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list workspace working days: %w", err)
+	}
+
+	workingDays := make([]domain.WorkspaceWorkingDay, 0, len(records))
+	for _, record := range records {
+		workingDays = append(workingDays, record.toDomain())
+	}
+
+	return workingDays, nil
+}
+
+/*
+ReplaceWorkingDays replaces a workspace working-day configuration.
+
+Campfire stores one row per weekday so runtime checks can stay simple.
+*/
+func (s *SQLWorkspaceCalendarStore) ReplaceWorkingDays(
+	ctx context.Context,
+	workspaceID domain.ID,
+	workingDays []domain.WorkspaceWorkingDay,
+) ([]domain.WorkspaceWorkingDay, error) {
+	transaction, err := s.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin workspace working-day transaction: %w", err)
+	}
+
+	committed := false
+
+	defer func() {
+		if !committed {
+			rollbackErr := transaction.Rollback()
+			if rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+				return
+			}
+		}
+	}()
+
+	_, err = transaction.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			DELETE FROM campfire_workspace_working_days
+			WHERE workspace_id = ?
+		`),
+		workspaceID.String(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("delete workspace working days: %w", err)
+	}
+
+	for _, workingDay := range workingDays {
+		if err := s.insertWorkingDay(ctx, transaction, workingDay); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := transaction.Commit(); err != nil {
+		return nil, fmt.Errorf("commit workspace working-day transaction: %w", err)
+	}
+
+	committed = true
+
+	return s.ListWorkingDaysByWorkspaceID(ctx, workspaceID)
+}
+
+/*
+insertWorkingDay inserts one workspace working-day row.
+*/
+func (s *SQLWorkspaceCalendarStore) insertWorkingDay(
+	ctx context.Context,
+	transaction *sqlx.Tx,
+	workingDay domain.WorkspaceWorkingDay,
+) error {
+	_, err := transaction.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			INSERT INTO campfire_workspace_working_days (
+				id,
+				workspace_id,
+				weekday,
+				enabled,
+				created_at,
+				updated_at
+			) VALUES (?, ?, ?, ?, ?, ?)
+		`),
+		workingDay.ID.String(),
+		workingDay.WorkspaceID.String(),
+		int(workingDay.Weekday),
+		workingDay.Enabled,
+		workingDay.CreatedAt,
+		workingDay.UpdatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("insert workspace working day: %w", err)
+	}
+
+	return nil
 }
 
 /*
@@ -315,6 +446,32 @@ isDefaultWorkingDay returns Campfire's safe fallback weekday configuration.
 */
 func isDefaultWorkingDay(weekday int) bool {
 	return weekday >= 1 && weekday <= 5
+}
+
+/*
+workspaceWorkingDayRecord represents a row from campfire_workspace_working_days.
+*/
+type workspaceWorkingDayRecord struct {
+	ID          string    `db:"id"`
+	WorkspaceID string    `db:"workspace_id"`
+	Weekday     int       `db:"weekday"`
+	Enabled     bool      `db:"enabled"`
+	CreatedAt   time.Time `db:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at"`
+}
+
+/*
+toDomain maps a workspace working-day record to the domain model.
+*/
+func (r workspaceWorkingDayRecord) toDomain() domain.WorkspaceWorkingDay {
+	return domain.WorkspaceWorkingDay{
+		ID:          domain.ID(r.ID),
+		WorkspaceID: domain.ID(r.WorkspaceID),
+		Weekday:     time.Weekday(r.Weekday),
+		Enabled:     r.Enabled,
+		CreatedAt:   parseStoredTime(r.CreatedAt),
+		UpdatedAt:   parseStoredTime(r.UpdatedAt),
+	}
 }
 
 /*

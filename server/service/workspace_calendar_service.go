@@ -12,6 +12,24 @@ import (
 )
 
 /*
+ListWorkspaceWorkingDaysInput contains filters for listing workspace working days.
+*/
+type ListWorkspaceWorkingDaysInput struct {
+	ActorUserID string
+	WorkspaceID string
+}
+
+/*
+UpdateWorkspaceWorkingDaysInput contains user-submitted working-day settings.
+*/
+type UpdateWorkspaceWorkingDaysInput struct {
+	ActorUserID   string
+	IsSystemAdmin bool
+	WorkspaceID   string
+	WorkingDays   []int
+}
+
+/*
 ListWorkspaceOffDaysInput contains filters for listing workspace off-days.
 */
 type ListWorkspaceOffDaysInput struct {
@@ -62,6 +80,67 @@ func NewWorkspaceCalendarService(
 		workspaceCalendarStore: workspaceCalendarStore,
 		workspaceRoleStore:     workspaceRoleStore,
 	}
+}
+
+/*
+ListWorkingDays returns all seven weekdays with enabled state for a workspace.
+*/
+func (s *WorkspaceCalendarService) ListWorkingDays(
+	ctx context.Context,
+	input ListWorkspaceWorkingDaysInput,
+) ([]domain.WorkspaceWorkingDay, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to view workspace working days.")
+	}
+
+	workspaceID, err := s.requireWorkspace(ctx, input.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	workingDays, err := s.workspaceCalendarStore.ListWorkingDaysByWorkspaceID(ctx, workspaceID)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not load workspace working days.")
+	}
+
+	return expandWorkingDays(workspaceID, workingDays), nil
+}
+
+/*
+UpdateWorkingDays replaces the workspace working-day configuration.
+*/
+func (s *WorkspaceCalendarService) UpdateWorkingDays(
+	ctx context.Context,
+	input UpdateWorkspaceWorkingDaysInput,
+) ([]domain.WorkspaceWorkingDay, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to update workspace working days.")
+	}
+
+	workspaceID, err := s.requireWorkspace(ctx, input.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.requireWorkspaceCalendarManagement(ctx, cleanActorUserID, input.IsSystemAdmin, workspaceID); err != nil {
+		return nil, err
+	}
+
+	if err := validateWorkspaceCalendarWorkingDays(input.WorkingDays); err != nil {
+		return nil, err
+	}
+
+	now := time.Now().UTC()
+	replacementRows := buildWorkspaceCalendarWorkingDays(workspaceID, input.WorkingDays, now)
+
+	workingDays, err := s.workspaceCalendarStore.ReplaceWorkingDays(ctx, workspaceID, replacementRows)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not update workspace working days.")
+	}
+
+	return expandWorkingDays(workspaceID, workingDays), nil
 }
 
 /*
@@ -181,6 +260,89 @@ func (s *WorkspaceCalendarService) DeleteOffDay(
 }
 
 /*
+validateWorkspaceCalendarWorkingDays verifies that weekday input contains unique values from 0 through 6.
+*/
+func validateWorkspaceCalendarWorkingDays(workingDays []int) error {
+	if len(workingDays) == 0 {
+		return NewError(ErrorCodeValidationFailed, "At least one working day is required.")
+	}
+
+	seen := map[int]bool{}
+	for _, weekday := range workingDays {
+		if weekday < int(time.Sunday) || weekday > int(time.Saturday) {
+			return NewError(ErrorCodeValidationFailed, "Working days must be weekday numbers from 0 to 6.")
+		}
+
+		if seen[weekday] {
+			return NewError(ErrorCodeValidationFailed, "Working days cannot contain duplicates.")
+		}
+
+		seen[weekday] = true
+	}
+
+	return nil
+}
+
+/*
+buildWorkspaceCalendarWorkingDays creates enabled working-day rows from weekday numbers.
+*/
+func buildWorkspaceCalendarWorkingDays(
+	workspaceID domain.ID,
+	weekdays []int,
+	now time.Time,
+) []domain.WorkspaceWorkingDay {
+	workingDays := make([]domain.WorkspaceWorkingDay, 0, len(weekdays))
+
+	for _, weekday := range weekdays {
+		workingDays = append(workingDays, domain.WorkspaceWorkingDay{
+			ID:          domain.ID(uuid.NewString()),
+			WorkspaceID: workspaceID,
+			Weekday:     time.Weekday(weekday),
+			Enabled:     true,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		})
+	}
+
+	return workingDays
+}
+
+/*
+expandWorkingDays returns exactly seven weekday rows for API rendering.
+
+Missing weekdays are returned as disabled synthetic rows so the frontend can
+render stable Sunday-Saturday toggles.
+*/
+func expandWorkingDays(
+	workspaceID domain.ID,
+	workingDays []domain.WorkspaceWorkingDay,
+) []domain.WorkspaceWorkingDay {
+	byWeekday := map[int]domain.WorkspaceWorkingDay{}
+	for _, workingDay := range workingDays {
+		byWeekday[int(workingDay.Weekday)] = workingDay
+	}
+
+	expanded := make([]domain.WorkspaceWorkingDay, 0, 7)
+	for weekday := int(time.Sunday); weekday <= int(time.Saturday); weekday++ {
+		if workingDay, exists := byWeekday[weekday]; exists {
+			expanded = append(expanded, workingDay)
+			continue
+		}
+
+		expanded = append(expanded, domain.WorkspaceWorkingDay{
+			ID:          "",
+			WorkspaceID: workspaceID,
+			Weekday:     time.Weekday(weekday),
+			Enabled:     false,
+			CreatedAt:   time.Time{},
+			UpdatedAt:   time.Time{},
+		})
+	}
+
+	return expanded
+}
+
+/*
 requireWorkspace validates that a workspace exists and returns its ID.
 */
 func (s *WorkspaceCalendarService) requireWorkspace(ctx context.Context, workspaceID string) (domain.ID, error) {
@@ -225,7 +387,7 @@ func (s *WorkspaceCalendarService) requireWorkspaceCalendarManagement(
 	}
 
 	if !hasRole {
-		return NewError(ErrorCodePermissionDenied, "Only workspace Leads and System Admins can manage workspace off-days.")
+		return NewError(ErrorCodePermissionDenied, "Only workspace Leads and System Admins can manage workspace calendar settings.")
 	}
 
 	return nil

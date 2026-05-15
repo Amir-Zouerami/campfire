@@ -45,6 +45,14 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Post("/workspaces", handleCreateWorkspace(config.Logger, config.WorkspaceService))
 
 		api.Get(
+			"/workspaces/{workspaceID}/working-days",
+			handleListWorkspaceWorkingDays(config.Logger, config.Mattermost, config.WorkspaceCalendarService),
+		)
+		api.Put(
+			"/workspaces/{workspaceID}/working-days",
+			handleUpdateWorkspaceWorkingDays(config.Logger, config.Mattermost, config.WorkspaceCalendarService),
+		)
+		api.Get(
 			"/workspaces/{workspaceID}/off-days",
 			handleListWorkspaceOffDays(config.Logger, config.Mattermost, config.WorkspaceCalendarService),
 		)
