@@ -15,6 +15,7 @@ import { StandupConfigurationCard } from './StandupConfigurationCard';
 import { StandupSubmissionCard } from './StandupSubmissionCard';
 import { StandupSubmissionsCard } from './StandupSubmissionsCard';
 import { DailyReportPreviewCard } from './DailyReportPreviewCard';
+import { WorkspaceOffDaysCard } from './WorkspaceOffDaysCard';
 
 /**
  * CampfireRoot is the plugin root mounted by Mattermost.
@@ -28,6 +29,8 @@ export function CampfireRoot(): ReactElement | null {
 	const [leaveRefreshToken, setLeaveRefreshToken] = useState(0);
 	const [standupRefreshToken, setStandupRefreshToken] = useState(0);
 	const bootstrap = useCampfireBootstrap(isOpen, refreshToken);
+	const [workspaceCalendarRefreshToken, setWorkspaceCalendarRefreshToken] = useState(0);
+
 	/**
 	 * Refreshes leave panels.
 	 */
@@ -40,6 +43,13 @@ export function CampfireRoot(): ReactElement | null {
 	 */
 	function refreshStandups(): void {
 		setStandupRefreshToken(current => current + 1);
+	}
+
+	/**
+	 * Refreshes workspace-calendar dependent panels.
+	 */
+	function refreshWorkspaceCalendar(): void {
+		setWorkspaceCalendarRefreshToken(current => current + 1);
 	}
 
 	useEffect(() => {
@@ -124,6 +134,14 @@ export function CampfireRoot(): ReactElement | null {
 
 					{bootstrap.state === 'ready' && bootstrap.workspace !== null && (
 						<>
+							<WorkspaceOffDaysCard
+								workspace={bootstrap.workspace}
+								canManageWorkspace={
+									bootstrap.capabilities?.canManageWorkspace ?? bootstrap.me.isSystemAdmin
+								}
+								refreshToken={workspaceCalendarRefreshToken}
+								onOffDaysChanged={refreshWorkspaceCalendar}
+							/>
 							<StandupSubmissionCard
 								workspace={bootstrap.workspace}
 								onStandupSubmitted={refreshStandups}
@@ -137,7 +155,10 @@ export function CampfireRoot(): ReactElement | null {
 								refreshToken={standupRefreshToken + leaveRefreshToken}
 							/>
 							<StandupConfigurationCard workspace={bootstrap.workspace} />{' '}
-							<StandupRuntimeCard workspace={bootstrap.workspace} refreshToken={leaveRefreshToken} />{' '}
+							<StandupRuntimeCard
+								workspace={bootstrap.workspace}
+								refreshToken={leaveRefreshToken + workspaceCalendarRefreshToken}
+							/>{' '}
 							<LeaveApprovalsCard
 								workspace={bootstrap.workspace}
 								refreshToken={leaveRefreshToken}

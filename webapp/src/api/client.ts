@@ -31,6 +31,10 @@ import type {
 	PostDailyReportPreviewResponse,
 	ListDailyReportRunsResponse,
 	ListMyActiveLeaveRequestsResponse,
+	CreateWorkspaceOffDayRequest,
+	CreateWorkspaceOffDayResponse,
+	DeleteWorkspaceOffDayResponse,
+	ListWorkspaceOffDaysResponse,
 } from '../types/api';
 
 const pluginID = 'dev.zouerami.campfire';
@@ -86,6 +90,38 @@ export async function createWorkspace(request: CreateWorkspaceRequest): Promise<
  */
 export async function listGlobalSkipDates(): Promise<ListGlobalSkipDatesResponse> {
 	return apiGet<ListGlobalSkipDatesResponse>('/settings/global/skip-dates');
+}
+
+/**
+ * listWorkspaceOffDays loads workspace-specific holidays and no-standup days.
+ */
+export async function listWorkspaceOffDays(workspaceID: string): Promise<ListWorkspaceOffDaysResponse> {
+	return apiGet<ListWorkspaceOffDaysResponse>(`/workspaces/${encodeURIComponent(workspaceID)}/off-days`);
+}
+
+/**
+ * createWorkspaceOffDay creates a workspace-specific holiday or no-standup day.
+ */
+export async function createWorkspaceOffDay(
+	workspaceID: string,
+	request: CreateWorkspaceOffDayRequest,
+): Promise<CreateWorkspaceOffDayResponse> {
+	return apiPost<CreateWorkspaceOffDayRequest, CreateWorkspaceOffDayResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/off-days`,
+		request,
+	);
+}
+
+/**
+ * deleteWorkspaceOffDay deletes a workspace-specific holiday or no-standup day.
+ */
+export async function deleteWorkspaceOffDay(
+	workspaceID: string,
+	offDayID: string,
+): Promise<DeleteWorkspaceOffDayResponse> {
+	return apiDelete<DeleteWorkspaceOffDayResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/off-days/${encodeURIComponent(offDayID)}`,
+	);
 }
 
 /**

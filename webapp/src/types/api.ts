@@ -21,6 +21,7 @@ import type {
 	StandupSubmissionSortMode,
 	DailyReportPreview,
 	ReportRun,
+	WorkspaceOffDay,
 } from './domain';
 
 /**
@@ -87,6 +88,35 @@ export type CreateWorkspaceResponse = {
  */
 export type ListGlobalSkipDatesResponse = {
 	readonly skipDates: readonly GlobalSkipDate[];
+};
+
+/**
+ * ListWorkspaceOffDaysResponse is returned by GET /workspaces/{workspaceID}/off-days.
+ */
+export type ListWorkspaceOffDaysResponse = {
+	readonly offDays: readonly WorkspaceOffDay[];
+};
+
+/**
+ * CreateWorkspaceOffDayRequest is sent to POST /workspaces/{workspaceID}/off-days.
+ */
+export type CreateWorkspaceOffDayRequest = {
+	readonly date: LocalDate;
+	readonly label: string;
+};
+
+/**
+ * CreateWorkspaceOffDayResponse is returned by POST /workspaces/{workspaceID}/off-days.
+ */
+export type CreateWorkspaceOffDayResponse = {
+	readonly offDay: WorkspaceOffDay;
+};
+
+/**
+ * DeleteWorkspaceOffDayResponse is returned by DELETE /workspaces/{workspaceID}/off-days/{offDayID}.
+ */
+export type DeleteWorkspaceOffDayResponse = {
+	readonly deleted: boolean;
 };
 
 /**
