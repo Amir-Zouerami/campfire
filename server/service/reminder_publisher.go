@@ -27,7 +27,9 @@ type StandupChannelMissingReminder struct {
 	ScheduleID     string
 	OccurrenceDate string
 
-	MissingUserIDs []string
+	MissingUserIDs      []string
+	MissingUserCount    int
+	MentionMissingUsers bool
 
 	SequenceNumber int
 }

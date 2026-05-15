@@ -260,8 +260,13 @@ func formatChannelMissingReminderMessage(api plugin.API, reminder service.Standu
 		fmt.Sprintf("Missing standups for **%s**:", reminder.OccurrenceDate),
 	}
 
-	if len(reminder.MissingUserIDs) == 0 {
+	if reminder.MissingUserCount == 0 {
 		lines = append(lines, "- No missing users.")
+		return strings.Join(lines, "\n")
+	}
+
+	if !reminder.MentionMissingUsers {
+		lines = append(lines, fmt.Sprintf("- %d missing users.", reminder.MissingUserCount))
 		return strings.Join(lines, "\n")
 	}
 
