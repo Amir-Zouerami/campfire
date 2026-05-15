@@ -17,6 +17,7 @@ type RouterConfig struct {
 	Mattermost               mattermost.Client
 	WorkspaceService         *service.WorkspaceService
 	WorkspaceCalendarService *service.WorkspaceCalendarService
+	ReminderService          *service.ReminderService
 	GlobalSkipDateService    *service.GlobalSkipDateService
 	LeaveValidationService   *service.LeaveValidationService
 	LeaveService             *service.LeaveService
@@ -63,6 +64,15 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Delete(
 			"/workspaces/{workspaceID}/off-days/{offDayID}",
 			handleDeleteWorkspaceOffDay(config.Logger, config.Mattermost, config.WorkspaceCalendarService),
+		)
+
+		api.Get(
+			"/workspaces/{workspaceID}/reminders",
+			handleListReminderRules(config.Logger, config.Mattermost, config.ReminderService),
+		)
+		api.Put(
+			"/workspaces/{workspaceID}/reminders/{reminderRuleID}",
+			handleUpdateReminderRule(config.Logger, config.Mattermost, config.ReminderService),
 		)
 
 		api.Get(

@@ -119,6 +119,24 @@ func WriteListWorkspaceOffDays(w http.ResponseWriter, statusCode int, payload Li
 }
 
 /*
+WriteListReminderRules writes the reminder rule list response.
+*/
+func WriteListReminderRules(w http.ResponseWriter, statusCode int, payload ListReminderRulesResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode reminder rule list response")
+}
+
+/*
+WriteUpdateReminderRule writes the updated reminder rule response.
+*/
+func WriteUpdateReminderRule(w http.ResponseWriter, statusCode int, payload UpdateReminderRuleResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode updated reminder rule response")
+}
+
+/*
 WriteCreateWorkspaceOffDay writes the created workspace off-day response.
 */
 func WriteCreateWorkspaceOffDay(w http.ResponseWriter, statusCode int, payload CreateWorkspaceOffDayResponse) {

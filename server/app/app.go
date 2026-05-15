@@ -41,6 +41,7 @@ type App struct {
 	Database                 *store.Database
 	WorkspaceService         *service.WorkspaceService
 	WorkspaceCalendarService *service.WorkspaceCalendarService
+	ReminderService          *service.ReminderService
 	GlobalSkipDateService    *service.GlobalSkipDateService
 	LeaveValidationService   *service.LeaveValidationService
 	LeaveService             *service.LeaveService
@@ -106,6 +107,7 @@ func New(config Config) (*App, error) {
 	leaveStore := store.NewSQLLeaveStore(database)
 	standupStore := store.NewSQLStandupStore(database)
 	reportStore := store.NewSQLReportStore(database)
+	reminderStore := store.NewSQLReminderStore(database)
 
 	notificationPublisher := mattermost.NewNotificationPublisher(config.API, botUserID)
 	workspaceMemberProvider := mattermost.NewWorkspaceMemberProvider(config.API)
@@ -133,6 +135,12 @@ func New(config Config) (*App, error) {
 		workspaceMemberProvider,
 	)
 
+	reminderService := service.NewReminderService(
+		workspaceStore,
+		workspaceRoleStore,
+		reminderStore,
+	)
+
 	reportPublisher := mattermost.NewReportPublisher(config.API, botUserID)
 	reportService := service.NewReportService(
 		standupService,
@@ -147,6 +155,7 @@ func New(config Config) (*App, error) {
 		Mattermost:               mattermostClient,
 		WorkspaceService:         workspaceService,
 		WorkspaceCalendarService: workspaceCalendarService,
+		ReminderService:          reminderService,
 		GlobalSkipDateService:    globalSkipDateService,
 		LeaveValidationService:   leaveValidationService,
 		LeaveService:             leaveService,
@@ -162,6 +171,7 @@ func New(config Config) (*App, error) {
 		Database:                 database,
 		WorkspaceService:         workspaceService,
 		WorkspaceCalendarService: workspaceCalendarService,
+		ReminderService:          reminderService,
 		GlobalSkipDateService:    globalSkipDateService,
 		LeaveValidationService:   leaveValidationService,
 		LeaveService:             leaveService,
