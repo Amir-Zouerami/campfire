@@ -11,6 +11,7 @@ import type {
 	TimeOfDay,
 	Workspace,
 	WorkspaceCapabilities,
+	StandupRunDecision,
 } from './domain';
 
 /**
@@ -127,6 +128,13 @@ export type ListMyPendingLeaveRequestsResponse = {
  */
 export type ListApprovedLeaveRequestsResponse = {
 	readonly leaveRequests: readonly ApprovedLeaveRequest[];
+};
+
+/**
+ * EvaluateStandupDayResponse is returned by GET /workspaces/{workspaceID}/standup-runtime/day.
+ */
+export type EvaluateStandupDayResponse = {
+	readonly decision: StandupRunDecision;
 };
 
 /**

@@ -43,6 +43,7 @@ type App struct {
 	GlobalSkipDateService  *service.GlobalSkipDateService
 	LeaveValidationService *service.LeaveValidationService
 	LeaveService           *service.LeaveService
+	StandupRuntimeService  *service.StandupRuntimeService
 }
 
 /*
@@ -87,6 +88,7 @@ func New(config Config) (*App, error) {
 
 	workspaceStore := store.NewSQLWorkspaceStore(database)
 	workspaceRoleStore := store.NewSQLWorkspaceRoleStore(database)
+	workspaceCalendarStore := store.NewSQLWorkspaceCalendarStore(database)
 	workspaceService := service.NewWorkspaceService(workspaceStore)
 
 	globalSkipDateStore := store.NewSQLGlobalSkipDateStore(database)
@@ -95,12 +97,22 @@ func New(config Config) (*App, error) {
 
 	leaveStore := store.NewSQLLeaveStore(database)
 	notificationPublisher := mattermost.NewNotificationPublisher(config.API, botUserID)
+	workspaceMemberProvider := mattermost.NewWorkspaceMemberProvider(config.API)
+
 	leaveService := service.NewLeaveService(
 		leaveStore,
 		leaveValidationService,
 		workspaceStore,
 		workspaceRoleStore,
 		notificationPublisher,
+	)
+
+	standupRuntimeService := service.NewStandupRuntimeService(
+		workspaceStore,
+		workspaceCalendarStore,
+		globalSkipDateStore,
+		leaveStore,
+		workspaceMemberProvider,
 	)
 
 	router := api.NewRouter(api.RouterConfig{
@@ -110,6 +122,7 @@ func New(config Config) (*App, error) {
 		GlobalSkipDateService:  globalSkipDateService,
 		LeaveValidationService: leaveValidationService,
 		LeaveService:           leaveService,
+		StandupRuntimeService:  standupRuntimeService,
 	})
 
 	return &App{
@@ -121,6 +134,7 @@ func New(config Config) (*App, error) {
 		GlobalSkipDateService:  globalSkipDateService,
 		LeaveValidationService: leaveValidationService,
 		LeaveService:           leaveService,
+		StandupRuntimeService:  standupRuntimeService,
 	}, nil
 }
 

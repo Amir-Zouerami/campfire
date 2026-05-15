@@ -1,0 +1,154 @@
+package store
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/amir-zouerami/campfire/server/domain"
+	"github.com/jmoiron/sqlx"
+)
+
+/*
+WorkspaceCalendarStore defines workspace working-day and off-day persistence operations.
+*/
+type WorkspaceCalendarStore interface {
+	IsWorkingDay(ctx context.Context, workspaceID domain.ID, weekday int) (bool, error)
+	ListOffDaysBetween(
+		ctx context.Context,
+		workspaceID domain.ID,
+		startDate domain.LocalDate,
+		endDate domain.LocalDate,
+	) ([]domain.WorkspaceOffDay, error)
+}
+
+/*
+SQLWorkspaceCalendarStore reads workspace calendar configuration from SQL.
+*/
+type SQLWorkspaceCalendarStore struct {
+	db *sqlx.DB
+}
+
+/*
+NewSQLWorkspaceCalendarStore creates a SQL-backed workspace calendar store.
+*/
+func NewSQLWorkspaceCalendarStore(database *Database) *SQLWorkspaceCalendarStore {
+	return &SQLWorkspaceCalendarStore{
+		db: database.DB,
+	}
+}
+
+/*
+IsWorkingDay returns whether a weekday is enabled for a workspace.
+
+If legacy data is missing a row, Campfire falls back to Monday-Friday so older
+local development workspaces do not become permanently blocked.
+*/
+func (s *SQLWorkspaceCalendarStore) IsWorkingDay(
+	ctx context.Context,
+	workspaceID domain.ID,
+	weekday int,
+) (bool, error) {
+	var enabled bool
+
+	err := s.db.GetContext(
+		ctx,
+		&enabled,
+		s.db.Rebind(`
+			SELECT enabled
+			FROM campfire_workspace_working_days
+			WHERE workspace_id = ? AND weekday = ?
+			LIMIT 1
+		`),
+		workspaceID.String(),
+		weekday,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return isDefaultWorkingDay(weekday), nil
+		}
+
+		return false, fmt.Errorf("read workspace working day: %w", err)
+	}
+
+	return enabled, nil
+}
+
+/*
+ListOffDaysBetween returns workspace off-days overlapping an inclusive date range.
+*/
+func (s *SQLWorkspaceCalendarStore) ListOffDaysBetween(
+	ctx context.Context,
+	workspaceID domain.ID,
+	startDate domain.LocalDate,
+	endDate domain.LocalDate,
+) ([]domain.WorkspaceOffDay, error) {
+	records := []workspaceOffDayRecord{}
+
+	err := s.db.SelectContext(
+		ctx,
+		&records,
+		s.db.Rebind(`
+			SELECT
+				id,
+				workspace_id,
+				date,
+				label,
+				created_by,
+				created_at
+			FROM campfire_workspace_skip_dates
+			WHERE workspace_id = ?
+				AND date >= ?
+				AND date <= ?
+			ORDER BY date ASC
+		`),
+		workspaceID.String(),
+		startDate.String(),
+		endDate.String(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list workspace off-days: %w", err)
+	}
+
+	offDays := make([]domain.WorkspaceOffDay, 0, len(records))
+	for _, record := range records {
+		offDays = append(offDays, record.toDomain())
+	}
+
+	return offDays, nil
+}
+
+/*
+isDefaultWorkingDay returns Campfire's safe fallback weekday configuration.
+*/
+func isDefaultWorkingDay(weekday int) bool {
+	return weekday >= 1 && weekday <= 5
+}
+
+/*
+workspaceOffDayRecord represents a row from campfire_workspace_skip_dates.
+*/
+type workspaceOffDayRecord struct {
+	ID          string    `db:"id"`
+	WorkspaceID string    `db:"workspace_id"`
+	Date        string    `db:"date"`
+	Label       string    `db:"label"`
+	CreatedBy   string    `db:"created_by"`
+	CreatedAt   time.Time `db:"created_at"`
+}
+
+/*
+toDomain maps a workspace off-day record to the domain model.
+*/
+func (r workspaceOffDayRecord) toDomain() domain.WorkspaceOffDay {
+	return domain.WorkspaceOffDay{
+		ID:          domain.ID(r.ID),
+		WorkspaceID: domain.ID(r.WorkspaceID),
+		Date:        domain.LocalDate(r.Date),
+		Label:       r.Label,
+		CreatedBy:   r.CreatedBy,
+		CreatedAt:   parseStoredTime(r.CreatedAt),
+	}
+}

@@ -19,6 +19,7 @@ type RouterConfig struct {
 	GlobalSkipDateService  *service.GlobalSkipDateService
 	LeaveValidationService *service.LeaveValidationService
 	LeaveService           *service.LeaveService
+	StandupRuntimeService  *service.StandupRuntimeService
 }
 
 /*
@@ -41,18 +42,24 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Post("/workspaces", handleCreateWorkspace(config.Logger, config.WorkspaceService))
 
 		api.Get(
+			"/workspaces/{workspaceID}/leave-types",
+			handleListLeaveTypes(config.Logger, config.Mattermost, config.LeaveService),
+		)
+		api.Get(
 			"/workspaces/{workspaceID}/leaves/pending",
 			handleListPendingLeaveRequests(config.Logger, config.Mattermost, config.LeaveService),
 		)
-
 		api.Get(
 			"/workspaces/{workspaceID}/leaves/my-pending",
 			handleListMyPendingLeaveRequests(config.Logger, config.Mattermost, config.LeaveService),
 		)
-
 		api.Get(
 			"/workspaces/{workspaceID}/leaves/approved",
 			handleListApprovedLeaveRequests(config.Logger, config.Mattermost, config.LeaveService),
+		)
+		api.Get(
+			"/workspaces/{workspaceID}/standup-runtime/day",
+			handleEvaluateStandupDay(config.Logger, config.Mattermost, config.StandupRuntimeService),
 		)
 
 		api.Get(
@@ -76,12 +83,10 @@ func NewRouter(config RouterConfig) http.Handler {
 			"/leaves",
 			handleCreateLeave(config.Logger, config.Mattermost, config.LeaveService),
 		)
-
 		api.Post(
 			"/leaves/{leaveRequestID}/decision",
 			handleDecideLeave(config.Logger, config.Mattermost, config.LeaveService),
 		)
-
 		api.Post(
 			"/leaves/{leaveRequestID}/cancel",
 			handleCancelLeave(config.Logger, config.Mattermost, config.LeaveService),

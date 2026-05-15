@@ -20,6 +20,7 @@ import type {
 	ValidateLeaveResponse,
 	WorkspaceByChannelResponse,
 	ListApprovedLeaveRequestsResponse,
+	EvaluateStandupDayResponse,
 } from '../types/api';
 
 const pluginID = 'dev.zouerami.campfire';
@@ -131,6 +132,19 @@ export async function listApprovedLeaveRequests(
 
 	return apiGet<ListApprovedLeaveRequestsResponse>(
 		`/workspaces/${encodeURIComponent(workspaceID)}/leaves/approved?${params.toString()}`,
+	);
+}
+
+/**
+ * evaluateStandupDay evaluates whether standup automation should run for a workspace date.
+ */
+export async function evaluateStandupDay(workspaceID: string, date: string): Promise<EvaluateStandupDayResponse> {
+	const params = new URLSearchParams({
+		date,
+	});
+
+	return apiGet<EvaluateStandupDayResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/standup-runtime/day?${params.toString()}`,
 	);
 }
 

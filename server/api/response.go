@@ -228,3 +228,12 @@ func writeResponse(
 		http.Error(w, fallbackMessage, http.StatusInternalServerError)
 	}
 }
+
+/*
+WriteEvaluateStandupDay writes the standup runtime day evaluation response.
+*/
+func WriteEvaluateStandupDay(w http.ResponseWriter, statusCode int, payload EvaluateStandupDayResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode standup runtime day evaluation response")
+}

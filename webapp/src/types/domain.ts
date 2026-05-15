@@ -187,6 +187,40 @@ export type PendingLeaveRequest = LeaveRequestWithType;
 export type ApprovedLeaveRequest = LeaveRequestWithType;
 
 /**
+ * StandupSkipReason identifies why a standup should not run.
+ */
+export type StandupSkipReason = '' | 'non_working_day' | 'global_off_day' | 'workspace_off_day' | 'everyone_on_leave';
+
+/**
+ * WorkspaceOffDay describes a workspace-specific holiday or no-standup date.
+ */
+export type WorkspaceOffDay = {
+	readonly id: string;
+	readonly workspaceId: string;
+	readonly date: LocalDate;
+	readonly label: string;
+	readonly createdBy: string;
+	readonly createdAt: string;
+};
+
+/**
+ * StandupRunDecision describes whether standup automation should run for a date.
+ */
+export type StandupRunDecision = {
+	readonly workspaceId: string;
+	readonly date: LocalDate;
+	readonly shouldRun: boolean;
+	readonly reason: StandupSkipReason;
+	readonly message: string;
+	readonly isWorkingDay: boolean;
+	readonly memberCount: number;
+	readonly onLeaveMemberCount: number;
+	readonly globalOffDays: readonly GlobalSkipDate[];
+	readonly workspaceOffDays: readonly WorkspaceOffDay[];
+	readonly approvedLeaves: readonly ApprovedLeaveRequest[];
+};
+
+/**
  * StandupSchedule defines when a daily or weekly standup runs.
  */
 export type StandupSchedule = {
