@@ -35,17 +35,18 @@ It wires infrastructure, services, stores, and routes while keeping business
 logic out of the Mattermost plugin lifecycle layer.
 */
 type App struct {
-	Router                 http.Handler
-	Logger                 logger.Logger
-	Mattermost             mattermost.Client
-	Database               *store.Database
-	WorkspaceService       *service.WorkspaceService
-	GlobalSkipDateService  *service.GlobalSkipDateService
-	LeaveValidationService *service.LeaveValidationService
-	LeaveService           *service.LeaveService
-	StandupRuntimeService  *service.StandupRuntimeService
-	StandupService         *service.StandupService
-	ReportService          *service.ReportService
+	Router                   http.Handler
+	Logger                   logger.Logger
+	Mattermost               mattermost.Client
+	Database                 *store.Database
+	WorkspaceService         *service.WorkspaceService
+	WorkspaceCalendarService *service.WorkspaceCalendarService
+	GlobalSkipDateService    *service.GlobalSkipDateService
+	LeaveValidationService   *service.LeaveValidationService
+	LeaveService             *service.LeaveService
+	StandupRuntimeService    *service.StandupRuntimeService
+	StandupService           *service.StandupService
+	ReportService            *service.ReportService
 }
 
 /*
@@ -92,6 +93,11 @@ func New(config Config) (*App, error) {
 	workspaceRoleStore := store.NewSQLWorkspaceRoleStore(database)
 	workspaceCalendarStore := store.NewSQLWorkspaceCalendarStore(database)
 	workspaceService := service.NewWorkspaceService(workspaceStore)
+	workspaceCalendarService := service.NewWorkspaceCalendarService(
+		workspaceStore,
+		workspaceCalendarStore,
+		workspaceRoleStore,
+	)
 
 	globalSkipDateStore := store.NewSQLGlobalSkipDateStore(database)
 	globalSkipDateService := service.NewGlobalSkipDateService(globalSkipDateStore)
@@ -137,29 +143,31 @@ func New(config Config) (*App, error) {
 	)
 
 	router := api.NewRouter(api.RouterConfig{
-		Logger:                 appLogger,
-		Mattermost:             mattermostClient,
-		WorkspaceService:       workspaceService,
-		GlobalSkipDateService:  globalSkipDateService,
-		LeaveValidationService: leaveValidationService,
-		LeaveService:           leaveService,
-		StandupRuntimeService:  standupRuntimeService,
-		StandupService:         standupService,
-		ReportService:          reportService,
+		Logger:                   appLogger,
+		Mattermost:               mattermostClient,
+		WorkspaceService:         workspaceService,
+		WorkspaceCalendarService: workspaceCalendarService,
+		GlobalSkipDateService:    globalSkipDateService,
+		LeaveValidationService:   leaveValidationService,
+		LeaveService:             leaveService,
+		StandupRuntimeService:    standupRuntimeService,
+		StandupService:           standupService,
+		ReportService:            reportService,
 	})
 
 	return &App{
-		Router:                 router,
-		Logger:                 appLogger,
-		Mattermost:             mattermostClient,
-		Database:               database,
-		WorkspaceService:       workspaceService,
-		GlobalSkipDateService:  globalSkipDateService,
-		LeaveValidationService: leaveValidationService,
-		LeaveService:           leaveService,
-		StandupRuntimeService:  standupRuntimeService,
-		StandupService:         standupService,
-		ReportService:          reportService,
+		Router:                   router,
+		Logger:                   appLogger,
+		Mattermost:               mattermostClient,
+		Database:                 database,
+		WorkspaceService:         workspaceService,
+		WorkspaceCalendarService: workspaceCalendarService,
+		GlobalSkipDateService:    globalSkipDateService,
+		LeaveValidationService:   leaveValidationService,
+		LeaveService:             leaveService,
+		StandupRuntimeService:    standupRuntimeService,
+		StandupService:           standupService,
+		ReportService:            reportService,
 	}, nil
 }
 

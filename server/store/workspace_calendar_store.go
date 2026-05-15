@@ -16,12 +16,15 @@ WorkspaceCalendarStore defines workspace working-day and off-day persistence ope
 */
 type WorkspaceCalendarStore interface {
 	IsWorkingDay(ctx context.Context, workspaceID domain.ID, weekday int) (bool, error)
+	ListOffDaysByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.WorkspaceOffDay, error)
 	ListOffDaysBetween(
 		ctx context.Context,
 		workspaceID domain.ID,
 		startDate domain.LocalDate,
 		endDate domain.LocalDate,
 	) ([]domain.WorkspaceOffDay, error)
+	CreateOffDay(ctx context.Context, offDay domain.WorkspaceOffDay) (*domain.WorkspaceOffDay, error)
+	DeleteOffDay(ctx context.Context, workspaceID domain.ID, offDayID domain.ID) error
 }
 
 /*
@@ -77,6 +80,44 @@ func (s *SQLWorkspaceCalendarStore) IsWorkingDay(
 }
 
 /*
+ListOffDaysByWorkspaceID returns all workspace off-days ordered by date.
+*/
+func (s *SQLWorkspaceCalendarStore) ListOffDaysByWorkspaceID(
+	ctx context.Context,
+	workspaceID domain.ID,
+) ([]domain.WorkspaceOffDay, error) {
+	records := []workspaceOffDayRecord{}
+
+	err := s.db.SelectContext(
+		ctx,
+		&records,
+		s.db.Rebind(`
+			SELECT
+				id,
+				workspace_id,
+				date,
+				label,
+				created_by,
+				created_at
+			FROM campfire_workspace_skip_dates
+			WHERE workspace_id = ?
+			ORDER BY date ASC
+		`),
+		workspaceID.String(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list workspace off-days by workspace: %w", err)
+	}
+
+	offDays := make([]domain.WorkspaceOffDay, 0, len(records))
+	for _, record := range records {
+		offDays = append(offDays, record.toDomain())
+	}
+
+	return offDays, nil
+}
+
+/*
 ListOffDaysBetween returns workspace off-days overlapping an inclusive date range.
 */
 func (s *SQLWorkspaceCalendarStore) ListOffDaysBetween(
@@ -118,6 +159,155 @@ func (s *SQLWorkspaceCalendarStore) ListOffDaysBetween(
 	}
 
 	return offDays, nil
+}
+
+/*
+CreateOffDay inserts a workspace off-day.
+*/
+func (s *SQLWorkspaceCalendarStore) CreateOffDay(
+	ctx context.Context,
+	offDay domain.WorkspaceOffDay,
+) (*domain.WorkspaceOffDay, error) {
+	exists, err := s.offDayExistsByDate(ctx, offDay.WorkspaceID, offDay.Date)
+	if err != nil {
+		return nil, err
+	}
+
+	if exists {
+		return nil, ErrConflict
+	}
+
+	_, err = s.db.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			INSERT INTO campfire_workspace_skip_dates (
+				id,
+				workspace_id,
+				date,
+				label,
+				created_by,
+				created_at
+			) VALUES (?, ?, ?, ?, ?, ?)
+		`),
+		offDay.ID.String(),
+		offDay.WorkspaceID.String(),
+		offDay.Date.String(),
+		offDay.Label,
+		offDay.CreatedBy,
+		offDay.CreatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("insert workspace off-day: %w", err)
+	}
+
+	created, err := s.getOffDayByID(ctx, offDay.WorkspaceID, offDay.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return created, nil
+}
+
+/*
+DeleteOffDay removes a workspace off-day by ID.
+*/
+func (s *SQLWorkspaceCalendarStore) DeleteOffDay(
+	ctx context.Context,
+	workspaceID domain.ID,
+	offDayID domain.ID,
+) error {
+	result, err := s.db.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			DELETE FROM campfire_workspace_skip_dates
+			WHERE workspace_id = ? AND id = ?
+		`),
+		workspaceID.String(),
+		offDayID.String(),
+	)
+	if err != nil {
+		return fmt.Errorf("delete workspace off-day: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read workspace off-day delete result: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
+/*
+offDayExistsByDate returns true when a workspace already has an off-day for the date.
+*/
+func (s *SQLWorkspaceCalendarStore) offDayExistsByDate(
+	ctx context.Context,
+	workspaceID domain.ID,
+	date domain.LocalDate,
+) (bool, error) {
+	var count int
+
+	err := s.db.GetContext(
+		ctx,
+		&count,
+		s.db.Rebind(`
+			SELECT COUNT(1)
+			FROM campfire_workspace_skip_dates
+			WHERE workspace_id = ? AND date = ?
+		`),
+		workspaceID.String(),
+		date.String(),
+	)
+	if err != nil {
+		return false, fmt.Errorf("check workspace off-day existence: %w", err)
+	}
+
+	return count > 0, nil
+}
+
+/*
+getOffDayByID returns one workspace off-day by ID.
+*/
+func (s *SQLWorkspaceCalendarStore) getOffDayByID(
+	ctx context.Context,
+	workspaceID domain.ID,
+	offDayID domain.ID,
+) (*domain.WorkspaceOffDay, error) {
+	var record workspaceOffDayRecord
+
+	err := s.db.GetContext(
+		ctx,
+		&record,
+		s.db.Rebind(`
+			SELECT
+				id,
+				workspace_id,
+				date,
+				label,
+				created_by,
+				created_at
+			FROM campfire_workspace_skip_dates
+			WHERE workspace_id = ? AND id = ?
+			LIMIT 1
+		`),
+		workspaceID.String(),
+		offDayID.String(),
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+
+		return nil, fmt.Errorf("get workspace off-day by id: %w", err)
+	}
+
+	offDay := record.toDomain()
+
+	return &offDay, nil
 }
 
 /*

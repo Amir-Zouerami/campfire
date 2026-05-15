@@ -84,6 +84,33 @@ func WriteCreateWorkspace(w http.ResponseWriter, statusCode int, payload CreateW
 }
 
 /*
+WriteListWorkspaceOffDays writes the workspace off-day list response.
+*/
+func WriteListWorkspaceOffDays(w http.ResponseWriter, statusCode int, payload ListWorkspaceOffDaysResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode workspace off-day list response")
+}
+
+/*
+WriteCreateWorkspaceOffDay writes the created workspace off-day response.
+*/
+func WriteCreateWorkspaceOffDay(w http.ResponseWriter, statusCode int, payload CreateWorkspaceOffDayResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode created workspace off-day response")
+}
+
+/*
+WriteDeleteWorkspaceOffDay writes the deleted workspace off-day response.
+*/
+func WriteDeleteWorkspaceOffDay(w http.ResponseWriter, statusCode int, payload DeleteWorkspaceOffDayResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode deleted workspace off-day response")
+}
+
+/*
 WriteListGlobalSkipDates writes the global skip date list response.
 */
 func WriteListGlobalSkipDates(w http.ResponseWriter, statusCode int, payload ListGlobalSkipDatesResponse) {

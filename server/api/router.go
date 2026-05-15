@@ -13,15 +13,16 @@ import (
 RouterConfig contains dependencies needed by the HTTP API layer.
 */
 type RouterConfig struct {
-	Logger                 logger.Logger
-	Mattermost             mattermost.Client
-	WorkspaceService       *service.WorkspaceService
-	GlobalSkipDateService  *service.GlobalSkipDateService
-	LeaveValidationService *service.LeaveValidationService
-	LeaveService           *service.LeaveService
-	StandupRuntimeService  *service.StandupRuntimeService
-	StandupService         *service.StandupService
-	ReportService          *service.ReportService
+	Logger                   logger.Logger
+	Mattermost               mattermost.Client
+	WorkspaceService         *service.WorkspaceService
+	WorkspaceCalendarService *service.WorkspaceCalendarService
+	GlobalSkipDateService    *service.GlobalSkipDateService
+	LeaveValidationService   *service.LeaveValidationService
+	LeaveService             *service.LeaveService
+	StandupRuntimeService    *service.StandupRuntimeService
+	StandupService           *service.StandupService
+	ReportService            *service.ReportService
 }
 
 /*
@@ -42,6 +43,19 @@ func NewRouter(config RouterConfig) http.Handler {
 			handleGetWorkspaceByChannel(config.Logger, config.WorkspaceService),
 		)
 		api.Post("/workspaces", handleCreateWorkspace(config.Logger, config.WorkspaceService))
+
+		api.Get(
+			"/workspaces/{workspaceID}/off-days",
+			handleListWorkspaceOffDays(config.Logger, config.Mattermost, config.WorkspaceCalendarService),
+		)
+		api.Post(
+			"/workspaces/{workspaceID}/off-days",
+			handleCreateWorkspaceOffDay(config.Logger, config.Mattermost, config.WorkspaceCalendarService),
+		)
+		api.Delete(
+			"/workspaces/{workspaceID}/off-days/{offDayID}",
+			handleDeleteWorkspaceOffDay(config.Logger, config.Mattermost, config.WorkspaceCalendarService),
+		)
 
 		api.Get(
 			"/workspaces/{workspaceID}/standups/configuration",
