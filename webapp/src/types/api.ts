@@ -23,6 +23,7 @@ import type {
 	ReportRun,
 	WorkspaceOffDay,
 	WorkspaceWorkingDay,
+	ReminderRule,
 } from './domain';
 
 /**
@@ -332,6 +333,31 @@ export type GetDailyReportPreviewResponse = {
  */
 export type ListDailyReportRunsResponse = {
 	readonly runs: readonly ReportRun[];
+};
+
+/**
+ * ListReminderRulesResponse is returned by GET /workspaces/{workspaceID}/reminders.
+ */
+export type ListReminderRulesResponse = {
+	readonly reminderRules: readonly ReminderRule[];
+};
+
+/**
+ * UpdateReminderRuleRequest is sent to PUT /workspaces/{workspaceID}/reminders/{reminderRuleID}.
+ */
+export type UpdateReminderRuleRequest = {
+	readonly enabled: boolean;
+	readonly channelReminderEnabled: boolean;
+	readonly dmReminderEnabled: boolean;
+	readonly reminderOffsets: readonly number[];
+	readonly mentionMissingInChannel: boolean;
+};
+
+/**
+ * UpdateReminderRuleResponse is returned by PUT /workspaces/{workspaceID}/reminders/{reminderRuleID}.
+ */
+export type UpdateReminderRuleResponse = {
+	readonly reminderRule: ReminderRule;
 };
 
 /**

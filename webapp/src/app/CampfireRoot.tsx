@@ -17,6 +17,7 @@ import { StandupSubmissionsCard } from './StandupSubmissionsCard';
 import { DailyReportPreviewCard } from './DailyReportPreviewCard';
 import { WorkspaceOffDaysCard } from './WorkspaceOffDaysCard';
 import { WorkspaceWorkingDaysCard } from './WorkspaceWorkingDaysCard';
+import { ReminderSettingsCard } from './ReminderSettingsCard';
 
 /**
  * CampfireRoot is the plugin root mounted by Mattermost.
@@ -150,6 +151,12 @@ export function CampfireRoot(): ReactElement | null {
 								}
 								refreshToken={workspaceCalendarRefreshToken}
 								onOffDaysChanged={refreshWorkspaceCalendar}
+							/>
+							<ReminderSettingsCard
+								workspace={bootstrap.workspace}
+								canManageWorkspace={
+									bootstrap.capabilities?.canManageWorkspace ?? bootstrap.me.isSystemAdmin
+								}
 							/>
 							<StandupSubmissionCard
 								workspace={bootstrap.workspace}

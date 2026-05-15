@@ -38,6 +38,9 @@ import type {
 	ListWorkspaceWorkingDaysResponse,
 	UpdateWorkspaceWorkingDaysRequest,
 	UpdateWorkspaceWorkingDaysResponse,
+	ListReminderRulesResponse,
+	UpdateReminderRuleRequest,
+	UpdateReminderRuleResponse,
 } from '../types/api';
 
 const pluginID = 'dev.zouerami.campfire';
@@ -93,6 +96,27 @@ export async function createWorkspace(request: CreateWorkspaceRequest): Promise<
  */
 export async function listGlobalSkipDates(): Promise<ListGlobalSkipDatesResponse> {
 	return apiGet<ListGlobalSkipDatesResponse>('/settings/global/skip-dates');
+}
+
+/**
+ * listReminderRules loads workspace reminder settings.
+ */
+export async function listReminderRules(workspaceID: string): Promise<ListReminderRulesResponse> {
+	return apiGet<ListReminderRulesResponse>(`/workspaces/${encodeURIComponent(workspaceID)}/reminders`);
+}
+
+/**
+ * updateReminderRule updates one workspace reminder rule.
+ */
+export async function updateReminderRule(
+	workspaceID: string,
+	reminderRuleID: string,
+	request: UpdateReminderRuleRequest,
+): Promise<UpdateReminderRuleResponse> {
+	return apiPut<UpdateReminderRuleRequest, UpdateReminderRuleResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/reminders/${encodeURIComponent(reminderRuleID)}`,
+		request,
+	);
 }
 
 /**
