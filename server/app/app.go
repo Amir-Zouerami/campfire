@@ -137,6 +137,7 @@ func New(config Config) (*App, error) {
 
 	standupService := service.NewStandupService(
 		workspaceStore,
+		workspaceRoleStore,
 		standupStore,
 		leaveStore,
 		workspaceMemberProvider,

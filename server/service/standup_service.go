@@ -77,6 +77,73 @@ type SubmitStandupInput struct {
 }
 
 /*
+CreateStandupTemplateInput contains user-submitted template data.
+*/
+type CreateStandupTemplateInput struct {
+	ActorUserID   string
+	IsSystemAdmin bool
+	WorkspaceID   string
+	Name          string
+	Description   string
+	Kind          string
+}
+
+/*
+UpdateStandupTemplateInput contains mutable template data.
+*/
+type UpdateStandupTemplateInput struct {
+	ActorUserID   string
+	IsSystemAdmin bool
+	WorkspaceID   string
+	TemplateID    string
+	Name          string
+	Description   string
+	Kind          string
+	IsActive      bool
+}
+
+/*
+CreateStandupQuestionInput contains user-submitted question data.
+*/
+type CreateStandupQuestionInput struct {
+	ActorUserID   string
+	IsSystemAdmin bool
+	WorkspaceID   string
+	TemplateID    string
+	Section       string
+	Label         string
+	HelpText      string
+	Placeholder   string
+	Type          string
+	Required      bool
+	ShowInReport  bool
+	IsPrivate     bool
+	Position      int
+	Options       []string
+}
+
+/*
+UpdateStandupQuestionInput contains mutable question data.
+*/
+type UpdateStandupQuestionInput struct {
+	ActorUserID   string
+	IsSystemAdmin bool
+	WorkspaceID   string
+	QuestionID    string
+	TemplateID    string
+	Section       string
+	Label         string
+	HelpText      string
+	Placeholder   string
+	Type          string
+	Required      bool
+	ShowInReport  bool
+	IsPrivate     bool
+	Position      int
+	Options       []string
+}
+
+/*
 SubmitStandupResult contains the saved submission and answers.
 */
 type SubmitStandupResult struct {
@@ -88,10 +155,11 @@ type SubmitStandupResult struct {
 StandupService owns standup template, schedule, and submission behavior.
 */
 type StandupService struct {
-	workspaceStore store.WorkspaceStore
-	standupStore   store.StandupStore
-	leaveStore     store.LeaveStore
-	memberProvider WorkspaceMemberProvider
+	workspaceStore     store.WorkspaceStore
+	workspaceRoleStore store.WorkspaceRoleStore
+	standupStore       store.StandupStore
+	leaveStore         store.LeaveStore
+	memberProvider     WorkspaceMemberProvider
 }
 
 /*
@@ -99,16 +167,279 @@ NewStandupService creates a standup service.
 */
 func NewStandupService(
 	workspaceStore store.WorkspaceStore,
+	workspaceRoleStore store.WorkspaceRoleStore,
 	standupStore store.StandupStore,
 	leaveStore store.LeaveStore,
 	memberProvider WorkspaceMemberProvider,
 ) *StandupService {
 	return &StandupService{
-		workspaceStore: workspaceStore,
-		standupStore:   standupStore,
-		leaveStore:     leaveStore,
-		memberProvider: memberProvider,
+		workspaceStore:     workspaceStore,
+		workspaceRoleStore: workspaceRoleStore,
+		standupStore:       standupStore,
+		leaveStore:         leaveStore,
+		memberProvider:     memberProvider,
 	}
+}
+
+/*
+CreateTemplate creates a standup template.
+*/
+func (s *StandupService) CreateTemplate(
+	ctx context.Context,
+	input CreateStandupTemplateInput,
+) (*domain.StandupTemplate, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to create standup templates.")
+	}
+
+	workspaceID, err := s.requireStandupWorkspace(ctx, input.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.requireStandupManagement(ctx, cleanActorUserID, input.IsSystemAdmin, workspaceID); err != nil {
+		return nil, err
+	}
+
+	name := strings.TrimSpace(input.Name)
+	if name == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Template name is required.")
+	}
+
+	kind := domain.StandupKind(strings.TrimSpace(input.Kind))
+	if !isValidStandupKind(kind) {
+		return nil, NewError(ErrorCodeValidationFailed, "Standup template kind is not supported.")
+	}
+
+	now := time.Now().UTC()
+	template := domain.StandupTemplate{
+		ID:          domain.ID(uuid.NewString()),
+		WorkspaceID: workspaceID,
+		Name:        name,
+		Description: strings.TrimSpace(input.Description),
+		Kind:        kind,
+		IsDefault:   false,
+		IsActive:    true,
+		CreatedBy:   cleanActorUserID,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	created, err := s.standupStore.CreateTemplate(ctx, template)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not create standup template.")
+	}
+
+	return created, nil
+}
+
+/*
+UpdateTemplate updates a standup template.
+*/
+func (s *StandupService) UpdateTemplate(
+	ctx context.Context,
+	input UpdateStandupTemplateInput,
+) (*domain.StandupTemplate, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to update standup templates.")
+	}
+
+	workspaceID, err := s.requireStandupWorkspace(ctx, input.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.requireStandupManagement(ctx, cleanActorUserID, input.IsSystemAdmin, workspaceID); err != nil {
+		return nil, err
+	}
+
+	templateID := domain.ID(strings.TrimSpace(input.TemplateID))
+	if templateID.String() == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Template ID is required.")
+	}
+
+	existingTemplate, err := s.standupStore.GetTemplateByID(ctx, workspaceID, templateID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Standup template was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load standup template.")
+	}
+
+	name := strings.TrimSpace(input.Name)
+	if name == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Template name is required.")
+	}
+
+	kind := domain.StandupKind(strings.TrimSpace(input.Kind))
+	if !isValidStandupKind(kind) {
+		return nil, NewError(ErrorCodeValidationFailed, "Standup template kind is not supported.")
+	}
+
+	updatedTemplate := *existingTemplate
+	updatedTemplate.Name = name
+	updatedTemplate.Description = strings.TrimSpace(input.Description)
+	updatedTemplate.Kind = kind
+	updatedTemplate.IsActive = input.IsActive
+	updatedTemplate.UpdatedAt = time.Now().UTC()
+
+	updated, err := s.standupStore.UpdateTemplate(ctx, updatedTemplate)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Standup template was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not update standup template.")
+	}
+
+	return updated, nil
+}
+
+/*
+CreateQuestion creates a standup question.
+*/
+func (s *StandupService) CreateQuestion(
+	ctx context.Context,
+	input CreateStandupQuestionInput,
+) (*domain.StandupQuestion, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to create standup questions.")
+	}
+
+	workspaceID, err := s.requireStandupWorkspace(ctx, input.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.requireStandupManagement(ctx, cleanActorUserID, input.IsSystemAdmin, workspaceID); err != nil {
+		return nil, err
+	}
+
+	templateID := domain.ID(strings.TrimSpace(input.TemplateID))
+	if templateID.String() == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Template ID is required.")
+	}
+
+	if _, err := s.standupStore.GetTemplateByID(ctx, workspaceID, templateID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Standup template was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load standup template.")
+	}
+
+	question, err := buildStandupQuestionFromInput(
+		workspaceID,
+		templateID,
+		domain.ID(uuid.NewString()),
+		input.Section,
+		input.Label,
+		input.HelpText,
+		input.Placeholder,
+		input.Type,
+		input.Required,
+		input.ShowInReport,
+		input.IsPrivate,
+		input.Position,
+		input.Options,
+		time.Now().UTC(),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	created, err := s.standupStore.CreateQuestion(ctx, *question)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not create standup question.")
+	}
+
+	return created, nil
+}
+
+/*
+UpdateQuestion updates a standup question.
+*/
+func (s *StandupService) UpdateQuestion(
+	ctx context.Context,
+	input UpdateStandupQuestionInput,
+) (*domain.StandupQuestion, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to update standup questions.")
+	}
+
+	workspaceID, err := s.requireStandupWorkspace(ctx, input.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.requireStandupManagement(ctx, cleanActorUserID, input.IsSystemAdmin, workspaceID); err != nil {
+		return nil, err
+	}
+
+	questionID := domain.ID(strings.TrimSpace(input.QuestionID))
+	if questionID.String() == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Question ID is required.")
+	}
+
+	existingQuestion, err := s.standupStore.GetQuestionByID(ctx, workspaceID, questionID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Standup question was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load standup question.")
+	}
+
+	templateID := domain.ID(strings.TrimSpace(input.TemplateID))
+	if templateID.String() == "" {
+		templateID = existingQuestion.TemplateID
+	}
+
+	if _, err := s.standupStore.GetTemplateByID(ctx, workspaceID, templateID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Standup template was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load standup template.")
+	}
+
+	question, err := buildStandupQuestionFromInput(
+		workspaceID,
+		templateID,
+		questionID,
+		input.Section,
+		input.Label,
+		input.HelpText,
+		input.Placeholder,
+		input.Type,
+		input.Required,
+		input.ShowInReport,
+		input.IsPrivate,
+		input.Position,
+		input.Options,
+		time.Now().UTC(),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	question.CreatedAt = existingQuestion.CreatedAt
+
+	updated, err := s.standupStore.UpdateQuestion(ctx, *question)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Standup question was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not update standup question.")
+	}
+
+	return updated, nil
 }
 
 /*
@@ -329,6 +660,188 @@ func (s *StandupService) Submit(ctx context.Context, input SubmitStandupInput) (
 		Submission: result.Submission,
 		Answers:    result.Answers,
 	}, nil
+}
+
+/*
+requireStandupWorkspace validates that a workspace exists and returns its ID.
+*/
+func (s *StandupService) requireStandupWorkspace(ctx context.Context, workspaceID string) (domain.ID, error) {
+	cleanWorkspaceID := strings.TrimSpace(workspaceID)
+	if cleanWorkspaceID == "" {
+		return "", NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
+	}
+
+	id := domain.ID(cleanWorkspaceID)
+	if _, err := s.workspaceStore.GetByID(ctx, id); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return "", NewError(ErrorCodeNotFound, "Workspace was not found.")
+		}
+
+		return "", NewError(ErrorCodeInternal, "Could not load workspace.")
+	}
+
+	return id, nil
+}
+
+/*
+requireStandupManagement ensures the actor can manage standup configuration.
+*/
+func (s *StandupService) requireStandupManagement(
+	ctx context.Context,
+	actorUserID string,
+	isSystemAdmin bool,
+	workspaceID domain.ID,
+) error {
+	if isSystemAdmin {
+		return nil
+	}
+
+	hasRole, err := s.workspaceRoleStore.UserHasAnyRole(
+		ctx,
+		workspaceID,
+		actorUserID,
+		[]domain.Role{domain.RoleLead},
+	)
+	if err != nil {
+		return NewError(ErrorCodeInternal, "Could not verify standup management permission.")
+	}
+
+	if !hasRole {
+		return NewError(ErrorCodePermissionDenied, "Only workspace Leads and System Admins can manage standup forms.")
+	}
+
+	return nil
+}
+
+/*
+buildStandupQuestionFromInput validates and builds a standup question.
+*/
+func buildStandupQuestionFromInput(
+	workspaceID domain.ID,
+	templateID domain.ID,
+	questionID domain.ID,
+	section string,
+	label string,
+	helpText string,
+	placeholder string,
+	questionType string,
+	required bool,
+	showInReport bool,
+	isPrivate bool,
+	position int,
+	options []string,
+	now time.Time,
+) (*domain.StandupQuestion, error) {
+	cleanLabel := strings.TrimSpace(label)
+	if cleanLabel == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Question label is required.")
+	}
+
+	if position < 0 {
+		return nil, NewError(ErrorCodeValidationFailed, "Question position cannot be negative.")
+	}
+
+	typedQuestion := domain.QuestionType(strings.TrimSpace(questionType))
+	if !isValidQuestionType(typedQuestion) {
+		return nil, NewError(ErrorCodeValidationFailed, "Question type is not supported.")
+	}
+
+	cleanOptions := normalizeQuestionOptions(options)
+	if questionTypeRequiresOptions(typedQuestion) && len(cleanOptions) == 0 {
+		return nil, NewError(ErrorCodeValidationFailed, "This question type requires at least one option.")
+	}
+
+	optionsJSON, err := json.Marshal(cleanOptions)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not encode question options.")
+	}
+
+	return &domain.StandupQuestion{
+		ID:           questionID,
+		WorkspaceID:  workspaceID,
+		TemplateID:   templateID,
+		Section:      strings.TrimSpace(section),
+		QuestionKey:  questionID.String(),
+		Label:        cleanLabel,
+		Prompt:       cleanLabel,
+		HelpText:     strings.TrimSpace(helpText),
+		Placeholder:  strings.TrimSpace(placeholder),
+		Type:         typedQuestion,
+		Required:     required,
+		ShowInReport: showInReport,
+		IsPrivate:    isPrivate,
+		Position:     position,
+		SortOrder:    position,
+		OptionsJSON:  string(optionsJSON),
+		Options:      cleanOptions,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}, nil
+}
+
+/*
+normalizeQuestionOptions trims, de-duplicates, and preserves option order.
+*/
+func normalizeQuestionOptions(options []string) []string {
+	seen := map[string]bool{}
+	cleanOptions := make([]string, 0, len(options))
+
+	for _, option := range options {
+		cleanOption := strings.TrimSpace(option)
+		if cleanOption == "" || seen[cleanOption] {
+			continue
+		}
+
+		seen[cleanOption] = true
+		cleanOptions = append(cleanOptions, cleanOption)
+	}
+
+	return cleanOptions
+}
+
+/*
+isValidStandupKind returns true when a template kind is supported.
+*/
+func isValidStandupKind(kind domain.StandupKind) bool {
+	switch kind {
+	case domain.StandupKindDaily, domain.StandupKindWeekly, domain.StandupKindCustom:
+		return true
+	default:
+		return false
+	}
+}
+
+/*
+isValidQuestionType returns true when a question type is supported.
+*/
+func isValidQuestionType(questionType domain.QuestionType) bool {
+	switch questionType {
+	case domain.QuestionTypeText,
+		domain.QuestionTypeLongText,
+		domain.QuestionTypeCheckbox,
+		domain.QuestionTypeBoolean,
+		domain.QuestionTypeDropdown,
+		domain.QuestionTypeMultiSelect,
+		domain.QuestionTypeNumber,
+		domain.QuestionTypeDuration:
+		return true
+	default:
+		return false
+	}
+}
+
+/*
+questionTypeRequiresOptions returns true when a question needs selectable options.
+*/
+func questionTypeRequiresOptions(questionType domain.QuestionType) bool {
+	switch questionType {
+	case domain.QuestionTypeCheckbox,
+		domain.QuestionTypeDropdown,
+		domain.QuestionTypeMultiSelect:
+		return true
+	default:
+		return false
+	}
 }
 
 /*

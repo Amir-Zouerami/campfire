@@ -35,6 +35,12 @@ type StandupStore interface {
 	ListTemplatesByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.StandupTemplate, error)
 	ListQuestionsByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.StandupQuestion, error)
 	ListSchedulesByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.StandupSchedule, error)
+	CreateTemplate(ctx context.Context, template domain.StandupTemplate) (*domain.StandupTemplate, error)
+	UpdateTemplate(ctx context.Context, template domain.StandupTemplate) (*domain.StandupTemplate, error)
+	CreateQuestion(ctx context.Context, question domain.StandupQuestion) (*domain.StandupQuestion, error)
+	UpdateQuestion(ctx context.Context, question domain.StandupQuestion) (*domain.StandupQuestion, error)
+	GetTemplateByID(ctx context.Context, workspaceID domain.ID, templateID domain.ID) (*domain.StandupTemplate, error)
+	GetQuestionByID(ctx context.Context, workspaceID domain.ID, questionID domain.ID) (*domain.StandupQuestion, error)
 	ListSubmissionsWithAnswersByWorkspaceIDAndDate(
 		ctx context.Context,
 		workspaceID domain.ID,
@@ -57,6 +63,51 @@ func NewSQLStandupStore(database *Database) *SQLStandupStore {
 	return &SQLStandupStore{
 		db: database.DB,
 	}
+}
+
+/*
+GetTemplateByID returns one standup template by workspace and ID.
+*/
+func (s *SQLStandupStore) GetTemplateByID(
+	ctx context.Context,
+	workspaceID domain.ID,
+	templateID domain.ID,
+) (*domain.StandupTemplate, error) {
+	var record standupTemplateRecord
+
+	err := s.db.GetContext(
+		ctx,
+		&record,
+		s.db.Rebind(`
+			SELECT
+				id,
+				workspace_id,
+				name,
+				description,
+				kind,
+				FALSE AS is_default,
+				is_active,
+				created_by,
+				created_at,
+				updated_at
+			FROM campfire_standup_templates
+			WHERE workspace_id = ? AND id = ?
+			LIMIT 1
+		`),
+		workspaceID.String(),
+		templateID.String(),
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+
+		return nil, fmt.Errorf("get standup template by id: %w", err)
+	}
+
+	template := record.toDomain()
+
+	return &template, nil
 }
 
 /*
@@ -99,6 +150,98 @@ func (s *SQLStandupStore) ListTemplatesByWorkspaceID(
 	}
 
 	return templates, nil
+}
+
+/*
+CreateTemplate inserts a standup template.
+*/
+func (s *SQLStandupStore) CreateTemplate(
+	ctx context.Context,
+	template domain.StandupTemplate,
+) (*domain.StandupTemplate, error) {
+	_, err := s.db.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			INSERT INTO campfire_standup_templates (
+				id,
+				workspace_id,
+				name,
+				description,
+				kind,
+				is_active,
+				created_by,
+				created_at,
+				updated_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`),
+		template.ID.String(),
+		template.WorkspaceID.String(),
+		template.Name,
+		template.Description,
+		string(template.Kind),
+		template.IsActive,
+		template.CreatedBy,
+		template.CreatedAt,
+		template.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("insert standup template: %w", err)
+	}
+
+	created, err := s.GetTemplateByID(ctx, template.WorkspaceID, template.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return created, nil
+}
+
+/*
+UpdateTemplate updates mutable standup template fields.
+*/
+func (s *SQLStandupStore) UpdateTemplate(
+	ctx context.Context,
+	template domain.StandupTemplate,
+) (*domain.StandupTemplate, error) {
+	result, err := s.db.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			UPDATE campfire_standup_templates
+			SET
+				name = ?,
+				description = ?,
+				kind = ?,
+				is_active = ?,
+				updated_at = ?
+			WHERE workspace_id = ? AND id = ?
+		`),
+		template.Name,
+		template.Description,
+		string(template.Kind),
+		template.IsActive,
+		template.UpdatedAt,
+		template.WorkspaceID.String(),
+		template.ID.String(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("update standup template: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("read standup template update result: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return nil, ErrNotFound
+	}
+
+	updated, err := s.GetTemplateByID(ctx, template.WorkspaceID, template.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return updated, nil
 }
 
 /*
@@ -154,6 +297,177 @@ func (s *SQLStandupStore) ListQuestionsByWorkspaceID(
 	}
 
 	return questions, nil
+}
+
+/*
+GetQuestionByID returns one standup question by workspace and ID.
+*/
+func (s *SQLStandupStore) GetQuestionByID(
+	ctx context.Context,
+	workspaceID domain.ID,
+	questionID domain.ID,
+) (*domain.StandupQuestion, error) {
+	var record standupQuestionRecord
+
+	err := s.db.GetContext(
+		ctx,
+		&record,
+		s.db.Rebind(`
+			SELECT
+				id,
+				workspace_id,
+				template_id,
+				section,
+				label,
+				help_text,
+				placeholder,
+				type AS question_type,
+				required,
+				show_in_report,
+				is_private,
+				position,
+				options_json,
+				created_at,
+				updated_at
+			FROM campfire_standup_questions
+			WHERE workspace_id = ? AND id = ?
+			LIMIT 1
+		`),
+		workspaceID.String(),
+		questionID.String(),
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+
+		return nil, fmt.Errorf("get standup question by id: %w", err)
+	}
+
+	question, err := record.toDomain()
+	if err != nil {
+		return nil, err
+	}
+
+	return question, nil
+}
+
+/*
+CreateQuestion inserts a standup question.
+*/
+func (s *SQLStandupStore) CreateQuestion(
+	ctx context.Context,
+	question domain.StandupQuestion,
+) (*domain.StandupQuestion, error) {
+	_, err := s.db.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			INSERT INTO campfire_standup_questions (
+				id,
+				template_id,
+				workspace_id,
+				section,
+				label,
+				help_text,
+				placeholder,
+				type,
+				required,
+				show_in_report,
+				is_private,
+				position,
+				options_json,
+				created_at,
+				updated_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`),
+		question.ID.String(),
+		question.TemplateID.String(),
+		question.WorkspaceID.String(),
+		question.Section,
+		question.Label,
+		question.HelpText,
+		question.Placeholder,
+		string(question.Type),
+		question.Required,
+		question.ShowInReport,
+		question.IsPrivate,
+		question.Position,
+		question.OptionsJSON,
+		question.CreatedAt,
+		question.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("insert standup question: %w", err)
+	}
+
+	created, err := s.GetQuestionByID(ctx, question.WorkspaceID, question.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return created, nil
+}
+
+/*
+UpdateQuestion updates mutable standup question fields.
+*/
+func (s *SQLStandupStore) UpdateQuestion(
+	ctx context.Context,
+	question domain.StandupQuestion,
+) (*domain.StandupQuestion, error) {
+	result, err := s.db.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			UPDATE campfire_standup_questions
+			SET
+				template_id = ?,
+				section = ?,
+				label = ?,
+				help_text = ?,
+				placeholder = ?,
+				type = ?,
+				required = ?,
+				show_in_report = ?,
+				is_private = ?,
+				position = ?,
+				options_json = ?,
+				updated_at = ?
+			WHERE workspace_id = ? AND id = ?
+		`),
+		question.TemplateID.String(),
+		question.Section,
+		question.Label,
+		question.HelpText,
+		question.Placeholder,
+		string(question.Type),
+		question.Required,
+		question.ShowInReport,
+		question.IsPrivate,
+		question.Position,
+		question.OptionsJSON,
+		question.UpdatedAt,
+		question.WorkspaceID.String(),
+		question.ID.String(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("update standup question: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("read standup question update result: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return nil, ErrNotFound
+	}
+
+	updated, err := s.GetQuestionByID(ctx, question.WorkspaceID, question.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return updated, nil
 }
 
 /*
