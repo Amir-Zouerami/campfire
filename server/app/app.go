@@ -45,6 +45,7 @@ type App struct {
 	LeaveService           *service.LeaveService
 	StandupRuntimeService  *service.StandupRuntimeService
 	StandupService         *service.StandupService
+	ReportService          *service.ReportService
 }
 
 /*
@@ -125,6 +126,8 @@ func New(config Config) (*App, error) {
 		workspaceMemberProvider,
 	)
 
+	reportService := service.NewReportService(standupService)
+
 	router := api.NewRouter(api.RouterConfig{
 		Logger:                 appLogger,
 		Mattermost:             mattermostClient,
@@ -134,6 +137,7 @@ func New(config Config) (*App, error) {
 		LeaveService:           leaveService,
 		StandupRuntimeService:  standupRuntimeService,
 		StandupService:         standupService,
+		ReportService:          reportService,
 	})
 
 	return &App{
@@ -147,6 +151,7 @@ func New(config Config) (*App, error) {
 		LeaveService:           leaveService,
 		StandupRuntimeService:  standupRuntimeService,
 		StandupService:         standupService,
+		ReportService:          reportService,
 	}, nil
 }
 

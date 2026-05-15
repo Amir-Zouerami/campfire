@@ -380,3 +380,39 @@ export type ReportRule = {
 	readonly createdAt: string;
 	readonly updatedAt: string;
 };
+
+/**
+ * DailyReportAnswerRow contains one answer formatted for report display.
+ */
+export type DailyReportAnswerRow = {
+	readonly questionId: string;
+	readonly questionLabel: string;
+	readonly valueText: string;
+	readonly showInReport: boolean;
+	readonly isPrivate: boolean;
+	readonly position: number;
+};
+
+/**
+ * DailyReportSubmissionRow contains one user's submitted standup data for a report.
+ */
+export type DailyReportSubmissionRow = {
+	readonly userId: string;
+	readonly firstSubmittedAt: string;
+	readonly lastUpdatedAt: string;
+	readonly answers: readonly DailyReportAnswerRow[];
+};
+
+/**
+ * DailyReportPreview is a generated daily report preview.
+ */
+export type DailyReportPreview = {
+	readonly workspaceId: string;
+	readonly occurrenceDate: LocalDate;
+	readonly sortMode: StandupSubmissionSortMode;
+	readonly submittedUserIds: readonly string[];
+	readonly missingUserIds: readonly string[];
+	readonly onLeaveUserIds: readonly string[];
+	readonly rows: readonly DailyReportSubmissionRow[];
+	readonly markdown: string;
+};

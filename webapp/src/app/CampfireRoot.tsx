@@ -14,6 +14,7 @@ import { StandupRuntimeCard } from './StandupRuntimeCard';
 import { StandupConfigurationCard } from './StandupConfigurationCard';
 import { StandupSubmissionCard } from './StandupSubmissionCard';
 import { StandupSubmissionsCard } from './StandupSubmissionsCard';
+import { DailyReportPreviewCard } from './DailyReportPreviewCard';
 
 /**
  * CampfireRoot is the plugin root mounted by Mattermost.
@@ -128,6 +129,10 @@ export function CampfireRoot(): ReactElement | null {
 								onStandupSubmitted={refreshStandups}
 							/>
 							<StandupSubmissionsCard
+								workspace={bootstrap.workspace}
+								refreshToken={standupRefreshToken + leaveRefreshToken}
+							/>
+							<DailyReportPreviewCard
 								workspace={bootstrap.workspace}
 								refreshToken={standupRefreshToken + leaveRefreshToken}
 							/>

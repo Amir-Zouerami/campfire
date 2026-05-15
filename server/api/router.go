@@ -21,6 +21,7 @@ type RouterConfig struct {
 	LeaveService           *service.LeaveService
 	StandupRuntimeService  *service.StandupRuntimeService
 	StandupService         *service.StandupService
+	ReportService          *service.ReportService
 }
 
 /*
@@ -49,6 +50,10 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Get(
 			"/workspaces/{workspaceID}/standups/submissions",
 			handleListStandupSubmissions(config.Logger, config.Mattermost, config.StandupService),
+		)
+		api.Get(
+			"/workspaces/{workspaceID}/reports/daily-preview",
+			handleGetDailyReportPreview(config.Logger, config.Mattermost, config.ReportService),
 		)
 		api.Post(
 			"/standups/submissions",

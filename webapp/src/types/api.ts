@@ -19,6 +19,7 @@ import type {
 	StandupSubmission,
 	StandupOccurrenceSummary,
 	StandupSubmissionSortMode,
+	DailyReportPreview,
 } from './domain';
 
 /**
@@ -257,6 +258,13 @@ export type DecideLeaveResponse = {
  */
 export type CancelLeaveRequestResponse = {
 	readonly leaveRequest: LeaveRequest;
+};
+
+/**
+ * GetDailyReportPreviewResponse is returned by GET /workspaces/{workspaceID}/reports/daily-preview.
+ */
+export type GetDailyReportPreviewResponse = {
+	readonly preview: DailyReportPreview;
 };
 
 /**

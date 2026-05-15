@@ -272,3 +272,16 @@ func WriteListStandupSubmissions(
 		return encoder.Encode(payload)
 	}, "failed to encode standup submissions response")
 }
+
+/*
+WriteGetDailyReportPreview writes the daily report preview response.
+*/
+func WriteGetDailyReportPreview(
+	w http.ResponseWriter,
+	statusCode int,
+	payload GetDailyReportPreviewResponse,
+) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode daily report preview response")
+}
