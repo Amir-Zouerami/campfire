@@ -15,6 +15,8 @@ import (
 ReportStore defines persistence operations for report rules and report runs.
 */
 type ReportStore interface {
+	ListRulesByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.ReportRule, error)
+	UpdateRule(ctx context.Context, rule domain.ReportRule) (*domain.ReportRule, error)
 	GetEnabledRuleByWorkspaceIDAndKind(
 		ctx context.Context,
 		workspaceID domain.ID,
@@ -53,6 +55,156 @@ func NewSQLReportStore(database *Database) *SQLReportStore {
 	return &SQLReportStore{
 		db: database.DB,
 	}
+}
+
+/*
+ListRulesByWorkspaceID returns report rules for one workspace.
+*/
+func (s *SQLReportStore) ListRulesByWorkspaceID(
+	ctx context.Context,
+	workspaceID domain.ID,
+) ([]domain.ReportRule, error) {
+	records := []reportRuleRecord{}
+
+	err := s.db.SelectContext(
+		ctx,
+		&records,
+		s.db.Rebind(`
+			SELECT
+				id,
+				workspace_id,
+				schedule_id,
+				enabled,
+				report_kind,
+				post_to_channel,
+				preview_required,
+				sort_mode,
+				include_on_leave,
+				include_missing,
+				include_time,
+				include_blockers,
+				created_by,
+				created_at,
+				updated_at
+			FROM campfire_report_rules
+			WHERE workspace_id = ?
+			ORDER BY report_kind ASC, created_at ASC
+		`),
+		workspaceID.String(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list report rules by workspace: %w", err)
+	}
+
+	rules := make([]domain.ReportRule, 0, len(records))
+	for _, record := range records {
+		rules = append(rules, record.toDomain())
+	}
+
+	return rules, nil
+}
+
+/*
+UpdateRule updates mutable report-rule settings.
+*/
+func (s *SQLReportStore) UpdateRule(ctx context.Context, rule domain.ReportRule) (*domain.ReportRule, error) {
+	result, err := s.db.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			UPDATE campfire_report_rules
+			SET
+				enabled = ?,
+				post_to_channel = ?,
+				preview_required = ?,
+				sort_mode = ?,
+				include_on_leave = ?,
+				include_missing = ?,
+				include_time = ?,
+				include_blockers = ?,
+				updated_at = ?
+			WHERE id = ? AND workspace_id = ?
+		`),
+		rule.Enabled,
+		rule.PostToChannel,
+		rule.PreviewRequired,
+		string(rule.SortMode),
+		rule.IncludeOnLeave,
+		rule.IncludeMissing,
+		rule.IncludeTime,
+		rule.IncludeBlockers,
+		rule.UpdatedAt,
+		rule.ID.String(),
+		rule.WorkspaceID.String(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("update report rule: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("read report rule update result: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return nil, ErrNotFound
+	}
+
+	updated, err := s.getRuleByID(ctx, rule.WorkspaceID, rule.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return updated, nil
+}
+
+/*
+getRuleByID returns one report rule by workspace and ID.
+*/
+func (s *SQLReportStore) getRuleByID(
+	ctx context.Context,
+	workspaceID domain.ID,
+	reportRuleID domain.ID,
+) (*domain.ReportRule, error) {
+	var record reportRuleRecord
+
+	err := s.db.GetContext(
+		ctx,
+		&record,
+		s.db.Rebind(`
+			SELECT
+				id,
+				workspace_id,
+				schedule_id,
+				enabled,
+				report_kind,
+				post_to_channel,
+				preview_required,
+				sort_mode,
+				include_on_leave,
+				include_missing,
+				include_time,
+				include_blockers,
+				created_by,
+				created_at,
+				updated_at
+			FROM campfire_report_rules
+			WHERE workspace_id = ? AND id = ?
+			LIMIT 1
+		`),
+		workspaceID.String(),
+		reportRuleID.String(),
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+
+		return nil, fmt.Errorf("get report rule by id: %w", err)
+	}
+
+	rule := record.toDomain()
+
+	return &rule, nil
 }
 
 /*

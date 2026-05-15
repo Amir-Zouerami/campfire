@@ -358,6 +358,24 @@ func WriteListStandupSubmissions(
 }
 
 /*
+WriteListReportRules writes the report rule list response.
+*/
+func WriteListReportRules(w http.ResponseWriter, statusCode int, payload ListReportRulesResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode report rule list response")
+}
+
+/*
+WriteUpdateReportRule writes the updated report rule response.
+*/
+func WriteUpdateReportRule(w http.ResponseWriter, statusCode int, payload UpdateReportRuleResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode updated report rule response")
+}
+
+/*
 WriteGetDailyReportPreview writes the daily report preview response.
 */
 func WriteGetDailyReportPreview(

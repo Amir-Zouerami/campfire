@@ -84,6 +84,14 @@ func NewRouter(config RouterConfig) http.Handler {
 			handleListStandupSubmissions(config.Logger, config.Mattermost, config.StandupService),
 		)
 		api.Get(
+			"/workspaces/{workspaceID}/reports/rules",
+			handleListReportRules(config.Logger, config.Mattermost, config.ReportService),
+		)
+		api.Put(
+			"/workspaces/{workspaceID}/reports/rules/{reportRuleID}",
+			handleUpdateReportRule(config.Logger, config.Mattermost, config.ReportService),
+		)
+		api.Get(
 			"/workspaces/{workspaceID}/reports/daily-preview",
 			handleGetDailyReportPreview(config.Logger, config.Mattermost, config.ReportService),
 		)

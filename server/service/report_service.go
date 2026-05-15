@@ -35,6 +35,32 @@ type ListDailyReportRunsInput struct {
 }
 
 /*
+ListReportRulesInput contains filters for listing report settings.
+*/
+type ListReportRulesInput struct {
+	ActorUserID string
+	WorkspaceID string
+}
+
+/*
+UpdateReportRuleInput contains mutable report-rule settings.
+*/
+type UpdateReportRuleInput struct {
+	ActorUserID     string
+	IsSystemAdmin   bool
+	WorkspaceID     string
+	ReportRuleID    string
+	Enabled         bool
+	PostToChannel   bool
+	PreviewRequired bool
+	SortMode        string
+	IncludeOnLeave  bool
+	IncludeMissing  bool
+	IncludeTime     bool
+	IncludeBlockers bool
+}
+
+/*
 PostDailyReportPreviewInput contains filters and actor data for posting a daily report.
 */
 type PostDailyReportPreviewInput struct {
@@ -147,6 +173,95 @@ func (s *ReportService) BuildDailyPreview(
 	preview.Markdown = buildDailyReportMarkdown(*preview)
 
 	return preview, nil
+}
+
+/*
+ListRules returns report rules for one workspace.
+*/
+func (s *ReportService) ListRules(
+	ctx context.Context,
+	input ListReportRulesInput,
+) ([]domain.ReportRule, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to view report settings.")
+	}
+
+	workspaceID, err := s.requireReportWorkspace(ctx, input.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	rules, err := s.reportStore.ListRulesByWorkspaceID(ctx, workspaceID)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not load report settings.")
+	}
+
+	return rules, nil
+}
+
+/*
+UpdateRule validates and updates one report rule.
+*/
+func (s *ReportService) UpdateRule(
+	ctx context.Context,
+	input UpdateReportRuleInput,
+) (*domain.ReportRule, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to update report settings.")
+	}
+
+	workspaceID, err := s.requireReportWorkspace(ctx, input.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.requireReportPostPermission(ctx, cleanActorUserID, input.IsSystemAdmin, workspaceID); err != nil {
+		return nil, err
+	}
+
+	reportRuleID := domain.ID(strings.TrimSpace(input.ReportRuleID))
+	if reportRuleID.String() == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Report rule ID is required.")
+	}
+
+	sortMode := domain.ReportSortMode(strings.TrimSpace(input.SortMode))
+	if !isValidReportSortMode(sortMode) {
+		return nil, NewError(ErrorCodeValidationFailed, "Report sort mode is not supported.")
+	}
+
+	rules, err := s.reportStore.ListRulesByWorkspaceID(ctx, workspaceID)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not load report settings.")
+	}
+
+	existingRule := findReportRule(rules, reportRuleID)
+	if existingRule == nil {
+		return nil, NewError(ErrorCodeNotFound, "Report rule was not found.")
+	}
+
+	updatedRule := *existingRule
+	updatedRule.Enabled = input.Enabled
+	updatedRule.PostToChannel = input.PostToChannel
+	updatedRule.PreviewRequired = input.PreviewRequired
+	updatedRule.SortMode = sortMode
+	updatedRule.IncludeOnLeave = input.IncludeOnLeave
+	updatedRule.IncludeMissing = input.IncludeMissing
+	updatedRule.IncludeTime = input.IncludeTime
+	updatedRule.IncludeBlockers = input.IncludeBlockers
+	updatedRule.UpdatedAt = time.Now().UTC()
+
+	updated, err := s.reportStore.UpdateRule(ctx, updatedRule)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Report rule was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not update report settings.")
+	}
+
+	return updated, nil
 }
 
 /*
@@ -636,6 +751,56 @@ func answerValueJSONToText(valueJSON string) string {
 }
 
 const reportAutomationActorUserID = "campfire-report-automation"
+
+/*
+requireReportWorkspace validates that a report workspace exists.
+*/
+func (s *ReportService) requireReportWorkspace(ctx context.Context, workspaceID string) (domain.ID, error) {
+	cleanWorkspaceID := strings.TrimSpace(workspaceID)
+	if cleanWorkspaceID == "" {
+		return "", NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
+	}
+
+	id := domain.ID(cleanWorkspaceID)
+	if _, err := s.workspaceStore.GetByID(ctx, id); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return "", NewError(ErrorCodeNotFound, "Workspace was not found.")
+		}
+
+		return "", NewError(ErrorCodeInternal, "Could not load workspace.")
+	}
+
+	return id, nil
+}
+
+/*
+isValidReportSortMode returns true when Campfire supports the sort mode.
+*/
+func isValidReportSortMode(sortMode domain.ReportSortMode) bool {
+	switch sortMode {
+	case domain.ReportSortName,
+		domain.ReportSortFirstSubmitted,
+		domain.ReportSortLastSubmitted,
+		domain.ReportSortBlockersFirst:
+		return true
+	default:
+		return false
+	}
+}
+
+/*
+findReportRule returns one report rule by ID.
+*/
+func findReportRule(rules []domain.ReportRule, reportRuleID domain.ID) *domain.ReportRule {
+	for _, rule := range rules {
+		if rule.ID == reportRuleID {
+			found := rule
+			return &found
+		}
+	}
+
+	return nil
+}
 
 /*
 firstNonEmptyReportString returns the first non-empty value.

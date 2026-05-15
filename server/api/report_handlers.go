@@ -13,6 +13,87 @@ import (
 )
 
 /*
+handleListReportRules handles listing workspace report settings.
+*/
+func handleListReportRules(
+	log logger.Logger,
+	mm mattermost.Client,
+	reportService *service.ReportService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+
+		rules, err := reportService.ListRules(r.Context(), service.ListReportRulesInput{
+			ActorUserID: user.ID,
+			WorkspaceID: workspaceID,
+		})
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WriteListReportRules(w, http.StatusOK, ListReportRulesResponse{
+			ReportRules: ReportRulesToPayload(rules),
+		})
+	}
+}
+
+/*
+handleUpdateReportRule handles updating one workspace report rule.
+*/
+func handleUpdateReportRule(
+	log logger.Logger,
+	mm mattermost.Client,
+	reportService *service.ReportService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		reportRuleID := strings.TrimSpace(chi.URLParam(r, "reportRuleID"))
+
+		var request UpdateReportRuleRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			WriteError(w, http.StatusBadRequest, "invalid_request", "Request body must be valid JSON.")
+			return
+		}
+
+		rule, err := reportService.UpdateRule(r.Context(), service.UpdateReportRuleInput{
+			ActorUserID:     user.ID,
+			IsSystemAdmin:   user.IsSystemAdmin,
+			WorkspaceID:     workspaceID,
+			ReportRuleID:    reportRuleID,
+			Enabled:         request.Enabled,
+			PostToChannel:   request.PostToChannel,
+			PreviewRequired: request.PreviewRequired,
+			SortMode:        request.SortMode,
+			IncludeOnLeave:  request.IncludeOnLeave,
+			IncludeMissing:  request.IncludeMissing,
+			IncludeTime:     request.IncludeTime,
+			IncludeBlockers: request.IncludeBlockers,
+		})
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WriteUpdateReportRule(w, http.StatusOK, UpdateReportRuleResponse{
+			ReportRule: ReportRuleToPayload(*rule),
+		})
+	}
+}
+
+/*
 handleGetDailyReportPreview handles daily report preview generation.
 */
 func handleGetDailyReportPreview(

@@ -41,6 +41,27 @@ type DailyReportPreviewPayload struct {
 }
 
 /*
+ReportRulePayload is the API representation of a report rule.
+*/
+type ReportRulePayload struct {
+	ID              string `json:"id"`
+	WorkspaceID     string `json:"workspaceId"`
+	ScheduleID      string `json:"scheduleId"`
+	Enabled         bool   `json:"enabled"`
+	ReportKind      string `json:"reportKind"`
+	PostToChannel   bool   `json:"postToChannel"`
+	PreviewRequired bool   `json:"previewRequired"`
+	SortMode        string `json:"sortMode"`
+	IncludeOnLeave  bool   `json:"includeOnLeave"`
+	IncludeMissing  bool   `json:"includeMissing"`
+	IncludeTime     bool   `json:"includeTime"`
+	IncludeBlockers bool   `json:"includeBlockers"`
+	CreatedBy       string `json:"createdBy"`
+	CreatedAt       string `json:"createdAt"`
+	UpdatedAt       string `json:"updatedAt"`
+}
+
+/*
 ReportRunPayload is the API representation of a report run.
 */
 type ReportRunPayload struct {
@@ -59,6 +80,34 @@ type ReportRunPayload struct {
 	Status           string `json:"status"`
 	CreatedAt        string `json:"createdAt"`
 	UpdatedAt        string `json:"updatedAt"`
+}
+
+/*
+ListReportRulesResponse is returned by GET /workspaces/{workspaceID}/reports/rules.
+*/
+type ListReportRulesResponse struct {
+	ReportRules []ReportRulePayload `json:"reportRules"`
+}
+
+/*
+UpdateReportRuleRequest is accepted by PUT /workspaces/{workspaceID}/reports/rules/{reportRuleID}.
+*/
+type UpdateReportRuleRequest struct {
+	Enabled         bool   `json:"enabled"`
+	PostToChannel   bool   `json:"postToChannel"`
+	PreviewRequired bool   `json:"previewRequired"`
+	SortMode        string `json:"sortMode"`
+	IncludeOnLeave  bool   `json:"includeOnLeave"`
+	IncludeMissing  bool   `json:"includeMissing"`
+	IncludeTime     bool   `json:"includeTime"`
+	IncludeBlockers bool   `json:"includeBlockers"`
+}
+
+/*
+UpdateReportRuleResponse is returned by PUT /workspaces/{workspaceID}/reports/rules/{reportRuleID}.
+*/
+type UpdateReportRuleResponse struct {
+	ReportRule ReportRulePayload `json:"reportRule"`
 }
 
 /*
@@ -90,6 +139,42 @@ type PostDailyReportPreviewResponse struct {
 	Preview DailyReportPreviewPayload `json:"preview"`
 	Run     ReportRunPayload          `json:"run"`
 	Posted  bool                      `json:"posted"`
+}
+
+/*
+ReportRulesToPayload maps report rules to API payloads.
+*/
+func ReportRulesToPayload(rules []domain.ReportRule) []ReportRulePayload {
+	payloads := make([]ReportRulePayload, 0, len(rules))
+
+	for _, rule := range rules {
+		payloads = append(payloads, ReportRuleToPayload(rule))
+	}
+
+	return payloads
+}
+
+/*
+ReportRuleToPayload maps one report rule to an API payload.
+*/
+func ReportRuleToPayload(rule domain.ReportRule) ReportRulePayload {
+	return ReportRulePayload{
+		ID:              rule.ID.String(),
+		WorkspaceID:     rule.WorkspaceID.String(),
+		ScheduleID:      rule.ScheduleID.String(),
+		Enabled:         rule.Enabled,
+		ReportKind:      string(rule.ReportKind),
+		PostToChannel:   rule.PostToChannel,
+		PreviewRequired: rule.PreviewRequired,
+		SortMode:        string(rule.SortMode),
+		IncludeOnLeave:  rule.IncludeOnLeave,
+		IncludeMissing:  rule.IncludeMissing,
+		IncludeTime:     rule.IncludeTime,
+		IncludeBlockers: rule.IncludeBlockers,
+		CreatedBy:       rule.CreatedBy,
+		CreatedAt:       formatAPITime(rule.CreatedAt),
+		UpdatedAt:       formatAPITime(rule.UpdatedAt),
+	}
 }
 
 /*
