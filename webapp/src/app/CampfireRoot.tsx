@@ -1,8 +1,11 @@
-import { useEffect, useState, type ReactElement } from 'react';
+import { useEffect, useState } from 'react';
+import type { ReactElement } from 'react';
 
 import { GlobalOffDaysCard } from './GlobalOffDaysCard';
+import { LeaveRequestCard } from './LeaveRequestCard';
 import { CAMPFIRE_OPEN_EVENT } from './events';
-import { useCampfireBootstrap, type BootstrapStatus } from './useCampfireBootstrap';
+import { useCampfireBootstrap } from './useCampfireBootstrap';
+import type { BootstrapStatus } from './useCampfireBootstrap';
 
 /**
  * CampfireRoot is the plugin root mounted by Mattermost.
@@ -35,30 +38,32 @@ export function CampfireRoot(): ReactElement | null {
 
 	return (
 		<div
-			className="fixed inset-0 z-9999 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md sm:p-8"
+			className="cf:fixed cf:inset-0 cf:z-[9999] cf:flex cf:items-center cf:justify-center cf:bg-slate-950/70 cf:p-4 cf:backdrop-blur-md cf:sm:p-8"
 			role="dialog"
 			aria-modal="true"
 			aria-label="Campfire"
 		>
-			<div className="max-h-[calc(100vh-4rem)] w-full max-w-6xl overflow-auto rounded-4xl border border-orange-400/20 bg-[radial-gradient(circle_at_top_left,rgba(249,115,22,0.18),transparent_34%),linear-gradient(135deg,#08111f_0%,#111827_42%,#020617_100%)] text-slate-50 shadow-[0_32px_110px_rgba(0,0,0,0.58)]">
-				<header className="flex flex-col gap-5 border-b border-white/10 p-6 sm:flex-row sm:items-start sm:justify-between sm:p-8">
-					<div className="flex items-center gap-4">
-						<div className="grid size-14 place-items-center rounded-2xl border border-orange-300/20 bg-orange-500/10 shadow-[inset_0_0_28px_rgba(249,115,22,0.20),0_18px_50px_rgba(249,115,22,0.12)]">
-							<span className="text-3xl" aria-hidden="true">
+			<div className="cf:max-h-[calc(100vh-4rem)] cf:w-full cf:max-w-6xl cf:overflow-auto cf:rounded-[2rem] cf:border cf:border-orange-400/20 cf:bg-[radial-gradient(circle_at_top_left,rgba(249,115,22,0.18),transparent_34%),linear-gradient(135deg,#08111f_0%,#111827_42%,#020617_100%)] cf:text-slate-50 cf:shadow-[0_32px_110px_rgba(0,0,0,0.58)]">
+				<header className="cf:flex cf:flex-col cf:gap-5 cf:border-b cf:border-white/10 cf:p-6 cf:sm:flex-row cf:sm:items-start cf:sm:justify-between cf:sm:p-8">
+					<div className="cf:flex cf:items-center cf:gap-4">
+						<div className="cf:grid cf:size-14 cf:place-items-center cf:rounded-2xl cf:border cf:border-orange-300/20 cf:bg-orange-500/10 cf:shadow-[inset_0_0_28px_rgba(249,115,22,0.20),0_18px_50px_rgba(249,115,22,0.12)]">
+							<span className="cf:text-3xl" aria-hidden="true">
 								🔥
 							</span>
 						</div>
 
 						<div>
-							<p className="m-0 text-xs font-extrabold uppercase tracking-[0.18em] text-amber-300">
+							<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-amber-300">
 								Mattermost team operations
 							</p>
-							<h1 className="m-0 mt-1 text-4xl font-black tracking-tighter text-white">Campfire</h1>
+							<h1 className="cf:m-0 cf:mt-1 cf:text-4xl cf:font-black cf:tracking-[-0.05em] cf:text-white">
+								Campfire
+							</h1>
 						</div>
 					</div>
 
 					<button
-						className="w-fit rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/15 focus:outline-none focus:ring-4 focus:ring-orange-400/20"
+						className="cf:w-fit cf:rounded-full cf:border cf:border-white/15 cf:bg-white/10 cf:px-4 cf:py-2 cf:text-sm cf:font-bold cf:text-white cf:transition cf:hover:bg-white/15 cf:focus:outline-none cf:focus:ring-4 cf:focus:ring-orange-400/20"
 						type="button"
 						onClick={() => setIsOpen(false)}
 					>
@@ -66,25 +71,25 @@ export function CampfireRoot(): ReactElement | null {
 					</button>
 				</header>
 
-				<main className="p-6 sm:p-8">
-					<section className="grid gap-6 rounded-3xl border border-orange-400/20 bg-white/5.5 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] md:grid-cols-[auto_1fr] md:items-center md:p-7">
-						<div className="grid size-20 place-items-center rounded-[1.7rem] bg-orange-500/15 text-4xl shadow-[inset_0_0_36px_rgba(249,115,22,0.22)]">
+				<main className="cf:p-6 cf:sm:p-8">
+					<section className="cf:grid cf:gap-6 cf:rounded-3xl cf:border cf:border-orange-400/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] cf:md:grid-cols-[auto_1fr] cf:md:items-center cf:md:p-7">
+						<div className="cf:grid cf:size-20 cf:place-items-center cf:rounded-[1.7rem] cf:bg-orange-500/15 cf:text-4xl cf:shadow-[inset_0_0_36px_rgba(249,115,22,0.22)]">
 							🔥
 						</div>
 
 						<div>
-							<h2 className="m-0 text-3xl font-black tracking-[-0.04em] text-white">
+							<h2 className="cf:m-0 cf:text-3xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
 								Gather your team around the fire.
 							</h2>
-							<p className="mt-3 max-w-3xl text-base leading-7 text-slate-300">
+							<p className="cf:mt-3 cf:max-w-3xl cf:text-base cf:leading-7 cf:text-slate-300">
 								Campfire will become the workspace for standups, leaves, task time, and reports. The
 								frontend now talks to the Go backend through a typed API client.
 							</p>
 						</div>
 					</section>
 
-					<section className="mt-5 rounded-3xl border border-white/10 bg-white/5.5 p-5">
-						<h2 className="m-0 mb-3 text-lg font-black tracking-[-0.03em] text-white">
+					<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-white/[0.055] cf:p-5">
+						<h2 className="cf:m-0 cf:mb-3 cf:text-lg cf:font-black cf:tracking-[-0.03em] cf:text-white">
 							Backend connection
 						</h2>
 						<BootstrapStatusView bootstrap={bootstrap} />
@@ -92,7 +97,15 @@ export function CampfireRoot(): ReactElement | null {
 
 					{bootstrap.state === 'ready' && <GlobalOffDaysCard isSystemAdmin={bootstrap.me.isSystemAdmin} />}
 
-					<section className="mt-5 grid gap-4 md:grid-cols-3">
+					{bootstrap.state === 'ready' && bootstrap.workspace !== null && (
+						<LeaveRequestCard workspace={bootstrap.workspace} />
+					)}
+
+					{bootstrap.state === 'ready' && bootstrap.workspace === null && (
+						<WorkspaceNotice message={bootstrap.workspaceNotice ?? 'No Campfire workspace is loaded.'} />
+					)}
+
+					<section className="cf:mt-5 cf:grid cf:gap-4 cf:md:grid-cols-3">
 						<FeatureCard
 							label="Today"
 							title="Standups, tasks, who is out, and a 09:00 → 09:55 reminder window."
@@ -119,19 +132,19 @@ function BootstrapStatusView(props: { readonly bootstrap: BootstrapStatus }): Re
 	switch (props.bootstrap.state) {
 		case 'idle':
 		case 'loading':
-			return <p className="m-0 text-slate-300">Connecting to Campfire backend…</p>;
+			return <p className="cf:m-0 cf:text-slate-300">Connecting to Campfire backend…</p>;
 
 		case 'error':
 			return (
-				<div className="rounded-2xl border border-red-300/25 bg-red-950/30 p-4">
-					<strong className="block text-red-100">Could not connect</strong>
-					<p className="m-0 mt-1 text-red-100/90">{props.bootstrap.errorMessage}</p>
+				<div className="cf:rounded-2xl cf:border cf:border-red-300/25 cf:bg-red-950/30 cf:p-4">
+					<strong className="cf:block cf:text-red-100">Could not connect</strong>
+					<p className="cf:m-0 cf:mt-1 cf:text-red-100/90">{props.bootstrap.errorMessage}</p>
 				</div>
 			);
 
 		case 'ready':
 			return (
-				<div className="grid gap-3 md:grid-cols-3">
+				<div className="cf:grid cf:gap-3 cf:md:grid-cols-4">
 					<StatusTile
 						label="API"
 						value={`${props.bootstrap.health.product} ${props.bootstrap.health.version}`}
@@ -141,9 +154,27 @@ function BootstrapStatusView(props: { readonly bootstrap: BootstrapStatus }): Re
 						value={props.bootstrap.me.user.displayName || props.bootstrap.me.user.username}
 					/>
 					<StatusTile label="System admin" value={props.bootstrap.me.isSystemAdmin ? 'Yes' : 'No'} />
+					<StatusTile label="Workspace" value={props.bootstrap.workspace?.name ?? 'Not configured'} />
 				</div>
 			);
 	}
+}
+
+/**
+ * WorkspaceNotice renders current-channel workspace setup state.
+ */
+function WorkspaceNotice(props: { readonly message: string }): ReactElement {
+	return (
+		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-amber-300/20 cf:bg-amber-300/10 cf:p-6">
+			<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-amber-300">
+				Workspace
+			</p>
+			<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
+				Workspace not ready
+			</h2>
+			<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">{props.message}</p>
+		</section>
+	);
 }
 
 /**
@@ -151,11 +182,13 @@ function BootstrapStatusView(props: { readonly bootstrap: BootstrapStatus }): Re
  */
 function StatusTile(props: { readonly label: string; readonly value: string }): ReactElement {
 	return (
-		<div className="rounded-2xl border border-white/10 bg-slate-950/35 p-4">
-			<span className="block text-xs font-extrabold uppercase tracking-[0.14em] text-amber-300">
+		<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/35 cf:p-4">
+			<span className="cf:block cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.14em] cf:text-amber-300">
 				{props.label}
 			</span>
-			<strong className="mt-1 block truncate text-base font-black text-white">{props.value}</strong>
+			<strong className="cf:mt-1 cf:block cf:truncate cf:text-base cf:font-black cf:text-white">
+				{props.value}
+			</strong>
 		</div>
 	);
 }
@@ -165,11 +198,13 @@ function StatusTile(props: { readonly label: string; readonly value: string }): 
  */
 function FeatureCard(props: { readonly label: string; readonly title: string }): ReactElement {
 	return (
-		<article className="min-h-32 rounded-3xl border border-white/10 bg-white/5.5 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-			<span className="inline-flex rounded-full bg-amber-300/10 px-3 py-1 text-xs font-extrabold uppercase tracking-[0.12em] text-amber-300">
+		<article className="cf:min-h-32 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-white/[0.055] cf:p-5 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+			<span className="cf:inline-flex cf:rounded-full cf:bg-amber-300/10 cf:px-3 cf:py-1 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-amber-300">
 				{props.label}
 			</span>
-			<strong className="mt-4 block text-lg font-black leading-snug text-white">{props.title}</strong>
+			<strong className="cf:mt-4 cf:block cf:text-lg cf:font-black cf:leading-snug cf:text-white">
+				{props.title}
+			</strong>
 		</article>
 	);
 }

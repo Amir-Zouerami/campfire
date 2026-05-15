@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 
-import { ApiClientError, getHealth, getMe } from '../api/client';
+import { ApiClientError, getHealth, getMe, getWorkspaceByChannel } from '../api/client';
 import type { HealthResponse, MeResponse } from '../types/api';
+import type { Workspace, WorkspaceCapabilities } from '../types/domain';
+
+import { getCurrentChannelID } from './mattermostHost';
 
 /**
  * BootstrapIdleStatus means Campfire has not started loading startup data yet.
@@ -24,6 +27,10 @@ export type BootstrapReadyStatus = {
 	readonly state: 'ready';
 	readonly health: HealthResponse;
 	readonly me: MeResponse;
+	readonly channelID: string | null;
+	readonly workspace: Workspace | null;
+	readonly capabilities: WorkspaceCapabilities | null;
+	readonly workspaceNotice: string | null;
 };
 
 /**
@@ -65,6 +72,27 @@ export function useCampfireBootstrap(isOpen: boolean): BootstrapStatus {
 
 			try {
 				const [health, me] = await Promise.all([getHealth(), getMe()]);
+				const channelID = getCurrentChannelID();
+
+				if (channelID === null) {
+					if (!isActive) {
+						return;
+					}
+
+					setStatus({
+						state: 'ready',
+						health,
+						me,
+						channelID,
+						workspace: null,
+						capabilities: null,
+						workspaceNotice: 'Open Campfire from a Mattermost channel to load a workspace.',
+					});
+
+					return;
+				}
+
+				const workspaceResult = await loadWorkspaceForChannel(channelID);
 
 				if (!isActive) {
 					return;
@@ -74,6 +102,10 @@ export function useCampfireBootstrap(isOpen: boolean): BootstrapStatus {
 					state: 'ready',
 					health,
 					me,
+					channelID,
+					workspace: workspaceResult.workspace,
+					capabilities: workspaceResult.capabilities,
+					workspaceNotice: workspaceResult.notice,
 				});
 			} catch (error: unknown) {
 				if (!isActive) {
@@ -95,6 +127,40 @@ export function useCampfireBootstrap(isOpen: boolean): BootstrapStatus {
 	}, [isOpen]);
 
 	return status;
+}
+
+/**
+ * WorkspaceLoadResult describes the current-channel workspace load result.
+ */
+type WorkspaceLoadResult = {
+	readonly workspace: Workspace | null;
+	readonly capabilities: WorkspaceCapabilities | null;
+	readonly notice: string | null;
+};
+
+/**
+ * loadWorkspaceForChannel loads the configured workspace for a channel.
+ */
+async function loadWorkspaceForChannel(channelID: string): Promise<WorkspaceLoadResult> {
+	try {
+		const response = await getWorkspaceByChannel(channelID);
+
+		return {
+			workspace: response.workspace,
+			capabilities: response.capabilities,
+			notice: null,
+		};
+	} catch (error: unknown) {
+		if (error instanceof ApiClientError && error.code === 'workspace_not_configured') {
+			return {
+				workspace: null,
+				capabilities: null,
+				notice: 'Campfire is not configured for this channel yet.',
+			};
+		}
+
+		throw error;
+	}
 }
 
 /**

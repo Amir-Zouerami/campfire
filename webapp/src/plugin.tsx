@@ -1,7 +1,10 @@
 import type { ReactElement } from 'react';
 
-import { CampfireRoot } from './app/CampfireRoot';
 import { openCampfire } from './app/events';
+import { CampfireRoot } from './app/CampfireRoot';
+
+import { setMattermostHostStore } from './app/mattermostHost';
+
 import type {
 	MattermostPluginRegistry,
 	MattermostStore,
@@ -27,7 +30,9 @@ export class CampfirePlugin implements MattermostWebappPlugin {
 	/**
 	 * Initializes Campfire inside the Mattermost webapp.
 	 */
-	public initialize(registry: MattermostPluginRegistry, _store: MattermostStore): void {
+	public initialize(registry: MattermostPluginRegistry, store: MattermostStore): void {
+		setMattermostHostStore(store);
+
 		registry.registerRootComponent(CampfireRoot);
 
 		registry.registerChannelHeaderButtonAction(FlameIcon, openCampfire, 'Open Campfire', 'Open Campfire');
