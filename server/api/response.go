@@ -547,3 +547,30 @@ func WriteListDailyReportRuns(
 		return encoder.Encode(payload)
 	}, "failed to encode daily report runs response")
 }
+
+/*
+WriteListSavedReportFilters writes the saved report filter list response.
+*/
+func WriteListSavedReportFilters(w http.ResponseWriter, statusCode int, payload ListSavedReportFiltersResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode saved report filter list response")
+}
+
+/*
+WriteCreateSavedReportFilter writes the created saved report filter response.
+*/
+func WriteCreateSavedReportFilter(w http.ResponseWriter, statusCode int, payload CreateSavedReportFilterResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode created saved report filter response")
+}
+
+/*
+WriteDeleteSavedReportFilter writes the saved report filter delete response.
+*/
+func WriteDeleteSavedReportFilter(w http.ResponseWriter, statusCode int, payload DeleteSavedReportFilterResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode deleted saved report filter response")
+}

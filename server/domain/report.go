@@ -134,3 +134,44 @@ type ReportRun struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
+
+/*
+SavedReportFilterScope identifies where a saved report filter can be used.
+*/
+type SavedReportFilterScope string
+
+const (
+	/*
+		SavedReportFilterScopeWorkspace identifies a workspace-scoped saved filter.
+	*/
+	SavedReportFilterScopeWorkspace SavedReportFilterScope = "workspace"
+)
+
+/*
+SavedReportFilter records one user-owned saved report filter.
+*/
+type SavedReportFilter struct {
+	ID          ID
+	WorkspaceID ID
+
+	UserID     string
+	Name       string
+	Scope      SavedReportFilterScope
+	ReportType ReportKind
+	FilterJSON string
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+/*
+IsValid returns true when the saved report filter scope is supported.
+*/
+func (s SavedReportFilterScope) IsValid() bool {
+	switch s {
+	case SavedReportFilterScopeWorkspace:
+		return true
+	default:
+		return false
+	}
+}

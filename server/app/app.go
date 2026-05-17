@@ -52,6 +52,7 @@ type App struct {
 	StandupRuntimeService    *service.StandupRuntimeService
 	StandupService           *service.StandupService
 	ReportService            *service.ReportService
+	SavedReportFilterService *service.SavedReportFilterService
 	TaskService              *service.TaskService
 	Scheduler                *scheduler.Runner
 }
@@ -113,6 +114,7 @@ func New(config Config) (*App, error) {
 	leaveStore := store.NewSQLLeaveStore(database)
 	standupStore := store.NewSQLStandupStore(database)
 	reportStore := store.NewSQLReportStore(database)
+	savedReportFilterStore := store.NewSQLSavedReportFilterStore(database)
 	taskStore := store.NewSQLTaskStore(database)
 	reminderStore := store.NewSQLReminderStore(database)
 	notificationRunStore := store.NewSQLNotificationRunStore(database)
@@ -169,6 +171,11 @@ func New(config Config) (*App, error) {
 		reportPublisher,
 	)
 
+	savedReportFilterService := service.NewSavedReportFilterService(
+		workspaceStore,
+		savedReportFilterStore,
+	)
+
 	taskService := service.NewTaskService(
 		workspaceStore,
 		taskStore,
@@ -198,6 +205,7 @@ func New(config Config) (*App, error) {
 		StandupRuntimeService:    standupRuntimeService,
 		StandupService:           standupService,
 		ReportService:            reportService,
+		SavedReportFilterService: savedReportFilterService,
 		TaskService:              taskService,
 	})
 
@@ -217,6 +225,7 @@ func New(config Config) (*App, error) {
 		StandupRuntimeService:    standupRuntimeService,
 		StandupService:           standupService,
 		ReportService:            reportService,
+		SavedReportFilterService: savedReportFilterService,
 		TaskService:              taskService,
 		Scheduler:                schedulerRunner,
 	}, nil

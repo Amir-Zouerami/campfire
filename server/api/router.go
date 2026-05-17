@@ -25,6 +25,7 @@ type RouterConfig struct {
 	StandupRuntimeService    *service.StandupRuntimeService
 	StandupService           *service.StandupService
 	ReportService            *service.ReportService
+	SavedReportFilterService *service.SavedReportFilterService
 	TaskService              *service.TaskService
 }
 
@@ -153,6 +154,18 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Get(
 			"/workspaces/{workspaceID}/reports/daily-runs",
 			handleListDailyReportRuns(config.Logger, config.Mattermost, config.ReportService),
+		)
+		api.Get(
+			"/workspaces/{workspaceID}/reports/saved-filters",
+			handleListSavedReportFilters(config.Logger, config.Mattermost, config.SavedReportFilterService),
+		)
+		api.Post(
+			"/workspaces/{workspaceID}/reports/saved-filters",
+			handleCreateSavedReportFilter(config.Logger, config.Mattermost, config.SavedReportFilterService),
+		)
+		api.Delete(
+			"/workspaces/{workspaceID}/reports/saved-filters/{filterID}",
+			handleDeleteSavedReportFilter(config.Logger, config.Mattermost, config.SavedReportFilterService),
 		)
 		api.Post(
 			"/workspaces/{workspaceID}/reports/daily-preview/post",
