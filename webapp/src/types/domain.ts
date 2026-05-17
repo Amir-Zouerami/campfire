@@ -447,6 +447,21 @@ export type ReportRule = {
 };
 
 /**
+ * SavedReportFilter is a user-owned saved report filter.
+ */
+export type SavedReportFilter = {
+	readonly id: string;
+	readonly workspaceId: string;
+	readonly userId: string;
+	readonly name: string;
+	readonly scope: 'workspace';
+	readonly reportType: ReportKind;
+	readonly filterJson: string;
+	readonly createdAt: string;
+	readonly updatedAt: string;
+};
+
+/**
  * DailyReportAnswerRow contains one answer formatted for report display.
  */
 export type DailyReportAnswerRow = {

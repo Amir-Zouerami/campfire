@@ -25,11 +25,13 @@ import type {
 	WorkspaceWorkingDay,
 	ReminderRule,
 	ReportRule,
+	SavedReportFilter,
 	Task,
 	TimeEntry,
 	TaskStatus,
 	WeeklyReportPreview,
 	ReportSortMode,
+	ReportKind,
 } from './domain';
 
 /**
@@ -491,6 +493,37 @@ export type GetWeeklyReportPreviewResponse = {
  */
 export type ListDailyReportRunsResponse = {
 	readonly runs: readonly ReportRun[];
+};
+
+/**
+ * ListSavedReportFiltersResponse is returned by GET /workspaces/{workspaceID}/reports/saved-filters.
+ */
+export type ListSavedReportFiltersResponse = {
+	readonly filters: readonly SavedReportFilter[];
+};
+
+/**
+ * CreateSavedReportFilterRequest is sent to POST /workspaces/{workspaceID}/reports/saved-filters.
+ */
+export type CreateSavedReportFilterRequest = {
+	readonly name: string;
+	readonly scope: 'workspace';
+	readonly reportType: ReportKind;
+	readonly filterJson: string;
+};
+
+/**
+ * CreateSavedReportFilterResponse is returned by POST /workspaces/{workspaceID}/reports/saved-filters.
+ */
+export type CreateSavedReportFilterResponse = {
+	readonly filter: SavedReportFilter;
+};
+
+/**
+ * DeleteSavedReportFilterResponse is returned by DELETE /workspaces/{workspaceID}/reports/saved-filters/{filterID}.
+ */
+export type DeleteSavedReportFilterResponse = {
+	readonly deleted: boolean;
 };
 
 /**

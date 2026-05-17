@@ -69,6 +69,10 @@ import type {
 	UpdateStandupScheduleResponse,
 	LookupUsersRequest,
 	LookupUsersResponse,
+	CreateSavedReportFilterRequest,
+	CreateSavedReportFilterResponse,
+	DeleteSavedReportFilterResponse,
+	ListSavedReportFiltersResponse,
 } from '../types/api';
 
 const pluginID = 'dev.zouerami.campfire';
@@ -533,6 +537,52 @@ export async function listDailyReportRuns(workspaceID: string, limit: number): P
 
 	return apiGet<ListDailyReportRunsResponse>(
 		`/workspaces/${encodeURIComponent(workspaceID)}/reports/daily-runs?${params.toString()}`,
+	);
+}
+
+/**
+ * listSavedReportFilters loads current-user saved report filters for a workspace.
+ */
+export async function listSavedReportFilters(
+	workspaceID: string,
+	reportType: string,
+): Promise<ListSavedReportFiltersResponse> {
+	const params = new URLSearchParams();
+
+	if (reportType.trim() !== '') {
+		params.set('reportType', reportType);
+	}
+
+	const query = params.toString();
+	const suffix = query === '' ? '' : `?${query}`;
+
+	return apiGet<ListSavedReportFiltersResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/reports/saved-filters${suffix}`,
+	);
+}
+
+/**
+ * createSavedReportFilter creates a current-user saved report filter.
+ */
+export async function createSavedReportFilter(
+	workspaceID: string,
+	request: CreateSavedReportFilterRequest,
+): Promise<CreateSavedReportFilterResponse> {
+	return apiPost<CreateSavedReportFilterRequest, CreateSavedReportFilterResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/reports/saved-filters`,
+		request,
+	);
+}
+
+/**
+ * deleteSavedReportFilter deletes a current-user saved report filter.
+ */
+export async function deleteSavedReportFilter(
+	workspaceID: string,
+	filterID: string,
+): Promise<DeleteSavedReportFilterResponse> {
+	return apiDelete<DeleteSavedReportFilterResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/reports/saved-filters/${encodeURIComponent(filterID)}`,
 	);
 }
 
