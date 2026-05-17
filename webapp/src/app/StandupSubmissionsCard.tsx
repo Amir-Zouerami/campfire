@@ -10,6 +10,7 @@ import type {
 	StandupSubmissionWithAnswers,
 	Workspace,
 } from '../types/domain';
+import { useUserProfiles } from './useUserProfiles';
 
 /**
  * StandupSubmissionsCardProps contains workspace and refresh data.
@@ -25,6 +26,11 @@ type StandupSubmissionsCardProps = {
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
 /**
+ * UserLabelResolver returns a display label for one Mattermost user ID.
+ */
+type UserLabelResolver = (userID: string) => string;
+
+/**
  * StandupSubmissionsCard renders submissions and missing users for one date.
  */
 export function StandupSubmissionsCard(props: StandupSubmissionsCardProps): ReactElement {
@@ -38,6 +44,9 @@ export function StandupSubmissionsCard(props: StandupSubmissionsCardProps): Reac
 	useEffect(() => {
 		let isActive = true;
 
+		/**
+		 * Loads standup configuration and submissions for the selected date.
+		 */
 		async function loadData(): Promise<void> {
 			setLoadState('loading');
 			setMessage('');
@@ -81,6 +90,12 @@ export function StandupSubmissionsCard(props: StandupSubmissionsCardProps): Reac
 		() => orderSubmissionsForDisplay(summary?.submissions ?? [], sortMode),
 		[summary, sortMode],
 	);
+	const userIDsForProfiles = useMemo(() => collectStandupSummaryUserIDs(summary), [summary]);
+	const {
+		errorMessage: profileErrorMessage,
+		labelForUserID,
+		loading: profilesLoading,
+	} = useUserProfiles(userIDsForProfiles);
 
 	return (
 		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-sky-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
@@ -136,6 +151,14 @@ export function StandupSubmissionsCard(props: StandupSubmissionsCardProps): Reac
 
 			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
 
+			{profileErrorMessage !== '' && (
+				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{profileErrorMessage}</p>
+			)}
+
+			{profilesLoading && (
+				<p className="cf:m-0 cf:mt-4 cf:text-xs cf:font-bold cf:text-slate-400">Resolving user names…</p>
+			)}
+
 			{loadState === 'loading' && <p className="cf:m-0 cf:mt-5 cf:text-slate-300">Loading submissions…</p>}
 
 			{summary !== null && (
@@ -148,10 +171,20 @@ export function StandupSubmissionsCard(props: StandupSubmissionsCardProps): Reac
 					</div>
 
 					{sortMode === 'missing_first' && (
-						<UserList title="Missing" userIds={summary.missingUserIds} tone="amber" />
+						<UserList
+							title="Missing"
+							userIds={summary.missingUserIds}
+							tone="amber"
+							labelForUserID={labelForUserID}
+						/>
 					)}
 
-					<UserList title="On approved leave" userIds={summary.onLeaveUserIds} tone="emerald" />
+					<UserList
+						title="On approved leave"
+						userIds={summary.onLeaveUserIds}
+						tone="emerald"
+						labelForUserID={labelForUserID}
+					/>
 
 					{displaySubmissions.length === 0 && (
 						<p className="cf:m-0 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/35 cf:p-4 cf:text-slate-300">
@@ -164,11 +197,17 @@ export function StandupSubmissionsCard(props: StandupSubmissionsCardProps): Reac
 							key={submission.submission.id}
 							submission={submission}
 							questionsByID={questionsByID}
+							labelForUserID={labelForUserID}
 						/>
 					))}
 
 					{sortMode !== 'missing_first' && (
-						<UserList title="Missing" userIds={summary.missingUserIds} tone="amber" />
+						<UserList
+							title="Missing"
+							userIds={summary.missingUserIds}
+							tone="amber"
+							labelForUserID={labelForUserID}
+						/>
 					)}
 				</div>
 			)}
@@ -208,12 +247,13 @@ function Metric(props: { readonly label: string; readonly value: string }): Reac
 }
 
 /**
- * UserList renders a compact list of user IDs.
+ * UserList renders a compact list of users.
  */
 function UserList(props: {
 	readonly title: string;
 	readonly userIds: readonly string[];
 	readonly tone: 'amber' | 'emerald';
+	readonly labelForUserID: UserLabelResolver;
 }): ReactElement {
 	const toneClassName =
 		props.tone === 'amber'
@@ -232,8 +272,9 @@ function UserList(props: {
 						<span
 							className={`cf:rounded-full cf:border cf:px-3 cf:py-1 cf:text-xs cf:font-extrabold ${toneClassName}`}
 							key={userID}
+							title={userID}
 						>
-							{userID}
+							{props.labelForUserID(userID)}
 						</span>
 					))}
 				</div>
@@ -248,13 +289,16 @@ function UserList(props: {
 function SubmissionCard(props: {
 	readonly submission: StandupSubmissionWithAnswers;
 	readonly questionsByID: Readonly<Record<string, StandupQuestion>>;
+	readonly labelForUserID: UserLabelResolver;
 }): ReactElement {
+	const userID = props.submission.submission.userId;
+
 	return (
 		<article className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
 			<div className="cf:flex cf:flex-col cf:gap-3 cf:sm:flex-row cf:sm:items-start cf:sm:justify-between">
 				<div>
-					<strong className="cf:block cf:text-lg cf:font-black cf:text-white">
-						User {props.submission.submission.userId}
+					<strong className="cf:block cf:text-lg cf:font-black cf:text-white" title={userID}>
+						{props.labelForUserID(userID)}
 					</strong>
 					<p className="cf:m-0 cf:mt-1 cf:text-sm cf:text-slate-300">
 						First submitted: {formatDateTime(props.submission.submission.firstSubmittedAt)}
@@ -311,7 +355,47 @@ function groupQuestionsByID(questions: readonly StandupQuestion[]): Readonly<Rec
 }
 
 /**
- * orderSubmissionsForDisplay applies frontend-only missing-first display behavior.
+ * collectStandupSummaryUserIDs returns all user IDs displayed by the submissions card.
+ */
+function collectStandupSummaryUserIDs(summary: StandupOccurrenceSummary | null): readonly string[] {
+	if (summary === null) {
+		return [];
+	}
+
+	const userIDs = [
+		...summary.memberUserIds,
+		...summary.submittedUserIds,
+		...summary.missingUserIds,
+		...summary.onLeaveUserIds,
+		...summary.submissions.map(item => item.submission.userId),
+	];
+
+	return uniqueNonEmptyUserIDs(userIDs);
+}
+
+/**
+ * uniqueNonEmptyUserIDs trims, de-duplicates, and preserves user ID order.
+ */
+function uniqueNonEmptyUserIDs(userIDs: readonly string[]): readonly string[] {
+	const seen = new Set<string>();
+	const result: string[] = [];
+
+	for (const userID of userIDs) {
+		const cleanUserID = userID.trim();
+
+		if (cleanUserID === '' || seen.has(cleanUserID)) {
+			continue;
+		}
+
+		seen.add(cleanUserID);
+		result.push(cleanUserID);
+	}
+
+	return result;
+}
+
+/**
+ * orderSubmissionsForDisplay applies frontend-only sort behavior.
  */
 function orderSubmissionsForDisplay(
 	submissions: readonly StandupSubmissionWithAnswers[],
