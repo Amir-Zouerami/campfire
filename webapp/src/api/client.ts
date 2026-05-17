@@ -67,6 +67,8 @@ import type {
 	CreateStandupScheduleResponse,
 	UpdateStandupScheduleRequest,
 	UpdateStandupScheduleResponse,
+	LookupUsersRequest,
+	LookupUsersResponse,
 } from '../types/api';
 
 const pluginID = 'dev.zouerami.campfire';
@@ -101,6 +103,15 @@ export async function getHealth(): Promise<HealthResponse> {
  */
 export async function getMe(): Promise<MeResponse> {
 	return apiGet<MeResponse>('/me');
+}
+
+/**
+ * lookupUsers resolves Mattermost user IDs to safe display profiles.
+ */
+export async function lookupUsers(userIds: readonly string[]): Promise<LookupUsersResponse> {
+	return apiPost<LookupUsersRequest, LookupUsersResponse>('/users/lookup', {
+		userIds,
+	});
 }
 
 /**

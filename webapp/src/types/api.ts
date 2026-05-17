@@ -52,6 +52,30 @@ export type MeUserResponse = {
 };
 
 /**
+ * UserProfile is the frontend representation of a Mattermost user profile.
+ */
+export type UserProfile = {
+	readonly id: string;
+	readonly username: string;
+	readonly displayName: string;
+	readonly email: string;
+};
+
+/**
+ * LookupUsersRequest is sent to POST /users/lookup.
+ */
+export type LookupUsersRequest = {
+	readonly userIds: readonly string[];
+};
+
+/**
+ * LookupUsersResponse is returned by POST /users/lookup.
+ */
+export type LookupUsersResponse = {
+	readonly users: readonly UserProfile[];
+};
+
+/**
  * MeResponse is returned by GET /api/v1/me.
  */
 export type MeResponse = {
