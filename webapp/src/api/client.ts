@@ -63,6 +63,10 @@ import type {
 	UpdateStandupQuestionResponse,
 	UpdateStandupTemplateRequest,
 	UpdateStandupTemplateResponse,
+	CreateStandupScheduleRequest,
+	CreateStandupScheduleResponse,
+	UpdateStandupScheduleRequest,
+	UpdateStandupScheduleResponse,
 } from '../types/api';
 
 const pluginID = 'dev.zouerami.campfire';
@@ -329,6 +333,33 @@ export async function updateStandupQuestion(
 ): Promise<UpdateStandupQuestionResponse> {
 	return apiPut<UpdateStandupQuestionRequest, UpdateStandupQuestionResponse>(
 		`/workspaces/${encodeURIComponent(workspaceID)}/standups/questions/${encodeURIComponent(questionID)}`,
+		request,
+	);
+}
+
+/**
+ * createStandupSchedule creates a standup schedule.
+ */
+export async function createStandupSchedule(
+	workspaceID: string,
+	request: CreateStandupScheduleRequest,
+): Promise<CreateStandupScheduleResponse> {
+	return apiPost<CreateStandupScheduleRequest, CreateStandupScheduleResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/standups/schedules`,
+		request,
+	);
+}
+
+/**
+ * updateStandupSchedule updates a standup schedule.
+ */
+export async function updateStandupSchedule(
+	workspaceID: string,
+	scheduleID: string,
+	request: UpdateStandupScheduleRequest,
+): Promise<UpdateStandupScheduleResponse> {
+	return apiPut<UpdateStandupScheduleRequest, UpdateStandupScheduleResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/standups/schedules/${encodeURIComponent(scheduleID)}`,
 		request,
 	);
 }

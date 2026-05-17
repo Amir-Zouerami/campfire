@@ -303,6 +303,46 @@ export type UpdateStandupQuestionResponse = {
 };
 
 /**
+ * CreateStandupScheduleRequest is sent to POST /workspaces/{workspaceID}/standups/schedules.
+ */
+export type CreateStandupScheduleRequest = {
+	readonly templateId: string;
+	readonly kind: string;
+	readonly enabled: boolean;
+	readonly timeOfDay: string;
+	readonly skipNonWorkingDays: boolean;
+	readonly weeklyMode: string;
+	readonly skipDailyWhenWeeklyRuns: boolean;
+};
+
+/**
+ * CreateStandupScheduleResponse is returned by POST /workspaces/{workspaceID}/standups/schedules.
+ */
+export type CreateStandupScheduleResponse = {
+	readonly schedule: StandupSchedule;
+};
+
+/**
+ * UpdateStandupScheduleRequest is sent to PUT /workspaces/{workspaceID}/standups/schedules/{scheduleID}.
+ */
+export type UpdateStandupScheduleRequest = {
+	readonly templateId: string;
+	readonly kind: string;
+	readonly enabled: boolean;
+	readonly timeOfDay: string;
+	readonly skipNonWorkingDays: boolean;
+	readonly weeklyMode: string;
+	readonly skipDailyWhenWeeklyRuns: boolean;
+};
+
+/**
+ * UpdateStandupScheduleResponse is returned by PUT /workspaces/{workspaceID}/standups/schedules/{scheduleID}.
+ */
+export type UpdateStandupScheduleResponse = {
+	readonly schedule: StandupSchedule;
+};
+
+/**
  * SubmitStandupAnswerRequest is one submitted standup answer.
  */
 export type SubmitStandupAnswerRequest = {

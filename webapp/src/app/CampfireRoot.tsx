@@ -13,6 +13,7 @@ import { ApprovedLeavesCard } from './ApprovedLeavesCard';
 import { StandupRuntimeCard } from './StandupRuntimeCard';
 import { StandupConfigurationCard } from './StandupConfigurationCard';
 import { StandupFormBuilderCard } from './StandupFormBuilderCard';
+import { StandupScheduleBuilderCard } from './StandupScheduleBuilderCard';
 import { StandupSubmissionCard } from './StandupSubmissionCard';
 import { StandupSubmissionsCard } from './StandupSubmissionsCard';
 import { TasksAndTimeCard } from './TasksAndTimeCard';
@@ -186,6 +187,13 @@ export function CampfireRoot(): ReactElement | null {
 								refreshToken={standupRefreshToken}
 							/>
 							<StandupFormBuilderCard
+								workspace={bootstrap.workspace}
+								canManageWorkspace={
+									bootstrap.capabilities?.canManageWorkspace ?? bootstrap.me.isSystemAdmin
+								}
+								onConfigurationChanged={refreshStandups}
+							/>
+							<StandupScheduleBuilderCard
 								workspace={bootstrap.workspace}
 								canManageWorkspace={
 									bootstrap.capabilities?.canManageWorkspace ?? bootstrap.me.isSystemAdmin
