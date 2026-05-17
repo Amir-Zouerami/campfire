@@ -48,6 +48,15 @@ type ErrorPayload struct {
 }
 
 /*
+WriteLookupUsers writes the user lookup response.
+*/
+func WriteLookupUsers(w http.ResponseWriter, statusCode int, payload LookupUsersResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode user lookup response")
+}
+
+/*
 WriteHealth writes the health endpoint response.
 */
 func WriteHealth(w http.ResponseWriter, statusCode int, payload HealthResponse) {

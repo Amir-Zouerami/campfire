@@ -42,6 +42,7 @@ type App struct {
 	Mattermost               mattermost.Client
 	Database                 *store.Database
 	WorkspaceService         *service.WorkspaceService
+	UserDirectoryService     *service.UserDirectoryService
 	WorkspaceCalendarService *service.WorkspaceCalendarService
 	ReminderService          *service.ReminderService
 	ReminderExecutionService *service.ReminderExecutionService
@@ -118,6 +119,8 @@ func New(config Config) (*App, error) {
 
 	notificationPublisher := mattermost.NewNotificationPublisher(config.API, botUserID)
 	workspaceMemberProvider := mattermost.NewWorkspaceMemberProvider(config.API)
+	userDirectoryProvider := mattermost.NewUserDirectoryProvider(config.API)
+	userDirectoryService := service.NewUserDirectoryService(userDirectoryProvider)
 
 	leaveService := service.NewLeaveService(
 		leaveStore,
@@ -186,6 +189,7 @@ func New(config Config) (*App, error) {
 		Logger:                   appLogger,
 		Mattermost:               mattermostClient,
 		WorkspaceService:         workspaceService,
+		UserDirectoryService:     userDirectoryService,
 		WorkspaceCalendarService: workspaceCalendarService,
 		ReminderService:          reminderService,
 		GlobalSkipDateService:    globalSkipDateService,
@@ -203,6 +207,7 @@ func New(config Config) (*App, error) {
 		Mattermost:               mattermostClient,
 		Database:                 database,
 		WorkspaceService:         workspaceService,
+		UserDirectoryService:     userDirectoryService,
 		WorkspaceCalendarService: workspaceCalendarService,
 		ReminderService:          reminderService,
 		ReminderExecutionService: reminderExecutionService,

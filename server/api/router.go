@@ -16,6 +16,7 @@ type RouterConfig struct {
 	Logger                   logger.Logger
 	Mattermost               mattermost.Client
 	WorkspaceService         *service.WorkspaceService
+	UserDirectoryService     *service.UserDirectoryService
 	WorkspaceCalendarService *service.WorkspaceCalendarService
 	ReminderService          *service.ReminderService
 	GlobalSkipDateService    *service.GlobalSkipDateService
@@ -39,6 +40,7 @@ func NewRouter(config RouterConfig) http.Handler {
 	router.Route("/api/v1", func(api chi.Router) {
 		api.Get("/health", handleHealth(config.Logger))
 		api.Get("/me", handleMe(config.Logger, config.Mattermost))
+		api.Post("/users/lookup", handleLookupUsers(config.Logger, config.Mattermost, config.UserDirectoryService))
 
 		api.Get(
 			"/workspaces/by-channel/{channelID}",
