@@ -297,6 +297,28 @@ func (r *Runner) tickWorkspace(ctx context.Context, workspace domain.Workspace, 
 			continue
 		}
 
+		shouldSkipDaily, err := r.shouldSkipDailyBecauseWeeklyRuns(ctx, workspace, schedule, schedules, localNow)
+		if err != nil {
+			r.logger.Warn(
+				"scheduler failed to evaluate daily weekly-skip rule",
+				logger.String("workspace_id", workspace.ID.String()),
+				logger.String("schedule_id", schedule.ID.String()),
+				logger.String("date", occurrenceDate.String()),
+				logger.String("error", err.Error()),
+			)
+			continue
+		}
+
+		if shouldSkipDaily {
+			r.logger.Debug(
+				"scheduler skipped daily schedule because weekly schedule runs today",
+				logger.String("workspace_id", workspace.ID.String()),
+				logger.String("schedule_id", schedule.ID.String()),
+				logger.String("date", occurrenceDate.String()),
+			)
+			continue
+		}
+
 		r.executeDueReminderSequences(ctx, workspace, schedule, rule, occurrenceDate, localNow)
 	}
 }
@@ -514,6 +536,57 @@ func (r *Runner) executeDueWeeklyReport(
 		logger.String("period_start", periodStart.String()),
 		logger.String("period_end", periodEnd.String()),
 	)
+}
+
+/*
+shouldSkipDailyBecauseWeeklyRuns returns true when a daily schedule should be skipped.
+
+Daily schedules are skipped only when an enabled weekly schedule is configured
+with skipDailyWhenWeeklyRuns and today is the last runnable day of the local week.
+*/
+func (r *Runner) shouldSkipDailyBecauseWeeklyRuns(
+	ctx context.Context,
+	workspace domain.Workspace,
+	schedule domain.StandupSchedule,
+	schedules []domain.StandupSchedule,
+	localNow time.Time,
+) (bool, error) {
+	if schedule.Kind != domain.StandupKindDaily {
+		return false, nil
+	}
+
+	hasWeeklySkipSchedule := false
+	for _, candidate := range schedules {
+		if !candidate.Enabled {
+			continue
+		}
+
+		if candidate.Kind != domain.StandupKindWeekly {
+			continue
+		}
+
+		if candidate.WeeklyMode != domain.WeeklyModeLastWorkingDay {
+			continue
+		}
+
+		if !candidate.SkipDailyWhenWeeklyRuns {
+			continue
+		}
+
+		hasWeeklySkipSchedule = true
+		break
+	}
+
+	if !hasWeeklySkipSchedule {
+		return false, nil
+	}
+
+	isLastWorkingDay, err := r.isLastWorkingDayOfLocalWeek(ctx, workspace, localNow)
+	if err != nil {
+		return false, err
+	}
+
+	return isLastWorkingDay, nil
 }
 
 /*
