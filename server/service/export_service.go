@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"errors"
+	"fmt"
+
 	"strconv"
 	"strings"
 	"time"
@@ -36,6 +39,30 @@ type ExportWorkspaceLeavesCSVInput struct {
 }
 
 /*
+ExportWorkspaceStandupSubmissionsCSVInput contains standup submission CSV filters.
+*/
+type ExportWorkspaceStandupSubmissionsCSVInput struct {
+	ActorUserID   string
+	IsSystemAdmin bool
+	WorkspaceID   string
+	StartDate     string
+	EndDate       string
+	SortMode      string
+}
+
+/*
+ExportWorkspaceMissingStandupsCSVInput contains missing-standup CSV filters.
+*/
+type ExportWorkspaceMissingStandupsCSVInput struct {
+	ActorUserID   string
+	IsSystemAdmin bool
+	WorkspaceID   string
+	StartDate     string
+	EndDate       string
+	SortMode      string
+}
+
+/*
 ExportService builds CSV exports for workspace reports.
 */
 type ExportService struct {
@@ -43,6 +70,7 @@ type ExportService struct {
 	workspaceRoleStore store.WorkspaceRoleStore
 	taskStore          store.TaskStore
 	leaveStore         store.LeaveStore
+	standupService     *StandupService
 }
 
 /*
@@ -53,12 +81,14 @@ func NewExportService(
 	workspaceRoleStore store.WorkspaceRoleStore,
 	taskStore store.TaskStore,
 	leaveStore store.LeaveStore,
+	standupService *StandupService,
 ) *ExportService {
 	return &ExportService{
 		workspaceStore:     workspaceStore,
 		workspaceRoleStore: workspaceRoleStore,
 		taskStore:          taskStore,
 		leaveStore:         leaveStore,
+		standupService:     standupService,
 	}
 }
 
@@ -128,6 +158,205 @@ func (s *ExportService) ExportWorkspaceTimeCSV(
 	writer.Flush()
 	if err := writer.Error(); err != nil {
 		return nil, NewError(ErrorCodeInternal, "Could not finalize time export.")
+	}
+
+	return buffer.Bytes(), nil
+}
+
+/*
+ExportWorkspaceStandupSubmissionsCSV returns a CSV file for standup submissions and answers.
+*/
+func (s *ExportService) ExportWorkspaceStandupSubmissionsCSV(
+	ctx context.Context,
+	input ExportWorkspaceStandupSubmissionsCSVInput,
+) ([]byte, error) {
+	workspaceID, startDate, endDate, err := s.validateExportRequest(
+		ctx,
+		input.ActorUserID,
+		input.IsSystemAdmin,
+		input.WorkspaceID,
+		input.StartDate,
+		input.EndDate,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	dates, err := exportDatesInInclusiveRange(startDate, endDate)
+	if err != nil {
+		return nil, NewError(ErrorCodeValidationFailed, "Export date range is invalid.")
+	}
+
+	configuration, err := s.standupService.ListConfiguration(ctx, ListStandupConfigurationInput{
+		ActorUserID: input.ActorUserID,
+		WorkspaceID: workspaceID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	questionsByID := exportQuestionsByID(configuration.Questions)
+
+	buffer := bytes.Buffer{}
+	writer := csv.NewWriter(&buffer)
+
+	if err := writer.Write([]string{
+		"occurrence_date",
+		"submission_id",
+		"workspace_id",
+		"template_id",
+		"schedule_id",
+		"user_id",
+		"status",
+		"first_submitted_at",
+		"last_updated_at",
+		"answer_id",
+		"question_id",
+		"question_label",
+		"question_type",
+		"answer_value",
+		"answer_created_at",
+		"answer_updated_at",
+	}); err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not write standup export header.")
+	}
+
+	for _, date := range dates {
+		summary, err := s.standupService.ListSubmissions(ctx, ListStandupSubmissionsInput{
+			ActorUserID:    input.ActorUserID,
+			WorkspaceID:    workspaceID.String(),
+			OccurrenceDate: date.String(),
+			SortMode:       input.SortMode,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		for _, submissionWithAnswers := range summary.Submissions {
+			submission := submissionWithAnswers.Submission
+
+			if len(submissionWithAnswers.Answers) == 0 {
+				if err := writer.Write([]string{
+					date.String(),
+					submission.ID.String(),
+					submission.WorkspaceID.String(),
+					submission.TemplateID.String(),
+					submission.ScheduleID.String(),
+					submission.UserID,
+					string(submission.Status),
+					formatExportTime(submission.FirstSubmittedAt),
+					formatExportTime(submission.LastUpdatedAt),
+					"",
+					"",
+					"",
+					"",
+					"",
+					"",
+					"",
+				}); err != nil {
+					return nil, NewError(ErrorCodeInternal, "Could not write standup export row.")
+				}
+
+				continue
+			}
+
+			for _, answer := range submissionWithAnswers.Answers {
+				question := questionsByID[answer.QuestionID.String()]
+
+				if err := writer.Write([]string{
+					date.String(),
+					submission.ID.String(),
+					submission.WorkspaceID.String(),
+					submission.TemplateID.String(),
+					submission.ScheduleID.String(),
+					submission.UserID,
+					string(submission.Status),
+					formatExportTime(submission.FirstSubmittedAt),
+					formatExportTime(submission.LastUpdatedAt),
+					answer.ID.String(),
+					answer.QuestionID.String(),
+					exportQuestionLabel(question),
+					exportQuestionType(question),
+					formatStandupAnswerValueForCSV(answer.ValueJSON),
+					formatExportTime(answer.CreatedAt),
+					formatExportTime(answer.UpdatedAt),
+				}); err != nil {
+					return nil, NewError(ErrorCodeInternal, "Could not write standup export row.")
+				}
+			}
+		}
+	}
+
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not finalize standup export.")
+	}
+
+	return buffer.Bytes(), nil
+}
+
+/*
+ExportWorkspaceMissingStandupsCSV returns a CSV file for missing standup users.
+*/
+func (s *ExportService) ExportWorkspaceMissingStandupsCSV(
+	ctx context.Context,
+	input ExportWorkspaceMissingStandupsCSVInput,
+) ([]byte, error) {
+	workspaceID, startDate, endDate, err := s.validateExportRequest(
+		ctx,
+		input.ActorUserID,
+		input.IsSystemAdmin,
+		input.WorkspaceID,
+		input.StartDate,
+		input.EndDate,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	dates, err := exportDatesInInclusiveRange(startDate, endDate)
+	if err != nil {
+		return nil, NewError(ErrorCodeValidationFailed, "Export date range is invalid.")
+	}
+
+	buffer := bytes.Buffer{}
+	writer := csv.NewWriter(&buffer)
+
+	if err := writer.Write([]string{
+		"occurrence_date",
+		"workspace_id",
+		"user_id",
+		"status",
+	}); err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not write missing standup export header.")
+	}
+
+	for _, date := range dates {
+		summary, err := s.standupService.ListSubmissions(ctx, ListStandupSubmissionsInput{
+			ActorUserID:    input.ActorUserID,
+			WorkspaceID:    workspaceID.String(),
+			OccurrenceDate: date.String(),
+			SortMode:       input.SortMode,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		for _, userID := range summary.MissingUserIDs {
+			if err := writer.Write([]string{
+				date.String(),
+				workspaceID.String(),
+				userID,
+				"missing",
+			}); err != nil {
+				return nil, NewError(ErrorCodeInternal, "Could not write missing standup export row.")
+			}
+		}
+	}
+
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not finalize missing standup export.")
 	}
 
 	return buffer.Bytes(), nil
@@ -295,6 +524,102 @@ func (s *ExportService) requireExportPermission(
 	}
 
 	return nil
+}
+
+/*
+exportDatesInInclusiveRange returns each local date in an inclusive range.
+*/
+func exportDatesInInclusiveRange(startDate domain.LocalDate, endDate domain.LocalDate) ([]domain.LocalDate, error) {
+	start, err := time.Parse("2006-01-02", startDate.String())
+	if err != nil {
+		return nil, err
+	}
+
+	end, err := time.Parse("2006-01-02", endDate.String())
+	if err != nil {
+		return nil, err
+	}
+
+	dates := []domain.LocalDate{}
+	for current := start; !current.After(end); current = current.AddDate(0, 0, 1) {
+		dates = append(dates, domain.LocalDate(current.Format("2006-01-02")))
+	}
+
+	return dates, nil
+}
+
+/*
+exportQuestionsByID returns standup questions keyed by ID.
+*/
+func exportQuestionsByID(questions []domain.StandupQuestion) map[string]domain.StandupQuestion {
+	questionsByID := map[string]domain.StandupQuestion{}
+
+	for _, question := range questions {
+		questionsByID[question.ID.String()] = question
+	}
+
+	return questionsByID
+}
+
+/*
+exportQuestionLabel returns a stable human label for a question.
+*/
+func exportQuestionLabel(question domain.StandupQuestion) string {
+	if strings.TrimSpace(question.Prompt) != "" {
+		return question.Prompt
+	}
+
+	if strings.TrimSpace(question.Label) != "" {
+		return question.Label
+	}
+
+	return question.ID.String()
+}
+
+/*
+exportQuestionType returns a stable question type string.
+*/
+func exportQuestionType(question domain.StandupQuestion) string {
+	return string(question.Type)
+}
+
+/*
+formatStandupAnswerValueForCSV converts JSON answer values into readable CSV text.
+*/
+func formatStandupAnswerValueForCSV(valueJSON string) string {
+	var parsed interface{}
+	if err := json.Unmarshal([]byte(valueJSON), &parsed); err != nil {
+		return valueJSON
+	}
+
+	switch value := parsed.(type) {
+	case nil:
+		return ""
+
+	case string:
+		return value
+
+	case bool:
+		if value {
+			return "true"
+		}
+
+		return "false"
+
+	case float64:
+		return strconv.FormatFloat(value, 'f', -1, 64)
+
+	case []interface{}:
+		values := make([]string, 0, len(value))
+		for _, item := range value {
+			values = append(values, fmt.Sprint(item))
+		}
+
+		return strings.Join(values, ", ")
+
+	default:
+		return fmt.Sprint(value)
+	}
 }
 
 /*

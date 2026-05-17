@@ -182,6 +182,7 @@ func New(config Config) (*App, error) {
 		workspaceRoleStore,
 		taskStore,
 		leaveStore,
+		standupService,
 	)
 
 	taskService := service.NewTaskService(

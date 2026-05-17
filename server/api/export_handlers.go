@@ -45,6 +45,80 @@ func handleExportWorkspaceTimeCSV(
 }
 
 /*
+handleExportWorkspaceStandupSubmissionsCSV handles workspace standup submissions CSV export.
+*/
+func handleExportWorkspaceStandupSubmissionsCSV(
+	log logger.Logger,
+	mm mattermost.Client,
+	exportService *service.ExportService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+
+		csvBytes, err := exportService.ExportWorkspaceStandupSubmissionsCSV(
+			r.Context(),
+			service.ExportWorkspaceStandupSubmissionsCSVInput{
+				ActorUserID:   user.ID,
+				IsSystemAdmin: user.IsSystemAdmin,
+				WorkspaceID:   workspaceID,
+				StartDate:     r.URL.Query().Get("startDate"),
+				EndDate:       r.URL.Query().Get("endDate"),
+				SortMode:      r.URL.Query().Get("sortMode"),
+			},
+		)
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		writeCSV(w, "campfire-standup-submissions.csv", csvBytes)
+	}
+}
+
+/*
+handleExportWorkspaceMissingStandupsCSV handles workspace missing standups CSV export.
+*/
+func handleExportWorkspaceMissingStandupsCSV(
+	log logger.Logger,
+	mm mattermost.Client,
+	exportService *service.ExportService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+
+		csvBytes, err := exportService.ExportWorkspaceMissingStandupsCSV(
+			r.Context(),
+			service.ExportWorkspaceMissingStandupsCSVInput{
+				ActorUserID:   user.ID,
+				IsSystemAdmin: user.IsSystemAdmin,
+				WorkspaceID:   workspaceID,
+				StartDate:     r.URL.Query().Get("startDate"),
+				EndDate:       r.URL.Query().Get("endDate"),
+				SortMode:      r.URL.Query().Get("sortMode"),
+			},
+		)
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		writeCSV(w, "campfire-missing-standups.csv", csvBytes)
+	}
+}
+
+/*
 handleExportWorkspaceLeavesCSV handles workspace approved-leave CSV export.
 */
 func handleExportWorkspaceLeavesCSV(

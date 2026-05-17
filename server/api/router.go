@@ -176,6 +176,14 @@ func NewRouter(config RouterConfig) http.Handler {
 			"/workspaces/{workspaceID}/reports/leaves/export.csv",
 			handleExportWorkspaceLeavesCSV(config.Logger, config.Mattermost, config.ExportService),
 		)
+		api.Get(
+			"/workspaces/{workspaceID}/reports/standups/export.csv",
+			handleExportWorkspaceStandupSubmissionsCSV(config.Logger, config.Mattermost, config.ExportService),
+		)
+		api.Get(
+			"/workspaces/{workspaceID}/reports/missing/export.csv",
+			handleExportWorkspaceMissingStandupsCSV(config.Logger, config.Mattermost, config.ExportService),
+		)
 		api.Post(
 			"/workspaces/{workspaceID}/reports/daily-preview/post",
 			handlePostDailyReportPreview(config.Logger, config.Mattermost, config.ReportService),
