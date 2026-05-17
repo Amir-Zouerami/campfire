@@ -20,6 +20,7 @@ import { TasksAndTimeCard } from './TasksAndTimeCard';
 import { DailyReportPreviewCard } from './DailyReportPreviewCard';
 import { ReportSettingsCard } from './ReportSettingsCard';
 import { SavedReportFiltersCard } from './SavedReportFiltersCard';
+import { CSVExportsCard } from './CSVExportsCard';
 import { WeeklyReportPreviewCard } from './WeeklyReportPreviewCard';
 import { WorkspaceOffDaysCard } from './WorkspaceOffDaysCard';
 import { WorkspaceWorkingDaysCard } from './WorkspaceWorkingDaysCard';
@@ -180,6 +181,7 @@ export function CampfireRoot(): ReactElement | null {
 								}
 							/>
 							<SavedReportFiltersCard workspace={bootstrap.workspace} />
+							<CSVExportsCard workspace={bootstrap.workspace} />
 							<DailyReportPreviewCard
 								workspace={bootstrap.workspace}
 								refreshToken={standupRefreshToken}

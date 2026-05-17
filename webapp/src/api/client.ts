@@ -587,6 +587,30 @@ export async function deleteSavedReportFilter(
 }
 
 /**
+ * exportWorkspaceTimeCSV downloads workspace time entries as CSV.
+ */
+export async function exportWorkspaceTimeCSV(workspaceID: string, startDate: string, endDate: string): Promise<Blob> {
+	const params = new URLSearchParams({
+		startDate,
+		endDate,
+	});
+
+	return apiGetBlob(`/workspaces/${encodeURIComponent(workspaceID)}/reports/time/export.csv?${params.toString()}`);
+}
+
+/**
+ * exportWorkspaceLeavesCSV downloads workspace approved leaves as CSV.
+ */
+export async function exportWorkspaceLeavesCSV(workspaceID: string, startDate: string, endDate: string): Promise<Blob> {
+	const params = new URLSearchParams({
+		startDate,
+		endDate,
+	});
+
+	return apiGetBlob(`/workspaces/${encodeURIComponent(workspaceID)}/reports/leaves/export.csv?${params.toString()}`);
+}
+
+/**
  * postDailyReportPreview posts a generated daily report preview to the workspace channel.
  */
 export async function postDailyReportPreview(
@@ -659,6 +683,34 @@ async function apiGet<TResponse>(path: string): Promise<TResponse> {
 	});
 
 	return readResponse<TResponse>(response);
+}
+
+/**
+ * apiGetBlob performs a typed GET request that expects a file response.
+ */
+async function apiGetBlob(path: string): Promise<Blob> {
+	const response = await fetch(`${getAPIBaseURL()}${path}`, {
+		credentials: 'same-origin',
+		method: 'GET',
+	});
+
+	if (!response.ok) {
+		let body: unknown = null;
+
+		try {
+			body = await response.json();
+		} catch (_error: unknown) {
+			body = null;
+		}
+
+		if (isApiErrorBody(body)) {
+			throw new ApiClientError(body.error.code, body.error.message, response.status);
+		}
+
+		throw new ApiClientError('unknown_error', 'Campfire returned an unexpected export error.', response.status);
+	}
+
+	return response.blob();
 }
 
 /**
