@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 
-import { ApiClientError, decideLeaveRequest, listPendingLeaveRequests } from '../api/client';
+import { useUserProfiles } from './useUserProfiles';
 import type { PendingLeaveRequest, Workspace } from '../types/domain';
+import { ApiClientError, decideLeaveRequest, listPendingLeaveRequests } from '../api/client';
 
 /**
  * LeaveApprovalsCardProps contains the workspace used for approval lists.
@@ -70,6 +71,13 @@ export function LeaveApprovalsCard(props: LeaveApprovalsCardProps): ReactElement
 		};
 	}, [props.workspace.id, props.refreshToken]);
 
+	const userIDsForProfiles = useMemo(() => collectLeaveUserIDs(leaveRequests), [leaveRequests]);
+	const {
+		errorMessage: profileErrorMessage,
+		labelForUserID,
+		loading: profilesLoading,
+	} = useUserProfiles(userIDsForProfiles);
+
 	if (loadState === 'hidden') {
 		return null;
 	}
@@ -123,6 +131,14 @@ export function LeaveApprovalsCard(props: LeaveApprovalsCardProps): ReactElement
 
 			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
 
+			{profileErrorMessage !== '' && (
+				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{profileErrorMessage}</p>
+			)}
+
+			{profilesLoading && (
+				<p className="cf:m-0 cf:mt-4 cf:text-xs cf:font-bold cf:text-slate-400">Resolving user names…</p>
+			)}
+
 			<div className="cf:mt-5 cf:grid cf:gap-4">
 				{loadState === 'loading' && <p className="cf:m-0 cf:text-slate-300">Loading pending leave requests…</p>}
 
@@ -144,9 +160,21 @@ export function LeaveApprovalsCard(props: LeaveApprovalsCardProps): ReactElement
 									{item.leaveRequest.startDate} → {item.leaveRequest.endDate}
 									{formatDurationDetails(item)}
 								</p>
-								<p className="cf:m-0 cf:mt-1 cf:text-xs cf:font-bold cf:text-slate-400">
-									Requested by {item.leaveRequest.userId}
+								<p
+									className="cf:m-0 cf:mt-1 cf:text-xs cf:font-bold cf:text-slate-400"
+									title={item.leaveRequest.userId}
+								>
+									Requested by {labelForUserID(item.leaveRequest.userId)}
 								</p>
+
+								{item.leaveRequest.backupUserId !== '' && (
+									<p
+										className="cf:m-0 cf:mt-1 cf:text-xs cf:font-bold cf:text-slate-500"
+										title={item.leaveRequest.backupUserId}
+									>
+										Backup: {labelForUserID(item.leaveRequest.backupUserId)}
+									</p>
+								)}
 							</div>
 
 							<span className="cf:w-fit cf:rounded-full cf:border cf:border-amber-300/20 cf:bg-amber-300/10 cf:px-3 cf:py-1 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-amber-200">
@@ -203,6 +231,36 @@ export function LeaveApprovalsCard(props: LeaveApprovalsCardProps): ReactElement
 			</div>
 		</section>
 	);
+}
+
+/**
+ * collectLeaveUserIDs returns all user IDs displayed by this card.
+ */
+function collectLeaveUserIDs(leaveRequests: readonly PendingLeaveRequest[]): readonly string[] {
+	const userIDs = leaveRequests.flatMap(item => [item.leaveRequest.userId, item.leaveRequest.backupUserId]);
+
+	return uniqueNonEmptyUserIDs(userIDs);
+}
+
+/**
+ * uniqueNonEmptyUserIDs trims, de-duplicates, and preserves user ID order.
+ */
+function uniqueNonEmptyUserIDs(userIDs: readonly string[]): readonly string[] {
+	const seen = new Set<string>();
+	const result: string[] = [];
+
+	for (const userID of userIDs) {
+		const cleanUserID = userID.trim();
+
+		if (cleanUserID === '' || seen.has(cleanUserID)) {
+			continue;
+		}
+
+		seen.add(cleanUserID);
+		result.push(cleanUserID);
+	}
+
+	return result;
 }
 
 /**

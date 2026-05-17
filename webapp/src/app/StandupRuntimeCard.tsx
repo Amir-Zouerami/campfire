@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
+import { useUserProfiles } from './useUserProfiles';
 import { ApiClientError, evaluateStandupDay } from '../api/client';
 import type { ApprovedLeaveRequest, StandupRunDecision, Workspace } from '../types/domain';
 
@@ -16,6 +17,11 @@ type StandupRuntimeCardProps = {
  * LoadState describes the standup runtime card loading state.
  */
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
+
+/**
+ * UserLabelResolver returns a display label for one Mattermost user ID.
+ */
+type UserLabelResolver = (userID: string) => string;
 
 /**
  * StandupRuntimeCard shows whether Campfire should run standup for a selected date.
@@ -64,6 +70,13 @@ export function StandupRuntimeCard(props: StandupRuntimeCardProps): ReactElement
 		};
 	}, [props.workspace.id, props.refreshToken, date]);
 
+	const userIDsForProfiles = useMemo(() => collectRuntimeUserIDs(decision), [decision]);
+	const {
+		errorMessage: profileErrorMessage,
+		labelForUserID,
+		loading: profilesLoading,
+	} = useUserProfiles(userIDsForProfiles);
+
 	return (
 		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-orange-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
 			<div className="cf:grid cf:gap-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
@@ -111,6 +124,14 @@ export function StandupRuntimeCard(props: StandupRuntimeCardProps): ReactElement
 
 			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
 
+			{profileErrorMessage !== '' && (
+				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{profileErrorMessage}</p>
+			)}
+
+			{profilesLoading && (
+				<p className="cf:m-0 cf:mt-4 cf:text-xs cf:font-bold cf:text-slate-400">Resolving user names…</p>
+			)}
+
 			{loadState === 'loading' && <p className="cf:m-0 cf:mt-5 cf:text-slate-300">Evaluating standup runtime…</p>}
 
 			{decision !== null && (
@@ -126,31 +147,64 @@ export function StandupRuntimeCard(props: StandupRuntimeCardProps): ReactElement
 							</p>
 						)}
 					</article>
-
 					<div className="cf:grid cf:gap-3 cf:md:grid-cols-4">
 						<RuntimeMetric label="Working day" value={decision.isWorkingDay ? 'Yes' : 'No'} />
 						<RuntimeMetric label="Members" value={String(decision.memberCount)} />
 						<RuntimeMetric label="On leave" value={String(decision.onLeaveMemberCount)} />
 						<RuntimeMetric label="Approved leaves" value={String(decision.approvedLeaves.length)} />
 					</div>
-
 					<RuntimeList
 						title="Global off-days"
 						emptyText="No global off-day on this date."
 						items={decision.globalOffDays.map(offDay => `${offDay.date} · ${offDay.label}`)}
 					/>
-
 					<RuntimeList
 						title="Workspace off-days"
 						emptyText="No workspace off-day on this date."
 						items={decision.workspaceOffDays.map(offDay => `${offDay.date} · ${offDay.label}`)}
 					/>
-
-					<ApprovedLeaveList leaves={decision.approvedLeaves} />
+					<ApprovedLeaveList leaves={decision.approvedLeaves} labelForUserID={labelForUserID} />{' '}
 				</div>
 			)}
 		</section>
 	);
+}
+
+/**
+ * collectRuntimeUserIDs returns all user IDs displayed by runtime leave rows.
+ */
+function collectRuntimeUserIDs(decision: StandupRunDecision | null): readonly string[] {
+	if (decision === null) {
+		return [];
+	}
+
+	const userIDs = decision.approvedLeaves.flatMap(leave => [
+		leave.leaveRequest.userId,
+		leave.leaveRequest.backupUserId,
+	]);
+
+	return uniqueNonEmptyUserIDs(userIDs);
+}
+
+/**
+ * uniqueNonEmptyUserIDs trims, de-duplicates, and preserves user ID order.
+ */
+function uniqueNonEmptyUserIDs(userIDs: readonly string[]): readonly string[] {
+	const seen = new Set<string>();
+	const result: string[] = [];
+
+	for (const userID of userIDs) {
+		const cleanUserID = userID.trim();
+
+		if (cleanUserID === '' || seen.has(cleanUserID)) {
+			continue;
+		}
+
+		seen.add(cleanUserID);
+		result.push(cleanUserID);
+	}
+
+	return result;
 }
 
 /**
@@ -202,7 +256,10 @@ function RuntimeList(props: {
 /**
  * ApprovedLeaveList renders approved leave rows affecting runtime.
  */
-function ApprovedLeaveList(props: { readonly leaves: readonly ApprovedLeaveRequest[] }): ReactElement {
+function ApprovedLeaveList(props: {
+	readonly leaves: readonly ApprovedLeaveRequest[];
+	readonly labelForUserID: UserLabelResolver;
+}): ReactElement {
 	return (
 		<article className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/35 cf:p-4">
 			<strong className="cf:block cf:text-base cf:font-black cf:text-white">Approved leave on this date</strong>
@@ -222,10 +279,20 @@ function ApprovedLeaveList(props: { readonly leaves: readonly ApprovedLeaveReque
 								{leave.leaveTypeName}
 							</strong>
 							<p className="cf:m-0 cf:mt-1 cf:text-sm cf:text-slate-300">
-								User {leave.leaveRequest.userId} · {leave.leaveRequest.startDate} →{' '}
-								{leave.leaveRequest.endDate}
+								<span title={leave.leaveRequest.userId}>
+									User {props.labelForUserID(leave.leaveRequest.userId)}
+								</span>{' '}
+								· {leave.leaveRequest.startDate} → {leave.leaveRequest.endDate}
 								{formatDurationDetails(leave)}
 							</p>
+							{leave.leaveRequest.backupUserId !== '' && (
+								<p
+									className="cf:m-0 cf:mt-1 cf:text-xs cf:font-bold cf:text-slate-500"
+									title={leave.leaveRequest.backupUserId}
+								>
+									Backup: {props.labelForUserID(leave.leaveRequest.backupUserId)}
+								</p>
+							)}
 						</div>
 					))}
 				</div>
