@@ -1,7 +1,13 @@
 import { useState, type ReactElement } from 'react';
 
-import { ApiClientError, exportWorkspaceLeavesCSV, exportWorkspaceTimeCSV } from '../api/client';
-import type { Workspace } from '../types/domain';
+import {
+	ApiClientError,
+	exportWorkspaceLeavesCSV,
+	exportWorkspaceMissingStandupsCSV,
+	exportWorkspaceStandupSubmissionsCSV,
+	exportWorkspaceTimeCSV,
+} from '../api/client';
+import type { StandupSubmissionSortMode, Workspace } from '../types/domain';
 
 /**
  * CSVExportsCardProps contains the current workspace.
@@ -13,7 +19,21 @@ type CSVExportsCardProps = {
 /**
  * ExportState describes the current export action state.
  */
-type ExportState = 'idle' | 'exporting_time' | 'exporting_leaves' | 'error' | 'done';
+type ExportState =
+	| 'idle'
+	| 'exporting_time'
+	| 'exporting_leaves'
+	| 'exporting_standups'
+	| 'exporting_missing'
+	| 'error'
+	| 'done';
+
+const sortModeOptions: readonly StandupSubmissionSortMode[] = [
+	'first_submitted',
+	'last_submitted',
+	'name',
+	'missing_first',
+];
 
 /**
  * CSVExportsCard lets authorized users download workspace report CSV files.
@@ -22,10 +42,15 @@ export function CSVExportsCard(props: CSVExportsCardProps): ReactElement {
 	const defaultRange = getDefaultDateRange();
 	const [startDate, setStartDate] = useState(defaultRange.startDate);
 	const [endDate, setEndDate] = useState(defaultRange.endDate);
+	const [sortMode, setSortMode] = useState<StandupSubmissionSortMode>('first_submitted');
 	const [exportState, setExportState] = useState<ExportState>('idle');
 	const [message, setMessage] = useState('');
 
-	const isBusy = exportState === 'exporting_time' || exportState === 'exporting_leaves';
+	const isBusy =
+		exportState === 'exporting_time' ||
+		exportState === 'exporting_leaves' ||
+		exportState === 'exporting_standups' ||
+		exportState === 'exporting_missing';
 
 	/**
 	 * Downloads the time CSV export.
@@ -63,6 +88,42 @@ export function CSVExportsCard(props: CSVExportsCardProps): ReactElement {
 		}
 	}
 
+	/**
+	 * Downloads the standup submissions CSV export.
+	 */
+	async function handleExportStandups(): Promise<void> {
+		setExportState('exporting_standups');
+		setMessage('');
+
+		try {
+			const blob = await exportWorkspaceStandupSubmissionsCSV(props.workspace.id, startDate, endDate, sortMode);
+			downloadBlob(blob, buildExportFilename('campfire-standup-submissions', startDate, endDate));
+			setExportState('done');
+			setMessage('Standup submissions CSV exported.');
+		} catch (error: unknown) {
+			setExportState('error');
+			setMessage(errorToMessage(error));
+		}
+	}
+
+	/**
+	 * Downloads the missing standups CSV export.
+	 */
+	async function handleExportMissing(): Promise<void> {
+		setExportState('exporting_missing');
+		setMessage('');
+
+		try {
+			const blob = await exportWorkspaceMissingStandupsCSV(props.workspace.id, startDate, endDate, sortMode);
+			downloadBlob(blob, buildExportFilename('campfire-missing-standups', startDate, endDate));
+			setExportState('done');
+			setMessage('Missing standups CSV exported.');
+		} catch (error: unknown) {
+			setExportState('error');
+			setMessage(errorToMessage(error));
+		}
+	}
+
 	return (
 		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-cyan-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
 			<div className="cf:grid cf:gap-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
@@ -74,7 +135,8 @@ export function CSVExportsCard(props: CSVExportsCardProps): ReactElement {
 						Export workspace reports
 					</h2>
 					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						Download CSV files for workspace time entries and approved leaves in a selected date range.
+						Download CSV files for workspace time entries, approved leaves, standup submissions, and missing
+						standup users.
 					</p>
 				</div>
 
@@ -83,7 +145,7 @@ export function CSVExportsCard(props: CSVExportsCardProps): ReactElement {
 				</div>
 			</div>
 
-			<div className="cf:mt-5 cf:grid cf:gap-4 cf:lg:grid-cols-[180px_180px_auto_auto] cf:lg:items-end">
+			<div className="cf:mt-5 cf:grid cf:gap-4 cf:lg:grid-cols-[180px_180px_220px] cf:lg:items-end">
 				<Field label="Start date">
 					<input
 						className={inputClassName}
@@ -104,6 +166,23 @@ export function CSVExportsCard(props: CSVExportsCardProps): ReactElement {
 					/>
 				</Field>
 
+				<Field label="Standup sort">
+					<select
+						className={inputClassName}
+						disabled={isBusy}
+						value={sortMode}
+						onChange={event => setSortMode(toSortMode(event.currentTarget.value))}
+					>
+						{sortModeOptions.map(option => (
+							<option key={option} value={option}>
+								{formatLabel(option)}
+							</option>
+						))}
+					</select>
+				</Field>
+			</div>
+
+			<div className="cf:mt-5 cf:grid cf:gap-3 cf:md:grid-cols-2 cf:xl:grid-cols-4">
 				<button
 					className="cf:rounded-2xl cf:border cf:border-cyan-300/30 cf:bg-cyan-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-cyan-50 cf:transition cf:hover:bg-cyan-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
 					disabled={isBusy}
@@ -120,6 +199,24 @@ export function CSVExportsCard(props: CSVExportsCardProps): ReactElement {
 					onClick={() => void handleExportLeaves()}
 				>
 					{exportState === 'exporting_leaves' ? 'Exporting leaves…' : 'Export leaves CSV'}
+				</button>
+
+				<button
+					className="cf:rounded-2xl cf:border cf:border-sky-300/30 cf:bg-sky-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-sky-50 cf:transition cf:hover:bg-sky-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
+					disabled={isBusy}
+					type="button"
+					onClick={() => void handleExportStandups()}
+				>
+					{exportState === 'exporting_standups' ? 'Exporting standups…' : 'Export standups CSV'}
+				</button>
+
+				<button
+					className="cf:rounded-2xl cf:border cf:border-amber-300/30 cf:bg-amber-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-amber-50 cf:transition cf:hover:bg-amber-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
+					disabled={isBusy}
+					type="button"
+					onClick={() => void handleExportMissing()}
+				>
+					{exportState === 'exporting_missing' ? 'Exporting missing…' : 'Export missing CSV'}
 				</button>
 			</div>
 
@@ -190,6 +287,32 @@ function downloadBlob(blob: Blob, filename: string): void {
 	anchor.remove();
 
 	URL.revokeObjectURL(url);
+}
+
+/**
+ * toSortMode narrows a string to a supported standup submission sort mode.
+ */
+function toSortMode(value: string): StandupSubmissionSortMode {
+	switch (value) {
+		case 'first_submitted':
+		case 'last_submitted':
+		case 'name':
+		case 'missing_first':
+			return value;
+
+		default:
+			return 'first_submitted';
+	}
+}
+
+/**
+ * formatLabel converts enum-like values to readable labels.
+ */
+function formatLabel(value: string): string {
+	return value
+		.split('_')
+		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(' ');
 }
 
 /**

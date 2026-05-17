@@ -611,6 +611,44 @@ export async function exportWorkspaceLeavesCSV(workspaceID: string, startDate: s
 }
 
 /**
+ * exportWorkspaceStandupSubmissionsCSV downloads workspace standup submissions as CSV.
+ */
+export async function exportWorkspaceStandupSubmissionsCSV(
+	workspaceID: string,
+	startDate: string,
+	endDate: string,
+	sortMode: string,
+): Promise<Blob> {
+	const params = new URLSearchParams({
+		startDate,
+		endDate,
+		sortMode,
+	});
+
+	return apiGetBlob(
+		`/workspaces/${encodeURIComponent(workspaceID)}/reports/standups/export.csv?${params.toString()}`,
+	);
+}
+
+/**
+ * exportWorkspaceMissingStandupsCSV downloads workspace missing standup users as CSV.
+ */
+export async function exportWorkspaceMissingStandupsCSV(
+	workspaceID: string,
+	startDate: string,
+	endDate: string,
+	sortMode: string,
+): Promise<Blob> {
+	const params = new URLSearchParams({
+		startDate,
+		endDate,
+		sortMode,
+	});
+
+	return apiGetBlob(`/workspaces/${encodeURIComponent(workspaceID)}/reports/missing/export.csv?${params.toString()}`);
+}
+
+/**
  * postDailyReportPreview posts a generated daily report preview to the workspace channel.
  */
 export async function postDailyReportPreview(
