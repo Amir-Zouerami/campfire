@@ -1,7 +1,8 @@
 import { useMemo, useState, type ReactElement } from 'react';
 
+import { useUserProfiles } from './useUserProfiles';
 import { ApiClientError, getWeeklyReportPreview, postWeeklyReportPreview } from '../api/client';
-import type { ReportSortMode, WeeklyReportPreview, Workspace } from '../types/domain';
+import type { DailyReportPreview, ReportSortMode, WeeklyReportPreview, Workspace } from '../types/domain';
 
 /**
  * WeeklyReportPreviewCardProps contains workspace data for weekly report previewing.
@@ -37,6 +38,12 @@ export function WeeklyReportPreviewCard(props: WeeklyReportPreviewCardProps): Re
 	const [message, setMessage] = useState('');
 
 	const isBusy = loadState === 'loading' || loadState === 'posting';
+	const userIDsForProfiles = useMemo(() => collectWeeklyReportUserIDs(preview), [preview]);
+	const {
+		errorMessage: profileErrorMessage,
+		labelForUserID,
+		loading: profilesLoading,
+	} = useUserProfiles(userIDsForProfiles);
 
 	/**
 	 * Loads a generated weekly report preview.
@@ -190,6 +197,14 @@ export function WeeklyReportPreviewCard(props: WeeklyReportPreviewCardProps): Re
 
 			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
 
+			{profileErrorMessage !== '' && (
+				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{profileErrorMessage}</p>
+			)}
+
+			{profilesLoading && (
+				<p className="cf:m-0 cf:mt-4 cf:text-xs cf:font-bold cf:text-slate-400">Resolving user names…</p>
+			)}
+
 			{preview !== null && (
 				<div className="cf:mt-5 cf:grid cf:gap-4">
 					<div className="cf:grid cf:gap-3 cf:md:grid-cols-3">
@@ -198,7 +213,10 @@ export function WeeklyReportPreviewCard(props: WeeklyReportPreviewCardProps): Re
 						<MetricCard label="On leave" value={String(preview.onLeaveCount)} />
 					</div>
 
+					<WeeklyUserBreakdown preview={preview} labelForUserID={labelForUserID} />
+
 					<div>
+						{' '}
 						<label
 							className="cf:mb-1.5 cf:block cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-slate-300"
 							htmlFor="campfire-weekly-report-markdown"
@@ -238,6 +256,103 @@ export function WeeklyReportPreviewCard(props: WeeklyReportPreviewCardProps): Re
 }
 
 /**
+ * WeeklyUserBreakdown renders user lists for each daily preview inside a weekly report.
+ */
+function WeeklyUserBreakdown(props: {
+	readonly preview: WeeklyReportPreview;
+	readonly labelForUserID: (userID: string) => string;
+}): ReactElement {
+	return (
+		<div className="cf:grid cf:gap-3">
+			{props.preview.dailyPreviews.map(dailyPreview => (
+				<article
+					className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/35 cf:p-4"
+					key={dailyPreview.occurrenceDate}
+				>
+					<strong className="cf:block cf:text-base cf:font-black cf:text-white">
+						{dailyPreview.occurrenceDate}
+					</strong>
+
+					<div className="cf:mt-3 cf:grid cf:gap-3 cf:lg:grid-cols-3">
+						<UserChipList
+							title="Submitted"
+							userIds={dailyPreview.submittedUserIds}
+							tone="emerald"
+							labelForUserID={props.labelForUserID}
+						/>
+						<UserChipList
+							title="Missing"
+							userIds={dailyPreview.missingUserIds}
+							tone="amber"
+							labelForUserID={props.labelForUserID}
+						/>
+						<UserChipList
+							title="On approved leave"
+							userIds={dailyPreview.onLeaveUserIds}
+							tone="sky"
+							labelForUserID={props.labelForUserID}
+						/>
+					</div>
+				</article>
+			))}
+		</div>
+	);
+}
+
+/**
+ * UserChipList renders resolved users as compact chips.
+ */
+function UserChipList(props: {
+	readonly title: string;
+	readonly userIds: readonly string[];
+	readonly tone: 'amber' | 'emerald' | 'sky';
+	readonly labelForUserID: (userID: string) => string;
+}): ReactElement {
+	const toneClassName = userChipToneClassName(props.tone);
+
+	return (
+		<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-3">
+			<strong className="cf:block cf:text-sm cf:font-black cf:text-white">{props.title}</strong>
+
+			{props.userIds.length === 0 && <p className="cf:m-0 cf:mt-2 cf:text-sm cf:text-slate-300">Nobody here.</p>}
+
+			{props.userIds.length > 0 && (
+				<div className="cf:mt-3 cf:flex cf:flex-wrap cf:gap-2">
+					{props.userIds.map(userID => (
+						<span
+							className={`cf:rounded-full cf:border cf:px-3 cf:py-1 cf:text-xs cf:font-extrabold ${toneClassName}`}
+							key={userID}
+							title={userID}
+						>
+							{props.labelForUserID(userID)}
+						</span>
+					))}
+				</div>
+			)}
+		</div>
+	);
+}
+
+/**
+ * userChipToneClassName returns tone-specific chip styles.
+ */
+function userChipToneClassName(tone: 'amber' | 'emerald' | 'sky'): string {
+	switch (tone) {
+		case 'amber':
+			return 'cf:border-amber-300/20 cf:bg-amber-300/10 cf:text-amber-100';
+
+		case 'emerald':
+			return 'cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:text-emerald-100';
+
+		case 'sky':
+			return 'cf:border-sky-300/20 cf:bg-sky-300/10 cf:text-sky-100';
+
+		default:
+			return 'cf:border-white/10 cf:bg-white/[0.06] cf:text-white';
+	}
+}
+
+/**
  * MetricCard renders one weekly report metric.
  */
 function MetricCard(props: { readonly label: string; readonly value: string }): ReactElement {
@@ -249,6 +364,52 @@ function MetricCard(props: { readonly label: string; readonly value: string }): 
 			<p className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:text-white">{props.value}</p>
 		</div>
 	);
+}
+
+/**
+ * collectWeeklyReportUserIDs returns all Mattermost user IDs displayed by this card.
+ */
+function collectWeeklyReportUserIDs(preview: WeeklyReportPreview | null): readonly string[] {
+	if (preview === null) {
+		return [];
+	}
+
+	const userIDs = preview.dailyPreviews.flatMap(dailyPreview => collectDailyPreviewUserIDs(dailyPreview));
+
+	return uniqueNonEmptyUserIDs(userIDs);
+}
+
+/**
+ * collectDailyPreviewUserIDs returns all Mattermost user IDs from one daily report preview.
+ */
+function collectDailyPreviewUserIDs(preview: DailyReportPreview): readonly string[] {
+	return [
+		...preview.submittedUserIds,
+		...preview.missingUserIds,
+		...preview.onLeaveUserIds,
+		...preview.rows.map(row => row.userId),
+	];
+}
+
+/**
+ * uniqueNonEmptyUserIDs trims, de-duplicates, and preserves user ID order.
+ */
+function uniqueNonEmptyUserIDs(userIDs: readonly string[]): readonly string[] {
+	const seen = new Set<string>();
+	const result: string[] = [];
+
+	for (const userID of userIDs) {
+		const cleanUserID = userID.trim();
+
+		if (cleanUserID === '' || seen.has(cleanUserID)) {
+			continue;
+		}
+
+		seen.add(cleanUserID);
+		result.push(cleanUserID);
+	}
+
+	return result;
 }
 
 /**
