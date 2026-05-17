@@ -101,6 +101,8 @@ export function TasksAndTimeCard(props: TasksAndTimeCardProps): ReactElement {
 		return timeEntries.reduce((total, entry) => total + entry.minutes, 0);
 	}, [timeEntries]);
 
+	const tasksByID = useMemo(() => indexTasksByID(tasks), [tasks]);
+
 	const isBusy = loadState === 'loading' || loadState === 'saving';
 
 	/**
@@ -415,7 +417,9 @@ export function TasksAndTimeCard(props: TasksAndTimeCardProps): ReactElement {
 								<strong className="cf:block cf:text-sm cf:font-black cf:text-white">
 									{entry.entryDate} · {formatMinutes(entry.minutes)}
 								</strong>
-								<p className="cf:m-0 cf:mt-1 cf:text-xs cf:text-slate-400">Task {entry.taskId}</p>
+								<p className="cf:m-0 cf:mt-1 cf:text-xs cf:text-slate-400" title={entry.taskId}>
+									Task {taskLabelForID(tasksByID, entry.taskId)}
+								</p>
 								{entry.note !== '' && (
 									<p className="cf:m-0 cf:mt-1 cf:text-sm cf:text-slate-300">{entry.note}</p>
 								)}
@@ -426,6 +430,36 @@ export function TasksAndTimeCard(props: TasksAndTimeCardProps): ReactElement {
 			</div>
 		</section>
 	);
+}
+
+/**
+ * indexTasksByID returns tasks keyed by task ID.
+ */
+function indexTasksByID(tasks: readonly Task[]): Readonly<Record<string, Task>> {
+	const result: Record<string, Task> = {};
+
+	for (const task of tasks) {
+		result[task.id] = task;
+	}
+
+	return result;
+}
+
+/**
+ * taskLabelForID returns the best available task label.
+ */
+function taskLabelForID(tasksByID: Readonly<Record<string, Task>>, taskID: string): string {
+	const task = tasksByID[taskID];
+
+	if (task === undefined) {
+		return taskID;
+	}
+
+	if (task.title.trim() === '') {
+		return task.id;
+	}
+
+	return task.title;
 }
 
 /**
