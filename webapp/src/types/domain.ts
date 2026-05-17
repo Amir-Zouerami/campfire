@@ -462,6 +462,39 @@ export type SavedReportFilter = {
 };
 
 /**
+ * TimeReportGroupBy identifies a time report grouping mode.
+ */
+export type TimeReportGroupBy = 'person' | 'project' | 'category' | 'task' | 'day' | 'week';
+
+/**
+ * TimeReportRow is one aggregated time report row.
+ */
+export type TimeReportRow = {
+	readonly key: string;
+	readonly label: string;
+	readonly userId: string;
+	readonly taskId: string;
+	readonly projectId: string;
+	readonly categoryId: string;
+	readonly periodStart: LocalDate;
+	readonly periodEnd: LocalDate;
+	readonly minutes: number;
+	readonly entryCount: number;
+};
+
+/**
+ * TimeReportSummary is a workspace time report summary.
+ */
+export type TimeReportSummary = {
+	readonly workspaceId: string;
+	readonly startDate: LocalDate;
+	readonly endDate: LocalDate;
+	readonly groupBy: TimeReportGroupBy;
+	readonly totalMinutes: number;
+	readonly rows: readonly TimeReportRow[];
+};
+
+/**
  * DailyReportAnswerRow contains one answer formatted for report display.
  */
 export type DailyReportAnswerRow = {

@@ -73,6 +73,7 @@ import type {
 	CreateSavedReportFilterResponse,
 	DeleteSavedReportFilterResponse,
 	ListSavedReportFiltersResponse,
+	GetTimeReportSummaryResponse,
 } from '../types/api';
 
 const pluginID = 'dev.zouerami.campfire';
@@ -646,6 +647,26 @@ export async function exportWorkspaceMissingStandupsCSV(
 	});
 
 	return apiGetBlob(`/workspaces/${encodeURIComponent(workspaceID)}/reports/missing/export.csv?${params.toString()}`);
+}
+
+/**
+ * getTimeReportSummary loads an aggregated workspace time report.
+ */
+export async function getTimeReportSummary(
+	workspaceID: string,
+	startDate: string,
+	endDate: string,
+	groupBy: string,
+): Promise<GetTimeReportSummaryResponse> {
+	const params = new URLSearchParams({
+		startDate,
+		endDate,
+		groupBy,
+	});
+
+	return apiGet<GetTimeReportSummaryResponse>(
+		`/workspaces/${encodeURIComponent(workspaceID)}/reports/time-summary?${params.toString()}`,
+	);
 }
 
 /**

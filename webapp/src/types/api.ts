@@ -29,6 +29,7 @@ import type {
 	Task,
 	TimeEntry,
 	TaskStatus,
+	TimeReportSummary,
 	WeeklyReportPreview,
 	ReportSortMode,
 	ReportKind,
@@ -524,6 +525,13 @@ export type CreateSavedReportFilterResponse = {
  */
 export type DeleteSavedReportFilterResponse = {
 	readonly deleted: boolean;
+};
+
+/**
+ * GetTimeReportSummaryResponse is returned by GET /workspaces/{workspaceID}/reports/time-summary.
+ */
+export type GetTimeReportSummaryResponse = {
+	readonly summary: TimeReportSummary;
 };
 
 /**
