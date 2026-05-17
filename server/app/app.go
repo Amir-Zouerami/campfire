@@ -53,6 +53,7 @@ type App struct {
 	StandupService           *service.StandupService
 	ReportService            *service.ReportService
 	SavedReportFilterService *service.SavedReportFilterService
+	ExportService            *service.ExportService
 	TaskService              *service.TaskService
 	Scheduler                *scheduler.Runner
 }
@@ -176,6 +177,13 @@ func New(config Config) (*App, error) {
 		savedReportFilterStore,
 	)
 
+	exportService := service.NewExportService(
+		workspaceStore,
+		workspaceRoleStore,
+		taskStore,
+		leaveStore,
+	)
+
 	taskService := service.NewTaskService(
 		workspaceStore,
 		taskStore,
@@ -206,6 +214,7 @@ func New(config Config) (*App, error) {
 		StandupService:           standupService,
 		ReportService:            reportService,
 		SavedReportFilterService: savedReportFilterService,
+		ExportService:            exportService,
 		TaskService:              taskService,
 	})
 
@@ -226,6 +235,7 @@ func New(config Config) (*App, error) {
 		StandupService:           standupService,
 		ReportService:            reportService,
 		SavedReportFilterService: savedReportFilterService,
+		ExportService:            exportService,
 		TaskService:              taskService,
 		Scheduler:                schedulerRunner,
 	}, nil

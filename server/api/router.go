@@ -26,6 +26,7 @@ type RouterConfig struct {
 	StandupService           *service.StandupService
 	ReportService            *service.ReportService
 	SavedReportFilterService *service.SavedReportFilterService
+	ExportService            *service.ExportService
 	TaskService              *service.TaskService
 }
 
@@ -166,6 +167,14 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Delete(
 			"/workspaces/{workspaceID}/reports/saved-filters/{filterID}",
 			handleDeleteSavedReportFilter(config.Logger, config.Mattermost, config.SavedReportFilterService),
+		)
+		api.Get(
+			"/workspaces/{workspaceID}/reports/time/export.csv",
+			handleExportWorkspaceTimeCSV(config.Logger, config.Mattermost, config.ExportService),
+		)
+		api.Get(
+			"/workspaces/{workspaceID}/reports/leaves/export.csv",
+			handleExportWorkspaceLeavesCSV(config.Logger, config.Mattermost, config.ExportService),
 		)
 		api.Post(
 			"/workspaces/{workspaceID}/reports/daily-preview/post",

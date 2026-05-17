@@ -53,6 +53,12 @@ type TaskStore interface {
 		startDate domain.LocalDate,
 		endDate domain.LocalDate,
 	) ([]domain.TimeEntry, error)
+	ListTimeEntriesByWorkspaceIDBetween(
+		ctx context.Context,
+		workspaceID domain.ID,
+		startDate domain.LocalDate,
+		endDate domain.LocalDate,
+	) ([]domain.TimeEntry, error)
 	CreateTimeEntry(ctx context.Context, params CreateTimeEntryParams) (*domain.TimeEntry, error)
 }
 
@@ -328,6 +334,56 @@ func (s *SQLTaskStore) ListTimeEntriesByWorkspaceIDAndUserID(
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list time entries by workspace and user: %w", err)
+	}
+
+	entries := make([]domain.TimeEntry, 0, len(records))
+	for _, record := range records {
+		entries = append(entries, record.toDomain())
+	}
+
+	return entries, nil
+}
+
+/*
+ListTimeEntriesByWorkspaceIDBetween returns all workspace time entries in a date range.
+*/
+func (s *SQLTaskStore) ListTimeEntriesByWorkspaceIDBetween(
+	ctx context.Context,
+	workspaceID domain.ID,
+	startDate domain.LocalDate,
+	endDate domain.LocalDate,
+) ([]domain.TimeEntry, error) {
+	records := []timeEntryRecord{}
+
+	err := s.db.SelectContext(
+		ctx,
+		&records,
+		s.db.Rebind(`
+			SELECT
+				id,
+				workspace_id,
+				task_id,
+				user_id,
+				entry_date,
+				minutes,
+				note,
+				project_id,
+				category_id,
+				created_by,
+				created_at,
+				updated_at
+			FROM campfire_time_entries
+			WHERE workspace_id = ?
+				AND entry_date >= ?
+				AND entry_date <= ?
+			ORDER BY entry_date ASC, user_id ASC, created_at ASC
+		`),
+		workspaceID.String(),
+		startDate.String(),
+		endDate.String(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list workspace time entries between dates: %w", err)
 	}
 
 	entries := make([]domain.TimeEntry, 0, len(records))
