@@ -19,6 +19,7 @@ import { StandupSubmissionsCard } from './StandupSubmissionsCard';
 import { TasksAndTimeCard } from './TasksAndTimeCard';
 import { DailyReportPreviewCard } from './DailyReportPreviewCard';
 import { ReportSettingsCard } from './ReportSettingsCard';
+import { SavedReportFiltersCard } from './SavedReportFiltersCard';
 import { WeeklyReportPreviewCard } from './WeeklyReportPreviewCard';
 import { WorkspaceOffDaysCard } from './WorkspaceOffDaysCard';
 import { WorkspaceWorkingDaysCard } from './WorkspaceWorkingDaysCard';
@@ -178,6 +179,7 @@ export function CampfireRoot(): ReactElement | null {
 									bootstrap.capabilities?.canManageWorkspace ?? bootstrap.me.isSystemAdmin
 								}
 							/>
+							<SavedReportFiltersCard workspace={bootstrap.workspace} />
 							<DailyReportPreviewCard
 								workspace={bootstrap.workspace}
 								refreshToken={standupRefreshToken}
