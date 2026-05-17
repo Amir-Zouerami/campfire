@@ -37,6 +37,7 @@ TaskStore defines task and time-entry persistence operations.
 */
 type TaskStore interface {
 	GetTaskByID(ctx context.Context, workspaceID domain.ID, taskID domain.ID) (*domain.Task, error)
+	ListTasksByWorkspaceID(ctx context.Context, workspaceID domain.ID, includeArchived bool) ([]domain.Task, error)
 	ListTasksByWorkspaceIDAndUserID(
 		ctx context.Context,
 		workspaceID domain.ID,
@@ -126,6 +127,58 @@ func (s *SQLTaskStore) GetTaskByID(
 	task := record.toDomain()
 
 	return &task, nil
+}
+
+/*
+ListTasksByWorkspaceID returns tasks for one workspace.
+*/
+func (s *SQLTaskStore) ListTasksByWorkspaceID(
+	ctx context.Context,
+	workspaceID domain.ID,
+	includeArchived bool,
+) ([]domain.Task, error) {
+	records := []taskRecord{}
+
+	statusClause := ""
+	args := []interface{}{workspaceID.String()}
+	if !includeArchived {
+		statusClause = "AND status <> ?"
+		args = append(args, string(domain.TaskStatusArchived))
+	}
+
+	query := s.db.Rebind(fmt.Sprintf(`
+		SELECT
+			id,
+			workspace_id,
+			user_id,
+			source_submission_id,
+			source_answer_id,
+			title,
+			description,
+			project_id,
+			category_id,
+			status,
+			board_url,
+			created_by,
+			created_at,
+			updated_at,
+			completed_at
+		FROM campfire_tasks
+		WHERE workspace_id = ?
+			%s
+		ORDER BY updated_at DESC, created_at DESC
+	`, statusClause))
+
+	if err := s.db.SelectContext(ctx, &records, query, args...); err != nil {
+		return nil, fmt.Errorf("list tasks by workspace: %w", err)
+	}
+
+	tasks := make([]domain.Task, 0, len(records))
+	for _, record := range records {
+		tasks = append(tasks, record.toDomain())
+	}
+
+	return tasks, nil
 }
 
 /*

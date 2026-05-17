@@ -510,6 +510,19 @@ func WriteGetDailyReportPreview(
 }
 
 /*
+WriteGetTimeReportSummary writes the time report summary response.
+*/
+func WriteGetTimeReportSummary(
+	w http.ResponseWriter,
+	statusCode int,
+	payload GetTimeReportSummaryResponse,
+) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode time report summary response")
+}
+
+/*
 WritePostWeeklyReportPreview writes the posted weekly report preview response.
 */
 func WritePostWeeklyReportPreview(

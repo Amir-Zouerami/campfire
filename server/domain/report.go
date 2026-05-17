@@ -136,6 +136,92 @@ type ReportRun struct {
 }
 
 /*
+TimeReportGroupBy identifies a time report grouping mode.
+*/
+type TimeReportGroupBy string
+
+const (
+	/*
+		TimeReportGroupByPerson groups time by Mattermost user ID.
+	*/
+	TimeReportGroupByPerson TimeReportGroupBy = "person"
+
+	/*
+		TimeReportGroupByProject groups time by project ID.
+	*/
+	TimeReportGroupByProject TimeReportGroupBy = "project"
+
+	/*
+		TimeReportGroupByCategory groups time by category ID.
+	*/
+	TimeReportGroupByCategory TimeReportGroupBy = "category"
+
+	/*
+		TimeReportGroupByTask groups time by task ID.
+	*/
+	TimeReportGroupByTask TimeReportGroupBy = "task"
+
+	/*
+		TimeReportGroupByDay groups time by local entry date.
+	*/
+	TimeReportGroupByDay TimeReportGroupBy = "day"
+
+	/*
+		TimeReportGroupByWeek groups time by local Monday-to-Sunday week.
+	*/
+	TimeReportGroupByWeek TimeReportGroupBy = "week"
+)
+
+/*
+TimeReportSummary is a workspace time report result.
+*/
+type TimeReportSummary struct {
+	WorkspaceID ID
+	StartDate   LocalDate
+	EndDate     LocalDate
+	GroupBy     TimeReportGroupBy
+
+	TotalMinutes int
+	Rows         []TimeReportRow
+}
+
+/*
+TimeReportRow is one aggregated time report row.
+*/
+type TimeReportRow struct {
+	Key   string
+	Label string
+
+	UserID     string
+	TaskID     ID
+	ProjectID  ID
+	CategoryID ID
+
+	PeriodStart LocalDate
+	PeriodEnd   LocalDate
+
+	Minutes    int
+	EntryCount int
+}
+
+/*
+IsValid returns true when the time report grouping mode is supported.
+*/
+func (g TimeReportGroupBy) IsValid() bool {
+	switch g {
+	case TimeReportGroupByPerson,
+		TimeReportGroupByProject,
+		TimeReportGroupByCategory,
+		TimeReportGroupByTask,
+		TimeReportGroupByDay,
+		TimeReportGroupByWeek:
+		return true
+	default:
+		return false
+	}
+}
+
+/*
 SavedReportFilterScope identifies where a saved report filter can be used.
 */
 type SavedReportFilterScope string

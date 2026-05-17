@@ -25,6 +25,7 @@ type RouterConfig struct {
 	StandupRuntimeService    *service.StandupRuntimeService
 	StandupService           *service.StandupService
 	ReportService            *service.ReportService
+	TimeReportService        *service.TimeReportService
 	SavedReportFilterService *service.SavedReportFilterService
 	ExportService            *service.ExportService
 	TaskService              *service.TaskService
@@ -151,6 +152,10 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Get(
 			"/workspaces/{workspaceID}/reports/daily-preview",
 			handleGetDailyReportPreview(config.Logger, config.Mattermost, config.ReportService),
+		)
+		api.Get(
+			"/workspaces/{workspaceID}/reports/time-summary",
+			handleGetTimeReportSummary(config.Logger, config.Mattermost, config.TimeReportService),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/reports/daily-runs",
