@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 
-import { ApiClientError, getDailyReportPreview, listDailyReportRuns, postDailyReportPreview } from '../api/client';
+import { useUserProfiles } from './useUserProfiles';
 import type { DailyReportPreview, ReportRun, StandupSubmissionSortMode, Workspace } from '../types/domain';
+import { ApiClientError, getDailyReportPreview, listDailyReportRuns, postDailyReportPreview } from '../api/client';
 
 /**
  * DailyReportPreviewCardProps contains workspace and refresh data.
@@ -90,6 +91,13 @@ export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): Reac
 			) ?? null,
 		[occurrenceDate, runs],
 	);
+
+	const userIDsForProfiles = useMemo(() => collectDailyReportUserIDs(preview, runs), [preview, runs]);
+	const {
+		errorMessage: profileErrorMessage,
+		labelForUserID,
+		loading: profilesLoading,
+	} = useUserProfiles(userIDsForProfiles);
 
 	/**
 	 * Copies report Markdown to the user's clipboard.
@@ -208,12 +216,26 @@ export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): Reac
 
 				{existingRunForDate !== null && (
 					<p className="cf:m-0 cf:text-sm cf:font-bold cf:text-amber-200">
-						Posted by {existingRunForDate.postedBy} at {formatDateTime(existingRunForDate.postedAt)}.
+						Posted by{' '}
+						<span title={existingRunForDate.postedBy}>
+							{existingRunForDate.postedBy === ''
+								? 'unknown'
+								: labelForUserID(existingRunForDate.postedBy)}
+						</span>{' '}
+						at {formatDateTime(existingRunForDate.postedAt)}.
 					</p>
 				)}
 			</div>
 
 			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
+
+			{profileErrorMessage !== '' && (
+				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{profileErrorMessage}</p>
+			)}
+
+			{profilesLoading && (
+				<p className="cf:m-0 cf:mt-4 cf:text-xs cf:font-bold cf:text-slate-400">Resolving user names…</p>
+			)}
 
 			{clipboardState === 'copied' && (
 				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-emerald-200">Copied Markdown.</p>
@@ -247,12 +269,31 @@ export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): Reac
 						<Metric label="On leave" value={String(preview.onLeaveUserIds.length)} />
 						<Metric label="Rows" value={String(preview.rows.length)} />
 					</div>
-
+					<div className="cf:grid cf:gap-3 cf:lg:grid-cols-3">
+						<UserChipList
+							title="Submitted"
+							userIds={preview.submittedUserIds}
+							tone="emerald"
+							labelForUserID={labelForUserID}
+						/>
+						<UserChipList
+							title="Missing"
+							userIds={preview.missingUserIds}
+							tone="amber"
+							labelForUserID={labelForUserID}
+						/>
+						<UserChipList
+							title="On approved leave"
+							userIds={preview.onLeaveUserIds}
+							tone="sky"
+							labelForUserID={labelForUserID}
+						/>
+					</div>
 					<pre className="cf:max-h-[34rem] cf:overflow-auto cf:whitespace-pre-wrap cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/55 cf:p-5 cf:text-sm cf:leading-6 cf:text-slate-100">
+						{' '}
 						{preview.markdown}
 					</pre>
-
-					<ReportHistory runs={runs} />
+					<ReportHistory runs={runs} labelForUserID={labelForUserID} />{' '}
 				</div>
 			)}
 		</section>
@@ -297,9 +338,65 @@ function Metric(props: { readonly label: string; readonly value: string }): Reac
 }
 
 /**
+ * UserChipList renders resolved users as compact chips.
+ */
+function UserChipList(props: {
+	readonly title: string;
+	readonly userIds: readonly string[];
+	readonly tone: 'amber' | 'emerald' | 'sky';
+	readonly labelForUserID: (userID: string) => string;
+}): ReactElement {
+	const toneClassName = userChipToneClassName(props.tone);
+
+	return (
+		<article className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/35 cf:p-4">
+			<strong className="cf:block cf:text-base cf:font-black cf:text-white">{props.title}</strong>
+
+			{props.userIds.length === 0 && <p className="cf:m-0 cf:mt-2 cf:text-sm cf:text-slate-300">Nobody here.</p>}
+
+			{props.userIds.length > 0 && (
+				<div className="cf:mt-3 cf:flex cf:flex-wrap cf:gap-2">
+					{props.userIds.map(userID => (
+						<span
+							className={`cf:rounded-full cf:border cf:px-3 cf:py-1 cf:text-xs cf:font-extrabold ${toneClassName}`}
+							key={userID}
+							title={userID}
+						>
+							{props.labelForUserID(userID)}
+						</span>
+					))}
+				</div>
+			)}
+		</article>
+	);
+}
+
+/**
+ * userChipToneClassName returns tone-specific chip styles.
+ */
+function userChipToneClassName(tone: 'amber' | 'emerald' | 'sky'): string {
+	switch (tone) {
+		case 'amber':
+			return 'cf:border-amber-300/20 cf:bg-amber-300/10 cf:text-amber-100';
+
+		case 'emerald':
+			return 'cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:text-emerald-100';
+
+		case 'sky':
+			return 'cf:border-sky-300/20 cf:bg-sky-300/10 cf:text-sky-100';
+
+		default:
+			return 'cf:border-white/10 cf:bg-white/[0.06] cf:text-white';
+	}
+}
+
+/**
  * ReportHistory renders recent daily report posting history.
  */
-function ReportHistory(props: { readonly runs: readonly ReportRun[] }): ReactElement {
+function ReportHistory(props: {
+	readonly runs: readonly ReportRun[];
+	readonly labelForUserID: (userID: string) => string;
+}): ReactElement {
 	return (
 		<article className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/35 cf:p-4">
 			<strong className="cf:block cf:text-base cf:font-black cf:text-white">Posting history</strong>
@@ -321,9 +418,12 @@ function ReportHistory(props: { readonly runs: readonly ReportRun[] }): ReactEle
 										{run.periodStart} · {run.reportKind}
 									</p>
 									<p className="cf:m-0 cf:mt-1 cf:text-xs cf:text-slate-400">
-										Posted by {run.postedBy || 'unknown'} ·{' '}
-										{formatDateTime(run.postedAt || run.generatedAt)}
-									</p>
+										Posted by{' '}
+										<span title={run.postedBy}>
+											{run.postedBy === '' ? 'unknown' : props.labelForUserID(run.postedBy)}
+										</span>{' '}
+										· {formatDateTime(run.postedAt || run.generatedAt)}
+									</p>{' '}
 								</div>
 
 								<span
@@ -353,6 +453,42 @@ const historyPostedClassName =
 
 const historyFailedClassName =
 	'cf:w-fit cf:rounded-full cf:border cf:border-red-300/20 cf:bg-red-300/10 cf:px-2.5 cf:py-1 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.1em] cf:text-red-200';
+
+/**
+ * collectDailyReportUserIDs returns all Mattermost user IDs displayed by this card.
+ */
+function collectDailyReportUserIDs(preview: DailyReportPreview | null, runs: readonly ReportRun[]): readonly string[] {
+	const userIDs = [
+		...runs.map(run => run.postedBy),
+		...(preview?.submittedUserIds ?? []),
+		...(preview?.missingUserIds ?? []),
+		...(preview?.onLeaveUserIds ?? []),
+		...(preview?.rows.map(row => row.userId) ?? []),
+	];
+
+	return uniqueNonEmptyUserIDs(userIDs);
+}
+
+/**
+ * uniqueNonEmptyUserIDs trims, de-duplicates, and preserves user ID order.
+ */
+function uniqueNonEmptyUserIDs(userIDs: readonly string[]): readonly string[] {
+	const seen = new Set<string>();
+	const result: string[] = [];
+
+	for (const userID of userIDs) {
+		const cleanUserID = userID.trim();
+
+		if (cleanUserID === '' || seen.has(cleanUserID)) {
+			continue;
+		}
+
+		seen.add(cleanUserID);
+		result.push(cleanUserID);
+	}
+
+	return result;
+}
 
 /**
  * toSortMode narrows strings to supported sort modes.
