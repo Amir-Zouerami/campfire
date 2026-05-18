@@ -19,6 +19,7 @@ import { StandupSubmissionsCard } from './StandupSubmissionsCard';
 import { TasksAndTimeCard } from './TasksAndTimeCard';
 import { TimeReportSummaryCard } from './TimeReportSummaryCard';
 import { WeeklyReportPreviewCard } from './WeeklyReportPreviewCard';
+import { WhoIsOutCard } from './WhoIsOutCard';
 import { WorkspaceOffDaysCard } from './WorkspaceOffDaysCard';
 import { WorkspaceWorkingDaysCard } from './WorkspaceWorkingDaysCard';
 import type { Workspace } from '../types/domain';
@@ -169,6 +170,7 @@ function renderActiveTab(props: CampfireWorkspaceTabsProps, activeTab: CampfireW
 		case 'today':
 			return (
 				<>
+					<WhoIsOutCard workspace={props.workspace} refreshToken={props.leaveRefreshToken} />
 					<StandupSubmissionCard workspace={props.workspace} onStandupSubmitted={props.onStandupSubmitted} />
 					<TasksAndTimeCard workspace={props.workspace} />
 					<MyPendingLeavesCard
@@ -176,7 +178,6 @@ function renderActiveTab(props: CampfireWorkspaceTabsProps, activeTab: CampfireW
 						refreshToken={props.leaveRefreshToken}
 						onLeaveCancelled={props.onLeaveCancelled}
 					/>
-					<ApprovedLeavesCard workspace={props.workspace} refreshToken={props.leaveRefreshToken} />
 				</>
 			);
 
@@ -203,6 +204,7 @@ function renderActiveTab(props: CampfireWorkspaceTabsProps, activeTab: CampfireW
 		case 'leaves':
 			return (
 				<>
+					<WhoIsOutCard workspace={props.workspace} refreshToken={props.leaveRefreshToken} />
 					<LeaveRequestCard workspace={props.workspace} onLeaveCreated={props.onLeaveCreated} />
 					<LeaveApprovalsCard
 						workspace={props.workspace}
