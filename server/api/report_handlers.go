@@ -203,6 +203,7 @@ func handlePostWeeklyReportPreview(
 	log logger.Logger,
 	mm mattermost.Client,
 	reportService *service.ReportService,
+	auditService *service.AuditService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -212,25 +213,34 @@ func handlePostWeeklyReportPreview(
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
 
-		var request PostWeeklyReportPreviewRequest
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			WriteError(w, http.StatusBadRequest, "invalid_request", "Request body must be valid JSON.")
-			return
-		}
-
 		result, err := reportService.PostWeeklyPreview(r.Context(), service.PostWeeklyReportPreviewInput{
 			ActorUserID:   user.ID,
 			IsSystemAdmin: user.IsSystemAdmin,
 			WorkspaceID:   workspaceID,
-			PeriodStart:   request.PeriodStart,
-			PeriodEnd:     request.PeriodEnd,
-			SortMode:      request.SortMode,
+			PeriodStart:   r.URL.Query().Get("periodStart"),
+			PeriodEnd:     r.URL.Query().Get("periodEnd"),
+			SortMode:      r.URL.Query().Get("sortMode"),
 		})
 		if err != nil {
 			logServiceError(log, err)
 			WriteServiceError(w, err)
 			return
 		}
+
+		recordAuditEvent(
+			r.Context(),
+			auditService,
+			workspaceID,
+			user.ID,
+			"weekly_report_posted",
+			"report_run",
+			result.Run.ID.String(),
+			map[string]string{
+				"period_start": string(result.Preview.PeriodStart),
+				"period_end":   string(result.Preview.PeriodEnd),
+				"posted":       strconv.FormatBool(result.Posted),
+			},
+		)
 
 		WritePostWeeklyReportPreview(w, http.StatusOK, PostWeeklyReportPreviewResponse{
 			Preview: WeeklyReportPreviewToPayload(result.Preview),
@@ -247,6 +257,7 @@ func handlePostDailyReportPreview(
 	log logger.Logger,
 	mm mattermost.Client,
 	reportService *service.ReportService,
+	auditService *service.AuditService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -256,24 +267,32 @@ func handlePostDailyReportPreview(
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
 
-		var request PostDailyReportPreviewRequest
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			WriteError(w, http.StatusBadRequest, "invalid_request", "Request body must be valid JSON.")
-			return
-		}
-
 		result, err := reportService.PostDailyPreview(r.Context(), service.PostDailyReportPreviewInput{
 			ActorUserID:    user.ID,
 			IsSystemAdmin:  user.IsSystemAdmin,
 			WorkspaceID:    workspaceID,
-			OccurrenceDate: request.OccurrenceDate,
-			SortMode:       request.SortMode,
+			OccurrenceDate: r.URL.Query().Get("occurrenceDate"),
+			SortMode:       r.URL.Query().Get("sortMode"),
 		})
 		if err != nil {
 			logServiceError(log, err)
 			WriteServiceError(w, err)
 			return
 		}
+
+		recordAuditEvent(
+			r.Context(),
+			auditService,
+			workspaceID,
+			user.ID,
+			"daily_report_posted",
+			"report_run",
+			result.Run.ID.String(),
+			map[string]string{
+				"occurrence_date": string(result.Preview.OccurrenceDate),
+				"posted":          strconv.FormatBool(result.Posted),
+			},
+		)
 
 		WritePostDailyReportPreview(w, http.StatusOK, PostDailyReportPreviewResponse{
 			Preview: DailyReportPreviewToPayload(result.Preview),

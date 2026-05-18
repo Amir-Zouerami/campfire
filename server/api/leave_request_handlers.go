@@ -178,6 +178,7 @@ func handleCreateLeave(
 	log logger.Logger,
 	mm mattermost.Client,
 	leaveService *service.LeaveService,
+	auditService *service.AuditService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -198,6 +199,21 @@ func handleCreateLeave(
 			return
 		}
 
+		recordAuditEvent(
+			r.Context(),
+			auditService,
+			leaveRequest.WorkspaceID.String(),
+			user.ID,
+			"leave_requested",
+			"leave_request",
+			leaveRequest.ID.String(),
+			map[string]string{
+				"start_date": string(leaveRequest.StartDate),
+				"end_date":   string(leaveRequest.EndDate),
+				"status":     string(leaveRequest.Status),
+			},
+		)
+
 		WriteCreateLeave(w, http.StatusCreated, CreateLeaveResponse{
 			LeaveRequest: LeaveRequestToPayload(*leaveRequest),
 		})
@@ -211,6 +227,7 @@ func handleDecideLeave(
 	log logger.Logger,
 	mm mattermost.Client,
 	leaveService *service.LeaveService,
+	auditService *service.AuditService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -236,6 +253,20 @@ func handleDecideLeave(
 			return
 		}
 
+		recordAuditEvent(
+			r.Context(),
+			auditService,
+			leaveRequest.WorkspaceID.String(),
+			user.ID,
+			"leave_decided",
+			"leave_request",
+			leaveRequest.ID.String(),
+			map[string]string{
+				"decision": request.Decision,
+				"status":   string(leaveRequest.Status),
+			},
+		)
+
 		WriteDecideLeave(w, http.StatusOK, DecideLeaveResponse{
 			LeaveRequest: LeaveRequestToPayload(*leaveRequest),
 		})
@@ -249,6 +280,7 @@ func handleCancelLeave(
 	log logger.Logger,
 	mm mattermost.Client,
 	leaveService *service.LeaveService,
+	auditService *service.AuditService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -267,6 +299,19 @@ func handleCancelLeave(
 			WriteServiceError(w, err)
 			return
 		}
+
+		recordAuditEvent(
+			r.Context(),
+			auditService,
+			leaveRequest.WorkspaceID.String(),
+			user.ID,
+			"leave_cancelled",
+			"leave_request",
+			leaveRequest.ID.String(),
+			map[string]string{
+				"status": string(leaveRequest.Status),
+			},
+		)
 
 		WriteCancelLeave(w, http.StatusOK, CancelLeaveRequestResponse{
 			LeaveRequest: LeaveRequestToPayload(*leaveRequest),

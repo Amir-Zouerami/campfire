@@ -54,6 +54,7 @@ func handleCreateTask(
 	log logger.Logger,
 	mm mattermost.Client,
 	taskService *service.TaskService,
+	auditService *service.AuditService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -79,6 +80,20 @@ func handleCreateTask(
 			return
 		}
 
+		recordAuditEvent(
+			r.Context(),
+			auditService,
+			task.WorkspaceID.String(),
+			user.ID,
+			"task_created",
+			"task",
+			task.ID.String(),
+			map[string]string{
+				"title":  task.Title,
+				"status": string(task.Status),
+			},
+		)
+
 		WriteCreateTask(w, http.StatusCreated, CreateTaskResponse{
 			Task: TaskToPayload(*task),
 		})
@@ -92,6 +107,7 @@ func handleUpdateTask(
 	log logger.Logger,
 	mm mattermost.Client,
 	taskService *service.TaskService,
+	auditService *service.AuditService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -117,6 +133,20 @@ func handleUpdateTask(
 			WriteServiceError(w, err)
 			return
 		}
+
+		recordAuditEvent(
+			r.Context(),
+			auditService,
+			task.WorkspaceID.String(),
+			user.ID,
+			"task_updated",
+			"task",
+			task.ID.String(),
+			map[string]string{
+				"title":  task.Title,
+				"status": string(task.Status),
+			},
+		)
 
 		WriteUpdateTask(w, http.StatusOK, UpdateTaskResponse{
 			Task: TaskToPayload(*task),
@@ -170,6 +200,7 @@ func handleCreateTimeEntry(
 	log logger.Logger,
 	mm mattermost.Client,
 	taskService *service.TaskService,
+	auditService *service.AuditService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -185,7 +216,7 @@ func handleCreateTimeEntry(
 			return
 		}
 
-		entry, err := taskService.CreateTimeEntry(
+		timeEntry, err := taskService.CreateTimeEntry(
 			r.Context(),
 			request.ToServiceInput(user.ID, workspaceID),
 		)
@@ -195,8 +226,23 @@ func handleCreateTimeEntry(
 			return
 		}
 
+		recordAuditEvent(
+			r.Context(),
+			auditService,
+			timeEntry.WorkspaceID.String(),
+			user.ID,
+			"time_entry_created",
+			"time_entry",
+			timeEntry.ID.String(),
+			map[string]string{
+				"task_id":    timeEntry.TaskID.String(),
+				"entry_date": string(timeEntry.EntryDate),
+				"minutes":    strconv.Itoa(timeEntry.Minutes),
+			},
+		)
+
 		WriteCreateTimeEntry(w, http.StatusCreated, CreateTimeEntryResponse{
-			TimeEntry: TimeEntryToPayload(*entry),
+			TimeEntry: TimeEntryToPayload(*timeEntry),
 		})
 	}
 }

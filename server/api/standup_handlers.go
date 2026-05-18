@@ -371,6 +371,7 @@ func handleSubmitStandup(
 	log logger.Logger,
 	mm mattermost.Client,
 	standupService *service.StandupService,
+	auditService *service.AuditService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -390,6 +391,20 @@ func handleSubmitStandup(
 			WriteServiceError(w, err)
 			return
 		}
+
+		recordAuditEvent(
+			r.Context(),
+			auditService,
+			result.Submission.WorkspaceID.String(),
+			user.ID,
+			"standup_submitted",
+			"standup_submission",
+			result.Submission.ID.String(),
+			map[string]string{
+				"occurrence_date": string(result.Submission.OccurrenceDate),
+				"status":          string(result.Submission.Status),
+			},
+		)
 
 		WriteSubmitStandup(w, http.StatusCreated, SubmitStandupResponse{
 			Submission: StandupSubmissionToPayload(result.Submission),

@@ -51,19 +51,23 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Post("/users/lookup", handleLookupUsers(config.Logger, config.Mattermost, config.UserDirectoryService))
 
 		api.Get(
-			"/workspaces/{workspaceID}/members",
-			handleListWorkspaceMembers(config.Logger, config.Mattermost, config.WorkspaceMemberDirectoryService),
-		)
-
-		api.Get(
 			"/workspaces/by-channel/{channelID}",
 			handleGetWorkspaceByChannel(config.Logger, config.WorkspaceService),
+		)
+		api.Post("/workspaces", handleCreateWorkspace(config.Logger, config.WorkspaceService))
+
+		api.Get(
+			"/workspaces/{workspaceID}/members",
+			handleListWorkspaceMembers(config.Logger, config.Mattermost, config.WorkspaceMemberDirectoryService),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/roles",
 			handleListWorkspaceRoles(config.Logger, config.Mattermost, config.WorkspaceRoleService),
 		)
-		api.Post("/workspaces", handleCreateWorkspace(config.Logger, config.WorkspaceService))
+		api.Get(
+			"/workspaces/{workspaceID}/audit",
+			handleListAuditLog(config.Logger, config.Mattermost, config.AuditService),
+		)
 
 		api.Get(
 			"/workspaces/{workspaceID}/working-days",
@@ -72,10 +76,6 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Put(
 			"/workspaces/{workspaceID}/working-days",
 			handleUpdateWorkspaceWorkingDays(config.Logger, config.Mattermost, config.WorkspaceCalendarService),
-		)
-		api.Get(
-			"/workspaces/{workspaceID}/audit",
-			handleListAuditLog(config.Logger, config.Mattermost, config.AuditService),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/off-days",
@@ -131,17 +131,26 @@ func NewRouter(config RouterConfig) http.Handler {
 			"/workspaces/{workspaceID}/standups/submissions",
 			handleListStandupSubmissions(config.Logger, config.Mattermost, config.StandupService),
 		)
+		api.Post(
+			"/standups/submissions",
+			handleSubmitStandup(config.Logger, config.Mattermost, config.StandupService, config.AuditService),
+		)
+		api.Get(
+			"/workspaces/{workspaceID}/standup-runtime/day",
+			handleEvaluateStandupDay(config.Logger, config.Mattermost, config.StandupRuntimeService),
+		)
+
 		api.Get(
 			"/workspaces/{workspaceID}/tasks/my",
 			handleListMyTasks(config.Logger, config.Mattermost, config.TaskService),
 		)
 		api.Post(
 			"/workspaces/{workspaceID}/tasks",
-			handleCreateTask(config.Logger, config.Mattermost, config.TaskService),
+			handleCreateTask(config.Logger, config.Mattermost, config.TaskService, config.AuditService),
 		)
 		api.Put(
 			"/workspaces/{workspaceID}/tasks/{taskID}",
-			handleUpdateTask(config.Logger, config.Mattermost, config.TaskService),
+			handleUpdateTask(config.Logger, config.Mattermost, config.TaskService, config.AuditService),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/time-entries/my",
@@ -149,8 +158,9 @@ func NewRouter(config RouterConfig) http.Handler {
 		)
 		api.Post(
 			"/workspaces/{workspaceID}/time-entries",
-			handleCreateTimeEntry(config.Logger, config.Mattermost, config.TaskService),
+			handleCreateTimeEntry(config.Logger, config.Mattermost, config.TaskService, config.AuditService),
 		)
+
 		api.Get(
 			"/workspaces/{workspaceID}/reports/rules",
 			handleListReportRules(config.Logger, config.Mattermost, config.ReportService),
@@ -165,11 +175,15 @@ func NewRouter(config RouterConfig) http.Handler {
 		)
 		api.Post(
 			"/workspaces/{workspaceID}/reports/weekly-preview/post",
-			handlePostWeeklyReportPreview(config.Logger, config.Mattermost, config.ReportService),
+			handlePostWeeklyReportPreview(config.Logger, config.Mattermost, config.ReportService, config.AuditService),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/reports/daily-preview",
 			handleGetDailyReportPreview(config.Logger, config.Mattermost, config.ReportService),
+		)
+		api.Post(
+			"/workspaces/{workspaceID}/reports/daily-preview/post",
+			handlePostDailyReportPreview(config.Logger, config.Mattermost, config.ReportService, config.AuditService),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/reports/time-summary",
@@ -201,11 +215,21 @@ func NewRouter(config RouterConfig) http.Handler {
 		)
 		api.Post(
 			"/workspaces/{workspaceID}/reports/saved-filters",
-			handleCreateSavedReportFilter(config.Logger, config.Mattermost, config.SavedReportFilterService),
+			handleCreateSavedReportFilter(
+				config.Logger,
+				config.Mattermost,
+				config.SavedReportFilterService,
+				config.AuditService,
+			),
 		)
 		api.Delete(
 			"/workspaces/{workspaceID}/reports/saved-filters/{filterID}",
-			handleDeleteSavedReportFilter(config.Logger, config.Mattermost, config.SavedReportFilterService),
+			handleDeleteSavedReportFilter(
+				config.Logger,
+				config.Mattermost,
+				config.SavedReportFilterService,
+				config.AuditService,
+			),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/reports/time/export.csv",
@@ -222,18 +246,6 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Get(
 			"/workspaces/{workspaceID}/reports/missing/export.csv",
 			handleExportWorkspaceMissingStandupsCSV(config.Logger, config.Mattermost, config.ExportService),
-		)
-		api.Post(
-			"/workspaces/{workspaceID}/reports/daily-preview/post",
-			handlePostDailyReportPreview(config.Logger, config.Mattermost, config.ReportService),
-		)
-		api.Post(
-			"/standups/submissions",
-			handleSubmitStandup(config.Logger, config.Mattermost, config.StandupService),
-		)
-		api.Get(
-			"/workspaces/{workspaceID}/standup-runtime/day",
-			handleEvaluateStandupDay(config.Logger, config.Mattermost, config.StandupRuntimeService),
 		)
 
 		api.Get(
@@ -276,15 +288,15 @@ func NewRouter(config RouterConfig) http.Handler {
 		)
 		api.Post(
 			"/leaves",
-			handleCreateLeave(config.Logger, config.Mattermost, config.LeaveService),
+			handleCreateLeave(config.Logger, config.Mattermost, config.LeaveService, config.AuditService),
 		)
 		api.Post(
 			"/leaves/{leaveRequestID}/decision",
-			handleDecideLeave(config.Logger, config.Mattermost, config.LeaveService),
+			handleDecideLeave(config.Logger, config.Mattermost, config.LeaveService, config.AuditService),
 		)
 		api.Post(
 			"/leaves/{leaveRequestID}/cancel",
-			handleCancelLeave(config.Logger, config.Mattermost, config.LeaveService),
+			handleCancelLeave(config.Logger, config.Mattermost, config.LeaveService, config.AuditService),
 		)
 	})
 

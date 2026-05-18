@@ -51,6 +51,7 @@ func handleCreateSavedReportFilter(
 	log logger.Logger,
 	mm mattermost.Client,
 	savedFilterService *service.SavedReportFilterService,
+	auditService *service.AuditService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -80,6 +81,20 @@ func handleCreateSavedReportFilter(
 			return
 		}
 
+		recordAuditEvent(
+			r.Context(),
+			auditService,
+			filter.WorkspaceID.String(),
+			user.ID,
+			"saved_filter_created",
+			"saved_report_filter",
+			filter.ID.String(),
+			map[string]string{
+				"name":        filter.Name,
+				"report_type": string(filter.ReportType),
+			},
+		)
+
 		WriteCreateSavedReportFilter(w, http.StatusCreated, CreateSavedReportFilterResponse{
 			Filter: SavedReportFilterToPayload(*filter),
 		})
@@ -93,6 +108,7 @@ func handleDeleteSavedReportFilter(
 	log logger.Logger,
 	mm mattermost.Client,
 	savedFilterService *service.SavedReportFilterService,
+	auditService *service.AuditService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -113,6 +129,17 @@ func handleDeleteSavedReportFilter(
 			WriteServiceError(w, err)
 			return
 		}
+
+		recordAuditEvent(
+			r.Context(),
+			auditService,
+			workspaceID,
+			user.ID,
+			"saved_filter_deleted",
+			"saved_report_filter",
+			filterID,
+			map[string]string{},
+		)
 
 		WriteDeleteSavedReportFilter(w, http.StatusOK, DeleteSavedReportFilterResponse{
 			Deleted: true,
