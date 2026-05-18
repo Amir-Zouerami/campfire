@@ -25,13 +25,20 @@ export function TasksAndTimeCard(props: TasksAndTimeCardProps): ReactElement {
 	const [tasks, setTasks] = useState<readonly Task[]>([]);
 	const [timeEntries, setTimeEntries] = useState<readonly TimeEntry[]>([]);
 	const [includeArchived, setIncludeArchived] = useState(false);
+
 	const [taskTitle, setTaskTitle] = useState('');
 	const [taskDescription, setTaskDescription] = useState('');
+	const [taskProjectID, setTaskProjectID] = useState('');
+	const [taskCategoryID, setTaskCategoryID] = useState('');
 	const [taskBoardUrl, setTaskBoardUrl] = useState('');
+
 	const [timeTaskID, setTimeTaskID] = useState('');
 	const [timeEntryDate, setTimeEntryDate] = useState(getTodayLocalDateString());
 	const [timeMinutes, setTimeMinutes] = useState('30');
 	const [timeNote, setTimeNote] = useState('');
+	const [timeProjectID, setTimeProjectID] = useState('');
+	const [timeCategoryID, setTimeCategoryID] = useState('');
+
 	const [message, setMessage] = useState('');
 
 	useEffect(() => {
@@ -63,6 +70,8 @@ export function TasksAndTimeCard(props: TasksAndTimeCardProps): ReactElement {
 				const firstTask = taskResponse.tasks[0];
 				if (timeTaskID === '' && firstTask !== undefined) {
 					setTimeTaskID(firstTask.id);
+					setTimeProjectID(firstTask.projectId);
+					setTimeCategoryID(firstTask.categoryId);
 				}
 
 				setLoadState('ready');
@@ -124,14 +133,20 @@ export function TasksAndTimeCard(props: TasksAndTimeCardProps): ReactElement {
 			const response = await createTask(props.workspace.id, {
 				title: cleanTitle,
 				description: taskDescription.trim(),
+				projectId: taskProjectID.trim(),
+				categoryId: taskCategoryID.trim(),
 				boardUrl: taskBoardUrl.trim(),
 			});
 
 			setTasks(current => [response.task, ...current]);
 			setTaskTitle('');
 			setTaskDescription('');
+			setTaskProjectID('');
+			setTaskCategoryID('');
 			setTaskBoardUrl('');
 			setTimeTaskID(response.task.id);
+			setTimeProjectID(response.task.projectId);
+			setTimeCategoryID(response.task.categoryId);
 			setLoadState('ready');
 			setMessage('Task created.');
 		} catch (error: unknown) {
@@ -151,6 +166,8 @@ export function TasksAndTimeCard(props: TasksAndTimeCardProps): ReactElement {
 			const response = await updateTask(props.workspace.id, task.id, {
 				title: task.title,
 				description: task.description,
+				projectId: task.projectId,
+				categoryId: task.categoryId,
 				status,
 				boardUrl: task.boardUrl,
 			});
@@ -162,6 +179,23 @@ export function TasksAndTimeCard(props: TasksAndTimeCardProps): ReactElement {
 			setMessage(errorToMessage(error));
 			setLoadState('error');
 		}
+	}
+
+	/**
+	 * Updates the selected task and copies its project/category defaults.
+	 */
+	function handleTimeTaskChange(taskID: string): void {
+		setTimeTaskID(taskID);
+
+		const selectedTask = tasks.find(task => task.id === taskID);
+		if (selectedTask === undefined) {
+			setTimeProjectID('');
+			setTimeCategoryID('');
+			return;
+		}
+
+		setTimeProjectID(selectedTask.projectId);
+		setTimeCategoryID(selectedTask.categoryId);
 	}
 
 	/**
@@ -190,6 +224,8 @@ export function TasksAndTimeCard(props: TasksAndTimeCardProps): ReactElement {
 				entryDate: timeEntryDate,
 				minutes,
 				note: timeNote.trim(),
+				projectId: timeProjectID.trim(),
+				categoryId: timeCategoryID.trim(),
 			});
 
 			setTimeEntries(current => [response.timeEntry, ...current]);
@@ -214,7 +250,8 @@ export function TasksAndTimeCard(props: TasksAndTimeCardProps): ReactElement {
 						My tasks and time
 					</h2>
 					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						Track tasks and add time to any task for any date. Recent time entries show the last 14 days.
+						Track tasks and add time to any task for any date. Project and category keys feed the time
+						reports.
 					</p>
 				</div>
 
@@ -250,6 +287,26 @@ export function TasksAndTimeCard(props: TasksAndTimeCardProps): ReactElement {
 							onChange={event => setTaskDescription(event.currentTarget.value)}
 						/>
 
+						<div className="cf:grid cf:gap-3 cf:sm:grid-cols-2">
+							<input
+								className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:placeholder:text-slate-500 cf:focus:border-lime-300/45"
+								disabled={isBusy}
+								placeholder="Project key, e.g. frontend"
+								type="text"
+								value={taskProjectID}
+								onChange={event => setTaskProjectID(event.currentTarget.value)}
+							/>
+
+							<input
+								className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:placeholder:text-slate-500 cf:focus:border-lime-300/45"
+								disabled={isBusy}
+								placeholder="Category key, e.g. bugfix"
+								type="text"
+								value={taskCategoryID}
+								onChange={event => setTaskCategoryID(event.currentTarget.value)}
+							/>
+						</div>
+
 						<input
 							className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:placeholder:text-slate-500 cf:focus:border-lime-300/45"
 							disabled={isBusy}
@@ -280,7 +337,7 @@ export function TasksAndTimeCard(props: TasksAndTimeCardProps): ReactElement {
 							className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:focus:border-lime-300/45"
 							disabled={isBusy || sortedTasks.length === 0}
 							value={timeTaskID}
-							onChange={event => setTimeTaskID(event.currentTarget.value)}
+							onChange={event => handleTimeTaskChange(event.currentTarget.value)}
 						>
 							<option value="">Choose task</option>
 							{sortedTasks.map(task => (
@@ -308,6 +365,26 @@ export function TasksAndTimeCard(props: TasksAndTimeCardProps): ReactElement {
 								type="number"
 								value={timeMinutes}
 								onChange={event => setTimeMinutes(event.currentTarget.value)}
+							/>
+						</div>
+
+						<div className="cf:grid cf:gap-3 cf:sm:grid-cols-2">
+							<input
+								className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:placeholder:text-slate-500 cf:focus:border-lime-300/45"
+								disabled={isBusy}
+								placeholder="Project override"
+								type="text"
+								value={timeProjectID}
+								onChange={event => setTimeProjectID(event.currentTarget.value)}
+							/>
+
+							<input
+								className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:placeholder:text-slate-500 cf:focus:border-lime-300/45"
+								disabled={isBusy}
+								placeholder="Category override"
+								type="text"
+								value={timeCategoryID}
+								onChange={event => setTimeCategoryID(event.currentTarget.value)}
 							/>
 						</div>
 
@@ -363,6 +440,12 @@ export function TasksAndTimeCard(props: TasksAndTimeCardProps): ReactElement {
 								<strong className="cf:block cf:text-base cf:font-black cf:text-white">
 									{task.title}
 								</strong>
+
+								<div className="cf:mt-2 cf:flex cf:flex-wrap cf:gap-2">
+									<TaskMetaChip label="Project" value={task.projectId} />
+									<TaskMetaChip label="Category" value={task.categoryId} />
+								</div>
+
 								{task.description !== '' && (
 									<p className="cf:m-0 cf:mt-2 cf:text-sm cf:leading-6 cf:text-slate-300">
 										{task.description}
@@ -420,6 +503,10 @@ export function TasksAndTimeCard(props: TasksAndTimeCardProps): ReactElement {
 								<p className="cf:m-0 cf:mt-1 cf:text-xs cf:text-slate-400" title={entry.taskId}>
 									Task {taskLabelForID(tasksByID, entry.taskId)}
 								</p>
+								<div className="cf:mt-2 cf:flex cf:flex-wrap cf:gap-2">
+									<TaskMetaChip label="Project" value={entry.projectId} />
+									<TaskMetaChip label="Category" value={entry.categoryId} />
+								</div>
 								{entry.note !== '' && (
 									<p className="cf:m-0 cf:mt-1 cf:text-sm cf:text-slate-300">{entry.note}</p>
 								)}
@@ -429,6 +516,21 @@ export function TasksAndTimeCard(props: TasksAndTimeCardProps): ReactElement {
 				</div>
 			</div>
 		</section>
+	);
+}
+
+/**
+ * TaskMetaChip renders optional task/time metadata.
+ */
+function TaskMetaChip(props: { readonly label: string; readonly value: string }): ReactElement | null {
+	if (props.value.trim() === '') {
+		return null;
+	}
+
+	return (
+		<span className="cf:rounded-full cf:border cf:border-lime-300/20 cf:bg-lime-300/10 cf:px-2.5 cf:py-1 cf:text-xs cf:font-extrabold cf:text-lime-100">
+			{props.label}: {props.value}
+		</span>
 	);
 }
 

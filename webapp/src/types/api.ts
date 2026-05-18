@@ -575,6 +575,8 @@ export type ListMyTasksResponse = {
 export type CreateTaskRequest = {
 	readonly title: string;
 	readonly description: string;
+	readonly projectId: string;
+	readonly categoryId: string;
 	readonly boardUrl: string;
 };
 
@@ -591,6 +593,8 @@ export type CreateTaskResponse = {
 export type UpdateTaskRequest = {
 	readonly title: string;
 	readonly description: string;
+	readonly projectId: string;
+	readonly categoryId: string;
 	readonly status: TaskStatus;
 	readonly boardUrl: string;
 };
@@ -617,6 +621,8 @@ export type CreateTimeEntryRequest = {
 	readonly entryDate: LocalDate;
 	readonly minutes: number;
 	readonly note: string;
+	readonly projectId: string;
+	readonly categoryId: string;
 };
 
 /**

@@ -57,6 +57,8 @@ CreateTaskRequest is accepted by POST /workspaces/{workspaceID}/tasks.
 type CreateTaskRequest struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
+	ProjectID   string `json:"projectId"`
+	CategoryID  string `json:"categoryId"`
 	BoardURL    string `json:"boardUrl"`
 }
 
@@ -73,6 +75,8 @@ UpdateTaskRequest is accepted by PUT /workspaces/{workspaceID}/tasks/{taskID}.
 type UpdateTaskRequest struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
+	ProjectID   string `json:"projectId"`
+	CategoryID  string `json:"categoryId"`
 	Status      string `json:"status"`
 	BoardURL    string `json:"boardUrl"`
 }
@@ -95,10 +99,12 @@ type ListMyTimeEntriesResponse struct {
 CreateTimeEntryRequest is accepted by POST /workspaces/{workspaceID}/time-entries.
 */
 type CreateTimeEntryRequest struct {
-	TaskID    string `json:"taskId"`
-	EntryDate string `json:"entryDate"`
-	Minutes   int    `json:"minutes"`
-	Note      string `json:"note"`
+	TaskID     string `json:"taskId"`
+	EntryDate  string `json:"entryDate"`
+	Minutes    int    `json:"minutes"`
+	Note       string `json:"note"`
+	ProjectID  string `json:"projectId"`
+	CategoryID string `json:"categoryId"`
 }
 
 /*
@@ -117,6 +123,8 @@ func (r CreateTaskRequest) ToServiceInput(actorUserID string, workspaceID string
 		WorkspaceID: workspaceID,
 		Title:       r.Title,
 		Description: r.Description,
+		ProjectID:   r.ProjectID,
+		CategoryID:  r.CategoryID,
 		BoardURL:    r.BoardURL,
 	}
 }
@@ -135,6 +143,8 @@ func (r UpdateTaskRequest) ToServiceInput(
 		TaskID:      taskID,
 		Title:       r.Title,
 		Description: r.Description,
+		ProjectID:   r.ProjectID,
+		CategoryID:  r.CategoryID,
 		Status:      r.Status,
 		BoardURL:    r.BoardURL,
 	}
@@ -154,6 +164,8 @@ func (r CreateTimeEntryRequest) ToServiceInput(
 		EntryDate:   r.EntryDate,
 		Minutes:     r.Minutes,
 		Note:        r.Note,
+		ProjectID:   r.ProjectID,
+		CategoryID:  r.CategoryID,
 	}
 }
 

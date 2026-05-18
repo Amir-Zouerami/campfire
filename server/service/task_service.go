@@ -20,15 +20,14 @@ type ListMyTasksInput struct {
 	IncludeArchived bool
 }
 
-/*
-CreateTaskInput contains user-submitted task data.
-*/
 type CreateTaskInput struct {
 	ActorUserID string
 	WorkspaceID string
 
 	Title       string
 	Description string
+	ProjectID   string
+	CategoryID  string
 	BoardURL    string
 }
 
@@ -42,6 +41,8 @@ type UpdateTaskInput struct {
 
 	Title       string
 	Description string
+	ProjectID   string
+	CategoryID  string
 	Status      string
 	BoardURL    string
 }
@@ -63,10 +64,12 @@ type CreateTimeEntryInput struct {
 	ActorUserID string
 	WorkspaceID string
 
-	TaskID    string
-	EntryDate string
-	Minutes   int
-	Note      string
+	TaskID     string
+	EntryDate  string
+	Minutes    int
+	Note       string
+	ProjectID  string
+	CategoryID string
 }
 
 /*
@@ -154,8 +157,8 @@ func (s *TaskService) CreateTask(
 		Title:       title,
 		Description: strings.TrimSpace(input.Description),
 
-		ProjectID:  "",
-		CategoryID: "",
+		ProjectID:  domain.ID(strings.TrimSpace(input.ProjectID)),
+		CategoryID: domain.ID(strings.TrimSpace(input.CategoryID)),
 
 		Status:   domain.TaskStatusActive,
 		BoardURL: strings.TrimSpace(input.BoardURL),
@@ -233,6 +236,8 @@ func (s *TaskService) UpdateTask(
 	updatedTask := *existingTask
 	updatedTask.Title = title
 	updatedTask.Description = strings.TrimSpace(input.Description)
+	updatedTask.ProjectID = domain.ID(strings.TrimSpace(input.ProjectID))
+	updatedTask.CategoryID = domain.ID(strings.TrimSpace(input.CategoryID))
 	updatedTask.Status = status
 	updatedTask.BoardURL = strings.TrimSpace(input.BoardURL)
 	updatedTask.UpdatedAt = now
@@ -344,6 +349,16 @@ func (s *TaskService) CreateTimeEntry(
 		return nil, NewError(ErrorCodeValidationFailed, "Time entry minutes cannot exceed 1440.")
 	}
 
+	projectID := domain.ID(strings.TrimSpace(input.ProjectID))
+	if projectID.String() == "" {
+		projectID = task.ProjectID
+	}
+
+	categoryID := domain.ID(strings.TrimSpace(input.CategoryID))
+	if categoryID.String() == "" {
+		categoryID = task.CategoryID
+	}
+
 	now := time.Now().UTC()
 	entry := domain.TimeEntry{
 		ID:          domain.ID(uuid.NewString()),
@@ -356,8 +371,8 @@ func (s *TaskService) CreateTimeEntry(
 		Minutes:   input.Minutes,
 		Note:      strings.TrimSpace(input.Note),
 
-		ProjectID:  task.ProjectID,
-		CategoryID: task.CategoryID,
+		ProjectID:  projectID,
+		CategoryID: categoryID,
 
 		CreatedBy: cleanActorUserID,
 		CreatedAt: now,
