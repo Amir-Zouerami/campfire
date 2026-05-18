@@ -123,6 +123,30 @@ export type WorkspaceCapabilities = {
 };
 
 /**
+ * WorkspaceRoleSettings controls simple workspace role behavior.
+ */
+export type WorkspaceRoleSettings = {
+	readonly workspaceId: string;
+	readonly channelAdminsAreLeads: boolean;
+	readonly systemAdminsAreAdmins: boolean;
+	readonly createdAt: string;
+	readonly updatedAt: string;
+};
+
+/**
+ * WorkspaceRoleOverview summarizes workspace members and role assignments.
+ */
+export type WorkspaceRoleOverview = {
+	readonly workspaceId: string;
+	readonly settings: WorkspaceRoleSettings;
+	readonly memberUserIds: readonly string[];
+	readonly leadUserIds: readonly string[];
+	readonly approverUserIds: readonly string[];
+	readonly adminUserIds: readonly string[];
+	readonly viewerUserIds: readonly string[];
+};
+
+/**
  * WorkspaceWorkingDay describes an enabled or disabled weekday.
  *
  * Weekday uses Go/Mattermost backend numbering:

@@ -24,6 +24,7 @@ import { WorkspaceOffDaysCard } from './WorkspaceOffDaysCard';
 import { WorkspaceWorkingDaysCard } from './WorkspaceWorkingDaysCard';
 import type { Workspace } from '../types/domain';
 import { GlobalReportsCard } from './GlobalReportsCard';
+import { WorkspaceRolesCard } from './WorkspaceRolesCard';
 
 /**
  * CampfireWorkspaceTab identifies one main workspace section.
@@ -237,6 +238,7 @@ function renderActiveTab(props: CampfireWorkspaceTabsProps, activeTab: CampfireW
 		case 'settings':
 			return (
 				<>
+					<WorkspaceRolesCard workspace={props.workspace} isSystemAdmin={props.isSystemAdmin} />
 					<WorkspaceWorkingDaysCard
 						workspace={props.workspace}
 						canManageWorkspace={props.canManageWorkspace}

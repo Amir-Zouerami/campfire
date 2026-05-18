@@ -34,6 +34,7 @@ import type {
 	WeeklyReportPreview,
 	ReportSortMode,
 	ReportKind,
+	WorkspaceRoleOverview,
 } from './domain';
 
 /**
@@ -124,6 +125,13 @@ export type CreateWorkspaceRequest = {
  */
 export type CreateWorkspaceResponse = {
 	readonly workspace: Workspace;
+};
+
+/**
+ * ListWorkspaceRolesResponse is returned by GET /workspaces/{workspaceID}/roles.
+ */
+export type ListWorkspaceRolesResponse = {
+	readonly roles: WorkspaceRoleOverview;
 };
 
 /**

@@ -93,6 +93,15 @@ func WriteWorkspaceByChannel(w http.ResponseWriter, statusCode int, payload Work
 }
 
 /*
+WriteListWorkspaceRoles writes the workspace role overview response.
+*/
+func WriteListWorkspaceRoles(w http.ResponseWriter, statusCode int, payload ListWorkspaceRolesResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode workspace role overview response")
+}
+
+/*
 WriteCreateWorkspace writes the create-workspace response.
 */
 func WriteCreateWorkspace(w http.ResponseWriter, statusCode int, payload CreateWorkspaceResponse) {

@@ -42,6 +42,7 @@ type App struct {
 	Mattermost                      mattermost.Client
 	Database                        *store.Database
 	WorkspaceService                *service.WorkspaceService
+	WorkspaceRoleService            *service.WorkspaceRoleService
 	UserDirectoryService            *service.UserDirectoryService
 	WorkspaceMemberDirectoryService *service.WorkspaceMemberDirectoryService
 	WorkspaceCalendarService        *service.WorkspaceCalendarService
@@ -105,6 +106,7 @@ func New(config Config) (*App, error) {
 	workspaceRoleStore := store.NewSQLWorkspaceRoleStore(database)
 	workspaceCalendarStore := store.NewSQLWorkspaceCalendarStore(database)
 	workspaceService := service.NewWorkspaceService(workspaceStore)
+
 	workspaceCalendarService := service.NewWorkspaceCalendarService(
 		workspaceStore,
 		workspaceCalendarStore,
@@ -127,6 +129,12 @@ func New(config Config) (*App, error) {
 	workspaceMemberProvider := mattermost.NewWorkspaceMemberProvider(config.API)
 	userDirectoryProvider := mattermost.NewUserDirectoryProvider(config.API)
 	userDirectoryService := service.NewUserDirectoryService(userDirectoryProvider)
+
+	workspaceRoleService := service.NewWorkspaceRoleService(
+		workspaceStore,
+		workspaceRoleStore,
+		workspaceMemberProvider,
+	)
 
 	workspaceMemberDirectoryService := service.NewWorkspaceMemberDirectoryService(
 		workspaceStore,
@@ -228,6 +236,7 @@ func New(config Config) (*App, error) {
 		Logger:                          appLogger,
 		Mattermost:                      mattermostClient,
 		WorkspaceService:                workspaceService,
+		WorkspaceRoleService:            workspaceRoleService,
 		UserDirectoryService:            userDirectoryService,
 		WorkspaceMemberDirectoryService: workspaceMemberDirectoryService,
 		WorkspaceCalendarService:        workspaceCalendarService,
@@ -251,6 +260,7 @@ func New(config Config) (*App, error) {
 		Mattermost:                      mattermostClient,
 		Database:                        database,
 		WorkspaceService:                workspaceService,
+		WorkspaceRoleService:            workspaceRoleService,
 		UserDirectoryService:            userDirectoryService,
 		WorkspaceMemberDirectoryService: workspaceMemberDirectoryService,
 		WorkspaceCalendarService:        workspaceCalendarService,

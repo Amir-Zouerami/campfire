@@ -18,6 +18,7 @@ type RouterConfig struct {
 	WorkspaceService                *service.WorkspaceService
 	UserDirectoryService            *service.UserDirectoryService
 	WorkspaceMemberDirectoryService *service.WorkspaceMemberDirectoryService
+	WorkspaceRoleService            *service.WorkspaceRoleService
 	WorkspaceCalendarService        *service.WorkspaceCalendarService
 	ReminderService                 *service.ReminderService
 	GlobalSkipDateService           *service.GlobalSkipDateService
@@ -55,6 +56,10 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Get(
 			"/workspaces/by-channel/{channelID}",
 			handleGetWorkspaceByChannel(config.Logger, config.WorkspaceService),
+		)
+		api.Get(
+			"/workspaces/{workspaceID}/roles",
+			handleListWorkspaceRoles(config.Logger, config.Mattermost, config.WorkspaceRoleService),
 		)
 		api.Post("/workspaces", handleCreateWorkspace(config.Logger, config.WorkspaceService))
 

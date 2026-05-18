@@ -2,7 +2,10 @@ package store
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/amir-zouerami/campfire/server/domain"
 	"github.com/jmoiron/sqlx"
@@ -12,6 +15,7 @@ import (
 WorkspaceRoleStore defines persistence operations for workspace role lookups.
 */
 type WorkspaceRoleStore interface {
+	GetSettings(ctx context.Context, workspaceID domain.ID) (*domain.WorkspaceRoleSettings, error)
 	ListUserIDsByRoles(ctx context.Context, workspaceID domain.ID, roles []domain.Role) ([]string, error)
 	UserHasAnyRole(ctx context.Context, workspaceID domain.ID, userID string, roles []domain.Role) (bool, error)
 }
@@ -30,6 +34,41 @@ func NewSQLWorkspaceRoleStore(database *Database) *SQLWorkspaceRoleStore {
 	return &SQLWorkspaceRoleStore{
 		db: database.DB,
 	}
+}
+
+/*
+GetSettings returns workspace role behavior settings.
+*/
+func (s *SQLWorkspaceRoleStore) GetSettings(
+	ctx context.Context,
+	workspaceID domain.ID,
+) (*domain.WorkspaceRoleSettings, error) {
+	var record workspaceRoleSettingsRecord
+
+	query := s.db.Rebind(`
+		SELECT
+			workspace_id,
+			channel_admins_are_leads,
+			system_admins_are_admins,
+			created_at,
+			updated_at
+		FROM campfire_workspace_role_settings
+		WHERE workspace_id = ?
+		LIMIT 1
+	`)
+
+	err := s.db.GetContext(ctx, &record, query, workspaceID.String())
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+
+		return nil, fmt.Errorf("get workspace role settings: %w", err)
+	}
+
+	settings := record.toDomain()
+
+	return &settings, nil
 }
 
 /*
@@ -107,6 +146,30 @@ func (s *SQLWorkspaceRoleStore) UserHasAnyRole(
 	}
 
 	return count > 0, nil
+}
+
+/*
+workspaceRoleSettingsRecord represents a row from campfire_workspace_role_settings.
+*/
+type workspaceRoleSettingsRecord struct {
+	WorkspaceID           string    `db:"workspace_id"`
+	ChannelAdminsAreLeads bool      `db:"channel_admins_are_leads"`
+	SystemAdminsAreAdmins bool      `db:"system_admins_are_admins"`
+	CreatedAt             time.Time `db:"created_at"`
+	UpdatedAt             time.Time `db:"updated_at"`
+}
+
+/*
+toDomain maps a role settings record to the domain model.
+*/
+func (r workspaceRoleSettingsRecord) toDomain() domain.WorkspaceRoleSettings {
+	return domain.WorkspaceRoleSettings{
+		WorkspaceID:           domain.ID(r.WorkspaceID),
+		ChannelAdminsAreLeads: r.ChannelAdminsAreLeads,
+		SystemAdminsAreAdmins: r.SystemAdminsAreAdmins,
+		CreatedAt:             parseStoredTime(r.CreatedAt),
+		UpdatedAt:             parseStoredTime(r.UpdatedAt),
+	}
 }
 
 /*

@@ -76,6 +76,7 @@ import type {
 	GetTimeReportSummaryResponse,
 	GetGlobalTimeReportSummaryResponse,
 	ListWorkspaceMembersResponse,
+	ListWorkspaceRolesResponse,
 } from '../types/api';
 import { TimeReportGroupBy } from '../types/domain';
 
@@ -141,6 +142,13 @@ export async function getWorkspaceByChannel(channelID: string): Promise<Workspac
  */
 export async function createWorkspace(request: CreateWorkspaceRequest): Promise<CreateWorkspaceResponse> {
 	return apiPost<CreateWorkspaceRequest, CreateWorkspaceResponse>('/workspaces', request);
+}
+
+/**
+ * listWorkspaceRoles loads role settings and role groups for a workspace.
+ */
+export async function listWorkspaceRoles(workspaceID: string): Promise<ListWorkspaceRolesResponse> {
+	return apiGet<ListWorkspaceRolesResponse>(`/workspaces/${encodeURIComponent(workspaceID)}/roles`);
 }
 
 /**
