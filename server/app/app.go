@@ -191,6 +191,7 @@ func New(config Config) (*App, error) {
 		taskStore,
 		leaveStore,
 		standupService,
+		userDirectoryProvider,
 	)
 
 	taskService := service.NewTaskService(

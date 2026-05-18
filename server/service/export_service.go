@@ -66,11 +66,12 @@ type ExportWorkspaceMissingStandupsCSVInput struct {
 ExportService builds CSV exports for workspace reports.
 */
 type ExportService struct {
-	workspaceStore     store.WorkspaceStore
-	workspaceRoleStore store.WorkspaceRoleStore
-	taskStore          store.TaskStore
-	leaveStore         store.LeaveStore
-	standupService     *StandupService
+	workspaceStore        store.WorkspaceStore
+	workspaceRoleStore    store.WorkspaceRoleStore
+	taskStore             store.TaskStore
+	leaveStore            store.LeaveStore
+	standupService        *StandupService
+	userDirectoryProvider UserDirectoryProvider
 }
 
 /*
@@ -82,13 +83,15 @@ func NewExportService(
 	taskStore store.TaskStore,
 	leaveStore store.LeaveStore,
 	standupService *StandupService,
+	userDirectoryProvider UserDirectoryProvider,
 ) *ExportService {
 	return &ExportService{
-		workspaceStore:     workspaceStore,
-		workspaceRoleStore: workspaceRoleStore,
-		taskStore:          taskStore,
-		leaveStore:         leaveStore,
-		standupService:     standupService,
+		workspaceStore:        workspaceStore,
+		workspaceRoleStore:    workspaceRoleStore,
+		taskStore:             taskStore,
+		leaveStore:            leaveStore,
+		standupService:        standupService,
+		userDirectoryProvider: userDirectoryProvider,
 	}
 }
 
@@ -116,6 +119,12 @@ func (s *ExportService) ExportWorkspaceTimeCSV(
 		return nil, NewError(ErrorCodeInternal, "Could not load time entries for export.")
 	}
 
+	userIDs := []string{}
+	for _, entry := range entries {
+		userIDs = append(userIDs, entry.UserID, entry.CreatedBy)
+	}
+	userLabels := s.userLabelsForExport(ctx, userIDs)
+
 	buffer := bytes.Buffer{}
 	writer := csv.NewWriter(&buffer)
 
@@ -124,12 +133,14 @@ func (s *ExportService) ExportWorkspaceTimeCSV(
 		"workspace_id",
 		"task_id",
 		"user_id",
+		"user_label",
 		"entry_date",
 		"minutes",
 		"note",
 		"project_id",
 		"category_id",
 		"created_by",
+		"created_by_label",
 		"created_at",
 		"updated_at",
 	}); err != nil {
@@ -142,12 +153,14 @@ func (s *ExportService) ExportWorkspaceTimeCSV(
 			entry.WorkspaceID.String(),
 			entry.TaskID.String(),
 			entry.UserID,
+			exportUserLabel(userLabels, entry.UserID),
 			entry.EntryDate.String(),
 			strconv.Itoa(entry.Minutes),
 			entry.Note,
 			entry.ProjectID.String(),
 			entry.CategoryID.String(),
 			entry.CreatedBy,
+			exportUserLabel(userLabels, entry.CreatedBy),
 			formatExportTime(entry.CreatedAt),
 			formatExportTime(entry.UpdatedAt),
 		}); err != nil {
@@ -196,6 +209,31 @@ func (s *ExportService) ExportWorkspaceStandupSubmissionsCSV(
 	}
 
 	questionsByID := exportQuestionsByID(configuration.Questions)
+	summaries := make([]exportStandupSummaryByDate, 0, len(dates))
+	userIDs := []string{}
+
+	for _, date := range dates {
+		summary, err := s.standupService.ListSubmissions(ctx, ListStandupSubmissionsInput{
+			ActorUserID:    input.ActorUserID,
+			WorkspaceID:    workspaceID.String(),
+			OccurrenceDate: date.String(),
+			SortMode:       input.SortMode,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		summaries = append(summaries, exportStandupSummaryByDate{
+			Date:    date,
+			Summary: *summary,
+		})
+
+		for _, submissionWithAnswers := range summary.Submissions {
+			userIDs = append(userIDs, submissionWithAnswers.Submission.UserID)
+		}
+	}
+
+	userLabels := s.userLabelsForExport(ctx, userIDs)
 
 	buffer := bytes.Buffer{}
 	writer := csv.NewWriter(&buffer)
@@ -207,6 +245,7 @@ func (s *ExportService) ExportWorkspaceStandupSubmissionsCSV(
 		"template_id",
 		"schedule_id",
 		"user_id",
+		"user_label",
 		"status",
 		"first_submitted_at",
 		"last_updated_at",
@@ -221,28 +260,20 @@ func (s *ExportService) ExportWorkspaceStandupSubmissionsCSV(
 		return nil, NewError(ErrorCodeInternal, "Could not write standup export header.")
 	}
 
-	for _, date := range dates {
-		summary, err := s.standupService.ListSubmissions(ctx, ListStandupSubmissionsInput{
-			ActorUserID:    input.ActorUserID,
-			WorkspaceID:    workspaceID.String(),
-			OccurrenceDate: date.String(),
-			SortMode:       input.SortMode,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		for _, submissionWithAnswers := range summary.Submissions {
+	for _, summaryByDate := range summaries {
+		for _, submissionWithAnswers := range summaryByDate.Summary.Submissions {
 			submission := submissionWithAnswers.Submission
+			userLabel := exportUserLabel(userLabels, submission.UserID)
 
 			if len(submissionWithAnswers.Answers) == 0 {
 				if err := writer.Write([]string{
-					date.String(),
+					summaryByDate.Date.String(),
 					submission.ID.String(),
 					submission.WorkspaceID.String(),
 					submission.TemplateID.String(),
 					submission.ScheduleID.String(),
 					submission.UserID,
+					userLabel,
 					string(submission.Status),
 					formatExportTime(submission.FirstSubmittedAt),
 					formatExportTime(submission.LastUpdatedAt),
@@ -264,12 +295,13 @@ func (s *ExportService) ExportWorkspaceStandupSubmissionsCSV(
 				question := questionsByID[answer.QuestionID.String()]
 
 				if err := writer.Write([]string{
-					date.String(),
+					summaryByDate.Date.String(),
 					submission.ID.String(),
 					submission.WorkspaceID.String(),
 					submission.TemplateID.String(),
 					submission.ScheduleID.String(),
 					submission.UserID,
+					userLabel,
 					string(submission.Status),
 					formatExportTime(submission.FirstSubmittedAt),
 					formatExportTime(submission.LastUpdatedAt),
@@ -319,17 +351,8 @@ func (s *ExportService) ExportWorkspaceMissingStandupsCSV(
 		return nil, NewError(ErrorCodeValidationFailed, "Export date range is invalid.")
 	}
 
-	buffer := bytes.Buffer{}
-	writer := csv.NewWriter(&buffer)
-
-	if err := writer.Write([]string{
-		"occurrence_date",
-		"workspace_id",
-		"user_id",
-		"status",
-	}); err != nil {
-		return nil, NewError(ErrorCodeInternal, "Could not write missing standup export header.")
-	}
+	summaries := make([]exportStandupSummaryByDate, 0, len(dates))
+	userIDs := []string{}
 
 	for _, date := range dates {
 		summary, err := s.standupService.ListSubmissions(ctx, ListStandupSubmissionsInput{
@@ -342,11 +365,36 @@ func (s *ExportService) ExportWorkspaceMissingStandupsCSV(
 			return nil, err
 		}
 
-		for _, userID := range summary.MissingUserIDs {
+		summaries = append(summaries, exportStandupSummaryByDate{
+			Date:    date,
+			Summary: *summary,
+		})
+
+		userIDs = append(userIDs, summary.MissingUserIDs...)
+	}
+
+	userLabels := s.userLabelsForExport(ctx, userIDs)
+
+	buffer := bytes.Buffer{}
+	writer := csv.NewWriter(&buffer)
+
+	if err := writer.Write([]string{
+		"occurrence_date",
+		"workspace_id",
+		"user_id",
+		"user_label",
+		"status",
+	}); err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not write missing standup export header.")
+	}
+
+	for _, summaryByDate := range summaries {
+		for _, userID := range summaryByDate.Summary.MissingUserIDs {
 			if err := writer.Write([]string{
-				date.String(),
+				summaryByDate.Date.String(),
 				workspaceID.String(),
 				userID,
+				exportUserLabel(userLabels, userID),
 				"missing",
 			}); err != nil {
 				return nil, NewError(ErrorCodeInternal, "Could not write missing standup export row.")
@@ -386,6 +434,12 @@ func (s *ExportService) ExportWorkspaceLeavesCSV(
 		return nil, NewError(ErrorCodeInternal, "Could not load leave requests for export.")
 	}
 
+	userIDs := []string{}
+	for _, row := range leaveRequests {
+		userIDs = append(userIDs, row.LeaveRequest.UserID, row.LeaveRequest.BackupUserID)
+	}
+	userLabels := s.userLabelsForExport(ctx, userIDs)
+
 	buffer := bytes.Buffer{}
 	writer := csv.NewWriter(&buffer)
 
@@ -393,6 +447,7 @@ func (s *ExportService) ExportWorkspaceLeavesCSV(
 		"id",
 		"workspace_id",
 		"user_id",
+		"user_label",
 		"leave_type_id",
 		"leave_type_name",
 		"leave_type_color",
@@ -403,6 +458,7 @@ func (s *ExportService) ExportWorkspaceLeavesCSV(
 		"start_time",
 		"end_time",
 		"backup_user_id",
+		"backup_user_label",
 		"status",
 		"created_at",
 		"updated_at",
@@ -418,6 +474,7 @@ func (s *ExportService) ExportWorkspaceLeavesCSV(
 			leaveRequest.ID.String(),
 			leaveRequest.WorkspaceID.String(),
 			leaveRequest.UserID,
+			exportUserLabel(userLabels, leaveRequest.UserID),
 			leaveRequest.LeaveTypeID.String(),
 			row.LeaveTypeName,
 			row.LeaveTypeColor,
@@ -428,6 +485,7 @@ func (s *ExportService) ExportWorkspaceLeavesCSV(
 			leaveRequest.StartTime.String(),
 			leaveRequest.EndTime.String(),
 			leaveRequest.BackupUserID,
+			exportUserLabel(userLabels, leaveRequest.BackupUserID),
 			string(leaveRequest.Status),
 			formatExportTime(leaveRequest.CreatedAt),
 			formatExportTime(leaveRequest.UpdatedAt),
@@ -443,6 +501,83 @@ func (s *ExportService) ExportWorkspaceLeavesCSV(
 	}
 
 	return buffer.Bytes(), nil
+}
+
+/*
+exportStandupSummaryByDate keeps a loaded standup summary with its date.
+*/
+type exportStandupSummaryByDate struct {
+	Date    domain.LocalDate
+	Summary StandupOccurrenceSummary
+}
+
+/*
+userLabelsForExport resolves user IDs for CSV output.
+
+CSV export should remain durable for historical data, so unresolved users fall
+back to their raw Mattermost user ID.
+*/
+func (s *ExportService) userLabelsForExport(ctx context.Context, userIDs []string) map[string]string {
+	labels := map[string]string{}
+	normalizedUserIDs := normalizeUserIDs(userIDs)
+
+	for _, userID := range normalizedUserIDs {
+		labels[userID] = userID
+	}
+
+	if s.userDirectoryProvider == nil || len(normalizedUserIDs) == 0 {
+		return labels
+	}
+
+	profiles, err := s.userDirectoryProvider.GetUsersByIDs(ctx, normalizedUserIDs)
+	if err != nil {
+		return labels
+	}
+
+	for _, profile := range profiles {
+		cleanUserID := strings.TrimSpace(profile.ID)
+		if cleanUserID == "" {
+			continue
+		}
+
+		labels[cleanUserID] = exportUserProfileLabel(profile)
+	}
+
+	return labels
+}
+
+/*
+exportUserProfileLabel returns the best human-readable label for one user profile.
+*/
+func exportUserProfileLabel(profile UserProfile) string {
+	displayName := strings.TrimSpace(profile.DisplayName)
+	if displayName != "" {
+		return displayName
+	}
+
+	username := strings.TrimSpace(profile.Username)
+	if username != "" {
+		return "@" + username
+	}
+
+	return strings.TrimSpace(profile.ID)
+}
+
+/*
+exportUserLabel returns a resolved user label or a stable fallback.
+*/
+func exportUserLabel(userLabels map[string]string, userID string) string {
+	cleanUserID := strings.TrimSpace(userID)
+	if cleanUserID == "" {
+		return ""
+	}
+
+	label := strings.TrimSpace(userLabels[cleanUserID])
+	if label != "" {
+		return label
+	}
+
+	return cleanUserID
 }
 
 /*
