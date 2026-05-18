@@ -153,11 +153,12 @@ type PostWeeklyReportAutomationResult struct {
 ReportService builds and publishes Campfire report previews.
 */
 type ReportService struct {
-	standupService     *StandupService
-	workspaceStore     store.WorkspaceStore
-	workspaceRoleStore store.WorkspaceRoleStore
-	reportStore        store.ReportStore
-	reportPublisher    ReportPublisher
+	standupService        *StandupService
+	workspaceStore        store.WorkspaceStore
+	workspaceRoleStore    store.WorkspaceRoleStore
+	reportStore           store.ReportStore
+	reportPublisher       ReportPublisher
+	userDirectoryProvider UserDirectoryProvider
 }
 
 /*
@@ -169,13 +170,15 @@ func NewReportService(
 	workspaceRoleStore store.WorkspaceRoleStore,
 	reportStore store.ReportStore,
 	reportPublisher ReportPublisher,
+	userDirectoryProvider UserDirectoryProvider,
 ) *ReportService {
 	return &ReportService{
-		standupService:     standupService,
-		workspaceStore:     workspaceStore,
-		workspaceRoleStore: workspaceRoleStore,
-		reportStore:        reportStore,
-		reportPublisher:    reportPublisher,
+		standupService:        standupService,
+		workspaceStore:        workspaceStore,
+		workspaceRoleStore:    workspaceRoleStore,
+		reportStore:           reportStore,
+		reportPublisher:       reportPublisher,
+		userDirectoryProvider: userDirectoryProvider,
 	}
 }
 
@@ -221,7 +224,8 @@ func (s *ReportService) BuildDailyPreview(
 		Markdown:         "",
 	}
 
-	preview.Markdown = buildDailyReportMarkdown(*preview)
+	userLabels := s.userLabelsForReport(ctx, collectDailyPreviewUserIDs(*preview))
+	preview.Markdown = buildDailyReportMarkdown(*preview, userLabels)
 
 	return preview, nil
 }
@@ -405,7 +409,8 @@ func (s *ReportService) BuildWeeklyPreview(
 		Markdown:       "",
 	}
 
-	preview.Markdown = buildWeeklyReportMarkdown(*preview)
+	userLabels := s.userLabelsForReport(ctx, collectWeeklyPreviewUserIDs(*preview))
+	preview.Markdown = buildWeeklyReportMarkdown(*preview, userLabels)
 
 	return preview, nil
 }
@@ -949,6 +954,103 @@ func (s *ReportService) requireReportPostPermission(
 }
 
 /*
+userLabelsForReport resolves Mattermost user IDs for report Markdown.
+
+Report generation should not fail just because a historical user cannot be
+resolved. Missing profiles fall back to the raw user ID.
+*/
+func (s *ReportService) userLabelsForReport(ctx context.Context, userIDs []string) map[string]string {
+	labels := map[string]string{}
+	normalizedUserIDs := normalizeUserIDs(userIDs)
+
+	for _, userID := range normalizedUserIDs {
+		labels[userID] = userID
+	}
+
+	if s.userDirectoryProvider == nil || len(normalizedUserIDs) == 0 {
+		return labels
+	}
+
+	profiles, err := s.userDirectoryProvider.GetUsersByIDs(ctx, normalizedUserIDs)
+	if err != nil {
+		return labels
+	}
+
+	for _, profile := range profiles {
+		if strings.TrimSpace(profile.ID) == "" {
+			continue
+		}
+
+		labels[profile.ID] = userProfileReportLabel(profile)
+	}
+
+	return labels
+}
+
+/*
+collectDailyPreviewUserIDs returns every user ID shown in one daily report.
+*/
+func collectDailyPreviewUserIDs(preview domain.DailyReportPreview) []string {
+	userIDs := []string{}
+	userIDs = append(userIDs, preview.SubmittedUserIDs...)
+	userIDs = append(userIDs, preview.MissingUserIDs...)
+	userIDs = append(userIDs, preview.OnLeaveUserIDs...)
+
+	for _, row := range preview.Rows {
+		userIDs = append(userIDs, row.UserID)
+	}
+
+	return normalizeUserIDs(userIDs)
+}
+
+/*
+collectWeeklyPreviewUserIDs returns every user ID shown in one weekly report.
+*/
+func collectWeeklyPreviewUserIDs(preview domain.WeeklyReportPreview) []string {
+	userIDs := []string{}
+
+	for _, dailyPreview := range preview.DailyPreviews {
+		userIDs = append(userIDs, collectDailyPreviewUserIDs(dailyPreview)...)
+	}
+
+	return normalizeUserIDs(userIDs)
+}
+
+/*
+userProfileReportLabel formats a Mattermost profile for report Markdown.
+*/
+func userProfileReportLabel(profile UserProfile) string {
+	displayName := strings.TrimSpace(profile.DisplayName)
+	if displayName != "" {
+		return displayName
+	}
+
+	username := strings.TrimSpace(profile.Username)
+	if username != "" {
+		return "@" + username
+	}
+
+	return strings.TrimSpace(profile.ID)
+}
+
+/*
+reportUserLabel returns a display label for one user ID.
+*/
+func reportUserLabel(userLabels map[string]string, userID string) string {
+	cleanUserID := strings.TrimSpace(userID)
+	if cleanUserID == "" {
+		return ""
+	}
+
+	label := strings.TrimSpace(userLabels[cleanUserID])
+	if label != "" {
+		return label
+	}
+
+	return cleanUserID
+}
+
+/*
 buildDailyReportRows maps standup submissions into report rows.
 */
 func buildDailyReportRows(
@@ -998,7 +1100,7 @@ func buildDailyReportRows(
 /*
 buildWeeklyReportMarkdown builds the Markdown weekly report body.
 */
-func buildWeeklyReportMarkdown(preview domain.WeeklyReportPreview) string {
+func buildWeeklyReportMarkdown(preview domain.WeeklyReportPreview, userLabels map[string]string) string {
 	lines := []string{
 		fmt.Sprintf("# Weekly Standup Summary — %s → %s", preview.PeriodStart.String(), preview.PeriodEnd.String()),
 		"",
@@ -1029,7 +1131,7 @@ func buildWeeklyReportMarkdown(preview domain.WeeklyReportPreview) string {
 		}
 
 		for _, row := range dailyPreview.Rows {
-			lines = append(lines, fmt.Sprintf("### %s", sanitizeMarkdownLine(row.UserID)))
+			lines = append(lines, fmt.Sprintf("### %s", sanitizeMarkdownLine(reportUserLabel(userLabels, row.UserID))))
 
 			for _, answer := range row.Answers {
 				if strings.TrimSpace(answer.ValueText) == "" {
@@ -1053,10 +1155,7 @@ func buildWeeklyReportMarkdown(preview domain.WeeklyReportPreview) string {
 	return strings.Join(lines, "\n")
 }
 
-/*
-buildDailyReportMarkdown builds the Markdown report body.
-*/
-func buildDailyReportMarkdown(preview domain.DailyReportPreview) string {
+func buildDailyReportMarkdown(preview domain.DailyReportPreview, userLabels map[string]string) string {
 	lines := []string{
 		fmt.Sprintf("# Daily Standup — %s", preview.OccurrenceDate.String()),
 		"",
@@ -1069,7 +1168,7 @@ func buildDailyReportMarkdown(preview domain.DailyReportPreview) string {
 	if len(preview.OnLeaveUserIDs) > 0 {
 		lines = append(lines, "## On approved leave")
 		for _, userID := range preview.OnLeaveUserIDs {
-			lines = append(lines, fmt.Sprintf("- %s", sanitizeMarkdownLine(userID)))
+			lines = append(lines, fmt.Sprintf("- %s", sanitizeMarkdownLine(reportUserLabel(userLabels, userID))))
 		}
 
 		lines = append(lines, "")
@@ -1078,7 +1177,7 @@ func buildDailyReportMarkdown(preview domain.DailyReportPreview) string {
 	if len(preview.MissingUserIDs) > 0 {
 		lines = append(lines, "## Missing")
 		for _, userID := range preview.MissingUserIDs {
-			lines = append(lines, fmt.Sprintf("- %s", sanitizeMarkdownLine(userID)))
+			lines = append(lines, fmt.Sprintf("- %s", sanitizeMarkdownLine(reportUserLabel(userLabels, userID))))
 		}
 
 		lines = append(lines, "")
@@ -1092,7 +1191,7 @@ func buildDailyReportMarkdown(preview domain.DailyReportPreview) string {
 	}
 
 	for _, row := range preview.Rows {
-		lines = append(lines, fmt.Sprintf("### %s", sanitizeMarkdownLine(row.UserID)))
+		lines = append(lines, fmt.Sprintf("### %s", sanitizeMarkdownLine(reportUserLabel(userLabels, row.UserID))))
 		lines = append(
 			lines,
 			fmt.Sprintf(

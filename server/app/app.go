@@ -177,6 +177,7 @@ func New(config Config) (*App, error) {
 		workspaceRoleStore,
 		reportStore,
 		reportPublisher,
+		userDirectoryProvider,
 	)
 
 	savedReportFilterService := service.NewSavedReportFilterService(
