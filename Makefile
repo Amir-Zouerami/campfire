@@ -7,6 +7,7 @@ SERVER_DIST := server/dist
 WEBAPP_DIR := webapp
 WEBAPP_DIST := webapp/dist
 DIST_DIR := dist
+BUNDLE_ROOT := $(DIST_DIR)/bundle-root
 
 GOOS ?= linux
 GOARCH ?= amd64
@@ -37,8 +38,21 @@ build-webapp:
 
 .PHONY: bundle
 bundle: check build-server build-webapp
+	rm -rf $(BUNDLE_ROOT)
+	mkdir -p $(BUNDLE_ROOT)/server/dist
+	mkdir -p $(BUNDLE_ROOT)/webapp/dist
+	cp plugin.json $(BUNDLE_ROOT)/plugin.json
+	cp -R assets $(BUNDLE_ROOT)/assets
+	cp -R $(SERVER_DIST)/. $(BUNDLE_ROOT)/server/dist/
+	cp -R $(WEBAPP_DIST)/. $(BUNDLE_ROOT)/webapp/dist/
 	mkdir -p $(DIST_DIR)
-	tar -czf $(DIST_DIR)/$(BUNDLE_NAME) plugin.json assets $(SERVER_DIST) $(WEBAPP_DIST)
+	tar --format=ustar -C $(BUNDLE_ROOT) -czf $(DIST_DIR)/$(BUNDLE_NAME) \
+		plugin.json \
+		assets \
+		server \
+		server/dist \
+		webapp \
+		webapp/dist
 	@echo "Created $(DIST_DIR)/$(BUNDLE_NAME)"
 
 .PHONY: clean
