@@ -35,6 +35,7 @@ import type {
 	ReportSortMode,
 	ReportKind,
 	WorkspaceRoleOverview,
+	GlobalLeaveReportSummary,
 } from './domain';
 
 /**
@@ -555,6 +556,13 @@ export type GetTimeReportSummaryResponse = {
  */
 export type GetGlobalTimeReportSummaryResponse = {
 	readonly summary: GlobalTimeReportSummary;
+};
+
+/**
+ * GetGlobalLeaveReportSummaryResponse is returned by GET /reports/global/leaves.
+ */
+export type GetGlobalLeaveReportSummaryResponse = {
+	readonly summary: GlobalLeaveReportSummary;
 };
 
 /**

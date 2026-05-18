@@ -471,6 +471,49 @@ export type ReportRule = {
 };
 
 /**
+ * GlobalLeaveReportRow contains one leave request plus workspace display data.
+ */
+export type GlobalLeaveReportRow = {
+	readonly workspaceId: string;
+	readonly workspaceName: string;
+	readonly leaveRequest: PendingLeaveRequest;
+};
+
+/**
+ * GlobalLeaveReportWorkspaceSummary contains leave totals for one workspace.
+ */
+export type GlobalLeaveReportWorkspaceSummary = {
+	readonly workspaceId: string;
+	readonly workspaceName: string;
+	readonly approvedCount: number;
+	readonly pendingCount: number;
+};
+
+/**
+ * GlobalLeaveReportTypeSummary contains leave totals by leave type.
+ */
+export type GlobalLeaveReportTypeSummary = {
+	readonly leaveTypeName: string;
+	readonly leaveTypeColor: string;
+	readonly approvedCount: number;
+	readonly pendingCount: number;
+};
+
+/**
+ * GlobalLeaveReportSummary is a global leave report across active workspaces.
+ */
+export type GlobalLeaveReportSummary = {
+	readonly startDate: LocalDate;
+	readonly endDate: LocalDate;
+	readonly workspaceCount: number;
+	readonly approvedCount: number;
+	readonly pendingCount: number;
+	readonly rows: readonly GlobalLeaveReportRow[];
+	readonly workspaces: readonly GlobalLeaveReportWorkspaceSummary[];
+	readonly types: readonly GlobalLeaveReportTypeSummary[];
+};
+
+/**
  * SavedReportFilter is a user-owned saved report filter.
  */
 export type SavedReportFilter = {

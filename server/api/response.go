@@ -554,6 +554,19 @@ func WriteGetGlobalTimeReportSummary(
 }
 
 /*
+WriteGetGlobalLeaveReportSummary writes the global leave report summary response.
+*/
+func WriteGetGlobalLeaveReportSummary(
+	w http.ResponseWriter,
+	statusCode int,
+	payload GetGlobalLeaveReportSummaryResponse,
+) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode global leave report summary response")
+}
+
+/*
 WritePostWeeklyReportPreview writes the posted weekly report preview response.
 */
 func WritePostWeeklyReportPreview(

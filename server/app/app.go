@@ -56,6 +56,7 @@ type App struct {
 	ReportService                   *service.ReportService
 	TimeReportService               *service.TimeReportService
 	GlobalReportService             *service.GlobalReportService
+	GlobalLeaveReportService        *service.GlobalLeaveReportService
 	SavedReportFilterService        *service.SavedReportFilterService
 	ExportService                   *service.ExportService
 	TaskService                     *service.TaskService
@@ -192,6 +193,11 @@ func New(config Config) (*App, error) {
 		userDirectoryProvider,
 	)
 
+	globalLeaveReportService := service.NewGlobalLeaveReportService(
+		workspaceStore,
+		leaveStore,
+	)
+
 	reportPublisher := mattermost.NewReportPublisher(config.API, botUserID)
 	reportService := service.NewReportService(
 		standupService,
@@ -249,6 +255,7 @@ func New(config Config) (*App, error) {
 		ReportService:                   reportService,
 		TimeReportService:               timeReportService,
 		GlobalReportService:             globalReportService,
+		GlobalLeaveReportService:        globalLeaveReportService,
 		SavedReportFilterService:        savedReportFilterService,
 		ExportService:                   exportService,
 		TaskService:                     taskService,
@@ -274,6 +281,7 @@ func New(config Config) (*App, error) {
 		ReportService:                   reportService,
 		TimeReportService:               timeReportService,
 		GlobalReportService:             globalReportService,
+		GlobalLeaveReportService:        globalLeaveReportService,
 		SavedReportFilterService:        savedReportFilterService,
 		ExportService:                   exportService,
 		TaskService:                     taskService,

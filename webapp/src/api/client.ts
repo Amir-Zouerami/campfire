@@ -77,6 +77,7 @@ import type {
 	GetGlobalTimeReportSummaryResponse,
 	ListWorkspaceMembersResponse,
 	ListWorkspaceRolesResponse,
+	GetGlobalLeaveReportSummaryResponse,
 } from '../types/api';
 import { TimeReportGroupBy } from '../types/domain';
 
@@ -702,6 +703,21 @@ export async function getGlobalTimeReportSummary(
 	});
 
 	return apiGet<GetGlobalTimeReportSummaryResponse>(`/reports/global/time-summary?${params.toString()}`);
+}
+
+/**
+ * getGlobalLeaveReportSummary loads a global leave report summary.
+ */
+export async function getGlobalLeaveReportSummary(
+	startDate: string,
+	endDate: string,
+): Promise<GetGlobalLeaveReportSummaryResponse> {
+	const params = new URLSearchParams({
+		startDate,
+		endDate,
+	});
+
+	return apiGet<GetGlobalLeaveReportSummaryResponse>(`/reports/global/leaves?${params.toString()}`);
 }
 
 /**
