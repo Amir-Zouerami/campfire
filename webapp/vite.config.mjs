@@ -15,10 +15,17 @@ const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
  * the JavaScript bundle because Mattermost loads webapp/dist/main.js from the
  * plugin manifest.
  *
+ * Mattermost loads plugin webapp bundles directly in the browser, so Node-only
+ * globals such as process must not leak into the final IIFE bundle.
+ *
  * @type {import('vite').UserConfig}
  */
 const config = defineConfig({
 	plugins: [react(), tailwindcss(), cssInjectedByJsPlugin()],
+	define: {
+		'process.env.NODE_ENV': JSON.stringify('production'),
+		'process.env': '{}',
+	},
 	build: {
 		outDir: 'dist',
 		emptyOutDir: true,
@@ -30,6 +37,11 @@ const config = defineConfig({
 			name: 'CampfireWebapp',
 			formats: ['iife'],
 			fileName: () => 'main.js',
+		},
+		rollupOptions: {
+			output: {
+				intro: 'var process = globalThis.process || { env: { NODE_ENV: "production" } };',
+			},
 		},
 	},
 });
