@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 
 import { useUserProfiles } from './useUserProfiles';
+import { CAMPFIRE_APPLY_REPORT_FILTER_EVENT, isReportFilterApplyEvent } from './events';
 import type { DailyReportPreview, ReportRun, StandupSubmissionSortMode, Workspace } from '../types/domain';
 import { ApiClientError, getDailyReportPreview, listDailyReportRuns, postDailyReportPreview } from '../api/client';
 
@@ -42,8 +43,44 @@ export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): Reac
 	const [message, setMessage] = useState('');
 
 	useEffect(() => {
-		let isActive = true;
+		/**
+		 * Applies saved daily-report filters dispatched by the saved-filter card.
+		 */
+		function handleApplyReportFilter(event: Event): void {
+			if (!isReportFilterApplyEvent(event)) {
+				return;
+			}
 
+			if (event.detail.workspaceID !== props.workspace.id || event.detail.reportType !== 'daily') {
+				return;
+			}
+
+			const filter = parseDailyReportFilter(event.detail.filterJson);
+			if (filter === null) {
+				setMessage(`Saved filter "${event.detail.name}" is not a valid daily report filter.`);
+				return;
+			}
+
+			if (filter.occurrenceDate !== undefined) {
+				setOccurrenceDate(filter.occurrenceDate);
+			}
+
+			if (filter.sortMode !== undefined) {
+				setSortMode(filter.sortMode);
+			}
+
+			setMessage(`Applied saved filter "${event.detail.name}".`);
+		}
+
+		window.addEventListener(CAMPFIRE_APPLY_REPORT_FILTER_EVENT, handleApplyReportFilter);
+
+		return () => {
+			window.removeEventListener(CAMPFIRE_APPLY_REPORT_FILTER_EVENT, handleApplyReportFilter);
+		};
+	}, [props.workspace.id]);
+
+	useEffect(() => {
+		let isActive = true;
 		async function loadPreview(): Promise<void> {
 			setLoadState('loading');
 			setClipboardState('idle');
@@ -453,6 +490,56 @@ const historyPostedClassName =
 
 const historyFailedClassName =
 	'cf:w-fit cf:rounded-full cf:border cf:border-red-300/20 cf:bg-red-300/10 cf:px-2.5 cf:py-1 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.1em] cf:text-red-200';
+
+/**
+ * DailyReportFilter contains saved daily report controls this card can apply.
+ */
+type DailyReportFilter = {
+	readonly occurrenceDate?: string;
+	readonly sortMode?: StandupSubmissionSortMode;
+};
+
+/**
+ * parseDailyReportFilter validates saved JSON for daily report controls.
+ */
+function parseDailyReportFilter(filterJson: string): DailyReportFilter | null {
+	try {
+		const parsed: unknown = JSON.parse(filterJson);
+		if (!isRecord(parsed)) {
+			return null;
+		}
+
+		const occurrenceDate = stringField(parsed, 'occurrenceDate') ?? stringField(parsed, 'date');
+		const sortMode = stringField(parsed, 'sortMode');
+
+		return {
+			...(occurrenceDate === undefined ? {} : { occurrenceDate }),
+			...(sortMode === undefined ? {} : { sortMode: toSortMode(sortMode) }),
+		};
+	} catch (_error: unknown) {
+		return null;
+	}
+}
+
+/**
+ * stringField reads one optional string field from a parsed JSON object.
+ */
+function stringField(record: Record<string, unknown>, key: string): string | undefined {
+	const value = record[key];
+
+	if (typeof value !== 'string' || value.trim() === '') {
+		return undefined;
+	}
+
+	return value.trim();
+}
+
+/**
+ * isRecord narrows JSON values to indexable plain objects.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
 /**
  * collectDailyReportUserIDs returns all Mattermost user IDs displayed by this card.

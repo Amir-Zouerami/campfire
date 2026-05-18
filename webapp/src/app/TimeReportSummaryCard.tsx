@@ -1,8 +1,9 @@
-import { useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState, type ReactElement } from 'react';
 
-import { ApiClientError, getTimeReportSummary } from '../api/client';
-import type { TimeReportGroupBy, TimeReportRow, TimeReportSummary, Workspace } from '../types/domain';
 import { useUserProfiles } from './useUserProfiles';
+import { ApiClientError, getTimeReportSummary } from '../api/client';
+import { CAMPFIRE_APPLY_REPORT_FILTER_EVENT, isReportFilterApplyEvent } from './events';
+import type { TimeReportGroupBy, TimeReportRow, TimeReportSummary, Workspace } from '../types/domain';
 
 /**
  * TimeReportSummaryCardProps contains the current workspace.
@@ -38,6 +39,47 @@ export function TimeReportSummaryCard(props: TimeReportSummaryCardProps): ReactE
 	} = useUserProfiles(userIDsForProfiles);
 
 	const isBusy = loadState === 'loading';
+
+	useEffect(() => {
+		/**
+		 * Applies saved time-report filters dispatched by the saved-filter card.
+		 */
+		function handleApplyReportFilter(event: Event): void {
+			if (!isReportFilterApplyEvent(event)) {
+				return;
+			}
+
+			if (event.detail.workspaceID !== props.workspace.id || event.detail.reportType !== 'time') {
+				return;
+			}
+
+			const filter = parseTimeReportFilter(event.detail.filterJson);
+			if (filter === null) {
+				setMessage(`Saved filter "${event.detail.name}" is not a valid time report filter.`);
+				return;
+			}
+
+			if (filter.startDate !== undefined) {
+				setStartDate(filter.startDate);
+			}
+
+			if (filter.endDate !== undefined) {
+				setEndDate(filter.endDate);
+			}
+
+			if (filter.groupBy !== undefined) {
+				setGroupBy(filter.groupBy);
+			}
+
+			setMessage(`Applied saved filter "${event.detail.name}". Load the report to refresh results.`);
+		}
+
+		window.addEventListener(CAMPFIRE_APPLY_REPORT_FILTER_EVENT, handleApplyReportFilter);
+
+		return () => {
+			window.removeEventListener(CAMPFIRE_APPLY_REPORT_FILTER_EVENT, handleApplyReportFilter);
+		};
+	}, [props.workspace.id]);
 
 	/**
 	 * Loads the time report summary from the backend.
@@ -183,6 +225,59 @@ function Metric(props: { readonly label: string; readonly value: string }): Reac
 			<p className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:text-white">{props.value}</p>
 		</div>
 	);
+}
+
+/**
+ * TimeReportFilter contains saved time report controls this card can apply.
+ */
+type TimeReportFilter = {
+	readonly startDate?: string;
+	readonly endDate?: string;
+	readonly groupBy?: TimeReportGroupBy;
+};
+
+/**
+ * parseTimeReportFilter validates saved JSON for time report controls.
+ */
+function parseTimeReportFilter(filterJson: string): TimeReportFilter | null {
+	try {
+		const parsed: unknown = JSON.parse(filterJson);
+		if (!isRecord(parsed)) {
+			return null;
+		}
+
+		const startDate = stringField(parsed, 'startDate') ?? stringField(parsed, 'periodStart');
+		const endDate = stringField(parsed, 'endDate') ?? stringField(parsed, 'periodEnd');
+		const groupBy = stringField(parsed, 'groupBy');
+
+		return {
+			...(startDate === undefined ? {} : { startDate }),
+			...(endDate === undefined ? {} : { endDate }),
+			...(groupBy === undefined ? {} : { groupBy: toTimeReportGroupBy(groupBy) }),
+		};
+	} catch (_error: unknown) {
+		return null;
+	}
+}
+
+/**
+ * stringField reads one optional string field from a parsed JSON object.
+ */
+function stringField(record: Record<string, unknown>, key: string): string | undefined {
+	const value = record[key];
+
+	if (typeof value !== 'string' || value.trim() === '') {
+		return undefined;
+	}
+
+	return value.trim();
+}
+
+/**
+ * isRecord narrows JSON values to indexable plain objects.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /**

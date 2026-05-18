@@ -1,6 +1,7 @@
-import { useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState, type ReactElement } from 'react';
 
 import { useUserProfiles } from './useUserProfiles';
+import { CAMPFIRE_APPLY_REPORT_FILTER_EVENT, isReportFilterApplyEvent } from './events';
 import { ApiClientError, getWeeklyReportPreview, postWeeklyReportPreview } from '../api/client';
 import type { DailyReportPreview, ReportSortMode, WeeklyReportPreview, Workspace } from '../types/domain';
 
@@ -38,6 +39,48 @@ export function WeeklyReportPreviewCard(props: WeeklyReportPreviewCardProps): Re
 	const [message, setMessage] = useState('');
 
 	const isBusy = loadState === 'loading' || loadState === 'posting';
+
+	useEffect(() => {
+		/**
+		 * Applies saved weekly-report filters dispatched by the saved-filter card.
+		 */
+		function handleApplyReportFilter(event: Event): void {
+			if (!isReportFilterApplyEvent(event)) {
+				return;
+			}
+
+			if (event.detail.workspaceID !== props.workspace.id || event.detail.reportType !== 'weekly') {
+				return;
+			}
+
+			const filter = parseWeeklyReportFilter(event.detail.filterJson);
+			if (filter === null) {
+				setMessage(`Saved filter "${event.detail.name}" is not a valid weekly report filter.`);
+				return;
+			}
+
+			if (filter.periodStart !== undefined) {
+				setPeriodStart(filter.periodStart);
+			}
+
+			if (filter.periodEnd !== undefined) {
+				setPeriodEnd(filter.periodEnd);
+			}
+
+			if (filter.sortMode !== undefined) {
+				setSortMode(filter.sortMode);
+			}
+
+			setMessage(`Applied saved filter "${event.detail.name}". Generate the preview to refresh results.`);
+		}
+
+		window.addEventListener(CAMPFIRE_APPLY_REPORT_FILTER_EVENT, handleApplyReportFilter);
+
+		return () => {
+			window.removeEventListener(CAMPFIRE_APPLY_REPORT_FILTER_EVENT, handleApplyReportFilter);
+		};
+	}, [props.workspace.id]);
+
 	const userIDsForProfiles = useMemo(() => collectWeeklyReportUserIDs(preview), [preview]);
 	const {
 		errorMessage: profileErrorMessage,
@@ -364,6 +407,76 @@ function MetricCard(props: { readonly label: string; readonly value: string }): 
 			<p className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:text-white">{props.value}</p>
 		</div>
 	);
+}
+
+/**
+ * WeeklyReportFilter contains saved weekly report controls this card can apply.
+ */
+type WeeklyReportFilter = {
+	readonly periodStart?: string;
+	readonly periodEnd?: string;
+	readonly sortMode?: ReportSortMode;
+};
+
+/**
+ * parseWeeklyReportFilter validates saved JSON for weekly report controls.
+ */
+function parseWeeklyReportFilter(filterJson: string): WeeklyReportFilter | null {
+	try {
+		const parsed: unknown = JSON.parse(filterJson);
+		if (!isRecord(parsed)) {
+			return null;
+		}
+
+		const periodStart = stringField(parsed, 'periodStart') ?? stringField(parsed, 'startDate');
+		const periodEnd = stringField(parsed, 'periodEnd') ?? stringField(parsed, 'endDate');
+		const sortMode = stringField(parsed, 'sortMode');
+
+		return {
+			...(periodStart === undefined ? {} : { periodStart }),
+			...(periodEnd === undefined ? {} : { periodEnd }),
+			...(sortMode === undefined ? {} : { sortMode: toReportSortMode(sortMode) }),
+		};
+	} catch (_error: unknown) {
+		return null;
+	}
+}
+
+/**
+ * stringField reads one optional string field from a parsed JSON object.
+ */
+function stringField(record: Record<string, unknown>, key: string): string | undefined {
+	const value = record[key];
+
+	if (typeof value !== 'string' || value.trim() === '') {
+		return undefined;
+	}
+
+	return value.trim();
+}
+
+/**
+ * toReportSortMode narrows strings to supported weekly report sort modes.
+ */
+function toReportSortMode(value: string): ReportSortMode {
+	switch (value) {
+		case 'name':
+		case 'first_submitted':
+		case 'last_submitted':
+		case 'missing_first':
+		case 'blockers_first':
+			return value;
+
+		default:
+			return 'first_submitted';
+	}
+}
+
+/**
+ * isRecord narrows JSON values to indexable plain objects.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /**

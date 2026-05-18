@@ -6,6 +6,7 @@ import {
 	deleteSavedReportFilter,
 	listSavedReportFilters,
 } from '../api/client';
+import { dispatchApplyReportFilter } from './events';
 import type { ReportKind, SavedReportFilter, Workspace } from '../types/domain';
 
 /**
@@ -171,6 +172,26 @@ export function SavedReportFiltersCard(props: SavedReportFiltersCardProps): Reac
 		setMessage('Filter loaded into editor. Save it as a new filter after editing.');
 	}
 
+	/**
+	 * Applies a saved filter to the matching report cards.
+	 */
+	function handleApplyFilter(filter: SavedReportFilter): void {
+		const normalizedFilterJson = normalizeFilterJson(filter.filterJson);
+		if (normalizedFilterJson === null) {
+			setMessage('This saved filter contains invalid JSON and cannot be applied.');
+			return;
+		}
+
+		dispatchApplyReportFilter({
+			workspaceID: props.workspace.id,
+			reportType: filter.reportType,
+			name: filter.name,
+			filterJson: normalizedFilterJson,
+		});
+
+		setMessage(`Applied saved filter "${filter.name}" to ${formatLabel(filter.reportType)} report controls.`);
+	}
+
 	return (
 		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-indigo-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
 			<div className="cf:grid cf:gap-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
@@ -310,6 +331,15 @@ export function SavedReportFiltersCard(props: SavedReportFiltersCardProps): Reac
 							</div>
 
 							<div className="cf:flex cf:flex-wrap cf:gap-2">
+								<button
+									className="cf:rounded-2xl cf:border cf:border-indigo-300/25 cf:bg-indigo-400/15 cf:px-4 cf:py-2 cf:text-sm cf:font-black cf:text-indigo-50 cf:transition cf:hover:bg-indigo-400/25 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
+									disabled={isBusy}
+									type="button"
+									onClick={() => handleApplyFilter(filter)}
+								>
+									Apply
+								</button>
+
 								<button
 									className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.06] cf:px-4 cf:py-2 cf:text-sm cf:font-black cf:text-white cf:transition cf:hover:bg-white/[0.1] cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
 									disabled={isBusy}

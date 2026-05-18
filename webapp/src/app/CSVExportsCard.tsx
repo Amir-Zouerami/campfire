@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
 
 import {
 	ApiClientError,
@@ -8,6 +8,7 @@ import {
 	exportWorkspaceTimeCSV,
 } from '../api/client';
 import type { StandupSubmissionSortMode, Workspace } from '../types/domain';
+import { CAMPFIRE_APPLY_REPORT_FILTER_EVENT, isReportFilterApplyEvent } from './events';
 
 /**
  * CSVExportsCardProps contains the current workspace.
@@ -51,6 +52,47 @@ export function CSVExportsCard(props: CSVExportsCardProps): ReactElement {
 		exportState === 'exporting_leaves' ||
 		exportState === 'exporting_standups' ||
 		exportState === 'exporting_missing';
+
+	useEffect(() => {
+		/**
+		 * Applies saved export filters dispatched by the saved-filter card.
+		 */
+		function handleApplyReportFilter(event: Event): void {
+			if (!isReportFilterApplyEvent(event)) {
+				return;
+			}
+
+			if (event.detail.workspaceID !== props.workspace.id) {
+				return;
+			}
+
+			const filter = parseCSVExportFilter(event.detail.filterJson);
+			if (filter === null) {
+				setMessage(`Saved filter "${event.detail.name}" is not a valid export filter.`);
+				return;
+			}
+
+			if (filter.startDate !== undefined) {
+				setStartDate(filter.startDate);
+			}
+
+			if (filter.endDate !== undefined) {
+				setEndDate(filter.endDate);
+			}
+
+			if (filter.sortMode !== undefined) {
+				setSortMode(filter.sortMode);
+			}
+
+			setMessage(`Applied saved filter "${event.detail.name}" to CSV export controls.`);
+		}
+
+		window.addEventListener(CAMPFIRE_APPLY_REPORT_FILTER_EVENT, handleApplyReportFilter);
+
+		return () => {
+			window.removeEventListener(CAMPFIRE_APPLY_REPORT_FILTER_EVENT, handleApplyReportFilter);
+		};
+	}, [props.workspace.id]);
 
 	/**
 	 * Downloads the time CSV export.
@@ -240,6 +282,59 @@ function Field(props: { readonly label: string; readonly children: ReactElement 
 			{props.children}
 		</label>
 	);
+}
+
+/**
+ * CSVExportFilter contains saved export controls this card can apply.
+ */
+type CSVExportFilter = {
+	readonly startDate?: string;
+	readonly endDate?: string;
+	readonly sortMode?: StandupSubmissionSortMode;
+};
+
+/**
+ * parseCSVExportFilter validates saved JSON for CSV export controls.
+ */
+function parseCSVExportFilter(filterJson: string): CSVExportFilter | null {
+	try {
+		const parsed: unknown = JSON.parse(filterJson);
+		if (!isRecord(parsed)) {
+			return null;
+		}
+
+		const startDate = stringField(parsed, 'startDate') ?? stringField(parsed, 'periodStart');
+		const endDate = stringField(parsed, 'endDate') ?? stringField(parsed, 'periodEnd');
+		const sortMode = stringField(parsed, 'sortMode');
+
+		return {
+			...(startDate === undefined ? {} : { startDate }),
+			...(endDate === undefined ? {} : { endDate }),
+			...(sortMode === undefined ? {} : { sortMode: toSortMode(sortMode) }),
+		};
+	} catch (_error: unknown) {
+		return null;
+	}
+}
+
+/**
+ * stringField reads one optional string field from a parsed JSON object.
+ */
+function stringField(record: Record<string, unknown>, key: string): string | undefined {
+	const value = record[key];
+
+	if (typeof value !== 'string' || value.trim() === '') {
+		return undefined;
+	}
+
+	return value.trim();
+}
+
+/**
+ * isRecord narrows JSON values to indexable plain objects.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /**
