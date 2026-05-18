@@ -706,6 +706,23 @@ export async function getGlobalTimeReportSummary(
 }
 
 /**
+ * exportGlobalTimeReportCSV downloads a global time report CSV file.
+ */
+export async function exportGlobalTimeReportCSV(
+	startDate: string,
+	endDate: string,
+	groupBy: TimeReportGroupBy,
+): Promise<Blob> {
+	const params = new URLSearchParams({
+		startDate,
+		endDate,
+		groupBy,
+	});
+
+	return apiGetBlob(`/reports/global/time/export.csv?${params.toString()}`);
+}
+
+/**
  * getGlobalLeaveReportSummary loads a global leave report summary.
  */
 export async function getGlobalLeaveReportSummary(
@@ -718,6 +735,18 @@ export async function getGlobalLeaveReportSummary(
 	});
 
 	return apiGet<GetGlobalLeaveReportSummaryResponse>(`/reports/global/leaves?${params.toString()}`);
+}
+
+/**
+ * exportGlobalLeaveReportCSV downloads a global leave report CSV file.
+ */
+export async function exportGlobalLeaveReportCSV(startDate: string, endDate: string): Promise<Blob> {
+	const params = new URLSearchParams({
+		startDate,
+		endDate,
+	});
+
+	return apiGetBlob(`/reports/global/leaves/export.csv?${params.toString()}`);
 }
 
 /**

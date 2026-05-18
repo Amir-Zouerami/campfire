@@ -175,8 +175,16 @@ func NewRouter(config RouterConfig) http.Handler {
 			handleGetGlobalTimeReportSummary(config.Logger, config.Mattermost, config.GlobalReportService),
 		)
 		api.Get(
+			"/reports/global/time/export.csv",
+			handleExportGlobalTimeReportCSV(config.Logger, config.Mattermost, config.GlobalReportService),
+		)
+		api.Get(
 			"/reports/global/leaves",
 			handleGetGlobalLeaveReportSummary(config.Logger, config.Mattermost, config.GlobalLeaveReportService),
+		)
+		api.Get(
+			"/reports/global/leaves/export.csv",
+			handleExportGlobalLeaveReportCSV(config.Logger, config.Mattermost, config.GlobalLeaveReportService),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/reports/daily-runs",

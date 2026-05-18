@@ -1,8 +1,8 @@
 import { useMemo, useState, type FormEvent, type ReactElement } from 'react';
 
 import { useUserProfiles } from './useUserProfiles';
-import { ApiClientError, getGlobalLeaveReportSummary } from '../api/client';
 import type { GlobalLeaveReportSummary } from '../types/domain';
+import { ApiClientError, exportGlobalLeaveReportCSV, getGlobalLeaveReportSummary } from '../api/client';
 
 /**
  * GlobalLeaveReportsCardProps contains global leave report access state.
@@ -14,7 +14,7 @@ type GlobalLeaveReportsCardProps = {
 /**
  * LoadState describes the global leave report card state.
  */
-type LoadState = 'idle' | 'loading' | 'ready' | 'error';
+type LoadState = 'idle' | 'loading' | 'exporting' | 'ready' | 'error';
 
 /**
  * GlobalLeaveReportsCard renders an MVP global leave dashboard.
@@ -34,7 +34,7 @@ export function GlobalLeaveReportsCard(props: GlobalLeaveReportsCardProps): Reac
 		loading: profilesLoading,
 	} = useUserProfiles(userIDsForProfiles);
 
-	const isBusy = loadState === 'loading';
+	const isBusy = loadState === 'loading' || loadState === 'exporting';
 
 	/**
 	 * Loads the global leave report.
@@ -50,6 +50,24 @@ export function GlobalLeaveReportsCard(props: GlobalLeaveReportsCardProps): Reac
 			setSummary(response.summary);
 			setLoadState('ready');
 			setMessage('');
+		} catch (error: unknown) {
+			setMessage(errorToMessage(error));
+			setLoadState('error');
+		}
+	}
+
+	/**
+	 * Exports the current global leave report controls as CSV.
+	 */
+	async function handleExportCSV(): Promise<void> {
+		setLoadState('exporting');
+		setMessage('');
+
+		try {
+			const blob = await exportGlobalLeaveReportCSV(startDate, endDate);
+			downloadBlob(blob, buildExportFilename('campfire-global-leaves', startDate, endDate));
+			setLoadState('ready');
+			setMessage('Global leave CSV downloaded.');
 		} catch (error: unknown) {
 			setMessage(errorToMessage(error));
 			setLoadState('error');
@@ -116,13 +134,24 @@ export function GlobalLeaveReportsCard(props: GlobalLeaveReportsCardProps): Reac
 					onChange={event => setEndDate(event.currentTarget.value)}
 				/>
 
-				<button
-					className="cf:rounded-2xl cf:border cf:border-emerald-300/30 cf:bg-emerald-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-emerald-50 cf:transition cf:hover:bg-emerald-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-					disabled={isBusy}
-					type="submit"
-				>
-					Load leave report
-				</button>
+				<div className="cf:flex cf:flex-wrap cf:gap-3">
+					<button
+						className="cf:rounded-2xl cf:border cf:border-emerald-300/30 cf:bg-emerald-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-emerald-50 cf:transition cf:hover:bg-emerald-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
+						disabled={isBusy}
+						type="submit"
+					>
+						Load leave report
+					</button>
+
+					<button
+						className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.06] cf:px-5 cf:py-3 cf:font-black cf:text-white cf:transition cf:hover:bg-white/[0.1] cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
+						disabled={isBusy}
+						type="button"
+						onClick={() => void handleExportCSV()}
+					>
+						Export CSV
+					</button>
+				</div>
 			</form>
 
 			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
@@ -330,4 +359,27 @@ function errorToMessage(error: unknown): string {
 	}
 
 	return 'Could not load global leave report.';
+}
+
+/**
+ * downloadBlob downloads a browser Blob with a generated filename.
+ */
+function downloadBlob(blob: Blob, filename: string): void {
+	const url = URL.createObjectURL(blob);
+	const anchor = document.createElement('a');
+
+	anchor.href = url;
+	anchor.download = filename;
+	document.body.appendChild(anchor);
+	anchor.click();
+	anchor.remove();
+
+	URL.revokeObjectURL(url);
+}
+
+/**
+ * buildExportFilename builds a stable CSV export filename.
+ */
+function buildExportFilename(prefix: string, startDate: string, endDate: string): string {
+	return `${prefix}-${startDate}-to-${endDate}.csv`;
 }

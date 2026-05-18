@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent, type ReactElement } from 'react';
 
-import { ApiClientError, getGlobalTimeReportSummary } from '../api/client';
 import type { GlobalTimeReportSummary, TimeReportGroupBy } from '../types/domain';
+import { ApiClientError, exportGlobalTimeReportCSV, getGlobalTimeReportSummary } from '../api/client';
 
 /**
  * GlobalReportsCardProps contains global report access state.
@@ -13,7 +13,7 @@ type GlobalReportsCardProps = {
 /**
  * LoadState describes the global reports card state.
  */
-type LoadState = 'idle' | 'loading' | 'ready' | 'error';
+type LoadState = 'idle' | 'loading' | 'exporting' | 'ready' | 'error';
 
 const groupOptions: readonly TimeReportGroupBy[] = ['person', 'project', 'category', 'task', 'day', 'week'];
 
@@ -29,7 +29,7 @@ export function GlobalReportsCard(props: GlobalReportsCardProps): ReactElement {
 	const [summary, setSummary] = useState<GlobalTimeReportSummary | null>(null);
 	const [message, setMessage] = useState('');
 
-	const isBusy = loadState === 'loading';
+	const isBusy = loadState === 'loading' || loadState === 'exporting';
 
 	/**
 	 * Loads the global time report.
@@ -45,6 +45,24 @@ export function GlobalReportsCard(props: GlobalReportsCardProps): ReactElement {
 			setSummary(response.summary);
 			setLoadState('ready');
 			setMessage('');
+		} catch (error: unknown) {
+			setMessage(errorToMessage(error));
+			setLoadState('error');
+		}
+	}
+
+	/**
+	 * Exports the current global time report controls as CSV.
+	 */
+	async function handleExportCSV(): Promise<void> {
+		setLoadState('exporting');
+		setMessage('');
+
+		try {
+			const blob = await exportGlobalTimeReportCSV(startDate, endDate, groupBy);
+			downloadBlob(blob, buildExportFilename('campfire-global-time', startDate, endDate));
+			setLoadState('ready');
+			setMessage('Global time CSV downloaded.');
 		} catch (error: unknown) {
 			setMessage(errorToMessage(error));
 			setLoadState('error');
@@ -124,13 +142,24 @@ export function GlobalReportsCard(props: GlobalReportsCardProps): ReactElement {
 					))}
 				</select>
 
-				<button
-					className="cf:rounded-2xl cf:border cf:border-violet-300/30 cf:bg-violet-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-violet-50 cf:transition cf:hover:bg-violet-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-					disabled={isBusy}
-					type="submit"
-				>
-					Load global report
-				</button>
+				<div className="cf:flex cf:flex-wrap cf:gap-3">
+					<button
+						className="cf:rounded-2xl cf:border cf:border-violet-300/30 cf:bg-violet-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-violet-50 cf:transition cf:hover:bg-violet-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
+						disabled={isBusy}
+						type="submit"
+					>
+						Load global report
+					</button>
+
+					<button
+						className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.06] cf:px-5 cf:py-3 cf:font-black cf:text-white cf:transition cf:hover:bg-white/[0.1] cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
+						disabled={isBusy}
+						type="button"
+						onClick={() => void handleExportCSV()}
+					>
+						Export CSV
+					</button>
+				</div>
 			</form>
 
 			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
@@ -298,4 +327,27 @@ function errorToMessage(error: unknown): string {
 	}
 
 	return 'Could not load global report.';
+}
+
+/**
+ * downloadBlob downloads a browser Blob with a generated filename.
+ */
+function downloadBlob(blob: Blob, filename: string): void {
+	const url = URL.createObjectURL(blob);
+	const anchor = document.createElement('a');
+
+	anchor.href = url;
+	anchor.download = filename;
+	document.body.appendChild(anchor);
+	anchor.click();
+	anchor.remove();
+
+	URL.revokeObjectURL(url);
+}
+
+/**
+ * buildExportFilename builds a stable CSV export filename.
+ */
+function buildExportFilename(prefix: string, startDate: string, endDate: string): string {
+	return `${prefix}-${startDate}-to-${endDate}.csv`;
 }
