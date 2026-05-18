@@ -696,7 +696,7 @@ export async function postWeeklyReportPreview(
 }
 
 /**
- * validateLeaveRequest validates a leave request before creating it.
+ * validateLeaveRequest checks leave request fields before creating a request.
  */
 export async function validateLeaveRequest(request: ValidateLeaveRequest): Promise<ValidateLeaveResponse> {
 	return apiPost<ValidateLeaveRequest, ValidateLeaveResponse>('/leaves/validate', request);
