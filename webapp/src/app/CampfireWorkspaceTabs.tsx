@@ -23,6 +23,7 @@ import { WhoIsOutCard } from './WhoIsOutCard';
 import { WorkspaceOffDaysCard } from './WorkspaceOffDaysCard';
 import { WorkspaceWorkingDaysCard } from './WorkspaceWorkingDaysCard';
 import type { Workspace } from '../types/domain';
+import { GlobalReportsCard } from './GlobalReportsCard';
 
 /**
  * CampfireWorkspaceTab identifies one main workspace section.
@@ -223,6 +224,7 @@ function renderActiveTab(props: CampfireWorkspaceTabsProps, activeTab: CampfireW
 		case 'reports':
 			return (
 				<>
+					<GlobalReportsCard isSystemAdmin={props.isSystemAdmin} />
 					<ReportSettingsCard workspace={props.workspace} canManageWorkspace={props.canManageWorkspace} />
 					<SavedReportFiltersCard workspace={props.workspace} />
 					<CSVExportsCard workspace={props.workspace} />

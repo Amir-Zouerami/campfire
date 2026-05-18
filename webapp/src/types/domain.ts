@@ -495,6 +495,30 @@ export type TimeReportSummary = {
 };
 
 /**
+ * GlobalTimeReportWorkspaceSummary is one workspace total in a global report.
+ */
+export type GlobalTimeReportWorkspaceSummary = {
+	readonly workspaceId: string;
+	readonly workspaceName: string;
+	readonly totalMinutes: number;
+	readonly entryCount: number;
+};
+
+/**
+ * GlobalTimeReportSummary is a global time report across active workspaces.
+ */
+export type GlobalTimeReportSummary = {
+	readonly startDate: LocalDate;
+	readonly endDate: LocalDate;
+	readonly groupBy: TimeReportGroupBy;
+	readonly workspaceCount: number;
+	readonly totalMinutes: number;
+	readonly entryCount: number;
+	readonly rows: readonly TimeReportRow[];
+	readonly workspaces: readonly GlobalTimeReportWorkspaceSummary[];
+};
+
+/**
  * DailyReportAnswerRow contains one answer formatted for report display.
  */
 export type DailyReportAnswerRow = {

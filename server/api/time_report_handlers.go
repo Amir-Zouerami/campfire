@@ -45,3 +45,39 @@ func handleGetTimeReportSummary(
 		})
 	}
 }
+
+/*
+handleGetGlobalTimeReportSummary handles global time report summary generation.
+*/
+func handleGetGlobalTimeReportSummary(
+	log logger.Logger,
+	mm mattermost.Client,
+	globalReportService *service.GlobalReportService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		summary, err := globalReportService.GetGlobalTimeSummary(
+			r.Context(),
+			service.GetGlobalTimeReportSummaryInput{
+				ActorUserID:   user.ID,
+				IsSystemAdmin: user.IsSystemAdmin,
+				StartDate:     r.URL.Query().Get("startDate"),
+				EndDate:       r.URL.Query().Get("endDate"),
+				GroupBy:       r.URL.Query().Get("groupBy"),
+			},
+		)
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WriteGetGlobalTimeReportSummary(w, http.StatusOK, GetGlobalTimeReportSummaryResponse{
+			Summary: GlobalTimeReportSummaryToPayload(*summary),
+		})
+	}
+}

@@ -30,6 +30,7 @@ import type {
 	TimeEntry,
 	TaskStatus,
 	TimeReportSummary,
+	GlobalTimeReportSummary,
 	WeeklyReportPreview,
 	ReportSortMode,
 	ReportKind,
@@ -532,6 +533,13 @@ export type DeleteSavedReportFilterResponse = {
  */
 export type GetTimeReportSummaryResponse = {
 	readonly summary: TimeReportSummary;
+};
+
+/**
+ * GetGlobalTimeReportSummaryResponse is returned by GET /reports/global/time-summary.
+ */
+export type GetGlobalTimeReportSummaryResponse = {
+	readonly summary: GlobalTimeReportSummary;
 };
 
 /**

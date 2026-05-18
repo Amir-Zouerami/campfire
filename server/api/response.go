@@ -523,6 +523,19 @@ func WriteGetTimeReportSummary(
 }
 
 /*
+WriteGetGlobalTimeReportSummary writes the global time report summary response.
+*/
+func WriteGetGlobalTimeReportSummary(
+	w http.ResponseWriter,
+	statusCode int,
+	payload GetGlobalTimeReportSummaryResponse,
+) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode global time report summary response")
+}
+
+/*
 WritePostWeeklyReportPreview writes the posted weekly report preview response.
 */
 func WritePostWeeklyReportPreview(

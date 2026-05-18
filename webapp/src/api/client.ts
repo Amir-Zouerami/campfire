@@ -74,7 +74,9 @@ import type {
 	DeleteSavedReportFilterResponse,
 	ListSavedReportFiltersResponse,
 	GetTimeReportSummaryResponse,
+	GetGlobalTimeReportSummaryResponse,
 } from '../types/api';
+import { TimeReportGroupBy } from '../types/domain';
 
 const pluginID = 'dev.zouerami.campfire';
 
@@ -667,6 +669,23 @@ export async function getTimeReportSummary(
 	return apiGet<GetTimeReportSummaryResponse>(
 		`/workspaces/${encodeURIComponent(workspaceID)}/reports/time-summary?${params.toString()}`,
 	);
+}
+
+/**
+ * getGlobalTimeReportSummary loads a global time report summary.
+ */
+export async function getGlobalTimeReportSummary(
+	startDate: string,
+	endDate: string,
+	groupBy: TimeReportGroupBy,
+): Promise<GetGlobalTimeReportSummaryResponse> {
+	const params = new URLSearchParams({
+		startDate,
+		endDate,
+		groupBy,
+	});
+
+	return apiGet<GetGlobalTimeReportSummaryResponse>(`/reports/global/time-summary?${params.toString()}`);
 }
 
 /**
