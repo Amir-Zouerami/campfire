@@ -33,6 +33,7 @@ type RouterConfig struct {
 	SavedReportFilterService        *service.SavedReportFilterService
 	ExportService                   *service.ExportService
 	TaskService                     *service.TaskService
+	AuditService                    *service.AuditService
 }
 
 /*
@@ -71,6 +72,10 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Put(
 			"/workspaces/{workspaceID}/working-days",
 			handleUpdateWorkspaceWorkingDays(config.Logger, config.Mattermost, config.WorkspaceCalendarService),
+		)
+		api.Get(
+			"/workspaces/{workspaceID}/audit",
+			handleListAuditLog(config.Logger, config.Mattermost, config.AuditService),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/off-days",

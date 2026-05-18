@@ -514,6 +514,20 @@ export type GlobalLeaveReportSummary = {
 };
 
 /**
+ * AuditLogEntry records one important workspace action.
+ */
+export type AuditLogEntry = {
+	readonly id: string;
+	readonly workspaceId: string;
+	readonly actorUserId: string;
+	readonly action: string;
+	readonly entityType: string;
+	readonly entityId: string;
+	readonly metadata: Readonly<Record<string, string>>;
+	readonly createdAt: string;
+};
+
+/**
  * SavedReportFilter is a user-owned saved report filter.
  */
 export type SavedReportFilter = {

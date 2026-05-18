@@ -60,6 +60,7 @@ type App struct {
 	SavedReportFilterService        *service.SavedReportFilterService
 	ExportService                   *service.ExportService
 	TaskService                     *service.TaskService
+	AuditService                    *service.AuditService
 	Scheduler                       *scheduler.Runner
 }
 
@@ -227,6 +228,14 @@ func New(config Config) (*App, error) {
 		taskStore,
 	)
 
+	auditStore := store.NewSQLAuditStore(database)
+
+	auditService := service.NewAuditService(
+		workspaceStore,
+		workspaceRoleStore,
+		auditStore,
+	)
+
 	schedulerRunner := scheduler.NewRunner(scheduler.Config{
 		Logger:                   appLogger,
 		WorkspaceProvider:        workspaceStore,
@@ -259,6 +268,7 @@ func New(config Config) (*App, error) {
 		SavedReportFilterService:        savedReportFilterService,
 		ExportService:                   exportService,
 		TaskService:                     taskService,
+		AuditService:                    auditService,
 	})
 
 	return &App{
@@ -285,6 +295,7 @@ func New(config Config) (*App, error) {
 		SavedReportFilterService:        savedReportFilterService,
 		ExportService:                   exportService,
 		TaskService:                     taskService,
+		AuditService:                    auditService,
 		Scheduler:                       schedulerRunner,
 	}, nil
 }

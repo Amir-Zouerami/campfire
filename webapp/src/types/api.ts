@@ -36,6 +36,7 @@ import type {
 	ReportKind,
 	WorkspaceRoleOverview,
 	GlobalLeaveReportSummary,
+	AuditLogEntry,
 } from './domain';
 
 /**
@@ -45,6 +46,13 @@ export type HealthResponse = {
 	readonly status: string;
 	readonly product: string;
 	readonly version: string;
+};
+
+/**
+ * ListAuditLogResponse is returned by GET /workspaces/{workspaceID}/audit.
+ */
+export type ListAuditLogResponse = {
+	readonly entries: readonly AuditLogEntry[];
 };
 
 /**

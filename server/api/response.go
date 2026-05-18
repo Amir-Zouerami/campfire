@@ -341,6 +341,15 @@ func writeResponse(
 }
 
 /*
+WriteListAuditLog writes the audit-log list response.
+*/
+func WriteListAuditLog(w http.ResponseWriter, statusCode int, payload ListAuditLogResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode audit log response")
+}
+
+/*
 WriteEvaluateStandupDay writes the standup runtime day evaluation response.
 */
 func WriteEvaluateStandupDay(w http.ResponseWriter, statusCode int, payload EvaluateStandupDayResponse) {

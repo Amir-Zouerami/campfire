@@ -78,6 +78,7 @@ import type {
 	ListWorkspaceMembersResponse,
 	ListWorkspaceRolesResponse,
 	GetGlobalLeaveReportSummaryResponse,
+	ListAuditLogResponse,
 } from '../types/api';
 import { TimeReportGroupBy } from '../types/domain';
 
@@ -129,6 +130,17 @@ export async function lookupUsers(userIds: readonly string[]): Promise<LookupUse
  */
 export async function listWorkspaceMembers(workspaceID: string): Promise<ListWorkspaceMembersResponse> {
 	return apiGet<ListWorkspaceMembersResponse>(`/workspaces/${encodeURIComponent(workspaceID)}/members`);
+}
+
+/**
+ * listAuditLog loads recent audit entries for a workspace.
+ */
+export async function listAuditLog(workspaceID: string, limit: number): Promise<ListAuditLogResponse> {
+	const params = new URLSearchParams({
+		limit: String(limit),
+	});
+
+	return apiGet<ListAuditLogResponse>(`/workspaces/${encodeURIComponent(workspaceID)}/audit?${params.toString()}`);
 }
 
 /**

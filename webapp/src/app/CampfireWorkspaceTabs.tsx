@@ -26,6 +26,7 @@ import type { Workspace } from '../types/domain';
 import { GlobalReportsCard } from './GlobalReportsCard';
 import { WorkspaceRolesCard } from './WorkspaceRolesCard';
 import { GlobalLeaveReportsCard } from './GlobalLeaveReportsCard';
+import { AuditLogCard } from './AuditLogCard';
 
 /**
  * CampfireWorkspaceTab identifies one main workspace section.
@@ -265,6 +266,7 @@ function renderActiveTab(props: CampfireWorkspaceTabsProps, activeTab: CampfireW
 						canManageWorkspace={props.canManageWorkspace}
 						onConfigurationChanged={props.onStandupConfigurationChanged}
 					/>
+					<AuditLogCard workspace={props.workspace} />
 				</>
 			);
 	}
