@@ -11,17 +11,18 @@ const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 /**
  * Vite configuration for the Campfire Mattermost webapp bundle.
  *
- * Campfire uses Tailwind through the official Vite plugin. CSS is injected into
- * the JavaScript bundle because Mattermost loads webapp/dist/main.js from the
- * plugin manifest.
- *
- * Mattermost loads plugin webapp bundles directly in the browser, so Node-only
- * globals such as process must not leak into the final IIFE bundle.
- *
- * @type {import('vite').UserConfig}
+ * Mattermost renders plugin components with the host webapp's React. The plugin
+ * bundle must not include its own React copy, otherwise hooks crash with a null
+ * dispatcher: "Cannot read properties of null (reading 'useState')".
  */
 const config = defineConfig({
-	plugins: [react(), tailwindcss(), cssInjectedByJsPlugin()],
+	plugins: [
+		react({
+			jsxRuntime: 'classic',
+		}),
+		tailwindcss(),
+		cssInjectedByJsPlugin(),
+	],
 	define: {
 		'process.env.NODE_ENV': JSON.stringify('production'),
 		'process.env': '{}',
@@ -39,8 +40,18 @@ const config = defineConfig({
 			fileName: () => 'main.js',
 		},
 		rollupOptions: {
+			external: ['react', 'react-dom', 'react-redux', 'redux'],
 			output: {
-				intro: 'var process = globalThis.process || { env: { NODE_ENV: "production" } };',
+				globals: {
+					react: 'React',
+					'react-dom': 'ReactDOM',
+					'react-redux': 'ReactRedux',
+					redux: 'Redux',
+				},
+				intro: [
+					'var process = globalThis.process || { env: { NODE_ENV: "production" } };',
+					'var React = globalThis.React;',
+				].join('\n'),
 			},
 		},
 	},
