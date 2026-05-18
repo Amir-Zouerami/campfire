@@ -1,31 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 
-import { GlobalOffDaysCard } from './GlobalOffDaysCard';
-import { LeaveApprovalsCard } from './LeaveApprovalsCard';
-import { LeaveRequestCard } from './LeaveRequestCard';
-import { MyPendingLeavesCard } from './MyPendingLeavesCard';
 import { WorkspaceSetupCard } from './WorkspaceSetupCard';
 import { CAMPFIRE_OPEN_EVENT } from './events';
 import { useCampfireBootstrap } from './useCampfireBootstrap';
 import type { BootstrapStatus } from './useCampfireBootstrap';
-import { ApprovedLeavesCard } from './ApprovedLeavesCard';
-import { StandupRuntimeCard } from './StandupRuntimeCard';
-import { StandupConfigurationCard } from './StandupConfigurationCard';
-import { StandupFormBuilderCard } from './StandupFormBuilderCard';
-import { StandupScheduleBuilderCard } from './StandupScheduleBuilderCard';
-import { StandupSubmissionCard } from './StandupSubmissionCard';
-import { StandupSubmissionsCard } from './StandupSubmissionsCard';
-import { TasksAndTimeCard } from './TasksAndTimeCard';
-import { DailyReportPreviewCard } from './DailyReportPreviewCard';
-import { ReportSettingsCard } from './ReportSettingsCard';
-import { SavedReportFiltersCard } from './SavedReportFiltersCard';
-import { CSVExportsCard } from './CSVExportsCard';
-import { TimeReportSummaryCard } from './TimeReportSummaryCard';
-import { WeeklyReportPreviewCard } from './WeeklyReportPreviewCard';
-import { WorkspaceOffDaysCard } from './WorkspaceOffDaysCard';
-import { WorkspaceWorkingDaysCard } from './WorkspaceWorkingDaysCard';
-import { ReminderSettingsCard } from './ReminderSettingsCard';
+import { CampfireWorkspaceTabs } from './CampfireWorkspaceTabs';
 
 /**
  * CampfireRoot is the plugin root mounted by Mattermost.
@@ -140,90 +120,23 @@ export function CampfireRoot(): ReactElement | null {
 						<BootstrapStatusView bootstrap={bootstrap} />
 					</section>
 
-					{bootstrap.state === 'ready' && <GlobalOffDaysCard isSystemAdmin={bootstrap.me.isSystemAdmin} />}
-
 					{bootstrap.state === 'ready' && bootstrap.workspace !== null && (
-						<>
-							<WorkspaceWorkingDaysCard
-								workspace={bootstrap.workspace}
-								canManageWorkspace={
-									bootstrap.capabilities?.canManageWorkspace ?? bootstrap.me.isSystemAdmin
-								}
-								refreshToken={workspaceCalendarRefreshToken}
-								onWorkingDaysChanged={refreshWorkspaceCalendar}
-							/>
-							<WorkspaceOffDaysCard
-								workspace={bootstrap.workspace}
-								canManageWorkspace={
-									bootstrap.capabilities?.canManageWorkspace ?? bootstrap.me.isSystemAdmin
-								}
-								refreshToken={workspaceCalendarRefreshToken}
-								onOffDaysChanged={refreshWorkspaceCalendar}
-							/>
-							<ReminderSettingsCard
-								workspace={bootstrap.workspace}
-								canManageWorkspace={
-									bootstrap.capabilities?.canManageWorkspace ?? bootstrap.me.isSystemAdmin
-								}
-							/>
-							<StandupSubmissionCard
-								workspace={bootstrap.workspace}
-								onStandupSubmitted={refreshStandups}
-							/>
-							<StandupSubmissionsCard
-								workspace={bootstrap.workspace}
-								refreshToken={standupRefreshToken}
-							/>
-							<TasksAndTimeCard workspace={bootstrap.workspace} />
-							<ReportSettingsCard
-								workspace={bootstrap.workspace}
-								canManageWorkspace={
-									bootstrap.capabilities?.canManageWorkspace ?? bootstrap.me.isSystemAdmin
-								}
-							/>
-							<SavedReportFiltersCard workspace={bootstrap.workspace} />
-							<CSVExportsCard workspace={bootstrap.workspace} />
-							<TimeReportSummaryCard workspace={bootstrap.workspace} />
-							<DailyReportPreviewCard
-								workspace={bootstrap.workspace}
-								refreshToken={standupRefreshToken}
-							/>
-							<WeeklyReportPreviewCard
-								workspace={bootstrap.workspace}
-								refreshToken={standupRefreshToken}
-							/>
-							<StandupFormBuilderCard
-								workspace={bootstrap.workspace}
-								canManageWorkspace={
-									bootstrap.capabilities?.canManageWorkspace ?? bootstrap.me.isSystemAdmin
-								}
-								onConfigurationChanged={refreshStandups}
-							/>
-							<StandupScheduleBuilderCard
-								workspace={bootstrap.workspace}
-								canManageWorkspace={
-									bootstrap.capabilities?.canManageWorkspace ?? bootstrap.me.isSystemAdmin
-								}
-								onConfigurationChanged={refreshStandups}
-							/>
-							<StandupConfigurationCard workspace={bootstrap.workspace} />
-							<StandupRuntimeCard
-								workspace={bootstrap.workspace}
-								refreshToken={leaveRefreshToken + workspaceCalendarRefreshToken}
-							/>
-							<LeaveApprovalsCard
-								workspace={bootstrap.workspace}
-								refreshToken={leaveRefreshToken}
-								onLeaveDecided={refreshLeaves}
-							/>
-							<MyPendingLeavesCard
-								workspace={bootstrap.workspace}
-								refreshToken={leaveRefreshToken}
-								onLeaveCancelled={refreshLeaves}
-							/>
-							<ApprovedLeavesCard workspace={bootstrap.workspace} refreshToken={leaveRefreshToken} />
-							<LeaveRequestCard workspace={bootstrap.workspace} onLeaveCreated={refreshLeaves} />
-						</>
+						<CampfireWorkspaceTabs
+							workspace={bootstrap.workspace}
+							canManageWorkspace={
+								bootstrap.capabilities?.canManageWorkspace ?? bootstrap.me.isSystemAdmin
+							}
+							isSystemAdmin={bootstrap.me.isSystemAdmin}
+							leaveRefreshToken={leaveRefreshToken}
+							standupRefreshToken={standupRefreshToken}
+							workspaceCalendarRefreshToken={workspaceCalendarRefreshToken}
+							onLeaveCreated={refreshLeaves}
+							onLeaveDecided={refreshLeaves}
+							onLeaveCancelled={refreshLeaves}
+							onStandupSubmitted={refreshStandups}
+							onStandupConfigurationChanged={refreshStandups}
+							onWorkspaceCalendarChanged={refreshWorkspaceCalendar}
+						/>
 					)}
 
 					{bootstrap.state === 'ready' &&
@@ -245,21 +158,6 @@ export function CampfireRoot(): ReactElement | null {
 								message={bootstrap.workspaceNotice ?? 'No Campfire workspace is loaded.'}
 							/>
 						)}
-
-					<section className="cf:mt-5 cf:grid cf:gap-4 cf:md:grid-cols-3">
-						<FeatureCard
-							label="Today"
-							title="Standups, tasks, who is out, and a 09:00 → 09:55 reminder window."
-						/>
-						<FeatureCard
-							label="Leaves"
-							title="Approval-required leave, holidays, off-days, and availability."
-						/>
-						<FeatureCard
-							label="Reports"
-							title="Markdown previews, global dashboards, and polished summaries."
-						/>
-					</section>
 				</main>
 			</div>
 		</div>
@@ -331,21 +229,5 @@ function StatusTile(props: { readonly label: string; readonly value: string }): 
 				{props.value}
 			</strong>
 		</div>
-	);
-}
-
-/**
- * FeatureCard renders one Campfire feature teaser.
- */
-function FeatureCard(props: { readonly label: string; readonly title: string }): ReactElement {
-	return (
-		<article className="cf:min-h-32 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-white/[0.055] cf:p-5 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-			<span className="cf:inline-flex cf:rounded-full cf:bg-amber-300/10 cf:px-3 cf:py-1 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-amber-300">
-				{props.label}
-			</span>
-			<strong className="cf:mt-4 cf:block cf:text-lg cf:font-black cf:leading-snug cf:text-white">
-				{props.title}
-			</strong>
-		</article>
 	);
 }
