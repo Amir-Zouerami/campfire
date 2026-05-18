@@ -80,6 +80,13 @@ export type LookupUsersResponse = {
 };
 
 /**
+ * ListWorkspaceMembersResponse is returned by GET /workspaces/{workspaceID}/members.
+ */
+export type ListWorkspaceMembersResponse = {
+	readonly users: readonly UserProfile[];
+};
+
+/**
  * MeResponse is returned by GET /api/v1/me.
  */
 export type MeResponse = {

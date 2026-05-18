@@ -18,6 +18,7 @@ import type {
 	PendingLeaveRequest,
 	Workspace,
 } from '../types/domain';
+import { WorkspaceMemberSelect } from './WorkspaceMemberSelect';
 
 /**
  * LeaveRequestCardProps contains the workspace used for leave requests.
@@ -428,17 +429,14 @@ export function LeaveRequestCard(props: LeaveRequestCardProps): ReactElement {
 					/>
 				</label>
 
-				<label className="cf:grid cf:gap-2">
-					<span className="cf:text-sm cf:font-black cf:text-slate-200">Backup user ID</span>
-					<input
-						className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:placeholder:text-slate-500 cf:focus:border-emerald-300/45"
-						disabled={isBusy}
-						placeholder="Mattermost user ID for backup coverage"
-						type="text"
-						value={form.backupUserID}
-						onChange={event => updateForm({ backupUserID: event.currentTarget.value })}
-					/>
-				</label>
+				<WorkspaceMemberSelect
+					disabled={isBusy}
+					label="Backup user"
+					placeholder="Search workspace members"
+					value={form.backupUserID}
+					workspaceID={props.workspace.id}
+					onChange={backupUserID => updateForm({ backupUserID })}
+				/>
 
 				<div className="cf:flex cf:flex-wrap cf:gap-3">
 					<button

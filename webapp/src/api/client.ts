@@ -75,6 +75,7 @@ import type {
 	ListSavedReportFiltersResponse,
 	GetTimeReportSummaryResponse,
 	GetGlobalTimeReportSummaryResponse,
+	ListWorkspaceMembersResponse,
 } from '../types/api';
 import { TimeReportGroupBy } from '../types/domain';
 
@@ -119,6 +120,13 @@ export async function lookupUsers(userIds: readonly string[]): Promise<LookupUse
 	return apiPost<LookupUsersRequest, LookupUsersResponse>('/users/lookup', {
 		userIds,
 	});
+}
+
+/**
+ * listWorkspaceMembers loads Mattermost users from a workspace channel.
+ */
+export async function listWorkspaceMembers(workspaceID: string): Promise<ListWorkspaceMembersResponse> {
+	return apiGet<ListWorkspaceMembersResponse>(`/workspaces/${encodeURIComponent(workspaceID)}/members`);
 }
 
 /**

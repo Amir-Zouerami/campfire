@@ -13,23 +13,24 @@ import (
 RouterConfig contains dependencies needed by the HTTP API layer.
 */
 type RouterConfig struct {
-	Logger                   logger.Logger
-	Mattermost               mattermost.Client
-	WorkspaceService         *service.WorkspaceService
-	UserDirectoryService     *service.UserDirectoryService
-	WorkspaceCalendarService *service.WorkspaceCalendarService
-	ReminderService          *service.ReminderService
-	GlobalSkipDateService    *service.GlobalSkipDateService
-	LeaveValidationService   *service.LeaveValidationService
-	LeaveService             *service.LeaveService
-	StandupRuntimeService    *service.StandupRuntimeService
-	StandupService           *service.StandupService
-	ReportService            *service.ReportService
-	TimeReportService        *service.TimeReportService
-	GlobalReportService      *service.GlobalReportService
-	SavedReportFilterService *service.SavedReportFilterService
-	ExportService            *service.ExportService
-	TaskService              *service.TaskService
+	Logger                          logger.Logger
+	Mattermost                      mattermost.Client
+	WorkspaceService                *service.WorkspaceService
+	UserDirectoryService            *service.UserDirectoryService
+	WorkspaceMemberDirectoryService *service.WorkspaceMemberDirectoryService
+	WorkspaceCalendarService        *service.WorkspaceCalendarService
+	ReminderService                 *service.ReminderService
+	GlobalSkipDateService           *service.GlobalSkipDateService
+	LeaveValidationService          *service.LeaveValidationService
+	LeaveService                    *service.LeaveService
+	StandupRuntimeService           *service.StandupRuntimeService
+	StandupService                  *service.StandupService
+	ReportService                   *service.ReportService
+	TimeReportService               *service.TimeReportService
+	GlobalReportService             *service.GlobalReportService
+	SavedReportFilterService        *service.SavedReportFilterService
+	ExportService                   *service.ExportService
+	TaskService                     *service.TaskService
 }
 
 /*
@@ -45,6 +46,11 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Get("/health", handleHealth(config.Logger))
 		api.Get("/me", handleMe(config.Logger, config.Mattermost))
 		api.Post("/users/lookup", handleLookupUsers(config.Logger, config.Mattermost, config.UserDirectoryService))
+
+		api.Get(
+			"/workspaces/{workspaceID}/members",
+			handleListWorkspaceMembers(config.Logger, config.Mattermost, config.WorkspaceMemberDirectoryService),
+		)
 
 		api.Get(
 			"/workspaces/by-channel/{channelID}",

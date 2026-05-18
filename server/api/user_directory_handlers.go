@@ -3,10 +3,12 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/amir-zouerami/campfire/server/logger"
 	"github.com/amir-zouerami/campfire/server/mattermost"
 	"github.com/amir-zouerami/campfire/server/service"
+	"github.com/go-chi/chi/v5"
 )
 
 /*
@@ -40,6 +42,38 @@ func handleLookupUsers(
 		}
 
 		WriteLookupUsers(w, http.StatusOK, LookupUsersResponse{
+			Users: UserProfilesToPayload(profiles),
+		})
+	}
+}
+
+/*
+handleListWorkspaceMembers handles listing Mattermost users in a workspace channel.
+*/
+func handleListWorkspaceMembers(
+	log logger.Logger,
+	mm mattermost.Client,
+	workspaceMemberDirectoryService *service.WorkspaceMemberDirectoryService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+
+		profiles, err := workspaceMemberDirectoryService.List(r.Context(), service.ListWorkspaceMembersInput{
+			ActorUserID: user.ID,
+			WorkspaceID: workspaceID,
+		})
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WriteListWorkspaceMembers(w, http.StatusOK, ListWorkspaceMembersResponse{
 			Users: UserProfilesToPayload(profiles),
 		})
 	}

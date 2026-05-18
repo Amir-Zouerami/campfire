@@ -27,6 +27,13 @@ type LookupUsersResponse struct {
 }
 
 /*
+ListWorkspaceMembersResponse is returned by GET /workspaces/{workspaceID}/members.
+*/
+type ListWorkspaceMembersResponse struct {
+	Users []UserProfilePayload `json:"users"`
+}
+
+/*
 UserProfilesToPayload maps service user profiles to API payloads.
 */
 func UserProfilesToPayload(profiles []service.UserProfile) []UserProfilePayload {

@@ -37,27 +37,28 @@ It wires infrastructure, services, stores, and routes while keeping business
 logic out of the Mattermost plugin lifecycle layer.
 */
 type App struct {
-	Router                   http.Handler
-	Logger                   logger.Logger
-	Mattermost               mattermost.Client
-	Database                 *store.Database
-	WorkspaceService         *service.WorkspaceService
-	UserDirectoryService     *service.UserDirectoryService
-	WorkspaceCalendarService *service.WorkspaceCalendarService
-	ReminderService          *service.ReminderService
-	ReminderExecutionService *service.ReminderExecutionService
-	GlobalSkipDateService    *service.GlobalSkipDateService
-	LeaveValidationService   *service.LeaveValidationService
-	LeaveService             *service.LeaveService
-	StandupRuntimeService    *service.StandupRuntimeService
-	StandupService           *service.StandupService
-	ReportService            *service.ReportService
-	TimeReportService        *service.TimeReportService
-	GlobalReportService      *service.GlobalReportService
-	SavedReportFilterService *service.SavedReportFilterService
-	ExportService            *service.ExportService
-	TaskService              *service.TaskService
-	Scheduler                *scheduler.Runner
+	Router                          http.Handler
+	Logger                          logger.Logger
+	Mattermost                      mattermost.Client
+	Database                        *store.Database
+	WorkspaceService                *service.WorkspaceService
+	UserDirectoryService            *service.UserDirectoryService
+	WorkspaceMemberDirectoryService *service.WorkspaceMemberDirectoryService
+	WorkspaceCalendarService        *service.WorkspaceCalendarService
+	ReminderService                 *service.ReminderService
+	ReminderExecutionService        *service.ReminderExecutionService
+	GlobalSkipDateService           *service.GlobalSkipDateService
+	LeaveValidationService          *service.LeaveValidationService
+	LeaveService                    *service.LeaveService
+	StandupRuntimeService           *service.StandupRuntimeService
+	StandupService                  *service.StandupService
+	ReportService                   *service.ReportService
+	TimeReportService               *service.TimeReportService
+	GlobalReportService             *service.GlobalReportService
+	SavedReportFilterService        *service.SavedReportFilterService
+	ExportService                   *service.ExportService
+	TaskService                     *service.TaskService
+	Scheduler                       *scheduler.Runner
 }
 
 /*
@@ -126,6 +127,12 @@ func New(config Config) (*App, error) {
 	workspaceMemberProvider := mattermost.NewWorkspaceMemberProvider(config.API)
 	userDirectoryProvider := mattermost.NewUserDirectoryProvider(config.API)
 	userDirectoryService := service.NewUserDirectoryService(userDirectoryProvider)
+
+	workspaceMemberDirectoryService := service.NewWorkspaceMemberDirectoryService(
+		workspaceStore,
+		workspaceMemberProvider,
+		userDirectoryProvider,
+	)
 
 	leaveService := service.NewLeaveService(
 		leaveStore,
@@ -218,47 +225,49 @@ func New(config Config) (*App, error) {
 	})
 
 	router := api.NewRouter(api.RouterConfig{
-		Logger:                   appLogger,
-		Mattermost:               mattermostClient,
-		WorkspaceService:         workspaceService,
-		UserDirectoryService:     userDirectoryService,
-		WorkspaceCalendarService: workspaceCalendarService,
-		ReminderService:          reminderService,
-		GlobalSkipDateService:    globalSkipDateService,
-		LeaveValidationService:   leaveValidationService,
-		LeaveService:             leaveService,
-		StandupRuntimeService:    standupRuntimeService,
-		StandupService:           standupService,
-		ReportService:            reportService,
-		TimeReportService:        timeReportService,
-		GlobalReportService:      globalReportService,
-		SavedReportFilterService: savedReportFilterService,
-		ExportService:            exportService,
-		TaskService:              taskService,
+		Logger:                          appLogger,
+		Mattermost:                      mattermostClient,
+		WorkspaceService:                workspaceService,
+		UserDirectoryService:            userDirectoryService,
+		WorkspaceMemberDirectoryService: workspaceMemberDirectoryService,
+		WorkspaceCalendarService:        workspaceCalendarService,
+		ReminderService:                 reminderService,
+		GlobalSkipDateService:           globalSkipDateService,
+		LeaveValidationService:          leaveValidationService,
+		LeaveService:                    leaveService,
+		StandupRuntimeService:           standupRuntimeService,
+		StandupService:                  standupService,
+		ReportService:                   reportService,
+		TimeReportService:               timeReportService,
+		GlobalReportService:             globalReportService,
+		SavedReportFilterService:        savedReportFilterService,
+		ExportService:                   exportService,
+		TaskService:                     taskService,
 	})
 
 	return &App{
-		Router:                   router,
-		Logger:                   appLogger,
-		Mattermost:               mattermostClient,
-		Database:                 database,
-		WorkspaceService:         workspaceService,
-		UserDirectoryService:     userDirectoryService,
-		WorkspaceCalendarService: workspaceCalendarService,
-		ReminderService:          reminderService,
-		ReminderExecutionService: reminderExecutionService,
-		GlobalSkipDateService:    globalSkipDateService,
-		LeaveValidationService:   leaveValidationService,
-		LeaveService:             leaveService,
-		StandupRuntimeService:    standupRuntimeService,
-		StandupService:           standupService,
-		ReportService:            reportService,
-		TimeReportService:        timeReportService,
-		GlobalReportService:      globalReportService,
-		SavedReportFilterService: savedReportFilterService,
-		ExportService:            exportService,
-		TaskService:              taskService,
-		Scheduler:                schedulerRunner,
+		Router:                          router,
+		Logger:                          appLogger,
+		Mattermost:                      mattermostClient,
+		Database:                        database,
+		WorkspaceService:                workspaceService,
+		UserDirectoryService:            userDirectoryService,
+		WorkspaceMemberDirectoryService: workspaceMemberDirectoryService,
+		WorkspaceCalendarService:        workspaceCalendarService,
+		ReminderService:                 reminderService,
+		ReminderExecutionService:        reminderExecutionService,
+		GlobalSkipDateService:           globalSkipDateService,
+		LeaveValidationService:          leaveValidationService,
+		LeaveService:                    leaveService,
+		StandupRuntimeService:           standupRuntimeService,
+		StandupService:                  standupService,
+		ReportService:                   reportService,
+		TimeReportService:               timeReportService,
+		GlobalReportService:             globalReportService,
+		SavedReportFilterService:        savedReportFilterService,
+		ExportService:                   exportService,
+		TaskService:                     taskService,
+		Scheduler:                       schedulerRunner,
 	}, nil
 }
 

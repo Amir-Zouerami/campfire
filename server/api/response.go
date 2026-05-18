@@ -57,6 +57,15 @@ func WriteLookupUsers(w http.ResponseWriter, statusCode int, payload LookupUsers
 }
 
 /*
+WriteListWorkspaceMembers writes the workspace member list response.
+*/
+func WriteListWorkspaceMembers(w http.ResponseWriter, statusCode int, payload ListWorkspaceMembersResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode workspace member list response")
+}
+
+/*
 WriteHealth writes the health endpoint response.
 */
 func WriteHealth(w http.ResponseWriter, statusCode int, payload HealthResponse) {
