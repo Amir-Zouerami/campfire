@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/amir-zouerami/campfire/server/logger"
+	"github.com/amir-zouerami/campfire/server/mattermost"
 	"github.com/amir-zouerami/campfire/server/service"
 	"github.com/go-chi/chi/v5"
 )
@@ -37,10 +38,15 @@ handleCreateWorkspace handles workspace creation requests.
 */
 func handleCreateWorkspace(
 	log logger.Logger,
+	mm mattermost.Client,
 	workspaceService *service.WorkspaceService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userID := strings.TrimSpace(r.Header.Get("Mattermost-User-Id"))
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
 		var request CreateWorkspaceRequest
 
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -48,7 +54,7 @@ func handleCreateWorkspace(
 			return
 		}
 
-		workspace, err := workspaceService.Create(r.Context(), request.ToServiceInput(userID))
+		workspace, err := workspaceService.Create(r.Context(), request.ToServiceInput(user.ID))
 		if err != nil {
 			logServiceError(log, err)
 			WriteServiceError(w, err)

@@ -54,7 +54,7 @@ func NewRouter(config RouterConfig) http.Handler {
 			"/workspaces/by-channel/{channelID}",
 			handleGetWorkspaceByChannel(config.Logger, config.WorkspaceService),
 		)
-		api.Post("/workspaces", handleCreateWorkspace(config.Logger, config.WorkspaceService))
+		api.Post("/workspaces", handleCreateWorkspace(config.Logger, config.Mattermost, config.WorkspaceService))
 
 		api.Get(
 			"/workspaces/{workspaceID}/members",

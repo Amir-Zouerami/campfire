@@ -1,9 +1,17 @@
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactElement, ReactNode } from 'react';
+
+/**
+ * MattermostChannel is the minimal channel object passed to channel-header actions.
+ */
+export type MattermostChannel = {
+	readonly id: string;
+	readonly team_id?: string;
+	readonly display_name?: string;
+	readonly name?: string;
+};
 
 /**
  * A minimal Redux-store-like shape passed by Mattermost to webapp plugins.
- *
- * Campfire does not use Mattermost's Redux store directly in Phase 0.
  */
 export type MattermostStore = {
 	readonly getState: () => unknown;
@@ -19,23 +27,28 @@ export type PluginIconProps = {
 };
 
 /**
- * A React component used as an icon inside the Mattermost plugin registry.
- */
-export type PluginIconComponent = ComponentType<PluginIconProps>;
-
-/**
  * Minimal Mattermost webapp plugin registry methods used by Campfire.
  *
- * The real registry has many more methods. Campfire keeps this boundary narrow
- * and typed so the rest of the webapp does not depend on broad host internals.
+ * Standup Raven's working modal pattern is:
+ * - register a root component
+ * - register a channel-header button
+ * - button action opens the root component's modal state
  */
 export type MattermostPluginRegistry = {
 	readonly registerRootComponent: (component: ComponentType) => void;
 	readonly registerChannelHeaderButtonAction: (
-		icon: PluginIconComponent,
+		icon: ReactElement,
+		action: (channel?: MattermostChannel) => void,
+		dropdownText: ReactNode,
+		tooltipText?: ReactNode,
+	) => void;
+	readonly registerAppBarComponent?: (
+		iconURL: string,
 		action: () => void,
-		dropdownText: string,
 		tooltipText: string,
+		supportedProductIds?: readonly string[],
+		rhsComponent?: ComponentType,
+		rhsTitle?: ReactNode,
 	) => void;
 };
 

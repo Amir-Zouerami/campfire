@@ -10,16 +10,16 @@ import { CampfireWorkspaceTabs } from './CampfireWorkspaceTabs';
 /**
  * CampfireRoot is the plugin root mounted by Mattermost.
  *
- * It stays dormant until the user opens Campfire from the channel header button
- * or a future slash-command deep link.
+ * It stays dormant until the user opens Campfire from the channel header button,
+ * app bar button, or a future slash-command websocket/deep-link action.
  */
 export function CampfireRoot(): ReactElement | null {
 	const [isOpen, setIsOpen] = useState(false);
 	const [refreshToken, setRefreshToken] = useState(0);
 	const [leaveRefreshToken, setLeaveRefreshToken] = useState(0);
 	const [standupRefreshToken, setStandupRefreshToken] = useState(0);
-	const bootstrap = useCampfireBootstrap(isOpen, refreshToken);
 	const [workspaceCalendarRefreshToken, setWorkspaceCalendarRefreshToken] = useState(0);
+	const bootstrap = useCampfireBootstrap(isOpen, refreshToken);
 
 	/**
 	 * Refreshes leave panels.
