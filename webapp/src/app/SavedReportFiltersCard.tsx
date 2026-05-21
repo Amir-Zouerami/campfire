@@ -1,13 +1,26 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactElement } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { FormEvent, ReactElement } from 'react';
+import { Bookmark, CheckCircle2, Loader2, Plus, Send, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+
+import { ApiClientError, createSavedReportFilter, deleteSavedReportFilter, listSavedReportFilters } from '@/api';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
+import type { ReportKind, SavedReportFilter, Workspace } from '@/types/domain';
 
 import {
-	ApiClientError,
-	createSavedReportFilter,
-	deleteSavedReportFilter,
-	listSavedReportFilters,
-} from '../api/client';
+	CampfireCardBody,
+	CampfireCardHeader,
+	CampfireEmpty,
+	CampfireMetric,
+	CampfirePanel,
+	CampfireStatusPill,
+} from './campfire-ui';
 import { dispatchApplyReportFilter } from './events';
-import type { ReportKind, SavedReportFilter, Workspace } from '../types/domain';
 
 /**
  * SavedReportFiltersCardProps contains the current workspace.
@@ -104,12 +117,14 @@ export function SavedReportFiltersCard(props: SavedReportFiltersCardProps): Reac
 
 		const cleanName = draft.name.trim();
 		if (cleanName === '') {
+			setLoadState('error');
 			setMessage('Saved filter name is required.');
 			return;
 		}
 
 		const normalizedFilterJson = normalizeFilterJson(draft.filterJson);
 		if (normalizedFilterJson === null) {
+			setLoadState('error');
 			setMessage('Filter JSON must be valid JSON.');
 			return;
 		}
@@ -134,9 +149,12 @@ export function SavedReportFiltersCard(props: SavedReportFiltersCardProps): Reac
 			}));
 			setLoadState('ready');
 			setMessage('Saved report filter created.');
+			toast.success('Saved report filter created');
 		} catch (error: unknown) {
-			setMessage(errorToMessage(error));
+			const errorMessage = errorToMessage(error);
+			setMessage(errorMessage);
 			setLoadState('error');
+			toast.error(errorMessage);
 		}
 	}
 
@@ -153,97 +171,119 @@ export function SavedReportFiltersCard(props: SavedReportFiltersCardProps): Reac
 			setFilters(current => current.filter(filter => filter.id !== filterID));
 			setLoadState('ready');
 			setMessage('Saved report filter deleted.');
+			toast.success('Saved report filter deleted');
 		} catch (error: unknown) {
-			setMessage(errorToMessage(error));
+			const errorMessage = errorToMessage(error);
+			setMessage(errorMessage);
 			setLoadState('error');
+			toast.error(errorMessage);
 		}
 	}
 
 	/**
-	 * Loads an existing filter into the editor.
+	 * Applies a saved filter to report cards.
 	 */
-	function handleLoadIntoEditor(filter: SavedReportFilter): void {
-		setDraft({
-			name: filter.name,
-			reportType: filter.reportType,
-			filterJson: formatFilterJsonForEditing(filter.filterJson),
-		});
-		setSelectedReportType(filter.reportType);
-		setMessage('Filter loaded into editor. Save it as a new filter after editing.');
-	}
-
-	/**
-	 * Applies a saved filter to the matching report cards.
-	 */
-	function handleApplyFilter(filter: SavedReportFilter): void {
-		const normalizedFilterJson = normalizeFilterJson(filter.filterJson);
-		if (normalizedFilterJson === null) {
-			setMessage('This saved filter contains invalid JSON and cannot be applied.');
-			return;
-		}
-
+	function handleApply(filter: SavedReportFilter): void {
 		dispatchApplyReportFilter({
 			workspaceID: props.workspace.id,
 			reportType: filter.reportType,
 			name: filter.name,
-			filterJson: normalizedFilterJson,
+			filterJson: filter.filterJson,
 		});
 
-		setMessage(`Applied saved filter "${filter.name}" to ${formatLabel(filter.reportType)} report controls.`);
+		setMessage(`Applied saved filter "${filter.name}".`);
+		toast.success('Saved filter applied');
 	}
 
 	return (
-		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-indigo-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-			<div className="cf:grid cf:gap-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
-				<div>
-					<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-indigo-200">
-						Saved filters
-					</p>
-					<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-						Workspace report filters
-					</h2>
-					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						Save reusable report filter JSON for daily, weekly, blockers, missing, and time reports. Filters
-						are currently workspace-scoped and owned by the current user.
-					</p>
+		<CampfirePanel className="cf:overflow-hidden">
+			<CampfireCardHeader
+				eyebrow="Saved filters"
+				title="Saved report filters"
+				description="Save reusable report filters and apply them to daily, weekly, missing, blockers, or time report views."
+				icon={Bookmark}
+				action={<CampfireStatusPill tone="ember">{filters.length} saved</CampfireStatusPill>}
+			/>
+
+			<CampfireCardBody className="cf:grid cf:gap-5">
+				<div className="cf:grid cf:gap-3 cf:md:grid-cols-3">
+					<CampfireMetric
+						label="Selected type"
+						value={formatLabel(selectedReportType)}
+						helper="Filter list"
+					/>
+					<CampfireMetric label="Saved filters" value={String(filters.length)} helper="Current type" />
+					<CampfireMetric label="Workspace" value={props.workspace.name} helper="Filter scope" />
 				</div>
 
-				<div className="cf:w-fit cf:rounded-full cf:border cf:border-indigo-300/25 cf:bg-indigo-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-indigo-200">
-					{filters.length} saved
+				<div className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4 cf:md:grid-cols-[1fr_auto] cf:md:items-end">
+					<FormField label="Show filters for" htmlFor="campfire-saved-filter-type">
+						<select
+							id="campfire-saved-filter-type"
+							className={selectClassName()}
+							disabled={isBusy}
+							value={selectedReportType}
+							onChange={event => setSelectedReportType(toReportKind(event.currentTarget.value))}
+						>
+							{reportKindOptions.map(reportKind => (
+								<option key={reportKind} value={reportKind}>
+									{formatLabel(reportKind)}
+								</option>
+							))}
+						</select>
+					</FormField>
+
+					<Button
+						type="button"
+						variant="secondary"
+						disabled={isBusy}
+						onClick={() =>
+							setDraft(current => ({
+								...current,
+								reportType: selectedReportType,
+							}))
+						}
+					>
+						Use selected type
+					</Button>
 				</div>
-			</div>
 
-			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
+				{message !== '' && <MessageRow state={loadState} message={message} />}
+				{loadState === 'loading' && <LoadingRow label="Loading saved filters…" />}
 
-			<form
-				className="cf:mt-5 cf:grid cf:gap-4 cf:lg:grid-cols-[1fr_220px] cf:lg:items-start"
-				onSubmit={event => void handleCreate(event)}
-			>
-				<div className="cf:grid cf:gap-3">
-					<div className="cf:grid cf:gap-3 cf:md:grid-cols-[1fr_220px]">
-						<Field label="Filter name">
-							<input
-								className={inputClassName}
+				<form
+					className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4"
+					onSubmit={handleCreate}
+				>
+					<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3">
+						<h3 className="cf:text-lg cf:font-black cf:text-white">Create saved filter</h3>
+						<CampfireStatusPill tone="green">JSON</CampfireStatusPill>
+					</div>
+
+					<div className="cf:grid cf:gap-4 cf:lg:grid-cols-[1fr_16rem]">
+						<FormField label="Name" htmlFor="campfire-filter-name">
+							<Input
+								id="campfire-filter-name"
 								disabled={isBusy}
-								placeholder="Example: Daily report with blockers first"
-								type="text"
 								value={draft.name}
 								onChange={event =>
 									setDraft(current => ({ ...current, name: event.currentTarget.value }))
 								}
 							/>
-						</Field>
+						</FormField>
 
-						<Field label="Report type">
+						<FormField label="Report type" htmlFor="campfire-filter-report-type">
 							<select
-								className={inputClassName}
+								id="campfire-filter-report-type"
+								className={selectClassName()}
 								disabled={isBusy}
 								value={draft.reportType}
-								onChange={event => {
-									const reportType = toReportKind(event.currentTarget.value);
-									setDraft(current => ({ ...current, reportType }));
-									setSelectedReportType(reportType);
-								}}
+								onChange={event =>
+									setDraft(current => ({
+										...current,
+										reportType: toReportKind(event.currentTarget.value),
+									}))
+								}
 							>
 								{reportKindOptions.map(reportKind => (
 									<option key={reportKind} value={reportKind}>
@@ -251,144 +291,156 @@ export function SavedReportFiltersCard(props: SavedReportFiltersCardProps): Reac
 									</option>
 								))}
 							</select>
-						</Field>
+						</FormField>
 					</div>
 
-					<Field label="Filter JSON">
-						<textarea
-							className="cf:min-h-52 cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/55 cf:px-4 cf:py-3 cf:font-mono cf:text-sm cf:leading-6 cf:text-white cf:outline-none cf:transition cf:placeholder:text-slate-500 cf:focus:border-indigo-300/60 cf:focus:ring-4 cf:focus:ring-indigo-300/15"
+					<FormField label="Filter JSON" htmlFor="campfire-filter-json">
+						<Textarea
+							id="campfire-filter-json"
+							className="cf:min-h-48 cf:font-mono cf:text-xs"
 							disabled={isBusy}
-							spellCheck={false}
 							value={draft.filterJson}
 							onChange={event =>
 								setDraft(current => ({ ...current, filterJson: event.currentTarget.value }))
 							}
 						/>
-					</Field>
-				</div>
+					</FormField>
+
+					<Button type="submit" disabled={isBusy}>
+						{loadState === 'saving' ? (
+							<Loader2 className="cf:size-4 cf:animate-spin" />
+						) : (
+							<Plus className="cf:size-4" />
+						)}
+						Save filter
+					</Button>
+				</form>
+
+				<Separator className="cf:bg-white/10" />
+
+				{sortedFilters.length === 0 && loadState !== 'loading' && (
+					<CampfireEmpty
+						icon={Bookmark}
+						title="No saved filters"
+						description="Create a reusable report filter to quickly apply the same report settings later."
+					/>
+				)}
 
 				<div className="cf:grid cf:gap-3">
-					<button
-						className="cf:rounded-2xl cf:border cf:border-indigo-300/30 cf:bg-indigo-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-indigo-50 cf:transition cf:hover:bg-indigo-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-						disabled={isBusy}
-						type="submit"
-					>
-						{loadState === 'saving' ? 'Saving…' : 'Save filter'}
-					</button>
-
-					<button
-						className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.06] cf:px-5 cf:py-3 cf:font-black cf:text-white cf:transition cf:hover:bg-white/[0.1] cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-						disabled={isBusy}
-						type="button"
-						onClick={() => setDraft(current => ({ ...current, filterJson: defaultFilterJson }))}
-					>
-						Reset JSON
-					</button>
+					{sortedFilters.map(filter => (
+						<SavedFilterRow
+							filter={filter}
+							isBusy={isBusy}
+							onApply={() => handleApply(filter)}
+							onDelete={() => void handleDelete(filter.id)}
+							key={filter.id}
+						/>
+					))}
 				</div>
-			</form>
-
-			<div className="cf:mt-5 cf:grid cf:gap-3 cf:md:grid-cols-[220px_1fr] cf:md:items-end">
-				<Field label="Show saved filters for">
-					<select
-						className={inputClassName}
-						disabled={isBusy}
-						value={selectedReportType}
-						onChange={event => setSelectedReportType(toReportKind(event.currentTarget.value))}
-					>
-						{reportKindOptions.map(reportKind => (
-							<option key={reportKind} value={reportKind}>
-								{formatLabel(reportKind)}
-							</option>
-						))}
-					</select>
-				</Field>
-
-				{loadState === 'loading' && (
-					<p className="cf:m-0 cf:text-sm cf:text-slate-300">Loading saved filters…</p>
-				)}
-			</div>
-
-			<div className="cf:mt-4 cf:grid cf:gap-3">
-				{loadState !== 'loading' && sortedFilters.length === 0 && (
-					<p className="cf:m-0 cf:rounded-2xl cf:border cf:border-dashed cf:border-white/10 cf:p-4 cf:text-slate-300">
-						No saved filters for {formatLabel(selectedReportType)} reports yet.
-					</p>
-				)}
-
-				{sortedFilters.map(filter => (
-					<article
-						className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4"
-						key={filter.id}
-					>
-						<div className="cf:grid cf:gap-3 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
-							<div>
-								<strong className="cf:block cf:text-lg cf:font-black cf:text-white">
-									{filter.name}
-								</strong>
-								<p className="cf:m-0 cf:mt-1 cf:text-xs cf:font-bold cf:text-slate-400">
-									{formatLabel(filter.reportType)} · Updated {formatDateTime(filter.updatedAt)}
-								</p>
-							</div>
-
-							<div className="cf:flex cf:flex-wrap cf:gap-2">
-								<button
-									className="cf:rounded-2xl cf:border cf:border-indigo-300/25 cf:bg-indigo-400/15 cf:px-4 cf:py-2 cf:text-sm cf:font-black cf:text-indigo-50 cf:transition cf:hover:bg-indigo-400/25 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-									disabled={isBusy}
-									type="button"
-									onClick={() => handleApplyFilter(filter)}
-								>
-									Apply
-								</button>
-
-								<button
-									className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.06] cf:px-4 cf:py-2 cf:text-sm cf:font-black cf:text-white cf:transition cf:hover:bg-white/[0.1] cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-									disabled={isBusy}
-									type="button"
-									onClick={() => handleLoadIntoEditor(filter)}
-								>
-									Load
-								</button>
-
-								<button
-									className="cf:rounded-2xl cf:border cf:border-red-300/25 cf:bg-red-400/15 cf:px-4 cf:py-2 cf:text-sm cf:font-black cf:text-red-50 cf:transition cf:hover:bg-red-400/25 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-									disabled={isBusy}
-									type="button"
-									onClick={() => void handleDelete(filter.id)}
-								>
-									Delete
-								</button>
-							</div>
-						</div>
-
-						<pre className="cf:mt-3 cf:max-h-64 cf:overflow-auto cf:whitespace-pre-wrap cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-3 cf:font-mono cf:text-xs cf:leading-5 cf:text-slate-200">
-							{formatFilterJsonForEditing(filter.filterJson)}
-						</pre>
-					</article>
-				))}
-			</div>
-		</section>
+			</CampfireCardBody>
+		</CampfirePanel>
 	);
 }
 
-const inputClassName =
-	'cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/55 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:transition cf:[color-scheme:dark] cf:placeholder:text-slate-500 cf:focus:border-indigo-300/60 cf:focus:ring-4 cf:focus:ring-indigo-300/15';
-
 /**
- * Field renders a labeled control.
+ * SavedFilterRow renders one saved filter.
  */
-function Field(props: { readonly label: string; readonly children: ReactElement }): ReactElement {
+function SavedFilterRow(props: {
+	readonly filter: SavedReportFilter;
+	readonly isBusy: boolean;
+	readonly onApply: () => void;
+	readonly onDelete: () => void;
+}): ReactElement {
 	return (
-		<label className="cf:grid cf:gap-2">
-			<span className="cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.14em] cf:text-indigo-200">
-				{props.label}
-			</span>
-			{props.children}
-		</label>
+		<article className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
+			<div className="cf:grid cf:gap-4 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
+				<div>
+					<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
+						<strong className="cf:text-lg cf:font-black cf:text-white">{props.filter.name}</strong>
+						<CampfireStatusPill tone="ember">{formatLabel(props.filter.reportType)}</CampfireStatusPill>
+					</div>
+
+					<p className="cf:mt-2 cf:text-xs cf:font-bold cf:text-slate-500">
+						Updated {formatDateTime(props.filter.updatedAt)}
+					</p>
+
+					<pre className="cf:mt-3 cf:max-h-56 cf:overflow-auto cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/30 cf:p-3 cf:text-xs cf:leading-6 cf:text-slate-300">
+						{formatFilterJsonForDisplay(props.filter.filterJson)}
+					</pre>
+				</div>
+
+				<div className="cf:flex cf:flex-wrap cf:gap-2 cf:lg:justify-end">
+					<Button type="button" disabled={props.isBusy} onClick={props.onApply}>
+						<Send className="cf:size-4" />
+						Apply
+					</Button>
+
+					<Button type="button" variant="destructive" disabled={props.isBusy} onClick={props.onDelete}>
+						<Trash2 className="cf:size-4" />
+						Delete
+					</Button>
+				</div>
+			</div>
+		</article>
 	);
 }
 
 /**
- * normalizeFilterJson validates and pretty-prints filter JSON.
+ * FormField renders a labeled field.
+ */
+function FormField(props: {
+	readonly label: string;
+	readonly htmlFor: string;
+	readonly children: ReactElement;
+}): ReactElement {
+	return (
+		<div className="cf:grid cf:gap-2">
+			<Label
+				htmlFor={props.htmlFor}
+				className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200"
+			>
+				{props.label}
+			</Label>
+			{props.children}
+		</div>
+	);
+}
+
+/**
+ * MessageRow renders save/delete feedback.
+ */
+function MessageRow(props: { readonly state: LoadState; readonly message: string }): ReactElement {
+	const isError = props.state === 'error';
+
+	return (
+		<div
+			className={cn(
+				'cf:flex cf:items-center cf:gap-2 cf:rounded-2xl cf:border cf:px-4 cf:py-3 cf:text-sm cf:font-black',
+				isError
+					? 'cf:border-red-300/25 cf:bg-red-950/30 cf:text-red-100'
+					: 'cf:border-amber-300/25 cf:bg-amber-950/30 cf:text-amber-100',
+			)}
+		>
+			{isError ? null : <CheckCircle2 className="cf:size-4" />}
+			{props.message}
+		</div>
+	);
+}
+
+/**
+ * LoadingRow renders a loading message.
+ */
+function LoadingRow(props: { readonly label: string }): ReactElement {
+	return (
+		<div className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4 cf:text-sm cf:font-bold cf:text-slate-300">
+			<Loader2 className="cf:size-4 cf:animate-spin cf:text-amber-200" />
+			{props.label}
+		</div>
+	);
+}
+
+/**
+ * normalizeFilterJson validates and normalizes filter JSON.
  */
 function normalizeFilterJson(value: string): string | null {
 	try {
@@ -401,37 +453,34 @@ function normalizeFilterJson(value: string): string | null {
 }
 
 /**
- * formatFilterJsonForEditing returns pretty JSON when possible.
+ * formatFilterJsonForDisplay formats saved filter JSON for display.
  */
-function formatFilterJsonForEditing(value: string): string {
-	return normalizeFilterJson(value) ?? value;
+function formatFilterJsonForDisplay(value: string): string {
+	const normalized = normalizeFilterJson(value);
+
+	return normalized ?? value;
 }
 
 /**
- * toReportKind narrows a string to a supported report kind.
+ * toReportKind normalizes select values.
  */
 function toReportKind(value: string): ReportKind {
-	switch (value) {
-		case 'daily':
-		case 'weekly':
-		case 'blockers':
-		case 'missing':
-		case 'time':
-			return value;
-
-		default:
-			return 'daily';
+	if (value === 'weekly' || value === 'blockers' || value === 'missing' || value === 'time') {
+		return value;
 	}
+
+	return 'daily';
 }
 
 /**
- * formatLabel converts enum-like values to readable labels.
+ * selectClassName returns the shared native select style.
  */
-function formatLabel(value: string): string {
-	return value
-		.split('_')
-		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
-		.join(' ');
+function selectClassName(): string {
+	return cn(
+		'cf:h-10 cf:w-full cf:rounded-md cf:border cf:border-input cf:bg-background cf:px-3 cf:py-2 cf:text-sm cf:text-foreground cf:outline-none',
+		'cf:focus-visible:border-ring cf:focus-visible:ring-ring/50 cf:focus-visible:ring-3',
+		'cf:disabled:cursor-not-allowed cf:disabled:opacity-50',
+	);
 }
 
 /**
@@ -445,6 +494,16 @@ function formatDateTime(value: string): string {
 	}
 
 	return date.toLocaleString();
+}
+
+/**
+ * formatLabel converts enum-like values to readable labels.
+ */
+function formatLabel(value: string): string {
+	return value
+		.split('_')
+		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(' ');
 }
 
 /**

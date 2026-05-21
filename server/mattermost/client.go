@@ -1,6 +1,7 @@
 package mattermost
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/mattermost/mattermost/server/public/plugin"
@@ -28,6 +29,7 @@ raw Mattermost plugin API.
 */
 type Client interface {
 	GetUser(userID string) (*User, error)
+	GetUserFromSessionToken(sessionToken string) (*User, error)
 }
 
 /*
@@ -50,7 +52,12 @@ func NewPluginClient(api plugin.API) *PluginClient {
 GetUser loads a Mattermost user and maps it to Campfire's user projection.
 */
 func (c *PluginClient) GetUser(userID string) (*User, error) {
-	user, appErr := c.api.GetUser(userID)
+	cleanUserID := strings.TrimSpace(userID)
+	if cleanUserID == "" {
+		return nil, errors.New("user ID is required")
+	}
+
+	user, appErr := c.api.GetUser(cleanUserID)
 	if appErr != nil {
 		return nil, appErr
 	}
@@ -62,6 +69,31 @@ func (c *PluginClient) GetUser(userID string) (*User, error) {
 		Email:         user.Email,
 		IsSystemAdmin: hasRole(user.Roles, "system_admin"),
 	}, nil
+}
+
+/*
+GetUserFromSessionToken resolves a verified Mattermost session token to a user.
+
+This is a safe fallback for plugin HTTP requests where Mattermost did not inject
+the Mattermost-User-Id header but the browser still sent the Mattermost session
+cookie.
+*/
+func (c *PluginClient) GetUserFromSessionToken(sessionToken string) (*User, error) {
+	cleanSessionToken := strings.TrimSpace(sessionToken)
+	if cleanSessionToken == "" {
+		return nil, errors.New("session token is required")
+	}
+
+	session, appErr := c.api.GetSession(cleanSessionToken)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	if session == nil || strings.TrimSpace(session.UserId) == "" {
+		return nil, errors.New("session has no user")
+	}
+
+	return c.GetUser(session.UserId)
 }
 
 /*

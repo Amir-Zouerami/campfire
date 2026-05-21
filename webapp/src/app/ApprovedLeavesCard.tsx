@@ -1,9 +1,24 @@
-import type { ReactElement } from 'react';
 import { useEffect, useMemo, useState } from 'react';
+import type { ReactElement } from 'react';
+import { CalendarDays, Loader2, Search, Umbrella } from 'lucide-react';
 
+import { ApiClientError, listApprovedLeaveRequests } from '@/api';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import type { ApprovedLeaveRequest, Workspace } from '@/types/domain';
+
+import {
+	CampfireCardBody,
+	CampfireCardHeader,
+	CampfireEmpty,
+	CampfireMetric,
+	CampfirePanel,
+	CampfireStatusPill,
+} from './campfire-ui';
 import { useUserProfiles } from './useUserProfiles';
-import type { ApprovedLeaveRequest, Workspace } from '../types/domain';
-import { ApiClientError, listApprovedLeaveRequests } from '../api/client';
 
 /**
  * ApprovedLeavesCardProps contains workspace and refresh data.
@@ -14,7 +29,7 @@ type ApprovedLeavesCardProps = {
 };
 
 /**
- * LoadState describes the approved leave calendar loading status.
+ * LoadState describes approved leave card loading status.
  */
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -32,6 +47,9 @@ export function ApprovedLeavesCard(props: ApprovedLeavesCardProps): ReactElement
 	useEffect(() => {
 		let isActive = true;
 
+		/**
+		 * Loads approved leave rows for the selected date window.
+		 */
 		async function loadApprovedLeaves(): Promise<void> {
 			if (startDate.trim() === '' || endDate.trim() === '') {
 				setMessage('Choose a start and end date.');
@@ -74,165 +92,263 @@ export function ApprovedLeavesCard(props: ApprovedLeavesCardProps): ReactElement
 		loading: profilesLoading,
 	} = useUserProfiles(userIDsForProfiles);
 
+	const leaveTypeCounts = useMemo(() => countByLeaveType(leaveRequests), [leaveRequests]);
+	const uniqueUserCount = useMemo(
+		() => new Set(leaveRequests.map(row => row.leaveRequest.userId)).size,
+		[leaveRequests],
+	);
+
 	return (
-		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-violet-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-			<div className="cf:grid cf:gap-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
-				<div>
-					<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-violet-200">
-						Calendar
-					</p>
-					<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-						Approved leave calendar
-					</h2>
-					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						Approved leave in this date window. This data will feed standup scheduling, daily availability,
-						and future reports.
-					</p>
+		<CampfirePanel className="cf:overflow-hidden">
+			<CampfireCardHeader
+				eyebrow="Calendar"
+				title="Approved leave calendar"
+				description="Approved leave in this date window. This data feeds standup scheduling, daily availability, and reports."
+				icon={CalendarDays}
+				action={<CampfireStatusPill tone="green">{leaveRequests.length} approved</CampfireStatusPill>}
+			/>
+
+			<CampfireCardBody className="cf:grid cf:gap-5">
+				<div className="cf:grid cf:gap-3 cf:md:grid-cols-3">
+					<CampfireMetric
+						label="Approved rows"
+						value={String(leaveRequests.length)}
+						helper="In selected range"
+					/>
+					<CampfireMetric label="People out" value={String(uniqueUserCount)} helper="Unique users" />
+					<CampfireMetric
+						label="Leave types"
+						value={String(leaveTypeCounts.length)}
+						helper="Represented types"
+					/>
 				</div>
 
-				<div className="cf:w-fit cf:rounded-full cf:border cf:border-violet-300/25 cf:bg-violet-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-violet-200">
-					{leaveRequests.length} approved
-				</div>
-			</div>
+				<form className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4 cf:lg:grid-cols-[1fr_1fr_auto] cf:lg:items-end">
+					<FormField label="Start date" htmlFor="campfire-approved-leaves-start">
+						<Input
+							id="campfire-approved-leaves-start"
+							type="date"
+							value={startDate}
+							onChange={event => setStartDate(event.currentTarget.value)}
+						/>
+					</FormField>
 
-			<div className="cf:mt-5 cf:grid cf:gap-4 cf:md:grid-cols-[1fr_1fr_auto] cf:md:items-end">
-				<Field label="Start date">
-					<input
-						className={inputClassName}
-						type="date"
-						value={startDate}
-						onChange={event => setStartDate(event.currentTarget.value)}
-					/>
-				</Field>
+					<FormField label="End date" htmlFor="campfire-approved-leaves-end">
+						<Input
+							id="campfire-approved-leaves-end"
+							type="date"
+							value={endDate}
+							onChange={event => setEndDate(event.currentTarget.value)}
+						/>
+					</FormField>
 
-				<Field label="End date">
-					<input
-						className={inputClassName}
-						type="date"
-						value={endDate}
-						onChange={event => setEndDate(event.currentTarget.value)}
-					/>
-				</Field>
+					<Button
+						type="button"
+						variant="secondary"
+						onClick={() => setEndDate(addDaysToLocalDate(startDate, 30))}
+					>
+						<Search className="cf:size-4" />
+						30 days
+					</Button>
+				</form>
 
-				<button
-					className="cf:w-fit cf:rounded-2xl cf:border cf:border-violet-300/25 cf:bg-violet-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-violet-50 cf:transition cf:hover:bg-violet-400/30"
-					type="button"
-					onClick={() => setEndDate(addDaysToLocalDate(getTodayLocalDateString(), 30))}
-				>
-					Next 30 days
-				</button>
-			</div>
+				{message !== '' && <MessageRow state={loadState} message={message} />}
+				{profileErrorMessage !== '' && <MessageRow state="error" message={profileErrorMessage} />}
+				{profilesLoading && <LoadingRow label="Resolving user names…" />}
+				{loadState === 'loading' && <LoadingRow label="Loading approved leaves…" />}
 
-			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
-
-			{profileErrorMessage !== '' && (
-				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{profileErrorMessage}</p>
-			)}
-
-			{profilesLoading && (
-				<p className="cf:m-0 cf:mt-4 cf:text-xs cf:font-bold cf:text-slate-400">Resolving user names…</p>
-			)}
-
-			<div className="cf:mt-5 cf:grid cf:gap-4">
-				{loadState === 'loading' && <p className="cf:m-0 cf:text-slate-300">Loading approved leave…</p>}
-
-				{loadState !== 'loading' && leaveRequests.length === 0 && (
-					<p className="cf:m-0 cf:text-slate-300">No approved leave in this date range.</p>
+				{leaveTypeCounts.length > 0 && (
+					<div className="cf:flex cf:flex-wrap cf:gap-2">
+						{leaveTypeCounts.map(row => (
+							<Badge className="cf:rounded-full" variant="secondary" key={row.leaveTypeName}>
+								{row.leaveTypeName}: {row.count}
+							</Badge>
+						))}
+					</div>
 				)}
 
-				{leaveRequests.map(item => (
-					<article
-						className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4"
-						key={item.leaveRequest.id}
-					>
-						<div className="cf:flex cf:flex-col cf:gap-3 cf:sm:flex-row cf:sm:items-start cf:sm:justify-between">
-							<div>
-								<strong className="cf:block cf:text-lg cf:font-black cf:text-white">
-									{item.leaveTypeName}
-								</strong>
-								<p className="cf:m-0 cf:mt-1 cf:text-sm cf:text-slate-300">
-									{item.leaveRequest.startDate} → {item.leaveRequest.endDate}
-									{formatDurationDetails(item)}
-								</p>
-								<p
-									className="cf:m-0 cf:mt-1 cf:text-xs cf:font-bold cf:text-slate-400"
-									title={item.leaveRequest.userId}
-								>
-									User {labelForUserID(item.leaveRequest.userId)}
-								</p>
+				<Separator className="cf:bg-white/10" />
 
-								{item.leaveRequest.backupUserId !== '' && (
-									<p
-										className="cf:m-0 cf:mt-1 cf:text-xs cf:font-bold cf:text-slate-500"
-										title={item.leaveRequest.backupUserId}
-									>
-										Backup: {labelForUserID(item.leaveRequest.backupUserId)}
-									</p>
-								)}
-							</div>
+				{loadState !== 'loading' && leaveRequests.length === 0 && (
+					<CampfireEmpty
+						icon={Umbrella}
+						title="No approved leave in this window"
+						description="Try a different date range or approve pending requests first."
+					/>
+				)}
 
-							<span className="cf:w-fit cf:rounded-full cf:border cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:px-3 cf:py-1 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-emerald-200">
-								{item.leaveRequest.status}
-							</span>
-						</div>
-
-						{item.leaveRequest.reason !== '' && (
-							<p className="cf:m-0 cf:mt-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-3 cf:text-sm cf:leading-6 cf:text-slate-200">
-								{item.leaveRequest.reason}
-							</p>
-						)}
-					</article>
-				))}
-			</div>
-		</section>
+				<div className="cf:grid cf:gap-3">
+					{leaveRequests.map(row => (
+						<ApprovedLeaveRow row={row} labelForUserID={labelForUserID} key={row.leaveRequest.id} />
+					))}
+				</div>
+			</CampfireCardBody>
+		</CampfirePanel>
 	);
 }
 
-const inputClassName =
-	'cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/55 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:transition cf:[color-scheme:dark] cf:placeholder:text-slate-500 cf:focus:border-violet-300/60 cf:focus:ring-4 cf:focus:ring-violet-300/15';
-
 /**
- * Field renders a labeled form control.
+ * ApprovedLeaveRow renders one approved leave row.
  */
-function Field(props: { readonly label: string; readonly children: ReactElement }): ReactElement {
+function ApprovedLeaveRow(props: {
+	readonly row: ApprovedLeaveRequest;
+	readonly labelForUserID: (userID: string) => string;
+}): ReactElement {
 	return (
-		<label className="cf:grid cf:gap-2">
-			<span className="cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.14em] cf:text-violet-200">
-				{props.label}
-			</span>
-			{props.children}
-		</label>
+		<article className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
+			<div className="cf:flex cf:flex-col cf:gap-3 cf:sm:flex-row cf:sm:items-start cf:sm:justify-between">
+				<div>
+					<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
+						<strong
+							className="cf:text-lg cf:font-black cf:text-white"
+							title={props.row.leaveRequest.userId}
+						>
+							{props.labelForUserID(props.row.leaveRequest.userId)}
+						</strong>
+						<CampfireStatusPill tone="green">Approved</CampfireStatusPill>
+					</div>
+
+					<p className="cf:mt-3 cf:text-sm cf:font-bold cf:text-slate-300">
+						{props.row.leaveRequest.startDate} → {props.row.leaveRequest.endDate}
+						{formatDurationDetails(props.row)}
+					</p>
+
+					<div className="cf:mt-3 cf:flex cf:flex-wrap cf:gap-2">
+						<MetaChip label="Type" value={props.row.leaveTypeName} />
+						<MetaChip
+							label="Backup"
+							value={backupLabel(props.row.leaveRequest.backupUserId, props.labelForUserID)}
+						/>
+					</div>
+				</div>
+
+				<div className="cf:rounded-2xl cf:border cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:px-4 cf:py-3 cf:text-right">
+					<p className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-emerald-100">
+						Leave type
+					</p>
+					<p className="cf:mt-1 cf:text-sm cf:font-black cf:text-white">{props.row.leaveTypeName}</p>
+				</div>
+			</div>
+
+			{props.row.leaveRequest.reason !== '' && (
+				<p className="cf:mt-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-3 cf:text-sm cf:font-medium cf:leading-6 cf:text-slate-200">
+					{props.row.leaveRequest.reason}
+				</p>
+			)}
+		</article>
 	);
 }
 
 /**
- * collectLeaveUserIDs returns all user IDs displayed by this card.
+ * FormField renders a labeled field.
  */
-function collectLeaveUserIDs(leaveRequests: readonly ApprovedLeaveRequest[]): readonly string[] {
-	const userIDs = leaveRequests.flatMap(item => [item.leaveRequest.userId, item.leaveRequest.backupUserId]);
-
-	return uniqueNonEmptyUserIDs(userIDs);
+function FormField(props: {
+	readonly label: string;
+	readonly htmlFor: string;
+	readonly children: ReactElement;
+}): ReactElement {
+	return (
+		<div className="cf:grid cf:gap-2">
+			<Label
+				htmlFor={props.htmlFor}
+				className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200"
+			>
+				{props.label}
+			</Label>
+			{props.children}
+		</div>
+	);
 }
 
 /**
- * uniqueNonEmptyUserIDs trims, de-duplicates, and preserves user ID order.
+ * MetaChip renders optional row metadata.
  */
-function uniqueNonEmptyUserIDs(userIDs: readonly string[]): readonly string[] {
-	const seen = new Set<string>();
-	const result: string[] = [];
-
-	for (const userID of userIDs) {
-		const cleanUserID = userID.trim();
-
-		if (cleanUserID === '' || seen.has(cleanUserID)) {
-			continue;
-		}
-
-		seen.add(cleanUserID);
-		result.push(cleanUserID);
+function MetaChip(props: { readonly label: string; readonly value: string }): ReactElement | null {
+	if (props.value.trim() === '') {
+		return null;
 	}
 
-	return result;
+	return (
+		<span className="cf:rounded-full cf:border cf:border-white/10 cf:bg-white/5 cf:px-2.5 cf:py-1 cf:text-xs cf:font-bold cf:text-slate-300">
+			{props.label}: {props.value}
+		</span>
+	);
+}
+
+/**
+ * MessageRow renders a status or error row.
+ */
+function MessageRow(props: { readonly state: LoadState; readonly message: string }): ReactElement {
+	const isError = props.state === 'error';
+
+	return (
+		<div
+			className={
+				isError
+					? 'cf:rounded-2xl cf:border cf:border-red-300/25 cf:bg-red-950/30 cf:px-4 cf:py-3 cf:text-sm cf:font-black cf:text-red-100'
+					: 'cf:rounded-2xl cf:border cf:border-amber-300/25 cf:bg-amber-950/30 cf:px-4 cf:py-3 cf:text-sm cf:font-black cf:text-amber-100'
+			}
+		>
+			{props.message}
+		</div>
+	);
+}
+
+/**
+ * LoadingRow renders a loading message.
+ */
+function LoadingRow(props: { readonly label: string }): ReactElement {
+	return (
+		<div className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4 cf:text-sm cf:font-bold cf:text-slate-300">
+			<Loader2 className="cf:size-4 cf:animate-spin cf:text-amber-200" />
+			{props.label}
+		</div>
+	);
+}
+
+/**
+ * countByLeaveType groups approved leaves by type.
+ */
+function countByLeaveType(
+	rows: readonly ApprovedLeaveRequest[],
+): readonly { readonly leaveTypeName: string; readonly count: number }[] {
+	const counts: Record<string, number> = {};
+
+	for (const row of rows) {
+		counts[row.leaveTypeName] = (counts[row.leaveTypeName] ?? 0) + 1;
+	}
+
+	return Object.entries(counts)
+		.map(([leaveTypeName, count]) => ({ leaveTypeName, count }))
+		.sort((first, second) => second.count - first.count || first.leaveTypeName.localeCompare(second.leaveTypeName));
+}
+
+/**
+ * collectLeaveUserIDs returns user IDs referenced by approved leave rows.
+ */
+function collectLeaveUserIDs(rows: readonly ApprovedLeaveRequest[]): readonly string[] {
+	const userIDs: string[] = [];
+
+	for (const row of rows) {
+		userIDs.push(row.leaveRequest.userId);
+
+		if (row.leaveRequest.backupUserId.trim() !== '') {
+			userIDs.push(row.leaveRequest.backupUserId);
+		}
+	}
+
+	return userIDs;
+}
+
+/**
+ * backupLabel returns a readable backup label.
+ */
+function backupLabel(backupUserID: string, labelForUserID: (userID: string) => string): string {
+	if (backupUserID.trim() === '') {
+		return '';
+	}
+
+	return labelForUserID(backupUserID);
 }
 
 /**
@@ -243,7 +359,7 @@ function formatDurationDetails(item: ApprovedLeaveRequest): string {
 
 	switch (request.durationMode) {
 		case 'half_day':
-			return request.halfDayPart === '' ? ' · half day' : ` · half day · ${request.halfDayPart}`;
+			return request.halfDayPart === '' ? ' · half day' : ` · half day · ${formatLabel(request.halfDayPart)}`;
 
 		case 'hourly':
 			return ` · ${request.startTime} → ${request.endTime}`;
@@ -254,6 +370,16 @@ function formatDurationDetails(item: ApprovedLeaveRequest): string {
 		default:
 			return '';
 	}
+}
+
+/**
+ * formatLabel converts enum-like strings to readable labels.
+ */
+function formatLabel(value: string): string {
+	return value
+		.split('_')
+		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(' ');
 }
 
 /**
@@ -307,5 +433,5 @@ function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not load approved leave.';
+	return 'Could not load approved leaves.';
 }

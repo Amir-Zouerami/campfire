@@ -1,10 +1,24 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactElement } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { FormEvent, ReactElement } from 'react';
+import { CalendarX2, CheckCircle2, Loader2, Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
-import { ApiClientError, createWorkspaceOffDay, deleteWorkspaceOffDay, listWorkspaceOffDays } from '../api/client';
-import type { Workspace, WorkspaceOffDay } from '../types/domain';
+import { ApiClientError, createWorkspaceOffDay, deleteWorkspaceOffDay, listWorkspaceOffDays } from '@/api';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
+import type { Workspace, WorkspaceOffDay } from '@/types/domain';
 
-const workspaceOffDayDateInputID = 'campfire-workspace-offday-date';
-const workspaceOffDayLabelInputID = 'campfire-workspace-offday-label';
+import {
+	CampfireCardBody,
+	CampfireCardHeader,
+	CampfireEmpty,
+	CampfireMetric,
+	CampfirePanel,
+	CampfireStatusPill,
+} from './campfire-ui';
 
 /**
  * WorkspaceOffDaysCardProps contains workspace calendar settings data.
@@ -23,14 +37,13 @@ type LoadState = 'idle' | 'loading' | 'ready' | 'saving' | 'deleting' | 'error';
 
 /**
  * WorkspaceOffDaysCard lets workspace Leads manage channel-specific off-days.
- *
- * Workspace off-days suppress standup automation only for this workspace.
  */
 export function WorkspaceOffDaysCard(props: WorkspaceOffDaysCardProps): ReactElement {
 	const [loadState, setLoadState] = useState<LoadState>('idle');
 	const [offDays, setOffDays] = useState<readonly WorkspaceOffDay[]>([]);
 	const [date, setDate] = useState('');
 	const [label, setLabel] = useState('');
+	const [deletingID, setDeletingID] = useState('');
 	const [message, setMessage] = useState('');
 
 	useEffect(() => {
@@ -70,6 +83,11 @@ export function WorkspaceOffDaysCard(props: WorkspaceOffDaysCardProps): ReactEle
 	}, [props.workspace.id, props.refreshToken]);
 
 	const sortedOffDays = useMemo(() => sortWorkspaceOffDays(offDays), [offDays]);
+	const upcomingOffDays = useMemo(
+		() => sortedOffDays.filter(offDay => offDay.date >= getTodayLocalDateString()),
+		[sortedOffDays],
+	);
+	const isBusy = loadState === 'loading' || loadState === 'saving' || loadState === 'deleting';
 
 	/**
 	 * Creates a workspace off-day from the form.
@@ -78,6 +96,7 @@ export function WorkspaceOffDaysCard(props: WorkspaceOffDaysCardProps): ReactEle
 		event.preventDefault();
 
 		if (!props.canManageWorkspace) {
+			setLoadState('error');
 			setMessage('Only workspace Leads and system admins can manage workspace off-days.');
 			return;
 		}
@@ -85,8 +104,15 @@ export function WorkspaceOffDaysCard(props: WorkspaceOffDaysCardProps): ReactEle
 		const cleanDate = date.trim();
 		const cleanLabel = label.trim();
 
-		if (cleanDate === '' || cleanLabel === '') {
-			setMessage('Choose a date and enter a label.');
+		if (cleanDate === '') {
+			setLoadState('error');
+			setMessage('Choose an off-day date.');
+			return;
+		}
+
+		if (cleanLabel === '') {
+			setLoadState('error');
+			setMessage('Off-day label is required.');
 			return;
 		}
 
@@ -99,15 +125,18 @@ export function WorkspaceOffDaysCard(props: WorkspaceOffDaysCardProps): ReactEle
 				label: cleanLabel,
 			});
 
-			setOffDays(current => sortWorkspaceOffDays([...current, response.offDay]));
+			setOffDays(current => [response.offDay, ...current]);
 			setDate('');
 			setLabel('');
 			setLoadState('ready');
-			setMessage('Workspace off-day added.');
+			setMessage('Workspace off-day created.');
+			toast.success('Workspace off-day created');
 			props.onOffDaysChanged();
 		} catch (error: unknown) {
-			setMessage(errorToMessage(error));
+			const errorMessage = errorToMessage(error);
+			setMessage(errorMessage);
 			setLoadState('error');
+			toast.error(errorMessage);
 		}
 	}
 
@@ -116,11 +145,13 @@ export function WorkspaceOffDaysCard(props: WorkspaceOffDaysCardProps): ReactEle
 	 */
 	async function handleDelete(offDayID: string): Promise<void> {
 		if (!props.canManageWorkspace) {
+			setLoadState('error');
 			setMessage('Only workspace Leads and system admins can manage workspace off-days.');
 			return;
 		}
 
 		setLoadState('deleting');
+		setDeletingID(offDayID);
 		setMessage('');
 
 		try {
@@ -128,132 +159,195 @@ export function WorkspaceOffDaysCard(props: WorkspaceOffDaysCardProps): ReactEle
 
 			setOffDays(current => current.filter(offDay => offDay.id !== offDayID));
 			setLoadState('ready');
-			setMessage('Workspace off-day removed.');
+			setDeletingID('');
+			setMessage('Workspace off-day deleted.');
+			toast.success('Workspace off-day deleted');
 			props.onOffDaysChanged();
 		} catch (error: unknown) {
-			setMessage(errorToMessage(error));
+			const errorMessage = errorToMessage(error);
+			setMessage(errorMessage);
 			setLoadState('error');
+			setDeletingID('');
+			toast.error(errorMessage);
 		}
 	}
 
-	const isBusy = loadState === 'loading' || loadState === 'saving' || loadState === 'deleting';
-
 	return (
-		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-orange-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-			<div className="cf:grid cf:gap-5 cf:sm:grid-cols-[1fr_auto] cf:sm:items-start">
-				<div>
-					<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-orange-200">
-						Workspace calendar
-					</p>
-					<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-						Workspace off-days
-					</h2>
-					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						Add channel-specific holidays, shutdowns, or no-standup days for {props.workspace.name}. These
-						dates suppress scheduled standup work for this workspace only.
-					</p>
+		<CampfirePanel className="cf:overflow-hidden">
+			<CampfireCardHeader
+				eyebrow="Workspace off-days"
+				title="Workspace holidays and skip dates"
+				description="Add channel-specific no-standup dates. These apply only to this workspace."
+				icon={CalendarX2}
+				action={<CampfireStatusPill tone="ember">{upcomingOffDays.length} upcoming</CampfireStatusPill>}
+			/>
+
+			<CampfireCardBody className="cf:grid cf:gap-5">
+				<div className="cf:grid cf:gap-3 cf:md:grid-cols-3">
+					<CampfireMetric label="Total" value={String(offDays.length)} helper="Workspace off-days" />
+					<CampfireMetric label="Upcoming" value={String(upcomingOffDays.length)} helper="Today and later" />
+					<CampfireMetric label="Timezone" value={props.workspace.timezone} helper="Date interpretation" />
 				</div>
 
-				<div className="cf:w-fit cf:rounded-full cf:border cf:border-orange-300/25 cf:bg-orange-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-orange-200">
-					{offDays.length} dates
-				</div>
-			</div>
+				{message !== '' && <MessageRow state={loadState} message={message} />}
+				{loadState === 'loading' && <LoadingRow label="Loading workspace off-days…" />}
 
-			{!props.canManageWorkspace && (
-				<p className="cf:m-0 cf:mt-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-3 cf:text-sm cf:leading-6 cf:text-slate-300">
-					You can view workspace off-days, but only workspace Leads and system admins can change them.
-				</p>
-			)}
+				{!props.canManageWorkspace && (
+					<MessageRow state="error" message="You can view workspace off-days, but you cannot edit them." />
+				)}
 
-			{props.canManageWorkspace && (
 				<form
-					className="cf:mt-5 cf:grid cf:gap-3 cf:lg:grid-cols-[180px_1fr_auto]"
-					onSubmit={event => void handleCreate(event)}
+					className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4 cf:lg:grid-cols-[16rem_1fr_auto] cf:lg:items-end"
+					onSubmit={handleCreate}
 				>
-					<div>
-						<label
-							className="cf:mb-1.5 cf:block cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-slate-300"
-							htmlFor={workspaceOffDayDateInputID}
-						>
-							Date
-						</label>
-						<input
-							className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:transition cf:focus:border-orange-300/45"
-							disabled={isBusy}
-							id={workspaceOffDayDateInputID}
+					<FormField label="Date" htmlFor="campfire-workspace-offday-date">
+						<Input
+							id="campfire-workspace-offday-date"
 							type="date"
+							disabled={isBusy || !props.canManageWorkspace}
 							value={date}
 							onChange={event => setDate(event.currentTarget.value)}
 						/>
-					</div>
+					</FormField>
 
-					<div>
-						<label
-							className="cf:mb-1.5 cf:block cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-slate-300"
-							htmlFor={workspaceOffDayLabelInputID}
-						>
-							Label
-						</label>
-						<input
-							className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:transition cf:placeholder:text-slate-500 cf:focus:border-orange-300/45"
-							disabled={isBusy}
-							id={workspaceOffDayLabelInputID}
-							placeholder="Team offsite, local holiday, release freeze..."
-							type="text"
+					<FormField label="Label" htmlFor="campfire-workspace-offday-label">
+						<Input
+							id="campfire-workspace-offday-label"
+							disabled={isBusy || !props.canManageWorkspace}
+							placeholder="Company holiday, launch recovery day..."
 							value={label}
 							onChange={event => setLabel(event.currentTarget.value)}
 						/>
-					</div>
+					</FormField>
 
-					<div className="cf:flex cf:items-end">
-						<button
-							className="cf:w-full cf:rounded-2xl cf:border cf:border-orange-300/30 cf:bg-orange-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-orange-50 cf:transition cf:hover:bg-orange-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-							disabled={isBusy}
-							type="submit"
-						>
-							Add off-day
-						</button>
-					</div>
+					<Button type="submit" disabled={isBusy || !props.canManageWorkspace}>
+						{loadState === 'saving' ? (
+							<Loader2 className="cf:size-4 cf:animate-spin" />
+						) : (
+							<Plus className="cf:size-4" />
+						)}
+						Add off-day
+					</Button>
 				</form>
-			)}
 
-			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
+				<Separator className="cf:bg-white/10" />
 
-			<div className="cf:mt-5 cf:grid cf:gap-3">
-				{loadState === 'loading' && <p className="cf:m-0 cf:text-slate-300">Loading workspace off-days…</p>}
-
-				{loadState !== 'loading' && sortedOffDays.length === 0 && (
-					<p className="cf:m-0 cf:rounded-2xl cf:border cf:border-dashed cf:border-white/10 cf:p-4 cf:text-slate-300">
-						No workspace off-days have been added yet.
-					</p>
+				{sortedOffDays.length === 0 && loadState !== 'loading' && (
+					<CampfireEmpty
+						icon={CalendarX2}
+						title="No workspace off-days"
+						description="Add holidays or skip dates that should suppress standup automation for this workspace."
+					/>
 				)}
 
-				{sortedOffDays.map(offDay => (
-					<article
-						className="cf:flex cf:flex-col cf:gap-3 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4 cf:sm:flex-row cf:sm:items-center cf:sm:justify-between"
-						key={offDay.id}
-					>
-						<div>
-							<strong className="cf:block cf:text-base cf:font-black cf:text-white">
-								{offDay.label}
-							</strong>
-							<p className="cf:m-0 cf:mt-1 cf:text-sm cf:text-slate-300">{offDay.date}</p>
-						</div>
+				<div className="cf:grid cf:gap-3">
+					{sortedOffDays.map(offDay => (
+						<OffDayRow
+							key={offDay.id}
+							offDay={offDay}
+							disabled={isBusy || !props.canManageWorkspace}
+							deleting={deletingID === offDay.id}
+							onDelete={() => void handleDelete(offDay.id)}
+						/>
+					))}
+				</div>
+			</CampfireCardBody>
+		</CampfirePanel>
+	);
+}
 
-						{props.canManageWorkspace && (
-							<button
-								className="cf:w-fit cf:rounded-2xl cf:border cf:border-red-300/25 cf:bg-red-400/15 cf:px-4 cf:py-2 cf:text-sm cf:font-black cf:text-red-50 cf:transition cf:hover:bg-red-400/25 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-								disabled={isBusy}
-								type="button"
-								onClick={() => void handleDelete(offDay.id)}
-							>
-								Delete
-							</button>
-						)}
-					</article>
-				))}
+/**
+ * OffDayRow renders one workspace off-day.
+ */
+function OffDayRow(props: {
+	readonly offDay: WorkspaceOffDay;
+	readonly disabled: boolean;
+	readonly deleting: boolean;
+	readonly onDelete: () => void;
+}): ReactElement {
+	const isPast = props.offDay.date < getTodayLocalDateString();
+
+	return (
+		<article className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
+			<div className="cf:flex cf:flex-col cf:gap-3 cf:sm:flex-row cf:sm:items-start cf:sm:justify-between">
+				<div>
+					<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
+						<strong className="cf:text-lg cf:font-black cf:text-white">{props.offDay.label}</strong>
+						<CampfireStatusPill tone={isPast ? 'slate' : 'ember'}>
+							{isPast ? 'Past' : 'Upcoming'}
+						</CampfireStatusPill>
+					</div>
+
+					<p className="cf:mt-2 cf:text-sm cf:font-bold cf:text-slate-300">{props.offDay.date}</p>
+					<p className="cf:mt-1 cf:text-xs cf:font-bold cf:text-slate-500">
+						Created {formatDateTime(props.offDay.createdAt)}
+					</p>
+				</div>
+
+				<Button type="button" variant="destructive" disabled={props.disabled} onClick={props.onDelete}>
+					{props.deleting ? (
+						<Loader2 className="cf:size-4 cf:animate-spin" />
+					) : (
+						<Trash2 className="cf:size-4" />
+					)}
+					Delete
+				</Button>
 			</div>
-		</section>
+		</article>
+	);
+}
+
+/**
+ * FormField renders a labeled field.
+ */
+function FormField(props: {
+	readonly label: string;
+	readonly htmlFor: string;
+	readonly children: ReactElement;
+}): ReactElement {
+	return (
+		<div className="cf:grid cf:gap-2">
+			<Label
+				htmlFor={props.htmlFor}
+				className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200"
+			>
+				{props.label}
+			</Label>
+			{props.children}
+		</div>
+	);
+}
+
+/**
+ * MessageRow renders load/save feedback.
+ */
+function MessageRow(props: { readonly state: LoadState; readonly message: string }): ReactElement {
+	const isError = props.state === 'error';
+
+	return (
+		<div
+			className={cn(
+				'cf:flex cf:items-center cf:gap-2 cf:rounded-2xl cf:border cf:px-4 cf:py-3 cf:text-sm cf:font-black',
+				isError
+					? 'cf:border-red-300/25 cf:bg-red-950/30 cf:text-red-100'
+					: 'cf:border-amber-300/25 cf:bg-amber-950/30 cf:text-amber-100',
+			)}
+		>
+			{isError ? null : <CheckCircle2 className="cf:size-4" />}
+			{props.message}
+		</div>
+	);
+}
+
+/**
+ * LoadingRow renders a loading message.
+ */
+function LoadingRow(props: { readonly label: string }): ReactElement {
+	return (
+		<div className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4 cf:text-sm cf:font-bold cf:text-slate-300">
+			<Loader2 className="cf:size-4 cf:animate-spin cf:text-amber-200" />
+			{props.label}
+		</div>
 	);
 }
 
@@ -268,6 +362,31 @@ function sortWorkspaceOffDays(offDays: readonly WorkspaceOffDay[]): readonly Wor
 
 		return first.date.localeCompare(second.date);
 	});
+}
+
+/**
+ * getTodayLocalDateString returns today's local YYYY-MM-DD date.
+ */
+function getTodayLocalDateString(): string {
+	const today = new Date();
+	const year = String(today.getFullYear());
+	const month = String(today.getMonth() + 1).padStart(2, '0');
+	const day = String(today.getDate()).padStart(2, '0');
+
+	return `${year}-${month}-${day}`;
+}
+
+/**
+ * formatDateTime formats an API timestamp for compact display.
+ */
+function formatDateTime(value: string): string {
+	const date = new Date(value);
+
+	if (Number.isNaN(date.getTime())) {
+		return value;
+	}
+
+	return date.toLocaleString();
 }
 
 /**

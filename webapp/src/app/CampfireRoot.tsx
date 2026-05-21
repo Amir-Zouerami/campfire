@@ -1,132 +1,109 @@
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
+import { createPortal } from 'react-dom';
+import { AlertTriangle, Flame, Loader2, RefreshCw, X } from 'lucide-react';
 
-import { WorkspaceSetupCard } from './WorkspaceSetupCard';
-import { CAMPFIRE_OPEN_EVENT } from './events';
-import { useCampfireBootstrap } from './useCampfireBootstrap';
-import type { BootstrapStatus } from './useCampfireBootstrap';
+import campfireLogoURL from '../../../assets/campfire-logo.svg';
+
+import { CampfireCardBody, CampfireEmpty, CampfireMetric, CampfirePanel } from './campfire-ui';
 import { CampfireWorkspaceTabs } from './CampfireWorkspaceTabs';
+import { CAMPFIRE_CLOSE_EVENT, CAMPFIRE_OPEN_EVENT, CAMPFIRE_TOGGLE_EVENT, isCampfireOpenEvent } from './events';
+import type { BootstrapStatus } from './useCampfireBootstrap';
+import { useCampfireBootstrap } from './useCampfireBootstrap';
+import { WorkspaceSetupCard } from './WorkspaceSetupCard';
 
 /**
  * CampfireRoot is the plugin root mounted by Mattermost.
- *
- * It stays dormant until the user opens Campfire from the channel header button,
- * app bar button, or a future slash-command websocket/deep-link action.
  */
 export function CampfireRoot(): ReactElement | null {
 	const [isOpen, setIsOpen] = useState(false);
-	const [refreshToken, setRefreshToken] = useState(0);
+	const [bootstrapRefreshToken, setBootstrapRefreshToken] = useState(0);
 	const [leaveRefreshToken, setLeaveRefreshToken] = useState(0);
 	const [standupRefreshToken, setStandupRefreshToken] = useState(0);
 	const [workspaceCalendarRefreshToken, setWorkspaceCalendarRefreshToken] = useState(0);
-	const bootstrap = useCampfireBootstrap(isOpen, refreshToken);
+	const bootstrap = useCampfireBootstrap(isOpen, bootstrapRefreshToken);
 
-	/**
-	 * Refreshes leave panels.
-	 */
+	useEffect(() => {
+		function handleOpen(event: Event): void {
+			if (!isCampfireOpenEvent(event)) {
+				return;
+			}
+
+			setIsOpen(true);
+		}
+
+		function handleClose(): void {
+			setIsOpen(false);
+		}
+
+		function handleToggle(): void {
+			setIsOpen(current => !current);
+		}
+
+		window.addEventListener(CAMPFIRE_OPEN_EVENT, handleOpen);
+		window.addEventListener(CAMPFIRE_CLOSE_EVENT, handleClose);
+		window.addEventListener(CAMPFIRE_TOGGLE_EVENT, handleToggle);
+
+		return () => {
+			window.removeEventListener(CAMPFIRE_OPEN_EVENT, handleOpen);
+			window.removeEventListener(CAMPFIRE_CLOSE_EVENT, handleClose);
+			window.removeEventListener(CAMPFIRE_TOGGLE_EVENT, handleToggle);
+		};
+	}, []);
+
+	useEffect(() => {
+		if (!isOpen) {
+			return;
+		}
+
+		function handleKeyDown(event: KeyboardEvent): void {
+			if (event.key === 'Escape') {
+				setIsOpen(false);
+			}
+		}
+
+		const previousOverflow = document.body.style.overflow;
+		document.body.style.overflow = 'hidden';
+		window.addEventListener('keydown', handleKeyDown);
+
+		return () => {
+			document.body.style.overflow = previousOverflow;
+			window.removeEventListener('keydown', handleKeyDown);
+		};
+	}, [isOpen]);
+
+	if (!isOpen || typeof document === 'undefined') {
+		return null;
+	}
+
+	function refreshBootstrap(): void {
+		setBootstrapRefreshToken(current => current + 1);
+	}
+
 	function refreshLeaves(): void {
 		setLeaveRefreshToken(current => current + 1);
 	}
 
-	/**
-	 * Refreshes standup panels.
-	 */
 	function refreshStandups(): void {
 		setStandupRefreshToken(current => current + 1);
 	}
 
-	/**
-	 * Refreshes workspace-calendar dependent panels.
-	 */
 	function refreshWorkspaceCalendar(): void {
 		setWorkspaceCalendarRefreshToken(current => current + 1);
 	}
 
-	useEffect(() => {
-		/**
-		 * Opens the Campfire shell when the plugin dispatches its open event.
-		 */
-		function handleOpen(): void {
-			setIsOpen(true);
-		}
+	return createPortal(
+		<div className="campfire-overlay campfire-theme dark" role="dialog" aria-modal="true" aria-label="Campfire">
+			<div className="campfire-modal">
+				<CampfireTopbar bootstrap={bootstrap} onClose={() => setIsOpen(false)} onRefresh={refreshBootstrap} />
 
-		window.addEventListener(CAMPFIRE_OPEN_EVENT, handleOpen);
+				<main className="campfire-scroll">
+					<div className="campfire-container">
+						<CampfireHero bootstrap={bootstrap} />
 
-		return () => {
-			window.removeEventListener(CAMPFIRE_OPEN_EVENT, handleOpen);
-		};
-	}, []);
-
-	if (!isOpen) {
-		return null;
-	}
-
-	return (
-		<div
-			className="cf:fixed cf:inset-0 cf:z-[9999] cf:flex cf:items-center cf:justify-center cf:bg-slate-950/70 cf:p-4 cf:backdrop-blur-md cf:sm:p-8"
-			role="dialog"
-			aria-modal="true"
-			aria-label="Campfire"
-		>
-			<div className="cf:max-h-[calc(100vh-4rem)] cf:w-full cf:max-w-6xl cf:overflow-auto cf:rounded-[2rem] cf:border cf:border-orange-400/20 cf:bg-[radial-gradient(circle_at_top_left,rgba(249,115,22,0.18),transparent_34%),linear-gradient(135deg,#08111f_0%,#111827_42%,#020617_100%)] cf:text-slate-50 cf:shadow-[0_32px_110px_rgba(0,0,0,0.58)]">
-				<header className="cf:flex cf:flex-col cf:gap-5 cf:border-b cf:border-white/10 cf:p-6 cf:sm:flex-row cf:sm:items-start cf:sm:justify-between cf:sm:p-8">
-					<div className="cf:flex cf:items-center cf:gap-4">
-						<div className="cf:grid cf:size-14 cf:place-items-center cf:rounded-2xl cf:border cf:border-orange-300/20 cf:bg-orange-500/10 cf:shadow-[inset_0_0_28px_rgba(249,115,22,0.20),0_18px_50px_rgba(249,115,22,0.12)]">
-							<span className="cf:text-3xl" aria-hidden="true">
-								🔥
-							</span>
-						</div>
-
-						<div>
-							<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-amber-300">
-								Mattermost team operations
-							</p>
-							<h1 className="cf:m-0 cf:mt-1 cf:text-4xl cf:font-black cf:tracking-[-0.05em] cf:text-white">
-								Campfire
-							</h1>
-						</div>
-					</div>
-
-					<button
-						className="cf:w-fit cf:rounded-full cf:border cf:border-white/15 cf:bg-white/10 cf:px-4 cf:py-2 cf:text-sm cf:font-bold cf:text-white cf:transition cf:hover:bg-white/15 cf:focus:outline-none cf:focus:ring-4 cf:focus:ring-orange-400/20"
-						type="button"
-						onClick={() => setIsOpen(false)}
-					>
-						Close
-					</button>
-				</header>
-
-				<main className="cf:p-6 cf:sm:p-8">
-					<section className="cf:grid cf:gap-6 cf:rounded-3xl cf:border cf:border-orange-400/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] cf:md:grid-cols-[auto_1fr] cf:md:items-center cf:md:p-7">
-						<div className="cf:grid cf:size-20 cf:place-items-center cf:rounded-[1.7rem] cf:bg-orange-500/15 cf:text-4xl cf:shadow-[inset_0_0_36px_rgba(249,115,22,0.22)]">
-							🔥
-						</div>
-
-						<div>
-							<h2 className="cf:m-0 cf:text-3xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-								Gather your team around the fire.
-							</h2>
-							<p className="cf:mt-3 cf:max-w-3xl cf:text-base cf:leading-7 cf:text-slate-300">
-								Campfire turns a Mattermost channel into a warm workspace for standups, leave approvals,
-								task time, off-days, and reports.
-							</p>
-						</div>
-					</section>
-
-					<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-white/[0.055] cf:p-5">
-						<h2 className="cf:m-0 cf:mb-3 cf:text-lg cf:font-black cf:tracking-[-0.03em] cf:text-white">
-							Backend connection
-						</h2>
-						<BootstrapStatusView bootstrap={bootstrap} />
-					</section>
-
-					{bootstrap.state === 'ready' && bootstrap.workspace !== null && (
-						<CampfireWorkspaceTabs
-							workspace={bootstrap.workspace}
-							canManageWorkspace={
-								bootstrap.capabilities?.canManageWorkspace ?? bootstrap.me.isSystemAdmin
-							}
-							isSystemAdmin={bootstrap.me.isSystemAdmin}
+						<BootstrapContent
+							bootstrap={bootstrap}
+							onWorkspaceCreated={refreshBootstrap}
 							leaveRefreshToken={leaveRefreshToken}
 							standupRefreshToken={standupRefreshToken}
 							workspaceCalendarRefreshToken={workspaceCalendarRefreshToken}
@@ -137,97 +114,292 @@ export function CampfireRoot(): ReactElement | null {
 							onStandupConfigurationChanged={refreshStandups}
 							onWorkspaceCalendarChanged={refreshWorkspaceCalendar}
 						/>
-					)}
-
-					{bootstrap.state === 'ready' &&
-						bootstrap.workspace === null &&
-						bootstrap.channelID !== null &&
-						bootstrap.teamID !== null && (
-							<WorkspaceSetupCard
-								channelID={bootstrap.channelID}
-								channelName={bootstrap.channelName}
-								teamID={bootstrap.teamID}
-								onWorkspaceCreated={() => setRefreshToken(current => current + 1)}
-							/>
-						)}
-
-					{bootstrap.state === 'ready' &&
-						bootstrap.workspace === null &&
-						(bootstrap.channelID === null || bootstrap.teamID === null) && (
-							<WorkspaceNotice
-								message={bootstrap.workspaceNotice ?? 'No Campfire workspace is loaded.'}
-							/>
-						)}
+					</div>
 				</main>
 			</div>
-		</div>
+		</div>,
+		document.body,
 	);
 }
 
 /**
- * BootstrapStatusView renders initial API connection status.
+ * CampfireTopbar renders the modal header.
  */
-function BootstrapStatusView(props: { readonly bootstrap: BootstrapStatus }): ReactElement {
+function CampfireTopbar(props: {
+	readonly bootstrap: BootstrapStatus;
+	readonly onClose: () => void;
+	readonly onRefresh: () => void;
+}): ReactElement {
+	return (
+		<header className="campfire-topbar">
+			<div className="campfire-brand">
+				<div className="campfire-logo-tile">
+					<img src={campfireLogoURL} alt="Campfire" className="campfire-logo-image" />
+				</div>
+
+				<div className="campfire-brand-copy">
+					<h1 className="campfire-brand-title">Campfire</h1>
+					<p className="campfire-brand-subtitle">{topbarSubtitle(props.bootstrap)}</p>
+				</div>
+			</div>
+
+			<div className="campfire-topbar-actions">
+				<button type="button" className="campfire-header-button" onClick={props.onRefresh}>
+					<RefreshCw className="cf:size-5" />
+					<span>Refresh</span>
+				</button>
+
+				<button
+					type="button"
+					className="campfire-header-icon-button"
+					onClick={props.onClose}
+					aria-label="Close Campfire"
+				>
+					<X className="cf:size-5" />
+				</button>
+			</div>
+		</header>
+	);
+}
+
+/**
+ * CampfireHero renders the top overview section.
+ */
+function CampfireHero(props: { readonly bootstrap: BootstrapStatus }): ReactElement {
+	return (
+		<section className="campfire-hero">
+			<div className="campfire-hero-layout">
+				<div className="campfire-hero-copy">
+					<div className="campfire-kicker">
+						<Flame className="cf:size-5" />
+						Team operations
+					</div>
+
+					<h2 className="campfire-hero-title">Gather the team around one operational rhythm.</h2>
+
+					<p className="campfire-hero-description">
+						Standups, tasks, time, leave planning, reminders, Markdown reports, CSV exports, and global
+						dashboards inside Mattermost.
+					</p>
+				</div>
+
+				<BootstrapSummary bootstrap={props.bootstrap} />
+			</div>
+		</section>
+	);
+}
+
+/**
+ * BootstrapSummary renders compact startup status metrics.
+ */
+function BootstrapSummary(props: { readonly bootstrap: BootstrapStatus }): ReactElement {
 	switch (props.bootstrap.state) {
 		case 'idle':
+			return (
+				<div className="campfire-metric-grid">
+					<CampfireMetric label="Status" value="Idle" helper="Not loaded" />
+				</div>
+			);
+
 		case 'loading':
-			return <p className="cf:m-0 cf:text-slate-300">Connecting to Campfire backend…</p>;
+			return (
+				<div className="campfire-metric-grid">
+					<CampfireMetric label="Status" value="Loading" helper="Backend checks" icon={Loader2} />
+				</div>
+			);
 
 		case 'error':
 			return (
-				<div className="cf:rounded-2xl cf:border cf:border-red-300/25 cf:bg-red-950/30 cf:p-4">
-					<strong className="cf:block cf:text-red-100">Could not connect</strong>
-					<p className="cf:m-0 cf:mt-1 cf:text-red-100/90">{props.bootstrap.errorMessage}</p>
+				<div className="campfire-metric-grid">
+					<CampfireMetric label="Status" value="Error" helper="Startup failed" icon={AlertTriangle} />
 				</div>
 			);
 
 		case 'ready':
 			return (
-				<div className="cf:grid cf:gap-3 cf:md:grid-cols-4">
-					<StatusTile
+				<div className="campfire-metric-grid campfire-metric-grid--ready">
+					<CampfireMetric
 						label="API"
-						value={`${props.bootstrap.health.product} ${props.bootstrap.health.version}`}
+						value={props.bootstrap.health.version}
+						helper={props.bootstrap.health.product}
 					/>
-					<StatusTile
-						label="User"
-						value={props.bootstrap.me.user.displayName || props.bootstrap.me.user.username}
+					<CampfireMetric label="User" value={userLabel(props.bootstrap.me)} helper="Signed in" />
+					<CampfireMetric
+						label="Admin"
+						value={props.bootstrap.me.isSystemAdmin ? 'Yes' : 'No'}
+						helper="System access"
 					/>
-					<StatusTile label="System admin" value={props.bootstrap.me.isSystemAdmin ? 'Yes' : 'No'} />
-					<StatusTile label="Workspace" value={props.bootstrap.workspace?.name ?? 'Not configured'} />
+					<CampfireMetric
+						label="Workspace"
+						value={props.bootstrap.workspace?.name ?? 'Not configured'}
+						helper="Current channel"
+					/>
 				</div>
 			);
 	}
 }
 
 /**
- * WorkspaceNotice renders current-channel workspace setup state.
+ * BootstrapContent renders the main loaded/empty/error state.
  */
-function WorkspaceNotice(props: { readonly message: string }): ReactElement {
+function BootstrapContent(props: {
+	readonly bootstrap: BootstrapStatus;
+	readonly onWorkspaceCreated: () => void;
+	readonly leaveRefreshToken: number;
+	readonly standupRefreshToken: number;
+	readonly workspaceCalendarRefreshToken: number;
+	readonly onLeaveCreated: () => void;
+	readonly onLeaveDecided: () => void;
+	readonly onLeaveCancelled: () => void;
+	readonly onStandupSubmitted: () => void;
+	readonly onStandupConfigurationChanged: () => void;
+	readonly onWorkspaceCalendarChanged: () => void;
+}): ReactElement {
+	switch (props.bootstrap.state) {
+		case 'idle':
+		case 'loading':
+			return (
+				<CampfirePanel>
+					<CampfireCardBody>
+						<CampfireEmpty
+							icon={Loader2}
+							title="Lighting Campfire…"
+							description="Loading health, current user, Mattermost channel, and workspace configuration."
+						/>
+					</CampfireCardBody>
+				</CampfirePanel>
+			);
+
+		case 'error':
+			return (
+				<CampfirePanel>
+					<CampfireCardBody>
+						<CampfireEmpty
+							icon={AlertTriangle}
+							title="Campfire could not start"
+							description={props.bootstrap.errorMessage}
+						/>
+					</CampfireCardBody>
+				</CampfirePanel>
+			);
+
+		case 'ready':
+			return <ReadyContent {...props} bootstrap={props.bootstrap} />;
+	}
+}
+
+/**
+ * ReadyContent renders configured workspace tabs or setup state.
+ */
+function ReadyContent(props: {
+	readonly bootstrap: Extract<BootstrapStatus, { readonly state: 'ready' }>;
+	readonly onWorkspaceCreated: () => void;
+	readonly leaveRefreshToken: number;
+	readonly standupRefreshToken: number;
+	readonly workspaceCalendarRefreshToken: number;
+	readonly onLeaveCreated: () => void;
+	readonly onLeaveDecided: () => void;
+	readonly onLeaveCancelled: () => void;
+	readonly onStandupSubmitted: () => void;
+	readonly onStandupConfigurationChanged: () => void;
+	readonly onWorkspaceCalendarChanged: () => void;
+}): ReactElement {
+	if (props.bootstrap.workspace !== null && props.bootstrap.capabilities !== null) {
+		return (
+			<CampfireWorkspaceTabs
+				workspace={props.bootstrap.workspace}
+				canManageWorkspace={props.bootstrap.capabilities.canManageWorkspace}
+				isSystemAdmin={props.bootstrap.me.isSystemAdmin}
+				leaveRefreshToken={props.leaveRefreshToken}
+				standupRefreshToken={props.standupRefreshToken}
+				workspaceCalendarRefreshToken={props.workspaceCalendarRefreshToken}
+				onLeaveCreated={props.onLeaveCreated}
+				onLeaveDecided={props.onLeaveDecided}
+				onLeaveCancelled={props.onLeaveCancelled}
+				onStandupSubmitted={props.onStandupSubmitted}
+				onStandupConfigurationChanged={props.onStandupConfigurationChanged}
+				onWorkspaceCalendarChanged={props.onWorkspaceCalendarChanged}
+			/>
+		);
+	}
+
+	if (props.bootstrap.channelID === null) {
+		return (
+			<CampfirePanel>
+				<CampfireCardBody>
+					<CampfireEmpty
+						icon={AlertTriangle}
+						title="Open Campfire from a channel"
+						description={
+							props.bootstrap.workspaceNotice ??
+							'Campfire needs a Mattermost channel context before it can create or load a workspace.'
+						}
+					/>
+				</CampfireCardBody>
+			</CampfirePanel>
+		);
+	}
+
+	if (props.bootstrap.teamID.trim() === '') {
+		return (
+			<CampfirePanel>
+				<CampfireCardBody>
+					<CampfireEmpty
+						icon={AlertTriangle}
+						title="Mattermost team is missing"
+						description="Campfire found the channel, but Mattermost did not expose a team ID. Open Campfire from a normal team channel and try again."
+					/>
+				</CampfireCardBody>
+			</CampfirePanel>
+		);
+	}
+
 	return (
-		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-amber-300/20 cf:bg-amber-300/10 cf:p-6">
-			<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-amber-300">
-				Workspace
-			</p>
-			<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-				Workspace not ready
-			</h2>
-			<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">{props.message}</p>
-		</section>
+		<div className="cf:grid cf:gap-5">
+			{props.bootstrap.workspaceNotice !== null && (
+				<div className="campfire-notice">{props.bootstrap.workspaceNotice}</div>
+			)}
+
+			<WorkspaceSetupCard
+				channelID={props.bootstrap.channelID}
+				channelName={props.bootstrap.channelName}
+				teamID={props.bootstrap.teamID}
+				onWorkspaceCreated={props.onWorkspaceCreated}
+			/>
+		</div>
 	);
 }
 
 /**
- * StatusTile renders a compact status metric.
+ * topbarSubtitle returns the secondary topbar text.
  */
-function StatusTile(props: { readonly label: string; readonly value: string }): ReactElement {
-	return (
-		<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/35 cf:p-4">
-			<span className="cf:block cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.14em] cf:text-amber-300">
-				{props.label}
-			</span>
-			<strong className="cf:mt-1 cf:block cf:truncate cf:text-base cf:font-black cf:text-white">
-				{props.value}
-			</strong>
-		</div>
-	);
+function topbarSubtitle(bootstrap: BootstrapStatus): string {
+	if (bootstrap.state !== 'ready') {
+		return 'Workspace command center';
+	}
+
+	if (bootstrap.workspace !== null) {
+		return bootstrap.workspace.name;
+	}
+
+	if (bootstrap.channelName !== null && bootstrap.channelName.trim() !== '') {
+		return `${bootstrap.channelName} setup`;
+	}
+
+	return 'Workspace setup';
+}
+
+/**
+ * userLabel returns a readable current-user label.
+ */
+function userLabel(me: Extract<BootstrapStatus, { readonly state: 'ready' }>['me']): string {
+	if (me.user.displayName.trim() !== '') {
+		return me.user.displayName;
+	}
+
+	if (me.user.username.trim() !== '') {
+		return `@${me.user.username}`;
+	}
+
+	return me.user.id;
 }

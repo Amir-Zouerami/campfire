@@ -1,8 +1,16 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
+import { CalendarDays, Check, Flame, Hash, Loader2, ShieldCheck } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
-import { ApiClientError, createWorkspace } from '../api/client';
-import type { Workspace } from '../types/domain';
+import { ApiClientError, createWorkspace } from '@/api';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import type { Workspace } from '@/types/domain';
+
+import { CampfireCardBody, CampfireCardHeader, CampfirePanel, CampfireStatusPill } from './campfire-ui';
 
 /**
  * WorkspaceSetupCardProps contains Mattermost context needed to create a workspace.
@@ -32,7 +40,26 @@ type WorkspaceSetupFormState = {
  */
 type SaveState = 'idle' | 'saving' | 'error' | 'created';
 
+/**
+ * WeekdayOption describes one weekday toggle.
+ */
+type WeekdayOption = {
+	readonly value: number;
+	readonly shortLabel: string;
+	readonly label: string;
+};
+
 const defaultWorkingDays = [1, 2, 3, 4, 5] as const;
+
+const weekdayOptions: readonly WeekdayOption[] = [
+	{ value: 0, shortLabel: 'Sun', label: 'Sunday' },
+	{ value: 1, shortLabel: 'Mon', label: 'Monday' },
+	{ value: 2, shortLabel: 'Tue', label: 'Tuesday' },
+	{ value: 3, shortLabel: 'Wed', label: 'Wednesday' },
+	{ value: 4, shortLabel: 'Thu', label: 'Thursday' },
+	{ value: 5, shortLabel: 'Fri', label: 'Friday' },
+	{ value: 6, shortLabel: 'Sat', label: 'Saturday' },
+];
 
 /**
  * WorkspaceSetupCard creates a Campfire workspace for the current channel.
@@ -51,23 +78,23 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 		createDefaultTemplates: true,
 	});
 
-	/**
-	 * Creates the workspace.
-	 */
 	async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
 		event.preventDefault();
 
 		if (form.name.trim() === '') {
+			setSaveState('error');
 			setMessage('Workspace name is required.');
 			return;
 		}
 
 		if (form.timezone.trim() === '') {
+			setSaveState('error');
 			setMessage('Timezone is required.');
 			return;
 		}
 
 		if (form.workingDays.length === 0) {
+			setSaveState('error');
 			setMessage('Choose at least one working day.');
 			return;
 		}
@@ -99,240 +126,326 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 		}
 	}
 
+	function updateForm(update: Partial<WorkspaceSetupFormState>): void {
+		setForm(current => ({
+			...current,
+			...update,
+		}));
+	}
+
+	function toggleWorkingDay(weekday: number): void {
+		const hasWeekday = form.workingDays.includes(weekday);
+		const nextWorkingDays = hasWeekday
+			? form.workingDays.filter(current => current !== weekday)
+			: [...form.workingDays, weekday];
+
+		updateForm({
+			workingDays: nextWorkingDays.sort((first, second) => first - second),
+		});
+	}
+
 	const isBusy = saveState === 'saving';
 
 	return (
-		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-orange-400/20 cf:bg-[radial-gradient(circle_at_top_right,rgba(249,115,22,0.12),transparent_34%)] cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-			<div className="cf:grid cf:gap-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
-				<div>
-					<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-amber-300">
-						Workspace setup
-					</p>
-					<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-						Turn this channel into a Campfire workspace
-					</h2>
-					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						Campfire will seed leave types, daily and weekly standup templates, reminder windows, and report
-						rules for this Mattermost channel.
-					</p>
-				</div>
+		<form onSubmit={handleSubmit}>
+			<CampfirePanel>
+				<CampfireCardHeader
+					eyebrow="Workspace setup"
+					title="Turn this channel into a Campfire workspace"
+					description="Connect this Mattermost channel to standups, tasks, time, leave planning, reminders, and reports."
+					icon={Flame}
+					action={<CampfireStatusPill tone="ember">New workspace</CampfireStatusPill>}
+				/>
 
-				<div className="cf:w-fit cf:rounded-full cf:border cf:border-amber-300/25 cf:bg-amber-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-amber-300">
-					New workspace
-				</div>
+				<CampfireCardBody className="cf:grid cf:gap-7">
+					<div className="campfire-summary-grid">
+						<ContextTile
+							label="Channel"
+							value={props.channelName ?? 'Current channel'}
+							helper={props.channelID}
+							icon={Hash}
+						/>
+						<ContextTile
+							label="Working days"
+							value={`${form.workingDays.length} selected`}
+							helper={workingDaysLabel(form.workingDays)}
+							icon={CalendarDays}
+						/>
+						<ContextTile
+							label="Defaults"
+							value={form.createDefaultTemplates ? 'Seeded setup' : 'Empty setup'}
+							helper="Templates, schedules, rules"
+							icon={ShieldCheck}
+						/>
+					</div>
+
+					<div className="campfire-form-section">
+						<div className="campfire-section-heading-row">
+							<div>
+								<h3 className="campfire-section-title">Workspace identity</h3>
+								<p className="campfire-section-description">
+									These values can be cleaned up later in workspace settings.
+								</p>
+							</div>
+
+							<CampfireStatusPill>Team {props.teamID.slice(0, 7)}</CampfireStatusPill>
+						</div>
+
+						<div className="cf:grid cf:gap-6 cf:md:grid-cols-2">
+							<div className="cf:grid cf:gap-3">
+								<Label htmlFor="campfire-workspace-name" className="campfire-field-label">
+									Workspace name
+								</Label>
+								<Input
+									id="campfire-workspace-name"
+									value={form.name}
+									onChange={event => updateForm({ name: event.currentTarget.value })}
+									disabled={isBusy}
+									className="campfire-input"
+								/>
+							</div>
+
+							<div className="cf:grid cf:gap-3">
+								<Label htmlFor="campfire-workspace-timezone" className="campfire-field-label">
+									Timezone
+								</Label>
+								<Input
+									id="campfire-workspace-timezone"
+									value={form.timezone}
+									onChange={event => updateForm({ timezone: event.currentTarget.value })}
+									disabled={isBusy}
+									className="campfire-input"
+								/>
+							</div>
+						</div>
+
+						<div className="cf:grid cf:gap-3">
+							<Label htmlFor="campfire-workspace-board-url" className="campfire-field-label">
+								Board URL
+							</Label>
+							<Input
+								id="campfire-workspace-board-url"
+								value={form.boardURL}
+								placeholder="Optional board, Jira, Linear, GitHub project, or task source URL"
+								onChange={event => updateForm({ boardURL: event.currentTarget.value })}
+								disabled={isBusy}
+								className="campfire-input"
+							/>
+						</div>
+
+						<div className="cf:grid cf:gap-3">
+							<Label htmlFor="campfire-workspace-description" className="campfire-field-label">
+								Description
+							</Label>
+							<Textarea
+								id="campfire-workspace-description"
+								value={form.description}
+								placeholder="Optional workspace note…"
+								onChange={event => updateForm({ description: event.currentTarget.value })}
+								disabled={isBusy}
+								className="campfire-textarea"
+							/>
+						</div>
+					</div>
+
+					<div className="campfire-form-section">
+						<div className="campfire-section-heading-row">
+							<div>
+								<h3 className="campfire-section-title">Working calendar</h3>
+								<p className="campfire-section-description">
+									Standups can skip non-working days when schedules are configured to do so.
+								</p>
+							</div>
+
+							<CampfireStatusPill tone="green">{workingDaysLabel(form.workingDays)}</CampfireStatusPill>
+						</div>
+
+						<div className="cf:grid cf:grid-cols-2 cf:gap-3 cf:sm:grid-cols-4 cf:lg:grid-cols-7">
+							{weekdayOptions.map(option => {
+								const isSelected = form.workingDays.includes(option.value);
+
+								return (
+									<button
+										key={option.value}
+										type="button"
+										disabled={isBusy}
+										className={weekdayButtonClassName(isSelected)}
+										onClick={() => toggleWorkingDay(option.value)}
+									>
+										<span className="cf:block cf:text-lg cf:font-bold">{option.shortLabel}</span>
+										<span className="cf:mt-1.5 cf:block cf:text-sm cf:font-bold cf:uppercase cf:tracking-widest">
+											{option.label}
+										</span>
+									</button>
+								);
+							})}
+						</div>
+					</div>
+
+					<div className="campfire-form-section">
+						<div>
+							<h3 className="campfire-section-title">Startup behavior</h3>
+							<p className="campfire-section-description">
+								These defaults make the MVP usable immediately after creation.
+							</p>
+						</div>
+
+						<div className="cf:grid cf:gap-5 cf:md:grid-cols-2">
+							<label className="campfire-check-card">
+								<Checkbox
+									checked={form.channelAdminsAreLeads}
+									onCheckedChange={checked => updateForm({ channelAdminsAreLeads: checked === true })}
+									disabled={isBusy}
+									className="cf:mt-1"
+								/>
+								<span>
+									<span className="campfire-check-title">Treat channel admins as Leads</span>
+									<span className="campfire-check-description">
+										Channel admins can manage Campfire settings, templates, schedules, reminders,
+										reports, and workspace calendar rules.
+									</span>
+								</span>
+							</label>
+
+							<label className="campfire-check-card">
+								<Checkbox
+									checked={form.createDefaultTemplates}
+									onCheckedChange={checked =>
+										updateForm({ createDefaultTemplates: checked === true })
+									}
+									disabled={isBusy}
+									className="cf:mt-1"
+								/>
+								<span>
+									<span className="campfire-check-title">
+										Create default standup templates and schedules
+									</span>
+									<span className="campfire-check-description">
+										Seeds daily and weekly standup templates, reminder rules, report rules, working
+										days, and leave defaults where the backend supports them.
+									</span>
+								</span>
+							</label>
+						</div>
+					</div>
+
+					<div className="campfire-submit-row">
+						<div>
+							<p className="campfire-submit-title">Ready to light the fire?</p>
+							<p className="campfire-submit-description">
+								This creates the Campfire workspace for the current Mattermost channel.
+							</p>
+						</div>
+
+						<button type="submit" disabled={isBusy} className="campfire-submit-button">
+							{isBusy ? (
+								<Loader2 className="cf:size-5 cf:animate-spin" />
+							) : (
+								<Check className="cf:size-5" />
+							)}
+							<span>Create workspace</span>
+						</button>
+					</div>
+
+					{message !== '' && <div className={messageClassName(saveState)}>{message}</div>}
+				</CampfireCardBody>
+			</CampfirePanel>
+		</form>
+	);
+}
+
+/**
+ * ContextTile renders a small setup summary tile.
+ */
+function ContextTile(props: {
+	readonly label: string;
+	readonly value: string;
+	readonly helper: string;
+	readonly icon: LucideIcon;
+}): ReactElement {
+	const Icon = props.icon;
+
+	return (
+		<div className="campfire-summary-tile">
+			<div className="campfire-summary-icon">
+				<Icon className="cf:size-9" />
 			</div>
 
-			<form className="cf:mt-6 cf:grid cf:gap-4" onSubmit={handleSubmit}>
-				<div className="cf:grid cf:gap-4 cf:lg:grid-cols-2">
-					<Field label="Workspace name">
-						<input
-							className={inputClassName}
-							type="text"
-							value={form.name}
-							disabled={isBusy}
-							onChange={event => updateForm(setForm, { name: event.currentTarget.value })}
-						/>
-					</Field>
-
-					<Field label="Timezone">
-						<input
-							className={inputClassName}
-							type="text"
-							value={form.timezone}
-							disabled={isBusy}
-							placeholder="Europe/Berlin"
-							onChange={event => updateForm(setForm, { timezone: event.currentTarget.value })}
-						/>
-					</Field>
-				</div>
-
-				<Field label="Description">
-					<textarea
-						className={`${inputClassName} cf:min-h-24 cf:resize-y`}
-						value={form.description}
-						disabled={isBusy}
-						placeholder="Optional description for this workspace..."
-						onChange={event => updateForm(setForm, { description: event.currentTarget.value })}
-					/>
-				</Field>
-
-				<Field label="Board URL">
-					<input
-						className={inputClassName}
-						type="url"
-						value={form.boardURL}
-						disabled={isBusy}
-						placeholder="Optional Jira, Linear, GitHub Projects, or board URL..."
-						onChange={event => updateForm(setForm, { boardURL: event.currentTarget.value })}
-					/>
-				</Field>
-
-				<div>
-					<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.14em] cf:text-amber-300">
-						Working days
-					</p>
-					<div className="cf:mt-2 cf:flex cf:flex-wrap cf:gap-2">
-						{weekdayOptions.map(weekday => (
-							<button
-								className={workingDayButtonClassName(form.workingDays.includes(weekday.value))}
-								type="button"
-								key={weekday.value}
-								disabled={isBusy}
-								onClick={() => toggleWorkingDay(setForm, weekday.value)}
-							>
-								{weekday.label}
-							</button>
-						))}
-					</div>
-				</div>
-
-				<div className="cf:grid cf:gap-3 cf:lg:grid-cols-2">
-					<CheckboxField
-						label="Treat channel admins as leads"
-						checked={form.channelAdminsAreLeads}
-						disabled={isBusy}
-						onChange={checked => updateForm(setForm, { channelAdminsAreLeads: checked })}
-					/>
-
-					<CheckboxField
-						label="Create default standup templates and schedules"
-						checked={form.createDefaultTemplates}
-						disabled={isBusy}
-						onChange={checked => updateForm(setForm, { createDefaultTemplates: checked })}
-					/>
-				</div>
-
-				<div className="cf:flex cf:flex-col cf:gap-3 cf:sm:flex-row cf:sm:items-center">
-					<button
-						className="cf:w-fit cf:rounded-2xl cf:border cf:border-orange-300/25 cf:bg-gradient-to-br cf:from-orange-500 cf:to-amber-300 cf:px-5 cf:py-3 cf:font-black cf:text-slate-950 cf:shadow-[0_18px_50px_rgba(249,115,22,0.18)] cf:transition cf:hover:brightness-110 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-						type="submit"
-						disabled={isBusy}
-					>
-						Create workspace
-					</button>
-
-					{message !== '' && <p className="cf:m-0 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
-				</div>
-			</form>
-		</section>
-	);
-}
-
-const inputClassName =
-	'cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/55 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:transition cf:[color-scheme:dark] cf:placeholder:text-slate-500 cf:focus:border-orange-400/60 cf:focus:ring-4 cf:focus:ring-orange-400/15 cf:disabled:cursor-not-allowed cf:disabled:opacity-60';
-
-const weekdayOptions = [
-	{ label: 'Sun', value: 0 },
-	{ label: 'Mon', value: 1 },
-	{ label: 'Tue', value: 2 },
-	{ label: 'Wed', value: 3 },
-	{ label: 'Thu', value: 4 },
-	{ label: 'Fri', value: 5 },
-	{ label: 'Sat', value: 6 },
-] as const;
-
-/**
- * Field renders a labeled setup form control.
- */
-function Field(props: { readonly label: string; readonly children: ReactElement }): ReactElement {
-	return (
-		<label className="cf:grid cf:gap-2">
-			<span className="cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.14em] cf:text-amber-300">
-				{props.label}
-			</span>
-			{props.children}
-		</label>
+			<div className="campfire-summary-copy">
+				<p className="campfire-summary-label">{props.label}</p>
+				<p className="campfire-summary-value">{props.value}</p>
+				<p className="campfire-summary-helper">{props.helper}</p>
+			</div>
+		</div>
 	);
 }
 
 /**
- * CheckboxField renders a polished boolean field.
+ * weekdayButtonClassName returns a weekday toggle style.
  */
-function CheckboxField(props: {
-	readonly label: string;
-	readonly checked: boolean;
-	readonly disabled: boolean;
-	readonly onChange: (checked: boolean) => void;
-}): ReactElement {
-	return (
-		<label className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/35 cf:p-4">
-			<input
-				className="cf:size-4 cf:accent-orange-500"
-				type="checkbox"
-				checked={props.checked}
-				disabled={props.disabled}
-				onChange={event => props.onChange(event.currentTarget.checked)}
-			/>
-			<span className="cf:text-sm cf:font-bold cf:text-slate-100">{props.label}</span>
-		</label>
-	);
-}
+function weekdayButtonClassName(isSelected: boolean): string {
+	const baseClassName = 'campfire-weekday-button';
 
-/**
- * updateForm merges partial form changes.
- */
-function updateForm(
-	setForm: (updater: (current: WorkspaceSetupFormState) => WorkspaceSetupFormState) => void,
-	patch: Partial<WorkspaceSetupFormState>,
-): void {
-	setForm(current => ({
-		...current,
-		...patch,
-	}));
-}
-
-/**
- * toggleWorkingDay toggles one weekday in the setup form.
- */
-function toggleWorkingDay(
-	setForm: (updater: (current: WorkspaceSetupFormState) => WorkspaceSetupFormState) => void,
-	weekday: number,
-): void {
-	setForm(current => {
-		const exists = current.workingDays.includes(weekday);
-		const workingDays = exists
-			? current.workingDays.filter(value => value !== weekday)
-			: [...current.workingDays, weekday].sort((first, second) => first - second);
-
-		return {
-			...current,
-			workingDays,
-		};
-	});
-}
-
-/**
- * workingDayButtonClassName returns the selected/unselected weekday button style.
- */
-function workingDayButtonClassName(selected: boolean): string {
-	const baseClassName =
-		'cf:rounded-2xl cf:border cf:px-4 cf:py-2 cf:text-sm cf:font-black cf:transition cf:disabled:cursor-not-allowed cf:disabled:opacity-60';
-
-	if (selected) {
-		return `${baseClassName} cf:border-orange-300/35 cf:bg-orange-400/20 cf:text-orange-100`;
+	if (isSelected) {
+		return `${baseClassName} campfire-weekday-button--selected`;
 	}
 
-	return `${baseClassName} cf:border-white/10 cf:bg-white/5 cf:text-slate-300 cf:hover:bg-white/10`;
+	return baseClassName;
 }
 
 /**
- * buildDefaultWorkspaceName creates a friendly workspace name from the channel.
+ * workingDaysLabel returns a compact working-day label.
+ */
+function workingDaysLabel(workingDays: readonly number[]): string {
+	if (workingDays.length === 0) {
+		return 'None';
+	}
+
+	return weekdayOptions
+		.filter(option => workingDays.includes(option.value))
+		.map(option => option.shortLabel)
+		.join(', ');
+}
+
+/**
+ * buildDefaultWorkspaceName builds a sensible default workspace name.
  */
 function buildDefaultWorkspaceName(channelName: string | null): string {
-	if (channelName !== null && channelName.trim() !== '') {
-		return channelName.trim();
+	if (channelName === null || channelName.trim() === '') {
+		return 'Campfire workspace';
 	}
 
-	return 'Campfire Workspace';
+	return `${channelName.trim()} Campfire`;
 }
 
 /**
- * getBrowserTimezone returns the browser IANA timezone or UTC.
+ * getBrowserTimezone returns the browser timezone when available.
  */
 function getBrowserTimezone(): string {
-	const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+	try {
+		return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+	} catch (_error: unknown) {
+		return 'UTC';
+	}
+}
 
-	return timezone.trim() !== '' ? timezone : 'UTC';
+/**
+ * messageClassName returns feedback styling.
+ */
+function messageClassName(saveState: SaveState): string {
+	const baseClassName = 'cf:rounded-2xl cf:border cf:px-5 cf:py-4 cf:text-base cf:font-semibold';
+
+	switch (saveState) {
+		case 'created':
+			return `${baseClassName} cf:border-emerald-400/20 cf:bg-emerald-500/10 cf:text-emerald-100`;
+
+		case 'error':
+			return `${baseClassName} cf:border-red-400/20 cf:bg-red-500/10 cf:text-red-100`;
+
+		case 'idle':
+		case 'saving':
+			return `${baseClassName} cf:border-border cf:bg-card/70 cf:text-muted-foreground`;
+	}
 }
 
 /**
@@ -347,5 +460,5 @@ function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not create workspace.';
+	return 'Could not create the Campfire workspace.';
 }

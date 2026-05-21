@@ -1,4 +1,7 @@
-import { useEffect, useState, type ReactElement } from 'react';
+import { useEffect, useState } from 'react';
+import type { ReactElement } from 'react';
+import { CheckCircle2, Download, FileDown, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 import {
 	ApiClientError,
@@ -6,8 +9,15 @@ import {
 	exportWorkspaceMissingStandupsCSV,
 	exportWorkspaceStandupSubmissionsCSV,
 	exportWorkspaceTimeCSV,
-} from '../api/client';
-import type { StandupSubmissionSortMode, Workspace } from '../types/domain';
+} from '@/api';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
+import type { StandupSubmissionSortMode, Workspace } from '@/types/domain';
+
+import { CampfireCardBody, CampfireCardHeader, CampfireMetric, CampfirePanel, CampfireStatusPill } from './campfire-ui';
 import { CAMPFIRE_APPLY_REPORT_FILTER_EVENT, isReportFilterApplyEvent } from './events';
 
 /**
@@ -28,6 +38,15 @@ type ExportState =
 	| 'exporting_missing'
 	| 'error'
 	| 'done';
+
+/**
+ * CSVExportFilter is a saved filter shape accepted by this card.
+ */
+type CSVExportFilter = {
+	readonly startDate?: string;
+	readonly endDate?: string;
+	readonly sortMode?: StandupSubmissionSortMode;
+};
 
 const sortModeOptions: readonly StandupSubmissionSortMode[] = [
 	'first_submitted',
@@ -98,219 +117,264 @@ export function CSVExportsCard(props: CSVExportsCardProps): ReactElement {
 	 * Downloads the time CSV export.
 	 */
 	async function handleExportTime(): Promise<void> {
-		setExportState('exporting_time');
-		setMessage('');
-
-		try {
+		await runExport('exporting_time', 'Time CSV exported.', async () => {
 			const blob = await exportWorkspaceTimeCSV(props.workspace.id, startDate, endDate);
 			downloadBlob(blob, buildExportFilename('campfire-time', startDate, endDate));
-			setExportState('done');
-			setMessage('Time CSV exported.');
-		} catch (error: unknown) {
-			setExportState('error');
-			setMessage(errorToMessage(error));
-		}
+		});
 	}
 
 	/**
 	 * Downloads the approved-leave CSV export.
 	 */
 	async function handleExportLeaves(): Promise<void> {
-		setExportState('exporting_leaves');
-		setMessage('');
-
-		try {
+		await runExport('exporting_leaves', 'Leave CSV exported.', async () => {
 			const blob = await exportWorkspaceLeavesCSV(props.workspace.id, startDate, endDate);
 			downloadBlob(blob, buildExportFilename('campfire-leaves', startDate, endDate));
-			setExportState('done');
-			setMessage('Leave CSV exported.');
-		} catch (error: unknown) {
-			setExportState('error');
-			setMessage(errorToMessage(error));
-		}
+		});
 	}
 
 	/**
 	 * Downloads the standup submissions CSV export.
 	 */
 	async function handleExportStandups(): Promise<void> {
-		setExportState('exporting_standups');
-		setMessage('');
-
-		try {
+		await runExport('exporting_standups', 'Standup submissions CSV exported.', async () => {
 			const blob = await exportWorkspaceStandupSubmissionsCSV(props.workspace.id, startDate, endDate, sortMode);
 			downloadBlob(blob, buildExportFilename('campfire-standup-submissions', startDate, endDate));
-			setExportState('done');
-			setMessage('Standup submissions CSV exported.');
-		} catch (error: unknown) {
-			setExportState('error');
-			setMessage(errorToMessage(error));
-		}
+		});
 	}
 
 	/**
 	 * Downloads the missing standups CSV export.
 	 */
 	async function handleExportMissing(): Promise<void> {
-		setExportState('exporting_missing');
+		await runExport('exporting_missing', 'Missing standups CSV exported.', async () => {
+			const blob = await exportWorkspaceMissingStandupsCSV(props.workspace.id, startDate, endDate, sortMode);
+			downloadBlob(blob, buildExportFilename('campfire-missing-standups', startDate, endDate));
+		});
+	}
+
+	/**
+	 * Runs one CSV export action.
+	 */
+	async function runExport(
+		nextState: ExportState,
+		successMessage: string,
+		exporter: () => Promise<void>,
+	): Promise<void> {
+		const validationMessage = validateDateRange(startDate, endDate);
+		if (validationMessage !== null) {
+			setExportState('error');
+			setMessage(validationMessage);
+			return;
+		}
+
+		setExportState(nextState);
 		setMessage('');
 
 		try {
-			const blob = await exportWorkspaceMissingStandupsCSV(props.workspace.id, startDate, endDate, sortMode);
-			downloadBlob(blob, buildExportFilename('campfire-missing-standups', startDate, endDate));
+			await exporter();
 			setExportState('done');
-			setMessage('Missing standups CSV exported.');
+			setMessage(successMessage);
+			toast.success(successMessage);
 		} catch (error: unknown) {
+			const errorMessage = errorToMessage(error);
 			setExportState('error');
-			setMessage(errorToMessage(error));
+			setMessage(errorMessage);
+			toast.error(errorMessage);
 		}
 	}
 
 	return (
-		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-cyan-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-			<div className="cf:grid cf:gap-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
-				<div>
-					<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-cyan-200">
-						CSV exports
-					</p>
-					<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-						Export workspace reports
-					</h2>
-					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						Download CSV files for workspace time entries, approved leaves, standup submissions, and missing
-						standup users.
-					</p>
+		<CampfirePanel className="cf:overflow-hidden">
+			<CampfireCardHeader
+				eyebrow="CSV"
+				title="Workspace CSV exports"
+				description="Download raw workspace data for time, leaves, submissions, and missing standups."
+				icon={FileDown}
+				action={
+					<CampfireStatusPill tone={isBusy ? 'ember' : 'green'}>
+						{isBusy ? 'Exporting' : 'Ready'}
+					</CampfireStatusPill>
+				}
+			/>
+
+			<CampfireCardBody className="cf:grid cf:gap-5">
+				<div className="cf:grid cf:gap-3 cf:md:grid-cols-3">
+					<CampfireMetric label="Start" value={startDate} helper="Export window" />
+					<CampfireMetric label="End" value={endDate} helper="Export window" />
+					<CampfireMetric label="Sort" value={formatLabel(sortMode)} helper="Standup exports" />
 				</div>
 
-				<div className="cf:w-fit cf:rounded-full cf:border cf:border-cyan-300/25 cf:bg-cyan-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-cyan-200">
-					{startDate} → {endDate}
+				<div className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4 cf:lg:grid-cols-3">
+					<FormField label="Start date" htmlFor="campfire-csv-start">
+						<Input
+							id="campfire-csv-start"
+							type="date"
+							disabled={isBusy}
+							value={startDate}
+							onChange={event => setStartDate(event.currentTarget.value)}
+						/>
+					</FormField>
+
+					<FormField label="End date" htmlFor="campfire-csv-end">
+						<Input
+							id="campfire-csv-end"
+							type="date"
+							disabled={isBusy}
+							value={endDate}
+							onChange={event => setEndDate(event.currentTarget.value)}
+						/>
+					</FormField>
+
+					<FormField label="Standup sort" htmlFor="campfire-csv-sort">
+						<select
+							id="campfire-csv-sort"
+							className={selectClassName()}
+							disabled={isBusy}
+							value={sortMode}
+							onChange={event => setSortMode(toSortMode(event.currentTarget.value))}
+						>
+							{sortModeOptions.map(option => (
+								<option key={option} value={option}>
+									{formatLabel(option)}
+								</option>
+							))}
+						</select>
+					</FormField>
 				</div>
-			</div>
 
-			<div className="cf:mt-5 cf:grid cf:gap-4 cf:lg:grid-cols-[180px_180px_220px] cf:lg:items-end">
-				<Field label="Start date">
-					<input
-						className={inputClassName}
+				{message !== '' && <MessageRow state={exportState} message={message} />}
+
+				<Separator className="cf:bg-white/10" />
+
+				<div className="cf:grid cf:gap-4 cf:md:grid-cols-2">
+					<ExportAction
+						title="Time entries"
+						description="Every time entry in the selected window."
 						disabled={isBusy}
-						type="date"
-						value={startDate}
-						onChange={event => setStartDate(event.currentTarget.value)}
+						loading={exportState === 'exporting_time'}
+						onClick={() => void handleExportTime()}
 					/>
-				</Field>
 
-				<Field label="End date">
-					<input
-						className={inputClassName}
+					<ExportAction
+						title="Approved leaves"
+						description="Approved leave rows in the selected window."
 						disabled={isBusy}
-						type="date"
-						value={endDate}
-						onChange={event => setEndDate(event.currentTarget.value)}
+						loading={exportState === 'exporting_leaves'}
+						onClick={() => void handleExportLeaves()}
 					/>
-				</Field>
 
-				<Field label="Standup sort">
-					<select
-						className={inputClassName}
+					<ExportAction
+						title="Standup submissions"
+						description="Submitted answers and submission timestamps."
 						disabled={isBusy}
-						value={sortMode}
-						onChange={event => setSortMode(toSortMode(event.currentTarget.value))}
-					>
-						{sortModeOptions.map(option => (
-							<option key={option} value={option}>
-								{formatLabel(option)}
-							</option>
-						))}
-					</select>
-				</Field>
-			</div>
+						loading={exportState === 'exporting_standups'}
+						onClick={() => void handleExportStandups()}
+					/>
 
-			<div className="cf:mt-5 cf:grid cf:gap-3 cf:md:grid-cols-2 cf:xl:grid-cols-4">
-				<button
-					className="cf:rounded-2xl cf:border cf:border-cyan-300/30 cf:bg-cyan-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-cyan-50 cf:transition cf:hover:bg-cyan-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-					disabled={isBusy}
-					type="button"
-					onClick={() => void handleExportTime()}
-				>
-					{exportState === 'exporting_time' ? 'Exporting time…' : 'Export time CSV'}
-				</button>
-
-				<button
-					className="cf:rounded-2xl cf:border cf:border-emerald-300/30 cf:bg-emerald-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-emerald-50 cf:transition cf:hover:bg-emerald-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-					disabled={isBusy}
-					type="button"
-					onClick={() => void handleExportLeaves()}
-				>
-					{exportState === 'exporting_leaves' ? 'Exporting leaves…' : 'Export leaves CSV'}
-				</button>
-
-				<button
-					className="cf:rounded-2xl cf:border cf:border-sky-300/30 cf:bg-sky-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-sky-50 cf:transition cf:hover:bg-sky-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-					disabled={isBusy}
-					type="button"
-					onClick={() => void handleExportStandups()}
-				>
-					{exportState === 'exporting_standups' ? 'Exporting standups…' : 'Export standups CSV'}
-				</button>
-
-				<button
-					className="cf:rounded-2xl cf:border cf:border-amber-300/30 cf:bg-amber-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-amber-50 cf:transition cf:hover:bg-amber-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-					disabled={isBusy}
-					type="button"
-					onClick={() => void handleExportMissing()}
-				>
-					{exportState === 'exporting_missing' ? 'Exporting missing…' : 'Export missing CSV'}
-				</button>
-			</div>
-
-			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
-		</section>
+					<ExportAction
+						title="Missing standups"
+						description="Missing users by date using the selected sort mode."
+						disabled={isBusy}
+						loading={exportState === 'exporting_missing'}
+						onClick={() => void handleExportMissing()}
+					/>
+				</div>
+			</CampfireCardBody>
+		</CampfirePanel>
 	);
 }
 
-const inputClassName =
-	'cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/55 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:transition cf:[color-scheme:dark] cf:placeholder:text-slate-500 cf:focus:border-cyan-300/60 cf:focus:ring-4 cf:focus:ring-cyan-300/15';
-
 /**
- * Field renders a labeled control.
+ * ExportAction renders one CSV export card.
  */
-function Field(props: { readonly label: string; readonly children: ReactElement }): ReactElement {
+function ExportAction(props: {
+	readonly title: string;
+	readonly description: string;
+	readonly disabled: boolean;
+	readonly loading: boolean;
+	readonly onClick: () => void;
+}): ReactElement {
 	return (
-		<label className="cf:grid cf:gap-2">
-			<span className="cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.14em] cf:text-cyan-200">
-				{props.label}
-			</span>
-			{props.children}
-		</label>
+		<div className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
+			<div className="cf:flex cf:items-start cf:justify-between cf:gap-3">
+				<div>
+					<h3 className="cf:text-lg cf:font-black cf:text-white">{props.title}</h3>
+					<p className="cf:mt-1 cf:text-sm cf:font-medium cf:leading-6 cf:text-slate-400">
+						{props.description}
+					</p>
+				</div>
+
+				<div className="cf:grid cf:size-11 cf:shrink-0 cf:place-items-center cf:rounded-2xl cf:bg-orange-400/10 cf:text-amber-200">
+					<FileDown className="cf:size-5" />
+				</div>
+			</div>
+
+			<Button className="cf:mt-4 cf:w-full" type="button" disabled={props.disabled} onClick={props.onClick}>
+				{props.loading ? <Loader2 className="cf:size-4 cf:animate-spin" /> : <Download className="cf:size-4" />}
+				Download CSV
+			</Button>
+		</div>
 	);
 }
 
 /**
- * CSVExportFilter contains saved export controls this card can apply.
+ * FormField renders a labeled field.
  */
-type CSVExportFilter = {
-	readonly startDate?: string;
-	readonly endDate?: string;
-	readonly sortMode?: StandupSubmissionSortMode;
-};
+function FormField(props: {
+	readonly label: string;
+	readonly htmlFor: string;
+	readonly children: ReactElement;
+}): ReactElement {
+	return (
+		<div className="cf:grid cf:gap-2">
+			<Label
+				htmlFor={props.htmlFor}
+				className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200"
+			>
+				{props.label}
+			</Label>
+			{props.children}
+		</div>
+	);
+}
 
 /**
- * parseCSVExportFilter validates saved JSON for CSV export controls.
+ * MessageRow renders export feedback.
+ */
+function MessageRow(props: { readonly state: ExportState; readonly message: string }): ReactElement {
+	const isError = props.state === 'error';
+
+	return (
+		<div
+			className={cn(
+				'cf:flex cf:items-center cf:gap-2 cf:rounded-2xl cf:border cf:px-4 cf:py-3 cf:text-sm cf:font-black',
+				isError
+					? 'cf:border-red-300/25 cf:bg-red-950/30 cf:text-red-100'
+					: 'cf:border-amber-300/25 cf:bg-amber-950/30 cf:text-amber-100',
+			)}
+		>
+			{isError ? null : <CheckCircle2 className="cf:size-4" />}
+			{props.message}
+		</div>
+	);
+}
+
+/**
+ * parseCSVExportFilter parses saved filter JSON safely.
  */
 function parseCSVExportFilter(filterJson: string): CSVExportFilter | null {
 	try {
 		const parsed: unknown = JSON.parse(filterJson);
+
 		if (!isRecord(parsed)) {
 			return null;
 		}
 
-		const startDate = stringField(parsed, 'startDate') ?? stringField(parsed, 'periodStart');
-		const endDate = stringField(parsed, 'endDate') ?? stringField(parsed, 'periodEnd');
-		const sortMode = stringField(parsed, 'sortMode');
-
 		return {
-			...(startDate === undefined ? {} : { startDate }),
-			...(endDate === undefined ? {} : { endDate }),
-			...(sortMode === undefined ? {} : { sortMode: toSortMode(sortMode) }),
+			startDate: typeof parsed.startDate === 'string' ? parsed.startDate : undefined,
+			endDate: typeof parsed.endDate === 'string' ? parsed.endDate : undefined,
+			sortMode: isSortMode(parsed.sortMode) ? parsed.sortMode : undefined,
 		};
 	} catch (_error: unknown) {
 		return null;
@@ -318,36 +382,106 @@ function parseCSVExportFilter(filterJson: string): CSVExportFilter | null {
 }
 
 /**
- * stringField reads one optional string field from a parsed JSON object.
+ * isSortMode narrows unknown values to standup submission sort modes.
  */
-function stringField(record: Record<string, unknown>, key: string): string | undefined {
-	const value = record[key];
+function isSortMode(value: unknown): value is StandupSubmissionSortMode {
+	return value === 'first_submitted' || value === 'last_submitted' || value === 'name' || value === 'missing_first';
+}
 
-	if (typeof value !== 'string' || value.trim() === '') {
-		return undefined;
+/**
+ * toSortMode normalizes select values.
+ */
+function toSortMode(value: string): StandupSubmissionSortMode {
+	return isSortMode(value) ? value : 'first_submitted';
+}
+
+/**
+ * validateDateRange validates the selected export window.
+ */
+function validateDateRange(startDate: string, endDate: string): string | null {
+	if (startDate.trim() === '' || endDate.trim() === '') {
+		return 'Choose a start and end date.';
 	}
 
-	return value.trim();
+	if (startDate > endDate) {
+		return 'Start date cannot be after end date.';
+	}
+
+	return null;
 }
 
 /**
- * isRecord narrows JSON values to indexable plain objects.
+ * downloadBlob downloads a browser blob.
  */
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
+function downloadBlob(blob: Blob, filename: string): void {
+	const url = URL.createObjectURL(blob);
+	const link = document.createElement('a');
+
+	link.href = url;
+	link.download = filename;
+	document.body.appendChild(link);
+	link.click();
+	link.remove();
+
+	URL.revokeObjectURL(url);
 }
 
 /**
- * getDefaultDateRange returns a practical default export range.
+ * buildExportFilename returns a CSV filename.
+ */
+function buildExportFilename(prefix: string, startDate: string, endDate: string): string {
+	return `${prefix}-${startDate}-to-${endDate}.csv`;
+}
+
+/**
+ * selectClassName returns the shared native select style.
+ */
+function selectClassName(): string {
+	return cn(
+		'cf:h-10 cf:w-full cf:rounded-md cf:border cf:border-input cf:bg-background cf:px-3 cf:py-2 cf:text-sm cf:text-foreground cf:outline-none',
+		'cf:focus-visible:border-ring cf:focus-visible:ring-ring/50 cf:focus-visible:ring-3',
+		'cf:disabled:cursor-not-allowed cf:disabled:opacity-50',
+	);
+}
+
+/**
+ * getDefaultDateRange returns a recent thirty-day export window.
  */
 function getDefaultDateRange(): { readonly startDate: string; readonly endDate: string } {
-	const end = new Date();
-	const start = new Date(end.getFullYear(), end.getMonth(), end.getDate() - 30);
+	const endDate = getTodayLocalDateString();
 
 	return {
-		startDate: dateToLocalDateString(start),
-		endDate: dateToLocalDateString(end),
+		startDate: addDaysToLocalDate(endDate, -30),
+		endDate,
 	};
+}
+
+/**
+ * addDaysToLocalDate adds days to a YYYY-MM-DD local date string.
+ */
+function addDaysToLocalDate(localDate: string, days: number): string {
+	const parts = localDate.split('-');
+
+	if (parts.length !== 3) {
+		return getTodayLocalDateString();
+	}
+
+	const year = Number(parts[0]);
+	const month = Number(parts[1]);
+	const day = Number(parts[2]);
+
+	if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+		return getTodayLocalDateString();
+	}
+
+	return dateToLocalDateString(new Date(year, month - 1, day + days));
+}
+
+/**
+ * getTodayLocalDateString returns today's local YYYY-MM-DD date.
+ */
+function getTodayLocalDateString(): string {
+	return dateToLocalDateString(new Date());
 }
 
 /**
@@ -362,45 +496,6 @@ function dateToLocalDateString(date: Date): string {
 }
 
 /**
- * buildExportFilename returns a deterministic CSV filename.
- */
-function buildExportFilename(prefix: string, startDate: string, endDate: string): string {
-	return `${prefix}-${startDate}-to-${endDate}.csv`;
-}
-
-/**
- * downloadBlob downloads a Blob using a temporary object URL.
- */
-function downloadBlob(blob: Blob, filename: string): void {
-	const url = URL.createObjectURL(blob);
-	const anchor = document.createElement('a');
-
-	anchor.href = url;
-	anchor.download = filename;
-	document.body.append(anchor);
-	anchor.click();
-	anchor.remove();
-
-	URL.revokeObjectURL(url);
-}
-
-/**
- * toSortMode narrows a string to a supported standup submission sort mode.
- */
-function toSortMode(value: string): StandupSubmissionSortMode {
-	switch (value) {
-		case 'first_submitted':
-		case 'last_submitted':
-		case 'name':
-		case 'missing_first':
-			return value;
-
-		default:
-			return 'first_submitted';
-	}
-}
-
-/**
  * formatLabel converts enum-like values to readable labels.
  */
 function formatLabel(value: string): string {
@@ -408,6 +503,13 @@ function formatLabel(value: string): string {
 		.split('_')
 		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
 		.join(' ');
+}
+
+/**
+ * isRecord narrows unknown values to indexable records.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /**

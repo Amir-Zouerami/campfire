@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 
-import { ApiClientError, getHealth, getMe, getWorkspaceByChannel } from '../api/client';
-import type { HealthResponse, MeResponse } from '../types/api';
-import type { Workspace, WorkspaceCapabilities } from '../types/domain';
+import { ApiClientError, getHealth, getMe, getWorkspaceByChannel } from '@/api';
+import type { HealthResponse, MeResponse } from '@/types/api';
+import type { Workspace, WorkspaceCapabilities } from '@/types/domain';
 
 import { getMattermostHostContext } from './mattermostHost';
 
@@ -29,7 +29,7 @@ export type BootstrapReadyStatus = {
 	readonly me: MeResponse;
 	readonly channelID: string | null;
 	readonly channelName: string | null;
-	readonly teamID: string | null;
+	readonly teamID: string;
 	readonly workspace: Workspace | null;
 	readonly capabilities: WorkspaceCapabilities | null;
 	readonly workspaceNotice: string | null;
@@ -75,6 +75,7 @@ export function useCampfireBootstrap(isOpen: boolean, refreshToken: number): Boo
 			try {
 				const [health, me] = await Promise.all([getHealth(), getMe()]);
 				const hostContext = getMattermostHostContext();
+				const teamID = hostContext.teamID ?? '';
 
 				if (hostContext.channelID === null) {
 					if (!isActive) {
@@ -87,7 +88,7 @@ export function useCampfireBootstrap(isOpen: boolean, refreshToken: number): Boo
 						me,
 						channelID: null,
 						channelName: null,
-						teamID: hostContext.teamID,
+						teamID,
 						workspace: null,
 						capabilities: null,
 						workspaceNotice: 'Open Campfire from a Mattermost channel to load or create a workspace.',
@@ -108,7 +109,7 @@ export function useCampfireBootstrap(isOpen: boolean, refreshToken: number): Boo
 					me,
 					channelID: hostContext.channelID,
 					channelName: hostContext.channelName,
-					teamID: hostContext.teamID,
+					teamID,
 					workspace: workspaceResult.workspace,
 					capabilities: workspaceResult.capabilities,
 					workspaceNotice: workspaceResult.notice,
@@ -146,6 +147,9 @@ type WorkspaceLoadResult = {
 
 /**
  * loadWorkspaceForChannel loads the configured workspace for a channel.
+ *
+ * A 404 here is not fatal. It means this Mattermost channel does not have a
+ * Campfire workspace yet, so the UI should show the workspace setup wizard.
  */
 async function loadWorkspaceForChannel(channelID: string): Promise<WorkspaceLoadResult> {
 	try {
@@ -157,7 +161,7 @@ async function loadWorkspaceForChannel(channelID: string): Promise<WorkspaceLoad
 			notice: null,
 		};
 	} catch (error: unknown) {
-		if (error instanceof ApiClientError && error.code === 'workspace_not_configured') {
+		if (isWorkspaceNotConfiguredError(error)) {
 			return {
 				workspace: null,
 				capabilities: null,
@@ -167,6 +171,17 @@ async function loadWorkspaceForChannel(channelID: string): Promise<WorkspaceLoad
 
 		throw error;
 	}
+}
+
+/**
+ * isWorkspaceNotConfiguredError returns true when the current channel has no workspace.
+ */
+function isWorkspaceNotConfiguredError(error: unknown): boolean {
+	if (!(error instanceof ApiClientError)) {
+		return false;
+	}
+
+	return error.status === 404 || error.code === 'workspace_not_configured' || error.code === 'not_found';
 }
 
 /**

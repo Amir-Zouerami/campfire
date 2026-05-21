@@ -1,28 +1,46 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { ReactElement } from 'react';
+import { Activity, FileClock, Loader2, Search } from 'lucide-react';
 
+import { ApiClientError, listAuditLog } from '@/api';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
+import type { AuditLogEntry, Workspace } from '@/types/domain';
+
+import {
+	CampfireCardBody,
+	CampfireCardHeader,
+	CampfireEmpty,
+	CampfireMetric,
+	CampfirePanel,
+	CampfireStatusPill,
+} from './campfire-ui';
 import { useUserProfiles } from './useUserProfiles';
-import { ApiClientError, listAuditLog } from '../api/client';
-import type { AuditLogEntry, Workspace } from '../types/domain';
 
 /**
- * AuditLogCardProps contains workspace audit-log inputs.
+ * AuditLogCardProps contains the current workspace.
  */
 type AuditLogCardProps = {
 	readonly workspace: Workspace;
 };
 
 /**
- * LoadState describes audit-log loading state.
+ * LoadState describes audit-log panel state.
  */
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
+const auditLimitOptions = [25, 50, 100, 200] as const;
+
 /**
- * AuditLogCard renders recent important actions in a workspace.
+ * AuditLogCard renders recent audited product actions for a workspace.
  */
 export function AuditLogCard(props: AuditLogCardProps): ReactElement {
 	const [loadState, setLoadState] = useState<LoadState>('idle');
-	const [entries, setEntries] = useState<readonly AuditLogEntry[]>([]);
 	const [limit, setLimit] = useState(50);
+	const [entries, setEntries] = useState<readonly AuditLogEntry[]>([]);
 	const [message, setMessage] = useState('');
 
 	useEffect(() => {
@@ -61,146 +79,289 @@ export function AuditLogCard(props: AuditLogCardProps): ReactElement {
 		};
 	}, [props.workspace.id, limit]);
 
-	const actorUserIDs = useMemo(() => collectActorUserIDs(entries), [entries]);
+	const actorUserIDs = useMemo(() => {
+		return uniqueStrings(entries.map(entry => entry.actorUserId));
+	}, [entries]);
+
 	const {
 		errorMessage: profileErrorMessage,
 		labelForUserID,
 		loading: profilesLoading,
 	} = useUserProfiles(actorUserIDs);
 
+	const actionCounts = useMemo(() => countEntriesByAction(entries), [entries]);
+
+	/**
+	 * Reloads audit entries with the current limit.
+	 */
+	async function handleReload(): Promise<void> {
+		setLoadState('loading');
+		setMessage('');
+
+		try {
+			const response = await listAuditLog(props.workspace.id, limit);
+			setEntries(response.entries);
+			setLoadState('ready');
+		} catch (error: unknown) {
+			setMessage(errorToMessage(error));
+			setLoadState('error');
+		}
+	}
+
 	return (
-		<section className="cf:rounded-3xl cf:border cf:border-slate-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-			<div className="cf:grid cf:gap-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
-				<div>
-					<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-slate-200">
-						Audit
-					</p>
-					<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-						Workspace audit log
-					</h2>
-					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						Recent important Campfire actions for this workspace.
-					</p>
+		<CampfirePanel className="cf:overflow-hidden">
+			<CampfireCardHeader
+				eyebrow="Audit"
+				title="Audit log"
+				description="Recent important actions for this workspace. Audit logging should support local testing and later production troubleshooting."
+				icon={FileClock}
+				action={<CampfireStatusPill tone="green">{entries.length} entries</CampfireStatusPill>}
+			/>
+
+			<CampfireCardBody className="cf:grid cf:gap-5">
+				<div className="cf:grid cf:gap-3 cf:md:grid-cols-4">
+					<CampfireMetric label="Entries" value={String(entries.length)} helper={`Limit ${limit}`} />
+					<CampfireMetric label="Actions" value={String(actionCounts.length)} helper="Unique action names" />
+					<CampfireMetric label="Actors" value={String(actorUserIDs.length)} helper="Unique users" />
+					<CampfireMetric label="Workspace" value={props.workspace.name} helper="Current scope" />
 				</div>
 
-				<select
-					className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:focus:border-slate-300/45 cf:lg:w-44"
-					value={limit}
-					onChange={event => setLimit(Number.parseInt(event.currentTarget.value, 10))}
-				>
-					<option value={25}>Last 25</option>
-					<option value={50}>Last 50</option>
-					<option value={100}>Last 100</option>
-					<option value={200}>Last 200</option>
-				</select>
-			</div>
+				<div className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4 cf:md:grid-cols-[1fr_auto] cf:md:items-end">
+					<FormField label="Limit" htmlFor="campfire-audit-limit">
+						<select
+							id="campfire-audit-limit"
+							className={selectClassName()}
+							disabled={loadState === 'loading'}
+							value={limit}
+							onChange={event => setLimit(toAuditLimit(event.currentTarget.value))}
+						>
+							{auditLimitOptions.map(option => (
+								<option key={option} value={option}>
+									{option} entries
+								</option>
+							))}
+						</select>
+					</FormField>
 
-			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
-			{profileErrorMessage !== '' && (
-				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{profileErrorMessage}</p>
-			)}
-			{profilesLoading && (
-				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-slate-300">Resolving actor names…</p>
-			)}
+					<Button type="button" disabled={loadState === 'loading'} onClick={() => void handleReload()}>
+						{loadState === 'loading' ? (
+							<Loader2 className="cf:size-4 cf:animate-spin" />
+						) : (
+							<Search className="cf:size-4" />
+						)}
+						Reload
+					</Button>
+				</div>
 
-			<div className="cf:mt-5 cf:grid cf:gap-3">
-				{loadState === 'loading' && <p className="cf:m-0 cf:text-slate-300">Loading audit log…</p>}
+				{message !== '' && <MessageRow state={loadState} message={message} />}
+				{profileErrorMessage !== '' && <MessageRow state="error" message={profileErrorMessage} />}
+				{profilesLoading && <LoadingRow label="Resolving actor names…" />}
+				{loadState === 'loading' && <LoadingRow label="Loading audit log…" />}
 
-				{loadState !== 'loading' && entries.length === 0 && (
-					<p className="cf:m-0 cf:rounded-2xl cf:border cf:border-dashed cf:border-white/10 cf:p-4 cf:text-slate-300">
-						No audit entries yet.
-					</p>
+				{actionCounts.length > 0 && (
+					<div className="cf:flex cf:flex-wrap cf:gap-2">
+						{actionCounts.map(row => (
+							<Badge key={row.action} variant="secondary" className="cf:rounded-full">
+								{formatLabel(row.action)}: {row.count}
+							</Badge>
+						))}
+					</div>
 				)}
 
-				{entries.map(entry => (
-					<article
-						className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4"
-						key={entry.id}
-					>
-						<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
-							<div>
-								<strong className="cf:block cf:text-sm cf:font-black cf:text-white">
-									{formatAction(entry.action)}
-								</strong>
-								<p className="cf:m-0 cf:mt-1 cf:text-xs cf:font-bold cf:text-slate-400">
-									<span title={entry.actorUserId}>{labelForUserID(entry.actorUserId)}</span>
-									{' · '}
-									{formatDateTime(entry.createdAt)}
-								</p>
-							</div>
+				<Separator className="cf:bg-white/10" />
 
-							<span className="cf:rounded-full cf:border cf:border-slate-300/20 cf:bg-slate-300/10 cf:px-3 cf:py-1 cf:text-xs cf:font-extrabold cf:text-slate-100">
-								{entry.entityType}
-							</span>
-						</div>
+				{entries.length === 0 && loadState !== 'loading' && (
+					<CampfireEmpty
+						icon={Activity}
+						title="No audit entries"
+						description="Important workspace actions will appear here after they are recorded."
+					/>
+				)}
 
-						<p className="cf:m-0 cf:mt-2 cf:text-xs cf:font-bold cf:text-slate-400">
-							Entity: {entry.entityId}
-						</p>
-
-						{Object.keys(entry.metadata).length > 0 && (
-							<dl className="cf:mt-3 cf:grid cf:gap-2 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-3">
-								{Object.entries(entry.metadata).map(([key, value]) => (
-									<div className="cf:grid cf:gap-1 cf:sm:grid-cols-[10rem_1fr]" key={key}>
-										<dt className="cf:text-xs cf:font-black cf:uppercase cf:tracking-[0.12em] cf:text-slate-400">
-											{key}
-										</dt>
-										<dd className="cf:m-0 cf:text-sm cf:font-bold cf:text-slate-200">{value}</dd>
-									</div>
-								))}
-							</dl>
-						)}
-					</article>
-				))}
-			</div>
-		</section>
+				<div className="cf:grid cf:gap-3">
+					{entries.map(entry => (
+						<AuditEntryRow key={entry.id} entry={entry} actorLabel={labelForUserID(entry.actorUserId)} />
+					))}
+				</div>
+			</CampfireCardBody>
+		</CampfirePanel>
 	);
 }
 
 /**
- * collectActorUserIDs returns actor IDs shown on the card.
+ * AuditEntryRow renders one audit entry.
  */
-function collectActorUserIDs(entries: readonly AuditLogEntry[]): readonly string[] {
-	const seen = new Set<string>();
-	const result: string[] = [];
+function AuditEntryRow(props: { readonly entry: AuditLogEntry; readonly actorLabel: string }): ReactElement {
+	const metadataRows = Object.entries(props.entry.metadata);
+
+	return (
+		<article className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
+			<div className="cf:flex cf:flex-col cf:gap-3 cf:lg:flex-row cf:lg:items-start cf:lg:justify-between">
+				<div>
+					<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
+						<strong className="cf:text-lg cf:font-black cf:text-white">
+							{formatLabel(props.entry.action)}
+						</strong>
+						<CampfireStatusPill tone="ember">{formatLabel(props.entry.entityType)}</CampfireStatusPill>
+					</div>
+
+					<p className="cf:mt-2 cf:text-sm cf:font-medium cf:text-slate-400">
+						Actor:{' '}
+						<span className="cf:font-black cf:text-slate-200" title={props.entry.actorUserId}>
+							{props.actorLabel}
+						</span>
+					</p>
+
+					<p className="cf:mt-1 cf:text-xs cf:font-bold cf:text-slate-500">
+						Entity {props.entry.entityId || 'none'} · {formatDateTime(props.entry.createdAt)}
+					</p>
+				</div>
+
+				<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:px-3 cf:py-2 cf:text-xs cf:font-bold cf:text-slate-300">
+					{props.entry.id}
+				</div>
+			</div>
+
+			{metadataRows.length > 0 && (
+				<div className="cf:mt-4 cf:grid cf:gap-2 cf:sm:grid-cols-2">
+					{metadataRows.map(([key, value]) => (
+						<div key={key} className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-3">
+							<span className="cf:block cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200">
+								{formatLabel(key)}
+							</span>
+							<strong className="cf:mt-1 cf:block cf:wrap-break-word cf:text-sm cf:font-bold cf:text-white">
+								{value}
+							</strong>
+						</div>
+					))}
+				</div>
+			)}
+		</article>
+	);
+}
+
+/**
+ * FormField renders a labeled field.
+ */
+function FormField(props: {
+	readonly label: string;
+	readonly htmlFor: string;
+	readonly children: ReactElement;
+}): ReactElement {
+	return (
+		<div className="cf:grid cf:gap-2">
+			<Label
+				htmlFor={props.htmlFor}
+				className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200"
+			>
+				{props.label}
+			</Label>
+			{props.children}
+		</div>
+	);
+}
+
+/**
+ * MessageRow renders load feedback.
+ */
+function MessageRow(props: { readonly state: LoadState; readonly message: string }): ReactElement {
+	const isError = props.state === 'error';
+
+	return (
+		<div
+			className={
+				isError
+					? 'cf:rounded-2xl cf:border cf:border-red-300/25 cf:bg-red-950/30 cf:px-4 cf:py-3 cf:text-sm cf:font-black cf:text-red-100'
+					: 'cf:rounded-2xl cf:border cf:border-amber-300/25 cf:bg-amber-950/30 cf:px-4 cf:py-3 cf:text-sm cf:font-black cf:text-amber-100'
+			}
+		>
+			{props.message}
+		</div>
+	);
+}
+
+/**
+ * LoadingRow renders a loading message.
+ */
+function LoadingRow(props: { readonly label: string }): ReactElement {
+	return (
+		<div className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4 cf:text-sm cf:font-bold cf:text-slate-300">
+			<Loader2 className="cf:size-4 cf:animate-spin cf:text-amber-200" />
+			{props.label}
+		</div>
+	);
+}
+
+/**
+ * countEntriesByAction returns audit counts grouped by action.
+ */
+function countEntriesByAction(
+	entries: readonly AuditLogEntry[],
+): readonly { readonly action: string; readonly count: number }[] {
+	const counts: Record<string, number> = {};
 
 	for (const entry of entries) {
-		const actorUserID = entry.actorUserId.trim();
-		if (actorUserID === '' || seen.has(actorUserID)) {
-			continue;
-		}
-
-		seen.add(actorUserID);
-		result.push(actorUserID);
+		counts[entry.action] = (counts[entry.action] ?? 0) + 1;
 	}
 
-	return result;
+	return Object.entries(counts)
+		.map(([action, count]) => ({ action, count }))
+		.sort((first, second) => second.count - first.count || first.action.localeCompare(second.action));
 }
 
 /**
- * formatAction formats machine action names for display.
+ * uniqueStrings returns unique non-empty strings.
  */
-function formatAction(action: string): string {
-	return action
-		.split('_')
-		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
-		.join(' ');
+function uniqueStrings(values: readonly string[]): readonly string[] {
+	return [...new Set(values.map(value => value.trim()).filter(Boolean))];
 }
 
 /**
- * formatDateTime returns a readable timestamp.
+ * toAuditLimit normalizes select values.
+ */
+function toAuditLimit(value: string): number {
+	const parsed = Number.parseInt(value, 10);
+
+	if (auditLimitOptions.some(option => option === parsed)) {
+		return parsed;
+	}
+
+	return 50;
+}
+
+/**
+ * selectClassName returns the shared native select style.
+ */
+function selectClassName(): string {
+	return cn(
+		'cf:h-10 cf:w-full cf:rounded-md cf:border cf:border-input cf:bg-background cf:px-3 cf:py-2 cf:text-sm cf:text-foreground cf:outline-none',
+		'cf:focus-visible:border-ring cf:focus-visible:ring-ring/50 cf:focus-visible:ring-3',
+		'cf:disabled:cursor-not-allowed cf:disabled:opacity-50',
+	);
+}
+
+/**
+ * formatDateTime formats an API timestamp for compact display.
  */
 function formatDateTime(value: string): string {
-	if (value.trim() === '') {
-		return 'Unknown time';
-	}
-
 	const date = new Date(value);
+
 	if (Number.isNaN(date.getTime())) {
 		return value;
 	}
 
 	return date.toLocaleString();
+}
+
+/**
+ * formatLabel converts enum-like values to readable labels.
+ */
+function formatLabel(value: string): string {
+	return value
+		.split(/[_:. -]+/)
+		.filter(Boolean)
+		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(' ');
 }
 
 /**

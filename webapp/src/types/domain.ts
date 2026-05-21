@@ -1,4 +1,14 @@
 /**
+ * LocalDate is a YYYY-MM-DD date string interpreted in a workspace timezone.
+ */
+export type LocalDate = string;
+
+/**
+ * TimeOfDay is an HH:mm local workspace time string.
+ */
+export type TimeOfDay = string;
+
+/**
  * Role represents Campfire's simple role model.
  */
 export type Role = 'member' | 'lead' | 'approver' | 'admin' | 'viewer';
@@ -62,35 +72,14 @@ export type ReportSortMode = 'name' | 'first_submitted' | 'last_submitted' | 'mi
 export type ReportRunStatus = 'posting' | 'posted' | 'failed';
 
 /**
- * ReportRun records one generated or posted report.
+ * StandupSubmissionSortMode identifies supported standup submission sorting modes.
  */
-export type ReportRun = {
-	readonly id: string;
-	readonly workspaceId: string;
-	readonly reportRuleId: string;
-	readonly scheduleId: string;
-	readonly reportKind: ReportKind;
-	readonly periodStart: LocalDate;
-	readonly periodEnd: LocalDate;
-	readonly generatedAt: string;
-	readonly postedAt: string;
-	readonly postedBy: string;
-	readonly mattermostPostId: string;
-	readonly markdown: string;
-	readonly status: ReportRunStatus;
-	readonly createdAt: string;
-	readonly updatedAt: string;
-};
+export type StandupSubmissionSortMode = 'name' | 'first_submitted' | 'last_submitted' | 'missing_first';
 
 /**
- * LocalDate is a YYYY-MM-DD date string interpreted in a workspace timezone.
+ * TimeReportGroupBy identifies a time report grouping mode.
  */
-export type LocalDate = string;
-
-/**
- * TimeOfDay is an HH:mm local workspace time string.
- */
-export type TimeOfDay = string;
+export type TimeReportGroupBy = 'person' | 'project' | 'category' | 'task' | 'day' | 'week';
 
 /**
  * Workspace represents Campfire configuration for a Mattermost channel.
@@ -160,9 +149,9 @@ export type WorkspaceWorkingDay = {
 };
 
 /**
- * WorkspaceSkipDate describes a workspace-level holiday or no-standup day.
+ * WorkspaceOffDay describes a workspace-specific holiday or no-standup date.
  */
-export type WorkspaceSkipDate = {
+export type WorkspaceOffDay = {
 	readonly id: string;
 	readonly workspaceId: string;
 	readonly date: LocalDate;
@@ -170,6 +159,11 @@ export type WorkspaceSkipDate = {
 	readonly createdBy: string;
 	readonly createdAt: string;
 };
+
+/**
+ * WorkspaceSkipDate is kept as an alias for older workspace skip-date naming.
+ */
+export type WorkspaceSkipDate = WorkspaceOffDay;
 
 /**
  * GlobalSkipDate describes a global Campfire off-day across all workspaces.
@@ -242,18 +236,6 @@ export type ApprovedLeaveRequest = LeaveRequestWithType;
 export type StandupSkipReason = '' | 'non_working_day' | 'global_off_day' | 'workspace_off_day' | 'everyone_on_leave';
 
 /**
- * WorkspaceOffDay describes a workspace-specific holiday or no-standup date.
- */
-export type WorkspaceOffDay = {
-	readonly id: string;
-	readonly workspaceId: string;
-	readonly date: LocalDate;
-	readonly label: string;
-	readonly createdBy: string;
-	readonly createdAt: string;
-};
-
-/**
  * StandupRunDecision describes whether standup automation should run for a date.
  */
 export type StandupRunDecision = {
@@ -271,6 +253,46 @@ export type StandupRunDecision = {
 };
 
 /**
+ * StandupTemplate defines a reusable standup form.
+ */
+export type StandupTemplate = {
+	readonly id: string;
+	readonly workspaceId: string;
+	readonly name: string;
+	readonly description: string;
+	readonly kind: StandupKind;
+	readonly isDefault: boolean;
+	readonly isActive: boolean;
+	readonly createdBy: string;
+	readonly createdAt: string;
+	readonly updatedAt: string;
+};
+
+/**
+ * StandupQuestion defines one question inside a standup template.
+ */
+export type StandupQuestion = {
+	readonly id: string;
+	readonly workspaceId: string;
+	readonly templateId: string;
+	readonly section: string;
+	readonly questionKey: string;
+	readonly label: string;
+	readonly prompt: string;
+	readonly helpText: string;
+	readonly placeholder: string;
+	readonly type: QuestionType;
+	readonly required: boolean;
+	readonly showInReport: boolean;
+	readonly isPrivate: boolean;
+	readonly position: number;
+	readonly sortOrder: number;
+	readonly options: readonly string[];
+	readonly createdAt: string;
+	readonly updatedAt: string;
+};
+
+/**
  * StandupSchedule defines when a daily or weekly standup runs.
  */
 export type StandupSchedule = {
@@ -281,7 +303,7 @@ export type StandupSchedule = {
 	readonly enabled: boolean;
 	readonly timeOfDay: TimeOfDay;
 	readonly skipNonWorkingDays: boolean;
-	readonly weeklyMode: WeeklyMode | '';
+	readonly weeklyMode: WeeklyMode | 'none' | '';
 	readonly skipDailyWhenWeeklyRuns: boolean;
 	readonly createdBy: string;
 	readonly createdAt: string;
@@ -324,7 +346,7 @@ export type StandupAnswer = {
 };
 
 /**
- * StandupSubmissionWithAnswers contains one submission and all stored answers.
+ * StandupSubmissionWithAnswers contains one submission and its answers.
  */
 export type StandupSubmissionWithAnswers = {
 	readonly submission: StandupSubmission;
@@ -332,12 +354,9 @@ export type StandupSubmissionWithAnswers = {
 };
 
 /**
- * StandupSubmissionSortMode identifies supported standup submission sorting modes.
- */
-export type StandupSubmissionSortMode = 'name' | 'first_submitted' | 'last_submitted' | 'missing_first';
-
-/**
- * StandupOccurrenceSummary contains submissions and missing-user data for one date.
+ * StandupOccurrenceSummary summarizes participation for one date.
+ *
+ * The backend returns this as the direct list-submissions response.
  */
 export type StandupOccurrenceSummary = {
 	readonly workspaceId: string;
@@ -348,45 +367,6 @@ export type StandupOccurrenceSummary = {
 	readonly missingUserIds: readonly string[];
 	readonly onLeaveUserIds: readonly string[];
 	readonly submissions: readonly StandupSubmissionWithAnswers[];
-};
-
-/**
- * StandupTemplate defines a reusable standup form.
- */
-export type StandupTemplate = {
-	readonly id: string;
-	readonly workspaceId: string;
-	readonly name: string;
-	readonly description: string;
-	readonly kind: StandupKind;
-	readonly isDefault: boolean;
-	readonly isActive: boolean;
-	readonly createdBy: string;
-	readonly createdAt: string;
-	readonly updatedAt: string;
-};
-
-/**
- * StandupQuestion defines one question inside a standup template.
- */
-export type StandupQuestion = {
-	readonly id: string;
-	readonly workspaceId: string;
-	readonly templateId: string;
-	readonly section: string;
-	readonly questionKey: string;
-	readonly label: string;
-	readonly prompt: string;
-	readonly helpText: string;
-	readonly placeholder: string;
-	readonly type: QuestionType;
-	readonly required: boolean;
-	readonly showInReport: boolean;
-	readonly isPrivate: boolean;
-	readonly position: number;
-	readonly options: readonly string[];
-	readonly createdAt: string;
-	readonly updatedAt: string;
 };
 
 /**
@@ -471,60 +451,24 @@ export type ReportRule = {
 };
 
 /**
- * GlobalLeaveReportRow contains one leave request plus workspace display data.
+ * ReportRun records one generated or posted report.
  */
-export type GlobalLeaveReportRow = {
-	readonly workspaceId: string;
-	readonly workspaceName: string;
-	readonly leaveRequest: PendingLeaveRequest;
-};
-
-/**
- * GlobalLeaveReportWorkspaceSummary contains leave totals for one workspace.
- */
-export type GlobalLeaveReportWorkspaceSummary = {
-	readonly workspaceId: string;
-	readonly workspaceName: string;
-	readonly approvedCount: number;
-	readonly pendingCount: number;
-};
-
-/**
- * GlobalLeaveReportTypeSummary contains leave totals by leave type.
- */
-export type GlobalLeaveReportTypeSummary = {
-	readonly leaveTypeName: string;
-	readonly leaveTypeColor: string;
-	readonly approvedCount: number;
-	readonly pendingCount: number;
-};
-
-/**
- * GlobalLeaveReportSummary is a global leave report across active workspaces.
- */
-export type GlobalLeaveReportSummary = {
-	readonly startDate: LocalDate;
-	readonly endDate: LocalDate;
-	readonly workspaceCount: number;
-	readonly approvedCount: number;
-	readonly pendingCount: number;
-	readonly rows: readonly GlobalLeaveReportRow[];
-	readonly workspaces: readonly GlobalLeaveReportWorkspaceSummary[];
-	readonly types: readonly GlobalLeaveReportTypeSummary[];
-};
-
-/**
- * AuditLogEntry records one important workspace action.
- */
-export type AuditLogEntry = {
+export type ReportRun = {
 	readonly id: string;
 	readonly workspaceId: string;
-	readonly actorUserId: string;
-	readonly action: string;
-	readonly entityType: string;
-	readonly entityId: string;
-	readonly metadata: Readonly<Record<string, string>>;
+	readonly reportRuleId: string;
+	readonly scheduleId: string;
+	readonly reportKind: ReportKind;
+	readonly periodStart: LocalDate;
+	readonly periodEnd: LocalDate;
+	readonly generatedAt: string;
+	readonly postedAt: string;
+	readonly postedBy: string;
+	readonly mattermostPostId: string;
+	readonly markdown: string;
+	readonly status: ReportRunStatus;
 	readonly createdAt: string;
+	readonly updatedAt: string;
 };
 
 /**
@@ -541,11 +485,6 @@ export type SavedReportFilter = {
 	readonly createdAt: string;
 	readonly updatedAt: string;
 };
-
-/**
- * TimeReportGroupBy identifies a time report grouping mode.
- */
-export type TimeReportGroupBy = 'person' | 'project' | 'category' | 'task' | 'day' | 'week';
 
 /**
  * TimeReportRow is one aggregated time report row.
@@ -648,4 +587,61 @@ export type WeeklyReportPreview = {
 	readonly missingCount: number;
 	readonly onLeaveCount: number;
 	readonly markdown: string;
+};
+
+/**
+ * GlobalLeaveReportRow contains one leave request plus workspace display data.
+ */
+export type GlobalLeaveReportRow = {
+	readonly workspaceId: string;
+	readonly workspaceName: string;
+	readonly leaveRequest: PendingLeaveRequest;
+};
+
+/**
+ * GlobalLeaveReportWorkspaceSummary contains leave totals for one workspace.
+ */
+export type GlobalLeaveReportWorkspaceSummary = {
+	readonly workspaceId: string;
+	readonly workspaceName: string;
+	readonly approvedCount: number;
+	readonly pendingCount: number;
+};
+
+/**
+ * GlobalLeaveReportTypeSummary contains leave totals by leave type.
+ */
+export type GlobalLeaveReportTypeSummary = {
+	readonly leaveTypeName: string;
+	readonly leaveTypeColor: string;
+	readonly approvedCount: number;
+	readonly pendingCount: number;
+};
+
+/**
+ * GlobalLeaveReportSummary is a global leave report across active workspaces.
+ */
+export type GlobalLeaveReportSummary = {
+	readonly startDate: LocalDate;
+	readonly endDate: LocalDate;
+	readonly workspaceCount: number;
+	readonly approvedCount: number;
+	readonly pendingCount: number;
+	readonly rows: readonly GlobalLeaveReportRow[];
+	readonly workspaces: readonly GlobalLeaveReportWorkspaceSummary[];
+	readonly types: readonly GlobalLeaveReportTypeSummary[];
+};
+
+/**
+ * AuditLogEntry records one important workspace action.
+ */
+export type AuditLogEntry = {
+	readonly id: string;
+	readonly workspaceId: string;
+	readonly actorUserId: string;
+	readonly action: string;
+	readonly entityType: string;
+	readonly entityId: string;
+	readonly metadata: Readonly<Record<string, string>>;
+	readonly createdAt: string;
 };

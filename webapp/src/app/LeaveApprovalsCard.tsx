@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
+import { CheckCircle2, Loader2, MessageSquareText, ThumbsDown, ThumbsUp, Umbrella } from 'lucide-react';
+import { toast } from 'sonner';
 
+import { ApiClientError, decideLeaveRequest, listPendingLeaveRequests } from '@/api';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import type { PendingLeaveRequest, Workspace } from '@/types/domain';
+
+import { CampfireCardBody, CampfireCardHeader, CampfireEmpty, CampfirePanel, CampfireStatusPill } from './campfire-ui';
 import { useUserProfiles } from './useUserProfiles';
-import type { PendingLeaveRequest, Workspace } from '../types/domain';
-import { ApiClientError, decideLeaveRequest, listPendingLeaveRequests } from '../api/client';
 
 /**
  * LeaveApprovalsCardProps contains the workspace used for approval lists.
@@ -36,6 +42,9 @@ export function LeaveApprovalsCard(props: LeaveApprovalsCardProps): ReactElement
 	useEffect(() => {
 		let isActive = true;
 
+		/**
+		 * Loads pending leaves for approvers.
+		 */
 		async function loadPendingLeaves(): Promise<void> {
 			setLoadState('loading');
 			setMessage('');
@@ -99,193 +108,202 @@ export function LeaveApprovalsCard(props: LeaveApprovalsCardProps): ReactElement
 			setComments(current => removeComment(current, leaveRequestID));
 			setLoadState('ready');
 			setMessage(decision === 'approved' ? 'Leave request approved.' : 'Leave request rejected.');
+			toast.success(decision === 'approved' ? 'Leave request approved' : 'Leave request rejected');
 			props.onLeaveDecided();
 		} catch (error: unknown) {
-			setMessage(errorToMessage(error));
+			const errorMessage = errorToMessage(error);
+			setMessage(errorMessage);
 			setLoadState('error');
+			toast.error(errorMessage);
 		}
 	}
 
 	const isBusy = loadState === 'loading' || loadState === 'saving';
 
 	return (
-		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-emerald-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-			<div className="cf:grid cf:gap-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
-				<div>
-					<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-emerald-200">
-						Approvals
-					</p>
-					<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-						Pending leave requests
-					</h2>
-					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						Review leave requests for this workspace. Requesters receive a Campfire DM when you approve or
-						reject.
-					</p>
-				</div>
+		<CampfirePanel className="cf:overflow-hidden">
+			<CampfireCardHeader
+				eyebrow="Approvals"
+				title="Pending leave requests"
+				description="Review leave requests for this workspace. Requesters receive a Campfire DM when you approve or reject."
+				icon={Umbrella}
+				action={<CampfireStatusPill tone="ember">{leaveRequests.length} pending</CampfireStatusPill>}
+			/>
 
-				<div className="cf:w-fit cf:rounded-full cf:border cf:border-emerald-300/25 cf:bg-emerald-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-emerald-200">
-					{leaveRequests.length} pending
-				</div>
-			</div>
-
-			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
-
-			{profileErrorMessage !== '' && (
-				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{profileErrorMessage}</p>
-			)}
-
-			{profilesLoading && (
-				<p className="cf:m-0 cf:mt-4 cf:text-xs cf:font-bold cf:text-slate-400">Resolving user names…</p>
-			)}
-
-			<div className="cf:mt-5 cf:grid cf:gap-4">
-				{loadState === 'loading' && <p className="cf:m-0 cf:text-slate-300">Loading pending leave requests…</p>}
+			<CampfireCardBody className="cf:grid cf:gap-5">
+				{message !== '' && <MessageRow state={loadState} message={message} />}
+				{profileErrorMessage !== '' && <MessageRow state="error" message={profileErrorMessage} />}
+				{profilesLoading && <LoadingRow label="Resolving requester names…" />}
+				{loadState === 'loading' && <LoadingRow label="Loading pending leave requests…" />}
 
 				{loadState !== 'loading' && leaveRequests.length === 0 && (
-					<p className="cf:m-0 cf:text-slate-300">No pending leave requests.</p>
+					<CampfireEmpty
+						icon={CheckCircle2}
+						title="No pending approvals"
+						description="You are all caught up. New leave requests will appear here."
+					/>
 				)}
 
-				{leaveRequests.map(item => (
-					<article
-						className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4"
-						key={item.leaveRequest.id}
-					>
-						<div className="cf:flex cf:flex-col cf:gap-3 cf:sm:flex-row cf:sm:items-start cf:sm:justify-between">
-							<div>
-								<strong className="cf:block cf:text-lg cf:font-black cf:text-white">
-									{item.leaveTypeName}
-								</strong>
-								<p className="cf:m-0 cf:mt-1 cf:text-sm cf:text-slate-300">
-									{item.leaveRequest.startDate} → {item.leaveRequest.endDate}
-									{formatDurationDetails(item)}
-								</p>
-								<p
-									className="cf:m-0 cf:mt-1 cf:text-xs cf:font-bold cf:text-slate-400"
-									title={item.leaveRequest.userId}
-								>
-									Requested by {labelForUserID(item.leaveRequest.userId)}
-								</p>
-
-								{item.leaveRequest.backupUserId !== '' && (
-									<p
-										className="cf:m-0 cf:mt-1 cf:text-xs cf:font-bold cf:text-slate-500"
-										title={item.leaveRequest.backupUserId}
-									>
-										Backup: {labelForUserID(item.leaveRequest.backupUserId)}
-									</p>
-								)}
-							</div>
-
-							<span className="cf:w-fit cf:rounded-full cf:border cf:border-amber-300/20 cf:bg-amber-300/10 cf:px-3 cf:py-1 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-amber-200">
-								{item.leaveRequest.status}
-							</span>
-						</div>
-
-						{item.leaveRequest.reason !== '' && (
-							<p className="cf:m-0 cf:mt-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-3 cf:text-sm cf:leading-6 cf:text-slate-200">
-								{item.leaveRequest.reason}
-							</p>
-						)}
-
-						<label className="cf:mt-4 cf:grid cf:gap-2">
-							<span className="cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.14em] cf:text-emerald-200">
-								Decision comment
-							</span>
-							<textarea
-								className="cf:min-h-20 cf:w-full cf:resize-y cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/55 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:transition cf:placeholder:text-slate-500 cf:focus:border-emerald-300/60 cf:focus:ring-4 cf:focus:ring-emerald-300/15 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-								value={comments[item.leaveRequest.id] ?? ''}
-								placeholder="Optional note to the requester..."
-								disabled={isBusy}
-								onChange={event => {
-									const value = event.currentTarget.value;
-									setComments(current => ({
-										...current,
-										[item.leaveRequest.id]: value,
-									}));
-								}}
-							/>
-						</label>
-
-						<div className="cf:mt-4 cf:flex cf:flex-col cf:gap-3 cf:sm:flex-row">
-							<button
-								className="cf:w-fit cf:rounded-2xl cf:border cf:border-emerald-300/25 cf:bg-emerald-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-emerald-50 cf:transition cf:hover:bg-emerald-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-								type="button"
-								disabled={isBusy}
-								onClick={() => void handleDecision(item.leaveRequest.id, 'approved')}
-							>
-								Approve
-							</button>
-
-							<button
-								className="cf:w-fit cf:rounded-2xl cf:border cf:border-red-300/25 cf:bg-red-400/15 cf:px-5 cf:py-3 cf:font-black cf:text-red-50 cf:transition cf:hover:bg-red-400/25 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-								type="button"
-								disabled={isBusy}
-								onClick={() => void handleDecision(item.leaveRequest.id, 'rejected')}
-							>
-								Reject
-							</button>
-						</div>
-					</article>
-				))}
-			</div>
-		</section>
+				<div className="cf:grid cf:gap-4">
+					{leaveRequests.map(item => (
+						<ApprovalRow
+							key={item.leaveRequest.id}
+							item={item}
+							comment={comments[item.leaveRequest.id] ?? ''}
+							isBusy={isBusy}
+							labelForUserID={labelForUserID}
+							onCommentChange={comment =>
+								setComments(current => ({ ...current, [item.leaveRequest.id]: comment }))
+							}
+							onApprove={() => void handleDecision(item.leaveRequest.id, 'approved')}
+							onReject={() => void handleDecision(item.leaveRequest.id, 'rejected')}
+						/>
+					))}
+				</div>
+			</CampfireCardBody>
+		</CampfirePanel>
 	);
 }
 
 /**
- * collectLeaveUserIDs returns all user IDs displayed by this card.
+ * ApprovalRow renders one leave approval item.
+ */
+function ApprovalRow(props: {
+	readonly item: PendingLeaveRequest;
+	readonly comment: string;
+	readonly isBusy: boolean;
+	readonly labelForUserID: (userID: string) => string;
+	readonly onCommentChange: (comment: string) => void;
+	readonly onApprove: () => void;
+	readonly onReject: () => void;
+}): ReactElement {
+	return (
+		<article className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
+			<div className="cf:grid cf:gap-4 cf:xl:grid-cols-[1fr_20rem]">
+				<div>
+					<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
+						<strong
+							className="cf:text-lg cf:font-black cf:text-white"
+							title={props.item.leaveRequest.userId}
+						>
+							{props.labelForUserID(props.item.leaveRequest.userId)}
+						</strong>
+						<CampfireStatusPill tone="ember">{props.item.leaveTypeName}</CampfireStatusPill>
+					</div>
+
+					<p className="cf:mt-3 cf:text-sm cf:font-bold cf:text-slate-300">
+						{props.item.leaveRequest.startDate} → {props.item.leaveRequest.endDate}
+						{formatDurationDetails(props.item)}
+					</p>
+
+					<div className="cf:mt-3 cf:flex cf:flex-wrap cf:gap-2">
+						<MetaChip label="Mode" value={formatLabel(props.item.leaveRequest.durationMode)} />
+						<MetaChip
+							label="Backup"
+							value={backupLabel(props.item.leaveRequest.backupUserId, props.labelForUserID)}
+						/>
+					</div>
+
+					{props.item.leaveRequest.reason !== '' && (
+						<p className="cf:mt-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-3 cf:text-sm cf:font-medium cf:leading-6 cf:text-slate-200">
+							{props.item.leaveRequest.reason}
+						</p>
+					)}
+				</div>
+
+				<div className="cf:grid cf:gap-3">
+					<div className="cf:flex cf:items-center cf:gap-2 cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200">
+						<MessageSquareText className="cf:size-4" />
+						Decision comment
+					</div>
+					<Textarea
+						className="cf:min-h-28"
+						disabled={props.isBusy}
+						placeholder="Optional approval/rejection note..."
+						value={props.comment}
+						onChange={event => props.onCommentChange(event.currentTarget.value)}
+					/>
+					<div className="cf:grid cf:grid-cols-2 cf:gap-2">
+						<Button type="button" disabled={props.isBusy} onClick={props.onApprove}>
+							<ThumbsUp className="cf:size-4" />
+							Approve
+						</Button>
+						<Button type="button" variant="destructive" disabled={props.isBusy} onClick={props.onReject}>
+							<ThumbsDown className="cf:size-4" />
+							Reject
+						</Button>
+					</div>
+				</div>
+			</div>
+		</article>
+	);
+}
+
+/**
+ * MetaChip renders optional row metadata.
+ */
+function MetaChip(props: { readonly label: string; readonly value: string }): ReactElement | null {
+	if (props.value.trim() === '') {
+		return null;
+	}
+
+	return (
+		<span className="cf:rounded-full cf:border cf:border-white/10 cf:bg-white/5 cf:px-2.5 cf:py-1 cf:text-xs cf:font-bold cf:text-slate-300">
+			{props.label}: {props.value}
+		</span>
+	);
+}
+
+/**
+ * MessageRow renders a status or error row.
+ */
+function MessageRow(props: { readonly state: LoadState; readonly message: string }): ReactElement {
+	const isError = props.state === 'error';
+
+	return (
+		<div
+			className={
+				isError
+					? 'cf:rounded-2xl cf:border cf:border-red-300/25 cf:bg-red-950/30 cf:px-4 cf:py-3 cf:text-sm cf:font-black cf:text-red-100'
+					: 'cf:rounded-2xl cf:border cf:border-amber-300/25 cf:bg-amber-950/30 cf:px-4 cf:py-3 cf:text-sm cf:font-black cf:text-amber-100'
+			}
+		>
+			{props.message}
+		</div>
+	);
+}
+
+/**
+ * LoadingRow renders a loading message.
+ */
+function LoadingRow(props: { readonly label: string }): ReactElement {
+	return (
+		<div className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4 cf:text-sm cf:font-bold cf:text-slate-300">
+			<Loader2 className="cf:size-4 cf:animate-spin cf:text-amber-200" />
+			{props.label}
+		</div>
+	);
+}
+
+/**
+ * collectLeaveUserIDs returns user IDs referenced by leave approval rows.
  */
 function collectLeaveUserIDs(leaveRequests: readonly PendingLeaveRequest[]): readonly string[] {
-	const userIDs = leaveRequests.flatMap(item => [item.leaveRequest.userId, item.leaveRequest.backupUserId]);
+	const userIDs: string[] = [];
 
-	return uniqueNonEmptyUserIDs(userIDs);
-}
+	for (const item of leaveRequests) {
+		userIDs.push(item.leaveRequest.userId);
 
-/**
- * uniqueNonEmptyUserIDs trims, de-duplicates, and preserves user ID order.
- */
-function uniqueNonEmptyUserIDs(userIDs: readonly string[]): readonly string[] {
-	const seen = new Set<string>();
-	const result: string[] = [];
-
-	for (const userID of userIDs) {
-		const cleanUserID = userID.trim();
-
-		if (cleanUserID === '' || seen.has(cleanUserID)) {
-			continue;
+		if (item.leaveRequest.backupUserId.trim() !== '') {
+			userIDs.push(item.leaveRequest.backupUserId);
 		}
-
-		seen.add(cleanUserID);
-		result.push(cleanUserID);
 	}
 
-	return result;
+	return userIDs;
 }
 
 /**
- * formatDurationDetails returns compact duration-specific display text.
- */
-function formatDurationDetails(item: PendingLeaveRequest): string {
-	const request = item.leaveRequest;
-
-	switch (request.durationMode) {
-		case 'half_day':
-			return request.halfDayPart === '' ? ' · half day' : ` · half day · ${request.halfDayPart}`;
-
-		case 'hourly':
-			return ` · ${request.startTime} → ${request.endTime}`;
-
-		case 'full_day':
-			return '';
-
-		default:
-			return '';
-	}
-}
-
-/**
- * removeComment removes one decision comment from the keyed comment state.
+ * removeComment removes one comment from the keyed state.
  */
 function removeComment(comments: DecisionState, leaveRequestID: string): DecisionState {
 	const nextComments: Record<string, string> = {};
@@ -300,6 +318,48 @@ function removeComment(comments: DecisionState, leaveRequestID: string): Decisio
 }
 
 /**
+ * backupLabel returns a readable backup label.
+ */
+function backupLabel(backupUserID: string, labelForUserID: (userID: string) => string): string {
+	if (backupUserID.trim() === '') {
+		return '';
+	}
+
+	return labelForUserID(backupUserID);
+}
+
+/**
+ * formatDurationDetails returns compact duration-specific display text.
+ */
+function formatDurationDetails(item: PendingLeaveRequest): string {
+	const request = item.leaveRequest;
+
+	switch (request.durationMode) {
+		case 'half_day':
+			return request.halfDayPart === '' ? ' · half day' : ` · half day · ${formatLabel(request.halfDayPart)}`;
+
+		case 'hourly':
+			return ` · ${request.startTime} → ${request.endTime}`;
+
+		case 'full_day':
+			return '';
+
+		default:
+			return '';
+	}
+}
+
+/**
+ * formatLabel converts enum-like strings to readable labels.
+ */
+function formatLabel(value: string): string {
+	return value
+		.split('_')
+		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(' ');
+}
+
+/**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
 function errorToMessage(error: unknown): string {
@@ -311,5 +371,5 @@ function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not update pending leave request.';
+	return 'Could not update leave approval.';
 }

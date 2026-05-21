@@ -1,13 +1,36 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
+import { CheckCircle2, Clipboard, FileText, Loader2, Megaphone, Search } from 'lucide-react';
+import { toast } from 'sonner';
 
-import { useUserProfiles } from './useUserProfiles';
+import { ApiClientError, getDailyReportPreview, postDailyReportPreview } from '@/api';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
+import type {
+	DailyReportAnswerRow,
+	DailyReportPreview,
+	DailyReportSubmissionRow,
+	StandupSubmissionSortMode,
+	Workspace,
+} from '@/types/domain';
+
+import {
+	CampfireCardBody,
+	CampfireCardHeader,
+	CampfireEmpty,
+	CampfireMetric,
+	CampfirePanel,
+	CampfireStatusPill,
+} from './campfire-ui';
 import { CAMPFIRE_APPLY_REPORT_FILTER_EVENT, isReportFilterApplyEvent } from './events';
-import type { DailyReportPreview, ReportRun, StandupSubmissionSortMode, Workspace } from '../types/domain';
-import { ApiClientError, getDailyReportPreview, listDailyReportRuns, postDailyReportPreview } from '../api/client';
+import { useUserProfiles } from './useUserProfiles';
 
 /**
- * DailyReportPreviewCardProps contains workspace and refresh data.
+ * DailyReportPreviewCardProps contains workspace data for daily report previewing.
  */
 type DailyReportPreviewCardProps = {
 	readonly workspace: Workspace;
@@ -15,32 +38,36 @@ type DailyReportPreviewCardProps = {
 };
 
 /**
- * LoadState describes the daily report preview loading state.
+ * LoadState describes the daily report preview card state.
  */
-type LoadState = 'idle' | 'loading' | 'ready' | 'error';
+type LoadState = 'idle' | 'loading' | 'ready' | 'posting' | 'error';
 
 /**
- * ClipboardState describes the copy-to-clipboard interaction state.
+ * DailyReportFilter is a saved filter shape accepted by this card.
  */
-type ClipboardState = 'idle' | 'copied' | 'error';
+type DailyReportFilter = {
+	readonly occurrenceDate?: string;
+	readonly sortMode?: StandupSubmissionSortMode;
+};
+
+const sortModeOptions: readonly StandupSubmissionSortMode[] = [
+	'first_submitted',
+	'last_submitted',
+	'name',
+	'missing_first',
+];
 
 /**
- * PostState describes the post-to-channel interaction state.
- */
-type PostState = 'idle' | 'posting' | 'posted' | 'error';
-
-/**
- * DailyReportPreviewCard renders a Markdown preview of the daily report.
+ * DailyReportPreviewCard renders a generated daily report and lets authorized users post it.
  */
 export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): ReactElement {
 	const [loadState, setLoadState] = useState<LoadState>('idle');
-	const [clipboardState, setClipboardState] = useState<ClipboardState>('idle');
-	const [postState, setPostState] = useState<PostState>('idle');
 	const [occurrenceDate, setOccurrenceDate] = useState(getTodayLocalDateString());
 	const [sortMode, setSortMode] = useState<StandupSubmissionSortMode>('first_submitted');
 	const [preview, setPreview] = useState<DailyReportPreview | null>(null);
-	const [runs, setRuns] = useState<readonly ReportRun[]>([]);
 	const [message, setMessage] = useState('');
+
+	const isBusy = loadState === 'loading' || loadState === 'posting';
 
 	useEffect(() => {
 		/**
@@ -69,7 +96,7 @@ export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): Reac
 				setSortMode(filter.sortMode);
 			}
 
-			setMessage(`Applied saved filter "${event.detail.name}".`);
+			setMessage(`Applied saved filter "${event.detail.name}". Generate the preview to refresh results.`);
 		}
 
 		window.addEventListener(CAMPFIRE_APPLY_REPORT_FILTER_EVENT, handleApplyReportFilter);
@@ -79,57 +106,7 @@ export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): Reac
 		};
 	}, [props.workspace.id]);
 
-	useEffect(() => {
-		let isActive = true;
-		async function loadPreview(): Promise<void> {
-			setLoadState('loading');
-			setClipboardState('idle');
-			setPostState('idle');
-			setMessage('');
-
-			try {
-				const [previewResponse, runsResponse] = await Promise.all([
-					getDailyReportPreview(props.workspace.id, occurrenceDate, sortMode),
-					listDailyReportRuns(props.workspace.id, 20),
-				]);
-
-				if (!isActive) {
-					return;
-				}
-
-				setPreview(previewResponse.preview);
-				setRuns(runsResponse.runs);
-				setLoadState('ready');
-			} catch (error: unknown) {
-				if (!isActive) {
-					return;
-				}
-
-				setMessage(errorToMessage(error));
-				setLoadState('error');
-			}
-		}
-
-		void loadPreview();
-
-		return () => {
-			isActive = false;
-		};
-	}, [props.workspace.id, props.refreshToken, occurrenceDate, sortMode]);
-
-	const existingRunForDate = useMemo(
-		() =>
-			runs.find(
-				run =>
-					run.reportKind === 'daily' &&
-					run.periodStart === occurrenceDate &&
-					run.periodEnd === occurrenceDate &&
-					run.status === 'posted',
-			) ?? null,
-		[occurrenceDate, runs],
-	);
-
-	const userIDsForProfiles = useMemo(() => collectDailyReportUserIDs(preview, runs), [preview, runs]);
+	const userIDsForProfiles = useMemo(() => collectDailyReportUserIDs(preview), [preview]);
 	const {
 		errorMessage: profileErrorMessage,
 		labelForUserID,
@@ -137,384 +114,383 @@ export function DailyReportPreviewCard(props: DailyReportPreviewCardProps): Reac
 	} = useUserProfiles(userIDsForProfiles);
 
 	/**
-	 * Copies report Markdown to the user's clipboard.
+	 * Loads a generated daily report preview.
 	 */
-	async function handleCopy(): Promise<void> {
+	async function handleGeneratePreview(): Promise<void> {
+		if (occurrenceDate.trim() === '') {
+			setLoadState('error');
+			setMessage('Choose an occurrence date.');
+			return;
+		}
+
+		setLoadState('loading');
+		setMessage('');
+
+		try {
+			const response = await getDailyReportPreview(props.workspace.id, occurrenceDate, sortMode);
+
+			setPreview(response.preview);
+			setLoadState('ready');
+			setMessage('Daily report preview generated.');
+		} catch (error: unknown) {
+			setMessage(errorToMessage(error));
+			setLoadState('error');
+		}
+	}
+
+	/**
+	 * Copies generated Markdown to the clipboard.
+	 */
+	async function handleCopyMarkdown(): Promise<void> {
 		if (preview === null) {
+			setMessage('Generate a daily report preview first.');
 			return;
 		}
 
 		try {
 			await navigator.clipboard.writeText(preview.markdown);
-			setClipboardState('copied');
+			setMessage('Daily report Markdown copied.');
+			toast.success('Markdown copied');
 		} catch (_error: unknown) {
-			setClipboardState('error');
+			setMessage('Could not copy Markdown.');
+			toast.error('Could not copy Markdown');
 		}
 	}
 
 	/**
-	 * Posts the current report preview to the Mattermost channel.
+	 * Posts the generated daily report preview to the workspace channel.
 	 */
-	async function handlePostToChannel(): Promise<void> {
-		if (preview === null || existingRunForDate !== null) {
+	async function handlePostPreview(): Promise<void> {
+		if (preview === null) {
+			setMessage('Generate a daily report preview first.');
 			return;
 		}
 
-		setPostState('posting');
+		setLoadState('posting');
 		setMessage('');
 
 		try {
-			const response = await postDailyReportPreview(props.workspace.id, {
-				occurrenceDate,
+			await postDailyReportPreview(props.workspace.id, {
+				occurrenceDate: preview.occurrenceDate,
 				sortMode,
 			});
 
-			setPreview(response.preview);
-			setRuns(current => [response.run, ...current.filter(run => run.id !== response.run.id)]);
-			setPostState('posted');
+			setLoadState('ready');
+			setMessage('Daily report posted to the channel.');
+			toast.success('Daily report posted');
 		} catch (error: unknown) {
-			setPostState('error');
 			setMessage(errorToMessage(error));
+			setLoadState('error');
+			toast.error(errorToMessage(error));
 		}
 	}
 
-	const isPostDisabled = preview === null || postState === 'posting' || existingRunForDate !== null;
-
 	return (
-		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-fuchsia-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-			<div className="cf:grid cf:gap-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
-				<div>
-					<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-fuchsia-200">
-						Reports
-					</p>
-					<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-						Daily report preview
-					</h2>
-					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						Generate a Markdown preview, post it once, and keep a history of posted daily reports.
-					</p>
+		<CampfirePanel className="cf:overflow-hidden">
+			<CampfireCardHeader
+				eyebrow="Daily report"
+				title="Daily Markdown preview"
+				description="Generate the channel-ready daily standup report, copy Markdown, or post it to the workspace channel."
+				icon={FileText}
+				action={
+					<CampfireStatusPill tone={preview === null ? 'slate' : 'green'}>
+						{preview === null ? 'No preview' : 'Preview ready'}
+					</CampfireStatusPill>
+				}
+			/>
+
+			<CampfireCardBody className="cf:grid cf:gap-5">
+				<div className="cf:grid cf:gap-3 cf:md:grid-cols-4">
+					<CampfireMetric label="Submitted" value={String(preview?.submittedUserIds.length ?? 0)} />
+					<CampfireMetric label="Missing" value={String(preview?.missingUserIds.length ?? 0)} />
+					<CampfireMetric label="On leave" value={String(preview?.onLeaveUserIds.length ?? 0)} />
+					<CampfireMetric label="Rows" value={String(preview?.rows.length ?? 0)} />
 				</div>
 
-				<div className={existingRunForDate === null ? previewBadgeClassName : postedBadgeClassName}>
-					{existingRunForDate === null ? 'Preview' : 'Already posted'}
-				</div>
-			</div>
+				<div className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4 cf:lg:grid-cols-[1fr_1fr_auto] cf:lg:items-end">
+					<FormField label="Occurrence date" htmlFor="campfire-daily-report-date">
+						<Input
+							id="campfire-daily-report-date"
+							type="date"
+							disabled={isBusy}
+							value={occurrenceDate}
+							onChange={event => setOccurrenceDate(event.currentTarget.value)}
+						/>
+					</FormField>
 
-			<div className="cf:mt-5 cf:grid cf:gap-4 cf:lg:grid-cols-[1fr_1fr_auto_auto] cf:lg:items-end">
-				<Field label="Date">
-					<input
-						className={inputClassName}
-						type="date"
-						value={occurrenceDate}
-						onChange={event => setOccurrenceDate(event.currentTarget.value)}
+					<FormField label="Sort mode" htmlFor="campfire-daily-report-sort">
+						<select
+							id="campfire-daily-report-sort"
+							className={selectClassName()}
+							disabled={isBusy}
+							value={sortMode}
+							onChange={event => setSortMode(toSortMode(event.currentTarget.value))}
+						>
+							{sortModeOptions.map(option => (
+								<option key={option} value={option}>
+									{formatLabel(option)}
+								</option>
+							))}
+						</select>
+					</FormField>
+
+					<Button type="button" disabled={isBusy} onClick={() => void handleGeneratePreview()}>
+						{loadState === 'loading' ? (
+							<Loader2 className="cf:size-4 cf:animate-spin" />
+						) : (
+							<Search className="cf:size-4" />
+						)}
+						Generate
+					</Button>
+				</div>
+
+				{message !== '' && <MessageRow state={loadState} message={message} />}
+				{profileErrorMessage !== '' && <MessageRow state="error" message={profileErrorMessage} />}
+				{profilesLoading && <LoadingRow label="Resolving user names…" />}
+
+				{preview === null && loadState !== 'loading' && (
+					<CampfireEmpty
+						icon={FileText}
+						title="No daily preview yet"
+						description="Choose a date and generate a report preview."
 					/>
-				</Field>
-
-				<Field label="Sort">
-					<select
-						className={inputClassName}
-						value={sortMode}
-						onChange={event => setSortMode(toSortMode(event.currentTarget.value))}
-					>
-						<option value="first_submitted">First submitted</option>
-						<option value="last_submitted">Last updated</option>
-						<option value="name">Name / user ID</option>
-						<option value="missing_first">Missing first</option>
-					</select>
-				</Field>
-
-				<button
-					className="cf:w-fit cf:rounded-2xl cf:border cf:border-fuchsia-300/25 cf:bg-fuchsia-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-fuchsia-50 cf:transition cf:hover:bg-fuchsia-400/30"
-					type="button"
-					onClick={() => setOccurrenceDate(getTodayLocalDateString())}
-				>
-					Today
-				</button>
-
-				<button
-					className="cf:w-fit cf:rounded-2xl cf:border cf:border-emerald-300/25 cf:bg-emerald-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-emerald-50 cf:transition cf:hover:bg-emerald-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-					type="button"
-					disabled={preview === null}
-					onClick={() => void handleCopy()}
-				>
-					Copy Markdown
-				</button>
-			</div>
-
-			<div className="cf:mt-4 cf:flex cf:flex-col cf:gap-3 cf:sm:flex-row cf:sm:items-center">
-				<button
-					className="cf:w-fit cf:rounded-2xl cf:border cf:border-orange-300/25 cf:bg-orange-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-orange-50 cf:transition cf:hover:bg-orange-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-					type="button"
-					disabled={isPostDisabled}
-					onClick={() => void handlePostToChannel()}
-				>
-					{postState === 'posting' ? 'Posting…' : 'Post to channel'}
-				</button>
-
-				{existingRunForDate !== null && (
-					<p className="cf:m-0 cf:text-sm cf:font-bold cf:text-amber-200">
-						Posted by{' '}
-						<span title={existingRunForDate.postedBy}>
-							{existingRunForDate.postedBy === ''
-								? 'unknown'
-								: labelForUserID(existingRunForDate.postedBy)}
-						</span>{' '}
-						at {formatDateTime(existingRunForDate.postedAt)}.
-					</p>
 				)}
+
+				{preview !== null && (
+					<>
+						<div className="cf:flex cf:flex-wrap cf:gap-2">
+							<Button
+								type="button"
+								variant="secondary"
+								disabled={isBusy}
+								onClick={() => void handleCopyMarkdown()}
+							>
+								<Clipboard className="cf:size-4" />
+								Copy Markdown
+							</Button>
+
+							<Button type="button" disabled={isBusy} onClick={() => void handlePostPreview()}>
+								{loadState === 'posting' ? (
+									<Loader2 className="cf:size-4 cf:animate-spin" />
+								) : (
+									<Megaphone className="cf:size-4" />
+								)}
+								Post to channel
+							</Button>
+						</div>
+
+						<Separator className="cf:bg-white/10" />
+
+						<div className="cf:grid cf:gap-5 cf:xl:grid-cols-[1fr_1fr]">
+							<ReportRows rows={preview.rows} labelForUserID={labelForUserID} />
+
+							<MarkdownPreview markdown={preview.markdown} />
+						</div>
+					</>
+				)}
+			</CampfireCardBody>
+		</CampfirePanel>
+	);
+}
+
+/**
+ * ReportRows renders structured daily-report rows.
+ */
+function ReportRows(props: {
+	readonly rows: readonly DailyReportSubmissionRow[];
+	readonly labelForUserID: (userID: string) => string;
+}): ReactElement {
+	return (
+		<section className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
+			<div className="cf:flex cf:items-center cf:justify-between cf:gap-3">
+				<h3 className="cf:text-lg cf:font-black cf:text-white">Structured preview</h3>
+				<CampfireStatusPill tone="green">{props.rows.length} rows</CampfireStatusPill>
 			</div>
 
-			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
+			<div className="cf:mt-4 cf:grid cf:gap-3">
+				{props.rows.length === 0 && (
+					<CampfireEmpty
+						icon={FileText}
+						title="No submitted rows"
+						description="There are no submitted standups for this preview."
+					/>
+				)}
 
-			{profileErrorMessage !== '' && (
-				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{profileErrorMessage}</p>
-			)}
-
-			{profilesLoading && (
-				<p className="cf:m-0 cf:mt-4 cf:text-xs cf:font-bold cf:text-slate-400">Resolving user names…</p>
-			)}
-
-			{clipboardState === 'copied' && (
-				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-emerald-200">Copied Markdown.</p>
-			)}
-
-			{clipboardState === 'error' && (
-				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-red-200">
-					Could not copy automatically. Select the preview text manually.
-				</p>
-			)}
-
-			{postState === 'posted' && (
-				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-emerald-200">
-					Posted daily report to the channel.
-				</p>
-			)}
-
-			{postState === 'error' && message === '' && (
-				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-red-200">
-					Could not post the daily report to the channel.
-				</p>
-			)}
-
-			{loadState === 'loading' && <p className="cf:m-0 cf:mt-5 cf:text-slate-300">Building report preview…</p>}
-
-			{preview !== null && (
-				<div className="cf:mt-5 cf:grid cf:gap-4">
-					<div className="cf:grid cf:gap-3 cf:md:grid-cols-4">
-						<Metric label="Submitted" value={String(preview.submittedUserIds.length)} />
-						<Metric label="Missing" value={String(preview.missingUserIds.length)} />
-						<Metric label="On leave" value={String(preview.onLeaveUserIds.length)} />
-						<Metric label="Rows" value={String(preview.rows.length)} />
-					</div>
-					<div className="cf:grid cf:gap-3 cf:lg:grid-cols-3">
-						<UserChipList
-							title="Submitted"
-							userIds={preview.submittedUserIds}
-							tone="emerald"
-							labelForUserID={labelForUserID}
-						/>
-						<UserChipList
-							title="Missing"
-							userIds={preview.missingUserIds}
-							tone="amber"
-							labelForUserID={labelForUserID}
-						/>
-						<UserChipList
-							title="On approved leave"
-							userIds={preview.onLeaveUserIds}
-							tone="sky"
-							labelForUserID={labelForUserID}
-						/>
-					</div>
-					<pre className="cf:max-h-[34rem] cf:overflow-auto cf:whitespace-pre-wrap cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/55 cf:p-5 cf:text-sm cf:leading-6 cf:text-slate-100">
-						{' '}
-						{preview.markdown}
-					</pre>
-					<ReportHistory runs={runs} labelForUserID={labelForUserID} />{' '}
-				</div>
-			)}
+				{props.rows.map(row => (
+					<SubmissionReportRow row={row} labelForUserID={props.labelForUserID} key={row.userId} />
+				))}
+			</div>
 		</section>
 	);
 }
 
-const inputClassName =
-	'cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/55 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:transition cf:[color-scheme:dark] cf:placeholder:text-slate-500 cf:focus:border-fuchsia-300/60 cf:focus:ring-4 cf:focus:ring-fuchsia-300/15';
-
-const previewBadgeClassName =
-	'cf:w-fit cf:rounded-full cf:border cf:border-fuchsia-300/25 cf:bg-fuchsia-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-fuchsia-200';
-
-const postedBadgeClassName =
-	'cf:w-fit cf:rounded-full cf:border cf:border-emerald-300/25 cf:bg-emerald-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-emerald-200';
-
 /**
- * Field renders a labeled control shell.
+ * SubmissionReportRow renders one report submission.
  */
-function Field(props: { readonly label: string; readonly children: ReactElement }): ReactElement {
+function SubmissionReportRow(props: {
+	readonly row: DailyReportSubmissionRow;
+	readonly labelForUserID: (userID: string) => string;
+}): ReactElement {
+	const visibleAnswers = props.row.answers
+		.filter(answer => answer.showInReport)
+		.sort((first, second) => first.position - second.position);
+
 	return (
-		<label className="cf:grid cf:gap-2">
-			<span className="cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.14em] cf:text-fuchsia-200">
-				{props.label}
-			</span>
-			{props.children}
-		</label>
+		<article className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4">
+			<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
+				<strong className="cf:text-base cf:font-black cf:text-white" title={props.row.userId}>
+					{props.labelForUserID(props.row.userId)}
+				</strong>
+				<CampfireStatusPill tone="green">Submitted</CampfireStatusPill>
+			</div>
+
+			<p className="cf:mt-2 cf:text-xs cf:font-bold cf:text-slate-500">
+				First: {formatDateTime(props.row.firstSubmittedAt)} · Last: {formatDateTime(props.row.lastUpdatedAt)}
+			</p>
+
+			<div className="cf:mt-4 cf:grid cf:gap-2">
+				{visibleAnswers.length === 0 && (
+					<p className="cf:text-sm cf:font-medium cf:text-slate-400">No report-visible answers.</p>
+				)}
+
+				{visibleAnswers.map(answer => (
+					<AnswerPreview answer={answer} key={answer.questionId} />
+				))}
+			</div>
+		</article>
 	);
 }
 
 /**
- * Metric renders a compact count card.
+ * AnswerPreview renders one report-visible answer.
  */
-function Metric(props: { readonly label: string; readonly value: string }): ReactElement {
+function AnswerPreview(props: { readonly answer: DailyReportAnswerRow }): ReactElement {
 	return (
-		<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/35 cf:p-4">
-			<span className="cf:block cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.14em] cf:text-fuchsia-200">
-				{props.label}
-			</span>
-			<strong className="cf:mt-1 cf:block cf:text-lg cf:font-black cf:text-white">{props.value}</strong>
+		<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/45 cf:p-3">
+			<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
+				<strong className="cf:text-sm cf:font-black cf:text-white">{props.answer.questionLabel}</strong>
+				{props.answer.isPrivate && <CampfireStatusPill tone="slate">Private</CampfireStatusPill>}
+			</div>
+			<p className="cf:mt-2 cf:whitespace-pre-wrap cf:text-sm cf:font-medium cf:leading-6 cf:text-slate-300">
+				{props.answer.valueText}
+			</p>
 		</div>
 	);
 }
 
 /**
- * UserChipList renders resolved users as compact chips.
+ * MarkdownPreview renders generated report Markdown.
  */
-function UserChipList(props: {
-	readonly title: string;
-	readonly userIds: readonly string[];
-	readonly tone: 'amber' | 'emerald' | 'sky';
-	readonly labelForUserID: (userID: string) => string;
-}): ReactElement {
-	const toneClassName = userChipToneClassName(props.tone);
-
+function MarkdownPreview(props: { readonly markdown: string }): ReactElement {
 	return (
-		<article className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/35 cf:p-4">
-			<strong className="cf:block cf:text-base cf:font-black cf:text-white">{props.title}</strong>
+		<section className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
+			<div className="cf:flex cf:items-center cf:justify-between cf:gap-3">
+				<h3 className="cf:text-lg cf:font-black cf:text-white">Markdown</h3>
+				<CampfireStatusPill tone="ember">Preview</CampfireStatusPill>
+			</div>
 
-			{props.userIds.length === 0 && <p className="cf:m-0 cf:mt-2 cf:text-sm cf:text-slate-300">Nobody here.</p>}
-
-			{props.userIds.length > 0 && (
-				<div className="cf:mt-3 cf:flex cf:flex-wrap cf:gap-2">
-					{props.userIds.map(userID => (
-						<span
-							className={`cf:rounded-full cf:border cf:px-3 cf:py-1 cf:text-xs cf:font-extrabold ${toneClassName}`}
-							key={userID}
-							title={userID}
-						>
-							{props.labelForUserID(userID)}
-						</span>
-					))}
-				</div>
-			)}
-		</article>
+			<Textarea className="cf:mt-4 cf:min-h-136 cf:font-mono cf:text-xs" readOnly value={props.markdown} />
+		</section>
 	);
 }
 
 /**
- * userChipToneClassName returns tone-specific chip styles.
+ * FormField renders a labeled field.
  */
-function userChipToneClassName(tone: 'amber' | 'emerald' | 'sky'): string {
-	switch (tone) {
-		case 'amber':
-			return 'cf:border-amber-300/20 cf:bg-amber-300/10 cf:text-amber-100';
+function FormField(props: {
+	readonly label: string;
+	readonly htmlFor: string;
+	readonly children: ReactElement;
+}): ReactElement {
+	return (
+		<div className="cf:grid cf:gap-2">
+			<Label
+				htmlFor={props.htmlFor}
+				className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200"
+			>
+				{props.label}
+			</Label>
+			{props.children}
+		</div>
+	);
+}
 
-		case 'emerald':
-			return 'cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:text-emerald-100';
+/**
+ * MessageRow renders load/post feedback.
+ */
+function MessageRow(props: { readonly state: LoadState; readonly message: string }): ReactElement {
+	const isError = props.state === 'error';
 
-		case 'sky':
-			return 'cf:border-sky-300/20 cf:bg-sky-300/10 cf:text-sky-100';
+	return (
+		<div
+			className={cn(
+				'cf:flex cf:items-center cf:gap-2 cf:rounded-2xl cf:border cf:px-4 cf:py-3 cf:text-sm cf:font-black',
+				isError
+					? 'cf:border-red-300/25 cf:bg-red-950/30 cf:text-red-100'
+					: 'cf:border-amber-300/25 cf:bg-amber-950/30 cf:text-amber-100',
+			)}
+		>
+			{isError ? null : <CheckCircle2 className="cf:size-4" />}
+			{props.message}
+		</div>
+	);
+}
 
-		default:
-			return 'cf:border-white/10 cf:bg-white/[0.06] cf:text-white';
+/**
+ * LoadingRow renders a loading message.
+ */
+function LoadingRow(props: { readonly label: string }): ReactElement {
+	return (
+		<div className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4 cf:text-sm cf:font-bold cf:text-slate-300">
+			<Loader2 className="cf:size-4 cf:animate-spin cf:text-amber-200" />
+			{props.label}
+		</div>
+	);
+}
+
+/**
+ * collectDailyReportUserIDs returns all user IDs referenced by a daily report preview.
+ */
+function collectDailyReportUserIDs(preview: DailyReportPreview | null): readonly string[] {
+	if (preview === null) {
+		return [];
 	}
+
+	const userIDs = new Set<string>();
+
+	for (const userID of preview.submittedUserIds) {
+		userIDs.add(userID);
+	}
+
+	for (const userID of preview.missingUserIds) {
+		userIDs.add(userID);
+	}
+
+	for (const userID of preview.onLeaveUserIds) {
+		userIDs.add(userID);
+	}
+
+	for (const row of preview.rows) {
+		userIDs.add(row.userId);
+	}
+
+	return [...userIDs];
 }
 
 /**
- * ReportHistory renders recent daily report posting history.
- */
-function ReportHistory(props: {
-	readonly runs: readonly ReportRun[];
-	readonly labelForUserID: (userID: string) => string;
-}): ReactElement {
-	return (
-		<article className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/35 cf:p-4">
-			<strong className="cf:block cf:text-base cf:font-black cf:text-white">Posting history</strong>
-
-			{props.runs.length === 0 && (
-				<p className="cf:m-0 cf:mt-2 cf:text-sm cf:text-slate-300">No daily reports have been posted yet.</p>
-			)}
-
-			{props.runs.length > 0 && (
-				<div className="cf:mt-3 cf:grid cf:gap-3">
-					{props.runs.map(run => (
-						<div
-							className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-3"
-							key={run.id}
-						>
-							<div className="cf:flex cf:flex-col cf:gap-2 cf:sm:flex-row cf:sm:items-start cf:sm:justify-between">
-								<div>
-									<p className="cf:m-0 cf:text-sm cf:font-black cf:text-white">
-										{run.periodStart} · {run.reportKind}
-									</p>
-									<p className="cf:m-0 cf:mt-1 cf:text-xs cf:text-slate-400">
-										Posted by{' '}
-										<span title={run.postedBy}>
-											{run.postedBy === '' ? 'unknown' : props.labelForUserID(run.postedBy)}
-										</span>{' '}
-										· {formatDateTime(run.postedAt || run.generatedAt)}
-									</p>{' '}
-								</div>
-
-								<span
-									className={
-										run.status === 'posted' ? historyPostedClassName : historyFailedClassName
-									}
-								>
-									{run.status}
-								</span>
-							</div>
-
-							{run.mattermostPostId !== '' && (
-								<p className="cf:m-0 cf:mt-2 cf:text-xs cf:text-slate-500">
-									Mattermost post: {run.mattermostPostId}
-								</p>
-							)}
-						</div>
-					))}
-				</div>
-			)}
-		</article>
-	);
-}
-
-const historyPostedClassName =
-	'cf:w-fit cf:rounded-full cf:border cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:px-2.5 cf:py-1 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.1em] cf:text-emerald-200';
-
-const historyFailedClassName =
-	'cf:w-fit cf:rounded-full cf:border cf:border-red-300/20 cf:bg-red-300/10 cf:px-2.5 cf:py-1 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.1em] cf:text-red-200';
-
-/**
- * DailyReportFilter contains saved daily report controls this card can apply.
- */
-type DailyReportFilter = {
-	readonly occurrenceDate?: string;
-	readonly sortMode?: StandupSubmissionSortMode;
-};
-
-/**
- * parseDailyReportFilter validates saved JSON for daily report controls.
+ * parseDailyReportFilter parses saved filter JSON safely.
  */
 function parseDailyReportFilter(filterJson: string): DailyReportFilter | null {
 	try {
 		const parsed: unknown = JSON.parse(filterJson);
+
 		if (!isRecord(parsed)) {
 			return null;
 		}
 
-		const occurrenceDate = stringField(parsed, 'occurrenceDate') ?? stringField(parsed, 'date');
-		const sortMode = stringField(parsed, 'sortMode');
-
 		return {
-			...(occurrenceDate === undefined ? {} : { occurrenceDate }),
-			...(sortMode === undefined ? {} : { sortMode: toSortMode(sortMode) }),
+			occurrenceDate: typeof parsed.occurrenceDate === 'string' ? parsed.occurrenceDate : undefined,
+			sortMode: isSortMode(parsed.sortMode) ? parsed.sortMode : undefined,
 		};
 	} catch (_error: unknown) {
 		return null;
@@ -522,75 +498,40 @@ function parseDailyReportFilter(filterJson: string): DailyReportFilter | null {
 }
 
 /**
- * stringField reads one optional string field from a parsed JSON object.
+ * isSortMode narrows unknown values to standup submission sort modes.
  */
-function stringField(record: Record<string, unknown>, key: string): string | undefined {
-	const value = record[key];
-
-	if (typeof value !== 'string' || value.trim() === '') {
-		return undefined;
-	}
-
-	return value.trim();
+function isSortMode(value: unknown): value is StandupSubmissionSortMode {
+	return value === 'first_submitted' || value === 'last_submitted' || value === 'name' || value === 'missing_first';
 }
 
 /**
- * isRecord narrows JSON values to indexable plain objects.
- */
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-/**
- * collectDailyReportUserIDs returns all Mattermost user IDs displayed by this card.
- */
-function collectDailyReportUserIDs(preview: DailyReportPreview | null, runs: readonly ReportRun[]): readonly string[] {
-	const userIDs = [
-		...runs.map(run => run.postedBy),
-		...(preview?.submittedUserIds ?? []),
-		...(preview?.missingUserIds ?? []),
-		...(preview?.onLeaveUserIds ?? []),
-		...(preview?.rows.map(row => row.userId) ?? []),
-	];
-
-	return uniqueNonEmptyUserIDs(userIDs);
-}
-
-/**
- * uniqueNonEmptyUserIDs trims, de-duplicates, and preserves user ID order.
- */
-function uniqueNonEmptyUserIDs(userIDs: readonly string[]): readonly string[] {
-	const seen = new Set<string>();
-	const result: string[] = [];
-
-	for (const userID of userIDs) {
-		const cleanUserID = userID.trim();
-
-		if (cleanUserID === '' || seen.has(cleanUserID)) {
-			continue;
-		}
-
-		seen.add(cleanUserID);
-		result.push(cleanUserID);
-	}
-
-	return result;
-}
-
-/**
- * toSortMode narrows strings to supported sort modes.
+ * toSortMode normalizes select values.
  */
 function toSortMode(value: string): StandupSubmissionSortMode {
-	switch (value) {
-		case 'name':
-		case 'first_submitted':
-		case 'last_submitted':
-		case 'missing_first':
-			return value;
+	return isSortMode(value) ? value : 'first_submitted';
+}
 
-		default:
-			return 'first_submitted';
-	}
+/**
+ * selectClassName returns the shared native select style.
+ */
+function selectClassName(): string {
+	return cn(
+		'cf:h-10 cf:w-full cf:rounded-md cf:border cf:border-input cf:bg-background cf:px-3 cf:py-2 cf:text-sm cf:text-foreground cf:outline-none',
+		'cf:focus-visible:border-ring cf:focus-visible:ring-ring/50 cf:focus-visible:ring-3',
+		'cf:disabled:cursor-not-allowed cf:disabled:opacity-50',
+	);
+}
+
+/**
+ * getTodayLocalDateString returns today's local YYYY-MM-DD date.
+ */
+function getTodayLocalDateString(): string {
+	const today = new Date();
+	const year = String(today.getFullYear());
+	const month = String(today.getMonth() + 1).padStart(2, '0');
+	const day = String(today.getDate()).padStart(2, '0');
+
+	return `${year}-${month}-${day}`;
 }
 
 /**
@@ -607,15 +548,20 @@ function formatDateTime(value: string): string {
 }
 
 /**
- * getTodayLocalDateString returns today's local YYYY-MM-DD date.
+ * formatLabel converts enum-like values to readable labels.
  */
-function getTodayLocalDateString(): string {
-	const date = new Date();
-	const year = String(date.getFullYear());
-	const month = String(date.getMonth() + 1).padStart(2, '0');
-	const day = String(date.getDate()).padStart(2, '0');
+function formatLabel(value: string): string {
+	return value
+		.split('_')
+		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(' ');
+}
 
-	return `${year}-${month}-${day}`;
+/**
+ * isRecord narrows unknown values to indexable records.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /**
@@ -630,5 +576,5 @@ function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not build daily report preview.';
+	return 'Could not generate daily report preview.';
 }

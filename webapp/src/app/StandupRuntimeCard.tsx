@@ -1,9 +1,22 @@
 import type { ReactElement } from 'react';
 import { useEffect, useMemo, useState } from 'react';
+import { CalendarCheck2, CalendarX2, Loader2, Search, Umbrella } from 'lucide-react';
 
+import { ApiClientError, evaluateStandupDay } from '@/api';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import type { ApprovedLeaveRequest, StandupRunDecision, Workspace } from '@/types/domain';
+
+import {
+	CampfireCardBody,
+	CampfireCardHeader,
+	CampfireEmpty,
+	CampfireMetric,
+	CampfirePanel,
+	CampfireStatusPill,
+} from './campfire-ui';
 import { useUserProfiles } from './useUserProfiles';
-import { ApiClientError, evaluateStandupDay } from '../api/client';
-import type { ApprovedLeaveRequest, StandupRunDecision, Workspace } from '../types/domain';
 
 /**
  * StandupRuntimeCardProps contains workspace and refresh data.
@@ -19,11 +32,6 @@ type StandupRuntimeCardProps = {
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
 /**
- * UserLabelResolver returns a display label for one Mattermost user ID.
- */
-type UserLabelResolver = (userID: string) => string;
-
-/**
  * StandupRuntimeCard shows whether Campfire should run standup for a selected date.
  */
 export function StandupRuntimeCard(props: StandupRuntimeCardProps): ReactElement {
@@ -35,6 +43,9 @@ export function StandupRuntimeCard(props: StandupRuntimeCardProps): ReactElement
 	useEffect(() => {
 		let isActive = true;
 
+		/**
+		 * Loads the backend runtime decision for one date.
+		 */
 		async function loadDecision(): Promise<void> {
 			if (date.trim() === '') {
 				setMessage('Choose a date.');
@@ -78,285 +89,287 @@ export function StandupRuntimeCard(props: StandupRuntimeCardProps): ReactElement
 	} = useUserProfiles(userIDsForProfiles);
 
 	return (
-		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-orange-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-			<div className="cf:grid cf:gap-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
-				<div>
-					<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-orange-200">
-						Runtime
-					</p>
-					<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-						Standup run decision
-					</h2>
-					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						Campfire checks working days, global off-days, workspace off-days, approved leave, and whether
-						everyone in the channel is away.
-					</p>
+		<CampfirePanel className="cf:overflow-hidden">
+			<CampfireCardHeader
+				eyebrow="Runtime"
+				title="Standup run decision"
+				description="Campfire checks working days, global off-days, workspace off-days, approved leave, and whether everyone is away."
+				icon={decision?.shouldRun === false ? CalendarX2 : CalendarCheck2}
+				action={
+					decision !== null && (
+						<CampfireStatusPill tone={decision.shouldRun ? 'green' : 'red'}>
+							{decision.shouldRun ? 'Will run' : 'Will skip'}
+						</CampfireStatusPill>
+					)
+				}
+			/>
+
+			<CampfireCardBody className="cf:grid cf:gap-5">
+				<div className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4 cf:lg:grid-cols-[1fr_auto] cf:lg:items-end">
+					<FormField label="Date" htmlFor="campfire-runtime-date">
+						<Input
+							id="campfire-runtime-date"
+							type="date"
+							value={date}
+							onChange={event => setDate(event.currentTarget.value)}
+						/>
+					</FormField>
+
+					<Button type="button" variant="secondary" onClick={() => setDate(getTodayLocalDateString())}>
+						<Search className="cf:size-4" />
+						Today
+					</Button>
 				</div>
+
+				{message !== '' && <MessageRow state={loadState} message={message} />}
+				{profileErrorMessage !== '' && <MessageRow state="error" message={profileErrorMessage} />}
+				{profilesLoading && <LoadingRow label="Resolving leave users…" />}
+				{loadState === 'loading' && <LoadingRow label="Evaluating standup runtime…" />}
 
 				{decision !== null && (
-					<div className={decisionBadgeClassName(decision.shouldRun)}>
-						{decision.shouldRun ? 'Will run' : 'Will skip'}
-					</div>
-				)}
-			</div>
+					<>
+						<div className="cf:grid cf:gap-3 cf:md:grid-cols-4">
+							<CampfireMetric
+								label="Decision"
+								value={decision.shouldRun ? 'Run' : 'Skip'}
+								helper={formatReason(decision.reason)}
+							/>
+							<CampfireMetric label="Working day" value={decision.isWorkingDay ? 'Yes' : 'No'} />
+							<CampfireMetric label="Members" value={String(decision.memberCount)} />
+							<CampfireMetric label="On leave" value={String(decision.onLeaveMemberCount)} />
+						</div>
 
-			<div className="cf:mt-5 cf:grid cf:gap-4 cf:md:grid-cols-[1fr_auto] cf:md:items-end">
-				<label className="cf:grid cf:gap-2">
-					<span className="cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.14em] cf:text-orange-200">
-						Date
-					</span>
-					<input
-						className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/55 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:transition cf:[color-scheme:dark] cf:focus:border-orange-300/60 cf:focus:ring-4 cf:focus:ring-orange-300/15"
-						type="date"
-						value={date}
-						onChange={event => setDate(event.currentTarget.value)}
-					/>
-				</label>
-
-				<button
-					className="cf:w-fit cf:rounded-2xl cf:border cf:border-orange-300/25 cf:bg-orange-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-orange-50 cf:transition cf:hover:bg-orange-400/30"
-					type="button"
-					onClick={() => setDate(getTodayLocalDateString())}
-				>
-					Today
-				</button>
-			</div>
-
-			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
-
-			{profileErrorMessage !== '' && (
-				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{profileErrorMessage}</p>
-			)}
-
-			{profilesLoading && (
-				<p className="cf:m-0 cf:mt-4 cf:text-xs cf:font-bold cf:text-slate-400">Resolving user names…</p>
-			)}
-
-			{loadState === 'loading' && <p className="cf:m-0 cf:mt-5 cf:text-slate-300">Evaluating standup runtime…</p>}
-
-			{decision !== null && (
-				<div className="cf:mt-5 cf:grid cf:gap-4">
-					<article className={decisionPanelClassName(decision.shouldRun)}>
-						<strong className="cf:block cf:text-lg cf:font-black cf:text-white">
-							{decision.shouldRun ? 'Standup should run' : 'Standup should be skipped'}
-						</strong>
-						<p className="cf:m-0 cf:mt-2 cf:leading-7 cf:text-slate-200">{decision.message}</p>
-						{decision.reason !== '' && (
-							<p className="cf:m-0 cf:mt-2 cf:text-sm cf:font-bold cf:text-slate-300">
-								Reason: {decision.reason}
+						<div className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4">
+							<p className="cf:text-sm cf:font-black cf:text-white">Runtime message</p>
+							<p className="cf:mt-2 cf:text-sm cf:font-medium cf:leading-7 cf:text-slate-300">
+								{decision.message ||
+									(decision.shouldRun ? 'Standup should run.' : 'Standup should be skipped.')}
 							</p>
-						)}
-					</article>
-					<div className="cf:grid cf:gap-3 cf:md:grid-cols-4">
-						<RuntimeMetric label="Working day" value={decision.isWorkingDay ? 'Yes' : 'No'} />
-						<RuntimeMetric label="Members" value={String(decision.memberCount)} />
-						<RuntimeMetric label="On leave" value={String(decision.onLeaveMemberCount)} />
-						<RuntimeMetric label="Approved leaves" value={String(decision.approvedLeaves.length)} />
-					</div>
-					<RuntimeList
-						title="Global off-days"
-						emptyText="No global off-day on this date."
-						items={decision.globalOffDays.map(offDay => `${offDay.date} · ${offDay.label}`)}
+						</div>
+
+						<div className="cf:grid cf:gap-5 cf:xl:grid-cols-3">
+							<RuntimeList
+								title="Global off-days"
+								emptyTitle="No global off-day"
+								rows={decision.globalOffDays.map(row => ({
+									id: row.id,
+									title: row.label,
+									description: row.date,
+								}))}
+							/>
+
+							<RuntimeList
+								title="Workspace off-days"
+								emptyTitle="No workspace off-day"
+								rows={decision.workspaceOffDays.map(row => ({
+									id: row.id,
+									title: row.label,
+									description: row.date,
+								}))}
+							/>
+
+							<ApprovedLeaveList rows={decision.approvedLeaves} labelForUserID={labelForUserID} />
+						</div>
+					</>
+				)}
+
+				{decision === null && loadState !== 'loading' && (
+					<CampfireEmpty
+						icon={CalendarCheck2}
+						title="No runtime decision loaded"
+						description="Choose a date to see whether Campfire should run standups."
 					/>
-					<RuntimeList
-						title="Workspace off-days"
-						emptyText="No workspace off-day on this date."
-						items={decision.workspaceOffDays.map(offDay => `${offDay.date} · ${offDay.label}`)}
-					/>
-					<ApprovedLeaveList leaves={decision.approvedLeaves} labelForUserID={labelForUserID} />{' '}
-				</div>
-			)}
-		</section>
+				)}
+			</CampfireCardBody>
+		</CampfirePanel>
 	);
 }
 
 /**
- * collectRuntimeUserIDs returns all user IDs displayed by runtime leave rows.
+ * RuntimeListRow describes a generic runtime row.
+ */
+type RuntimeListRow = {
+	readonly id: string;
+	readonly title: string;
+	readonly description: string;
+};
+
+/**
+ * RuntimeList renders a generic runtime evidence list.
+ */
+function RuntimeList(props: {
+	readonly title: string;
+	readonly emptyTitle: string;
+	readonly rows: readonly RuntimeListRow[];
+}): ReactElement {
+	return (
+		<div className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
+			<div className="cf:flex cf:items-center cf:justify-between cf:gap-3">
+				<h3 className="cf:text-lg cf:font-black cf:text-white">{props.title}</h3>
+				<CampfireStatusPill tone="slate">{props.rows.length}</CampfireStatusPill>
+			</div>
+
+			<div className="cf:mt-4 cf:grid cf:gap-3">
+				{props.rows.length === 0 && (
+					<CampfireEmpty
+						icon={CalendarCheck2}
+						title={props.emptyTitle}
+						description="No matching rows for this date."
+					/>
+				)}
+
+				{props.rows.map(row => (
+					<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-3" key={row.id}>
+						<strong className="cf:block cf:text-sm cf:font-black cf:text-white">{row.title}</strong>
+						<span className="cf:mt-1 cf:block cf:text-sm cf:font-medium cf:text-slate-400">
+							{row.description}
+						</span>
+					</div>
+				))}
+			</div>
+		</div>
+	);
+}
+
+/**
+ * ApprovedLeaveList renders runtime approved leave evidence.
+ */
+function ApprovedLeaveList(props: {
+	readonly rows: readonly ApprovedLeaveRequest[];
+	readonly labelForUserID: (userID: string) => string;
+}): ReactElement {
+	return (
+		<div className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
+			<div className="cf:flex cf:items-center cf:justify-between cf:gap-3">
+				<h3 className="cf:text-lg cf:font-black cf:text-white">Approved leave</h3>
+				<CampfireStatusPill tone="green">{props.rows.length}</CampfireStatusPill>
+			</div>
+
+			<div className="cf:mt-4 cf:grid cf:gap-3">
+				{props.rows.length === 0 && (
+					<CampfireEmpty
+						icon={Umbrella}
+						title="No approved leave"
+						description="No approved leave rows affect this date."
+					/>
+				)}
+
+				{props.rows.map(row => (
+					<div
+						className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-3"
+						key={row.leaveRequest.id}
+					>
+						<strong
+							className="cf:block cf:text-sm cf:font-black cf:text-white"
+							title={row.leaveRequest.userId}
+						>
+							{props.labelForUserID(row.leaveRequest.userId)}
+						</strong>
+						<span className="cf:mt-1 cf:block cf:text-sm cf:font-medium cf:text-slate-400">
+							{row.leaveTypeName} · {row.leaveRequest.startDate} → {row.leaveRequest.endDate}
+						</span>
+					</div>
+				))}
+			</div>
+		</div>
+	);
+}
+
+/**
+ * FormField renders a labeled field.
+ */
+function FormField(props: {
+	readonly label: string;
+	readonly htmlFor: string;
+	readonly children: ReactElement;
+}): ReactElement {
+	return (
+		<div className="cf:grid cf:gap-2">
+			<Label
+				htmlFor={props.htmlFor}
+				className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200"
+			>
+				{props.label}
+			</Label>
+			{props.children}
+		</div>
+	);
+}
+
+/**
+ * MessageRow renders a status or error row.
+ */
+function MessageRow(props: { readonly state: LoadState; readonly message: string }): ReactElement {
+	const isError = props.state === 'error';
+
+	return (
+		<div
+			className={
+				isError
+					? 'cf:rounded-2xl cf:border cf:border-red-300/25 cf:bg-red-950/30 cf:px-4 cf:py-3 cf:text-sm cf:font-black cf:text-red-100'
+					: 'cf:rounded-2xl cf:border cf:border-amber-300/25 cf:bg-amber-950/30 cf:px-4 cf:py-3 cf:text-sm cf:font-black cf:text-amber-100'
+			}
+		>
+			{props.message}
+		</div>
+	);
+}
+
+/**
+ * LoadingRow renders a loading message.
+ */
+function LoadingRow(props: { readonly label: string }): ReactElement {
+	return (
+		<div className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4 cf:text-sm cf:font-bold cf:text-slate-300">
+			<Loader2 className="cf:size-4 cf:animate-spin cf:text-amber-200" />
+			{props.label}
+		</div>
+	);
+}
+
+/**
+ * collectRuntimeUserIDs returns all user IDs referenced by a runtime decision.
  */
 function collectRuntimeUserIDs(decision: StandupRunDecision | null): readonly string[] {
 	if (decision === null) {
 		return [];
 	}
 
-	const userIDs = decision.approvedLeaves.flatMap(leave => [
-		leave.leaveRequest.userId,
-		leave.leaveRequest.backupUserId,
-	]);
+	const userIDs: string[] = [];
 
-	return uniqueNonEmptyUserIDs(userIDs);
-}
+	for (const row of decision.approvedLeaves) {
+		userIDs.push(row.leaveRequest.userId);
 
-/**
- * uniqueNonEmptyUserIDs trims, de-duplicates, and preserves user ID order.
- */
-function uniqueNonEmptyUserIDs(userIDs: readonly string[]): readonly string[] {
-	const seen = new Set<string>();
-	const result: string[] = [];
-
-	for (const userID of userIDs) {
-		const cleanUserID = userID.trim();
-
-		if (cleanUserID === '' || seen.has(cleanUserID)) {
-			continue;
+		if (row.leaveRequest.backupUserId !== '') {
+			userIDs.push(row.leaveRequest.backupUserId);
 		}
-
-		seen.add(cleanUserID);
-		result.push(cleanUserID);
 	}
 
-	return result;
+	return userIDs;
 }
 
 /**
- * RuntimeMetric renders one compact runtime metric.
+ * formatReason converts skip reasons to readable labels.
  */
-function RuntimeMetric(props: { readonly label: string; readonly value: string }): ReactElement {
-	return (
-		<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/35 cf:p-4">
-			<span className="cf:block cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.14em] cf:text-orange-200">
-				{props.label}
-			</span>
-			<strong className="cf:mt-1 cf:block cf:text-lg cf:font-black cf:text-white">{props.value}</strong>
-		</div>
-	);
-}
-
-/**
- * RuntimeList renders simple runtime string rows.
- */
-function RuntimeList(props: {
-	readonly title: string;
-	readonly emptyText: string;
-	readonly items: readonly string[];
-}): ReactElement {
-	return (
-		<article className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/35 cf:p-4">
-			<strong className="cf:block cf:text-base cf:font-black cf:text-white">{props.title}</strong>
-
-			{props.items.length === 0 && (
-				<p className="cf:m-0 cf:mt-2 cf:text-sm cf:text-slate-300">{props.emptyText}</p>
-			)}
-
-			{props.items.length > 0 && (
-				<ul className="cf:m-0 cf:mt-3 cf:grid cf:list-none cf:gap-2 cf:p-0">
-					{props.items.map(item => (
-						<li
-							className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:px-3 cf:py-2 cf:text-sm cf:text-slate-200"
-							key={item}
-						>
-							{item}
-						</li>
-					))}
-				</ul>
-			)}
-		</article>
-	);
-}
-
-/**
- * ApprovedLeaveList renders approved leave rows affecting runtime.
- */
-function ApprovedLeaveList(props: {
-	readonly leaves: readonly ApprovedLeaveRequest[];
-	readonly labelForUserID: UserLabelResolver;
-}): ReactElement {
-	return (
-		<article className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/35 cf:p-4">
-			<strong className="cf:block cf:text-base cf:font-black cf:text-white">Approved leave on this date</strong>
-
-			{props.leaves.length === 0 && (
-				<p className="cf:m-0 cf:mt-2 cf:text-sm cf:text-slate-300">No approved leave overlaps this date.</p>
-			)}
-
-			{props.leaves.length > 0 && (
-				<div className="cf:mt-3 cf:grid cf:gap-3">
-					{props.leaves.map(leave => (
-						<div
-							className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-3"
-							key={leave.leaveRequest.id}
-						>
-							<strong className="cf:block cf:text-sm cf:font-black cf:text-white">
-								{leave.leaveTypeName}
-							</strong>
-							<p className="cf:m-0 cf:mt-1 cf:text-sm cf:text-slate-300">
-								<span title={leave.leaveRequest.userId}>
-									User {props.labelForUserID(leave.leaveRequest.userId)}
-								</span>{' '}
-								· {leave.leaveRequest.startDate} → {leave.leaveRequest.endDate}
-								{formatDurationDetails(leave)}
-							</p>
-							{leave.leaveRequest.backupUserId !== '' && (
-								<p
-									className="cf:m-0 cf:mt-1 cf:text-xs cf:font-bold cf:text-slate-500"
-									title={leave.leaveRequest.backupUserId}
-								>
-									Backup: {props.labelForUserID(leave.leaveRequest.backupUserId)}
-								</p>
-							)}
-						</div>
-					))}
-				</div>
-			)}
-		</article>
-	);
-}
-
-/**
- * decisionBadgeClassName returns the status badge style for a run decision.
- */
-function decisionBadgeClassName(shouldRun: boolean): string {
-	const baseClassName =
-		'cf:w-fit cf:rounded-full cf:border cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em]';
-
-	if (shouldRun) {
-		return `${baseClassName} cf:border-emerald-300/25 cf:bg-emerald-300/10 cf:text-emerald-200`;
+function formatReason(value: string): string {
+	if (value.trim() === '') {
+		return 'No skip reason';
 	}
 
-	return `${baseClassName} cf:border-amber-300/25 cf:bg-amber-300/10 cf:text-amber-200`;
-}
-
-/**
- * decisionPanelClassName returns the main decision panel style.
- */
-function decisionPanelClassName(shouldRun: boolean): string {
-	const baseClassName = 'cf:rounded-3xl cf:border cf:p-5';
-
-	if (shouldRun) {
-		return `${baseClassName} cf:border-emerald-300/20 cf:bg-emerald-400/10`;
-	}
-
-	return `${baseClassName} cf:border-amber-300/20 cf:bg-amber-300/10`;
-}
-
-/**
- * formatDurationDetails returns compact duration-specific display text.
- */
-function formatDurationDetails(item: ApprovedLeaveRequest): string {
-	const request = item.leaveRequest;
-
-	switch (request.durationMode) {
-		case 'half_day':
-			return request.halfDayPart === '' ? ' · half day' : ` · half day · ${request.halfDayPart}`;
-
-		case 'hourly':
-			return ` · ${request.startTime} → ${request.endTime}`;
-
-		case 'full_day':
-			return '';
-
-		default:
-			return '';
-	}
+	return value
+		.split('_')
+		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(' ');
 }
 
 /**
  * getTodayLocalDateString returns today's local YYYY-MM-DD date.
  */
 function getTodayLocalDateString(): string {
-	const date = new Date();
-	const year = String(date.getFullYear());
-	const month = String(date.getMonth() + 1).padStart(2, '0');
-	const day = String(date.getDate()).padStart(2, '0');
+	const today = new Date();
+	const year = String(today.getFullYear());
+	const month = String(today.getMonth() + 1).padStart(2, '0');
+	const day = String(today.getDate()).padStart(2, '0');
 
 	return `${year}-${month}-${day}`;
 }

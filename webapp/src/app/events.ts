@@ -1,85 +1,134 @@
-import type { ReportKind } from '../types/domain';
-
 /**
- * Browser event used to open the Campfire root shell from Mattermost UI actions.
+ * CAMPFIRE_OPEN_EVENT is dispatched when Mattermost plugin controls should open the modal.
  */
 export const CAMPFIRE_OPEN_EVENT = 'campfire:open';
 
 /**
- * Browser event used to apply one saved report filter to report cards.
+ * CAMPFIRE_CLOSE_EVENT is dispatched when Campfire should close.
+ */
+export const CAMPFIRE_CLOSE_EVENT = 'campfire:close';
+
+/**
+ * CAMPFIRE_TOGGLE_EVENT is dispatched when Campfire should toggle.
+ */
+export const CAMPFIRE_TOGGLE_EVENT = 'campfire:toggle';
+
+/**
+ * CAMPFIRE_APPLY_REPORT_FILTER_EVENT is dispatched when a saved report filter is applied.
  */
 export const CAMPFIRE_APPLY_REPORT_FILTER_EVENT = 'campfire:apply-report-filter';
 
 /**
- * ReportFilterApplyDetail carries a saved filter from the saved-filter card to report cards.
+ * CampfireOpenDetail contains optional target routing data for the Campfire modal.
  */
-export type ReportFilterApplyDetail = {
+export type CampfireOpenDetail = {
+	readonly channelID?: string;
+	readonly targetTab?: string;
+	readonly targetSection?: string;
+};
+
+/**
+ * CampfireApplyReportFilterDetail contains data needed to apply a saved report filter.
+ */
+export type CampfireApplyReportFilterDetail = {
 	readonly workspaceID: string;
-	readonly reportType: ReportKind;
+	readonly reportType: string;
 	readonly name: string;
 	readonly filterJson: string;
 };
 
 /**
- * Dispatches an event that asks the Campfire root component to open.
+ * openCampfire opens the Campfire modal.
  */
-export function openCampfire(): void {
-	window.dispatchEvent(new CustomEvent(CAMPFIRE_OPEN_EVENT));
+export function openCampfire(detail: CampfireOpenDetail = {}): void {
+	window.dispatchEvent(
+		new CustomEvent<CampfireOpenDetail>(CAMPFIRE_OPEN_EVENT, {
+			detail,
+		}),
+	);
 }
 
 /**
- * dispatchApplyReportFilter broadcasts one saved report filter to the report UI.
+ * closeCampfire closes the Campfire modal.
  */
-export function dispatchApplyReportFilter(detail: ReportFilterApplyDetail): void {
-	window.dispatchEvent(new CustomEvent<ReportFilterApplyDetail>(CAMPFIRE_APPLY_REPORT_FILTER_EVENT, { detail }));
+export function closeCampfire(): void {
+	window.dispatchEvent(new CustomEvent(CAMPFIRE_CLOSE_EVENT));
 }
 
 /**
- * isReportFilterApplyEvent narrows a browser event to a saved-filter event.
+ * toggleCampfire toggles the Campfire modal.
  */
-export function isReportFilterApplyEvent(event: Event): event is CustomEvent<ReportFilterApplyDetail> {
-	if (!(event instanceof CustomEvent)) {
+export function toggleCampfire(): void {
+	window.dispatchEvent(new CustomEvent(CAMPFIRE_TOGGLE_EVENT));
+}
+
+/**
+ * dispatchApplyReportFilter broadcasts a saved report filter to report cards.
+ */
+export function dispatchApplyReportFilter(detail: CampfireApplyReportFilterDetail): void {
+	window.dispatchEvent(
+		new CustomEvent<CampfireApplyReportFilterDetail>(CAMPFIRE_APPLY_REPORT_FILTER_EVENT, {
+			detail,
+		}),
+	);
+}
+
+/**
+ * isCampfireOpenEvent narrows DOM events to Campfire open events.
+ */
+export function isCampfireOpenEvent(event: Event): event is CustomEvent<CampfireOpenDetail> {
+	return event instanceof CustomEvent && event.type === CAMPFIRE_OPEN_EVENT && isOpenDetail(event.detail);
+}
+
+/**
+ * isReportFilterApplyEvent narrows DOM events to saved-report-filter apply events.
+ */
+export function isReportFilterApplyEvent(event: Event): event is CustomEvent<CampfireApplyReportFilterDetail> {
+	return (
+		event instanceof CustomEvent &&
+		event.type === CAMPFIRE_APPLY_REPORT_FILTER_EVENT &&
+		isReportFilterDetail(event.detail)
+	);
+}
+
+/**
+ * isOpenDetail validates optional modal open detail data.
+ */
+function isOpenDetail(value: unknown): value is CampfireOpenDetail {
+	if (!isRecord(value)) {
 		return false;
 	}
 
-	return isReportFilterApplyDetail(event.detail);
+	return (
+		isOptionalString(value.channelID) && isOptionalString(value.targetTab) && isOptionalString(value.targetSection)
+	);
 }
 
 /**
- * isReportFilterApplyDetail validates the custom-event detail object.
+ * isReportFilterDetail validates saved-report-filter event detail data.
  */
-function isReportFilterApplyDetail(value: unknown): value is ReportFilterApplyDetail {
+function isReportFilterDetail(value: unknown): value is CampfireApplyReportFilterDetail {
 	if (!isRecord(value)) {
 		return false;
 	}
 
 	return (
 		typeof value.workspaceID === 'string' &&
-		isReportKind(value.reportType) &&
+		typeof value.reportType === 'string' &&
 		typeof value.name === 'string' &&
 		typeof value.filterJson === 'string'
 	);
 }
 
 /**
- * isReportKind returns true for Campfire report kinds supported by saved filters.
+ * isOptionalString returns true for undefined or string values.
  */
-function isReportKind(value: unknown): value is ReportKind {
-	switch (value) {
-		case 'daily':
-		case 'weekly':
-		case 'blockers':
-		case 'missing':
-		case 'time':
-			return true;
-
-		default:
-			return false;
-	}
+function isOptionalString(value: unknown): boolean {
+	return value === undefined || typeof value === 'string';
 }
 
 /**
- * isRecord narrows unknown JSON-ish values to an indexable object.
+ * isRecord narrows unknown values to string-keyed records.
  */
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);

@@ -1,7 +1,24 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { ReactElement } from 'react';
+import { CheckCircle2, FileText, Loader2, Save, Settings2 } from 'lucide-react';
+import { toast } from 'sonner';
 
-import { ApiClientError, listReportRules, updateReportRule } from '../api/client';
-import type { ReportRule, ReportSortMode, Workspace } from '../types/domain';
+import { ApiClientError, listReportRules, updateReportRule } from '@/api';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
+import type { ReportRule, ReportSortMode, Workspace } from '@/types/domain';
+
+import {
+	CampfireCardBody,
+	CampfireCardHeader,
+	CampfireEmpty,
+	CampfireMetric,
+	CampfirePanel,
+	CampfireStatusPill,
+} from './campfire-ui';
 
 /**
  * ReportSettingsCardProps contains workspace report settings data.
@@ -100,6 +117,10 @@ export function ReportSettingsCard(props: ReportSettingsCardProps): ReactElement
 		});
 	}, [rules]);
 
+	const enabledCount = useMemo(() => rules.filter(rule => rule.enabled).length, [rules]);
+	const postToChannelCount = useMemo(() => rules.filter(rule => rule.postToChannel).length, [rules]);
+	const previewRequiredCount = useMemo(() => rules.filter(rule => rule.previewRequired).length, [rules]);
+
 	const isBusy = loadState === 'loading' || loadState === 'saving';
 
 	/**
@@ -128,12 +149,14 @@ export function ReportSettingsCard(props: ReportSettingsCardProps): ReactElement
 	async function handleSave(rule: ReportRule): Promise<void> {
 		if (!props.canManageWorkspace) {
 			setMessage('Only workspace Leads and system admins can manage report settings.');
+			setLoadState('error');
 			return;
 		}
 
 		const draft = drafts[rule.id];
 		if (draft === undefined) {
 			setMessage('Could not find report settings to save.');
+			setLoadState('error');
 			return;
 		}
 
@@ -161,231 +184,280 @@ export function ReportSettingsCard(props: ReportSettingsCardProps): ReactElement
 			setLoadState('ready');
 			setSavingRuleID('');
 			setMessage('Report settings updated.');
+			toast.success('Report settings updated');
 		} catch (error: unknown) {
-			setMessage(errorToMessage(error));
+			const errorMessage = errorToMessage(error);
+			setMessage(errorMessage);
 			setLoadState('error');
 			setSavingRuleID('');
+			toast.error(errorMessage);
 		}
 	}
 
 	return (
-		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-cyan-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-			<div className="cf:grid cf:gap-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
-				<div>
-					<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-cyan-200">
-						Reports
-					</p>
-					<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-						Report settings
-					</h2>
-					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						Control report automation, posting behavior, preview requirements, sorting, and included
-						sections for {props.workspace.name}.
-					</p>
+		<CampfirePanel className="cf:overflow-hidden">
+			<CampfireCardHeader
+				eyebrow="Report rules"
+				title="Report settings"
+				description="Configure whether scheduled reports post automatically, require preview, and include missing, leave, blockers, and time sections."
+				icon={Settings2}
+				action={<CampfireStatusPill tone="green">{enabledCount} enabled</CampfireStatusPill>}
+			/>
+
+			<CampfireCardBody className="cf:grid cf:gap-5">
+				<div className="cf:grid cf:gap-3 cf:md:grid-cols-4">
+					<CampfireMetric label="Rules" value={String(rules.length)} helper="Configured" icon={FileText} />
+					<CampfireMetric label="Enabled" value={String(enabledCount)} helper="Active rules" />
+					<CampfireMetric label="Auto-post" value={String(postToChannelCount)} helper="Post to channel" />
+					<CampfireMetric
+						label="Preview required"
+						value={String(previewRequiredCount)}
+						helper="Manual review"
+					/>
 				</div>
 
-				<div className="cf:w-fit cf:rounded-full cf:border cf:border-cyan-300/25 cf:bg-cyan-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-cyan-200">
-					{rules.length} rules
-				</div>
-			</div>
+				{message !== '' && <MessageRow state={loadState} message={message} />}
+				{loadState === 'loading' && <LoadingRow label="Loading report settings…" />}
 
-			{!props.canManageWorkspace && (
-				<p className="cf:m-0 cf:mt-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-3 cf:text-sm cf:leading-6 cf:text-slate-300">
-					You can view report settings, but only workspace Leads and system admins can change them.
-				</p>
-			)}
-
-			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
-
-			<div className="cf:mt-5 cf:grid cf:gap-4">
-				{loadState === 'loading' && <p className="cf:m-0 cf:text-slate-300">Loading report settings…</p>}
-
-				{loadState !== 'loading' && sortedRules.length === 0 && (
-					<p className="cf:m-0 cf:rounded-2xl cf:border cf:border-dashed cf:border-white/10 cf:p-4 cf:text-slate-300">
-						No report rules have been created for this workspace yet.
-					</p>
+				{!props.canManageWorkspace && (
+					<MessageRow state="error" message="You can view report settings, but you cannot edit them." />
 				)}
 
-				{sortedRules.map(rule => {
-					const draft = drafts[rule.id];
-					const saveDisabled = isBusy || !props.canManageWorkspace || draft === undefined;
-					const isSavingThisRule = savingRuleID === rule.id;
+				{sortedRules.length === 0 && loadState !== 'loading' && (
+					<CampfireEmpty
+						icon={FileText}
+						title="No report rules"
+						description="Default report rules are created when default standup templates and schedules are seeded."
+					/>
+				)}
 
-					return (
-						<article
-							className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4"
+				<div className="cf:grid cf:gap-4">
+					{sortedRules.map(rule => (
+						<ReportRuleCard
 							key={rule.id}
-						>
-							<div className="cf:grid cf:gap-4 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
-								<div>
-									<strong className="cf:block cf:text-lg cf:font-black cf:text-white">
-										{formatReportKind(rule.reportKind)}
-									</strong>
-									<p className="cf:m-0 cf:mt-1 cf:text-sm cf:text-slate-300">
-										Schedule {rule.scheduleId}
-									</p>
-								</div>
-
-								<span className={statusClassName(draft?.enabled ?? rule.enabled)}>
-									{(draft?.enabled ?? rule.enabled) ? 'Enabled' : 'Disabled'}
-								</span>
-							</div>
-
-							{draft !== undefined && (
-								<div className="cf:mt-4 cf:grid cf:gap-4">
-									<label className="cf:flex cf:items-center cf:gap-3 cf:text-sm cf:font-bold cf:text-slate-200">
-										<input
-											checked={draft.enabled}
-											className="cf:h-4 cf:w-4"
-											disabled={isBusy || !props.canManageWorkspace}
-											type="checkbox"
-											onChange={event =>
-												updateDraft(rule.id, { enabled: event.currentTarget.checked })
-											}
-										/>
-										Enable this report rule
-									</label>
-
-									<div className="cf:grid cf:gap-3 cf:md:grid-cols-2">
-										<label className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-3 cf:text-sm cf:font-bold cf:text-slate-200">
-											<input
-												checked={draft.postToChannel}
-												className="cf:h-4 cf:w-4"
-												disabled={isBusy || !props.canManageWorkspace}
-												type="checkbox"
-												onChange={event =>
-													updateDraft(rule.id, { postToChannel: event.currentTarget.checked })
-												}
-											/>
-											Post to channel
-										</label>
-
-										<label className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-3 cf:text-sm cf:font-bold cf:text-slate-200">
-											<input
-												checked={draft.previewRequired}
-												className="cf:h-4 cf:w-4"
-												disabled={isBusy || !props.canManageWorkspace}
-												type="checkbox"
-												onChange={event =>
-													updateDraft(rule.id, {
-														previewRequired: event.currentTarget.checked,
-													})
-												}
-											/>
-											Require manual preview
-										</label>
-									</div>
-
-									<div>
-										<label
-											className="cf:mb-1.5 cf:block cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-slate-300"
-											htmlFor={`campfire-report-sort-${rule.id}`}
-										>
-											Sort mode
-										</label>
-										<select
-											className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:transition cf:focus:border-cyan-300/45"
-											disabled={isBusy || !props.canManageWorkspace}
-											id={`campfire-report-sort-${rule.id}`}
-											value={draft.sortMode}
-											onChange={event =>
-												updateDraft(rule.id, {
-													sortMode: event.currentTarget.value as ReportSortMode,
-												})
-											}
-										>
-											{reportSortOptions.map(sortMode => (
-												<option key={sortMode} value={sortMode}>
-													{formatSortMode(sortMode)}
-												</option>
-											))}
-										</select>
-									</div>
-
-									<div className="cf:grid cf:gap-3 cf:md:grid-cols-4">
-										<label className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-3 cf:text-sm cf:font-bold cf:text-slate-200">
-											<input
-												checked={draft.includeMissing}
-												className="cf:h-4 cf:w-4"
-												disabled={isBusy || !props.canManageWorkspace}
-												type="checkbox"
-												onChange={event =>
-													updateDraft(rule.id, {
-														includeMissing: event.currentTarget.checked,
-													})
-												}
-											/>
-											Missing
-										</label>
-
-										<label className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-3 cf:text-sm cf:font-bold cf:text-slate-200">
-											<input
-												checked={draft.includeOnLeave}
-												className="cf:h-4 cf:w-4"
-												disabled={isBusy || !props.canManageWorkspace}
-												type="checkbox"
-												onChange={event =>
-													updateDraft(rule.id, {
-														includeOnLeave: event.currentTarget.checked,
-													})
-												}
-											/>
-											On leave
-										</label>
-
-										<label className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-3 cf:text-sm cf:font-bold cf:text-slate-200">
-											<input
-												checked={draft.includeBlockers}
-												className="cf:h-4 cf:w-4"
-												disabled={isBusy || !props.canManageWorkspace}
-												type="checkbox"
-												onChange={event =>
-													updateDraft(rule.id, {
-														includeBlockers: event.currentTarget.checked,
-													})
-												}
-											/>
-											Blockers
-										</label>
-
-										<label className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-3 cf:text-sm cf:font-bold cf:text-slate-200">
-											<input
-												checked={draft.includeTime}
-												className="cf:h-4 cf:w-4"
-												disabled={isBusy || !props.canManageWorkspace}
-												type="checkbox"
-												onChange={event =>
-													updateDraft(rule.id, { includeTime: event.currentTarget.checked })
-												}
-											/>
-											Time
-										</label>
-									</div>
-
-									{props.canManageWorkspace && (
-										<div>
-											<button
-												className="cf:rounded-2xl cf:border cf:border-cyan-300/30 cf:bg-cyan-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-cyan-50 cf:transition cf:hover:bg-cyan-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-												disabled={saveDisabled}
-												type="button"
-												onClick={() => void handleSave(rule)}
-											>
-												{isSavingThisRule ? 'Saving…' : 'Save report rule'}
-											</button>
-										</div>
-									)}
-								</div>
-							)}
-						</article>
-					);
-				})}
-			</div>
-		</section>
+							rule={rule}
+							draft={drafts[rule.id] ?? reportRuleToDraft(rule)}
+							disabled={isBusy || !props.canManageWorkspace}
+							saving={savingRuleID === rule.id}
+							onChange={patch => updateDraft(rule.id, patch)}
+							onSave={() => void handleSave(rule)}
+						/>
+					))}
+				</div>
+			</CampfireCardBody>
+		</CampfirePanel>
 	);
 }
 
 /**
- * buildDrafts maps report rules to editable drafts.
+ * ReportRuleCard renders one editable report rule.
+ */
+function ReportRuleCard(props: {
+	readonly rule: ReportRule;
+	readonly draft: ReportRuleDraft;
+	readonly disabled: boolean;
+	readonly saving: boolean;
+	readonly onChange: (patch: Partial<ReportRuleDraft>) => void;
+	readonly onSave: () => void;
+}): ReactElement {
+	return (
+		<article className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
+			<div className="cf:flex cf:flex-col cf:gap-4 cf:xl:flex-row cf:xl:items-start cf:xl:justify-between">
+				<div>
+					<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
+						<strong className="cf:text-xl cf:font-black cf:tracking-tight cf:text-white">
+							{formatLabel(props.rule.reportKind)}
+						</strong>
+						<CampfireStatusPill tone={props.draft.enabled ? 'green' : 'slate'}>
+							{props.draft.enabled ? 'Enabled' : 'Disabled'}
+						</CampfireStatusPill>
+						<CampfireStatusPill tone={props.draft.postToChannel ? 'ember' : 'slate'}>
+							{props.draft.postToChannel ? 'Posts to channel' : 'Manual only'}
+						</CampfireStatusPill>
+					</div>
+
+					<p className="cf:mt-2 cf:text-sm cf:font-medium cf:text-slate-400">
+						Schedule {props.rule.scheduleId}
+					</p>
+				</div>
+
+				<Button type="button" disabled={props.disabled} onClick={props.onSave}>
+					{props.saving ? <Loader2 className="cf:size-4 cf:animate-spin" /> : <Save className="cf:size-4" />}
+					Save rule
+				</Button>
+			</div>
+
+			<Separator className="cf:my-4 cf:bg-white/10" />
+
+			<div className="cf:grid cf:gap-4">
+				<div className="cf:grid cf:gap-4 cf:lg:grid-cols-[1fr_1fr]">
+					<FormField label="Sort mode" htmlFor={`campfire-report-sort-${props.rule.id}`}>
+						<select
+							id={`campfire-report-sort-${props.rule.id}`}
+							className={selectClassName()}
+							disabled={props.disabled}
+							value={props.draft.sortMode}
+							onChange={event =>
+								props.onChange({ sortMode: toReportSortMode(event.currentTarget.value) })
+							}
+						>
+							{reportSortOptions.map(sortMode => (
+								<option key={sortMode} value={sortMode}>
+									{formatLabel(sortMode)}
+								</option>
+							))}
+						</select>
+					</FormField>
+
+					<div className="cf:grid cf:gap-3 cf:sm:grid-cols-2">
+						<BooleanOption
+							title="Enabled"
+							description="Allow this rule to run."
+							checked={props.draft.enabled}
+							disabled={props.disabled}
+							onChange={checked => props.onChange({ enabled: checked })}
+						/>
+
+						<BooleanOption
+							title="Post to channel"
+							description="Post generated report to Mattermost."
+							checked={props.draft.postToChannel}
+							disabled={props.disabled}
+							onChange={checked => props.onChange({ postToChannel: checked })}
+						/>
+					</div>
+				</div>
+
+				<div className="cf:grid cf:gap-3 cf:lg:grid-cols-2">
+					<BooleanOption
+						title="Preview required"
+						description="Require manual preview before posting."
+						checked={props.draft.previewRequired}
+						disabled={props.disabled}
+						onChange={checked => props.onChange({ previewRequired: checked })}
+					/>
+
+					<BooleanOption
+						title="Include on-leave users"
+						description="Show approved-leave users in report sections."
+						checked={props.draft.includeOnLeave}
+						disabled={props.disabled}
+						onChange={checked => props.onChange({ includeOnLeave: checked })}
+					/>
+
+					<BooleanOption
+						title="Include missing users"
+						description="Show missing/late standup users."
+						checked={props.draft.includeMissing}
+						disabled={props.disabled}
+						onChange={checked => props.onChange({ includeMissing: checked })}
+					/>
+
+					<BooleanOption
+						title="Include blockers"
+						description="Include blocker-oriented sections."
+						checked={props.draft.includeBlockers}
+						disabled={props.disabled}
+						onChange={checked => props.onChange({ includeBlockers: checked })}
+					/>
+
+					<BooleanOption
+						title="Include time"
+						description="Include task/time report data."
+						checked={props.draft.includeTime}
+						disabled={props.disabled}
+						onChange={checked => props.onChange({ includeTime: checked })}
+					/>
+				</div>
+			</div>
+		</article>
+	);
+}
+
+/**
+ * BooleanOption renders one checkbox setting.
+ */
+function BooleanOption(props: {
+	readonly title: string;
+	readonly description: string;
+	readonly checked: boolean;
+	readonly disabled: boolean;
+	readonly onChange: (checked: boolean) => void;
+}): ReactElement {
+	return (
+		<label className="cf:flex cf:cursor-pointer cf:items-start cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4">
+			<Checkbox
+				className="cf:mt-0.5"
+				checked={props.checked}
+				disabled={props.disabled}
+				onCheckedChange={checked => props.onChange(checked === true)}
+			/>
+			<span>
+				<span className="cf:block cf:text-sm cf:font-black cf:text-white">{props.title}</span>
+				<span className="cf:mt-1 cf:block cf:text-sm cf:font-medium cf:leading-6 cf:text-slate-400">
+					{props.description}
+				</span>
+			</span>
+		</label>
+	);
+}
+
+/**
+ * FormField renders a labeled field.
+ */
+function FormField(props: {
+	readonly label: string;
+	readonly htmlFor: string;
+	readonly children: ReactElement;
+}): ReactElement {
+	return (
+		<div className="cf:grid cf:gap-2">
+			<Label
+				htmlFor={props.htmlFor}
+				className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200"
+			>
+				{props.label}
+			</Label>
+			{props.children}
+		</div>
+	);
+}
+
+/**
+ * MessageRow renders load/save feedback.
+ */
+function MessageRow(props: { readonly state: LoadState; readonly message: string }): ReactElement {
+	const isError = props.state === 'error';
+
+	return (
+		<div
+			className={cn(
+				'cf:flex cf:items-center cf:gap-2 cf:rounded-2xl cf:border cf:px-4 cf:py-3 cf:text-sm cf:font-black',
+				isError
+					? 'cf:border-red-300/25 cf:bg-red-950/30 cf:text-red-100'
+					: 'cf:border-amber-300/25 cf:bg-amber-950/30 cf:text-amber-100',
+			)}
+		>
+			{isError ? null : <CheckCircle2 className="cf:size-4" />}
+			{props.message}
+		</div>
+	);
+}
+
+/**
+ * LoadingRow renders a loading message.
+ */
+function LoadingRow(props: { readonly label: string }): ReactElement {
+	return (
+		<div className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4 cf:text-sm cf:font-bold cf:text-slate-300">
+			<Loader2 className="cf:size-4 cf:animate-spin cf:text-amber-200" />
+			{props.label}
+		</div>
+	);
+}
+
+/**
+ * buildDrafts maps report rules into editable drafts.
  */
 function buildDrafts(rules: readonly ReportRule[]): ReportDraftsByID {
 	const drafts: ReportDraftsByID = {};
@@ -398,7 +470,7 @@ function buildDrafts(rules: readonly ReportRule[]): ReportDraftsByID {
 }
 
 /**
- * reportRuleToDraft maps one report rule to editable form state.
+ * reportRuleToDraft maps a report rule into editable state.
  */
 function reportRuleToDraft(rule: ReportRule): ReportRuleDraft {
 	return {
@@ -414,41 +486,48 @@ function reportRuleToDraft(rule: ReportRule): ReportRuleDraft {
 }
 
 /**
- * replaceReportRule replaces a report rule in a readonly list.
+ * replaceReportRule replaces one report rule in a readonly list.
  */
 function replaceReportRule(rules: readonly ReportRule[], updatedRule: ReportRule): readonly ReportRule[] {
 	return rules.map(rule => (rule.id === updatedRule.id ? updatedRule : rule));
 }
 
 /**
- * statusClassName returns classes for report enabled state.
+ * isReportSortMode narrows unknown values to report sort modes.
  */
-function statusClassName(enabled: boolean): string {
-	const baseClassName =
-		'cf:w-fit cf:rounded-full cf:border cf:px-3 cf:py-1 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em]';
-
-	if (enabled) {
-		return `${baseClassName} cf:border-emerald-300/25 cf:bg-emerald-300/10 cf:text-emerald-200`;
-	}
-
-	return `${baseClassName} cf:border-slate-300/20 cf:bg-white/[0.04] cf:text-slate-300`;
+function isReportSortMode(value: unknown): value is ReportSortMode {
+	return (
+		value === 'name' ||
+		value === 'first_submitted' ||
+		value === 'last_submitted' ||
+		value === 'missing_first' ||
+		value === 'blockers_first'
+	);
 }
 
 /**
- * formatReportKind returns a human-friendly report kind label.
+ * toReportSortMode normalizes select values.
  */
-function formatReportKind(reportKind: string): string {
-	return reportKind
-		.split('_')
-		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
-		.join(' ');
+function toReportSortMode(value: string): ReportSortMode {
+	return isReportSortMode(value) ? value : 'first_submitted';
 }
 
 /**
- * formatSortMode returns a human-friendly sort mode label.
+ * selectClassName returns the shared native select style.
  */
-function formatSortMode(sortMode: string): string {
-	return sortMode
+function selectClassName(): string {
+	return cn(
+		'cf:h-10 cf:w-full cf:rounded-md cf:border cf:border-input cf:bg-background cf:px-3 cf:py-2 cf:text-sm cf:text-foreground cf:outline-none',
+		'cf:focus-visible:border-ring cf:focus-visible:ring-ring/50 cf:focus-visible:ring-3',
+		'cf:disabled:cursor-not-allowed cf:disabled:opacity-50',
+	);
+}
+
+/**
+ * formatLabel converts enum-like values to labels.
+ */
+function formatLabel(value: string): string {
+	return value
 		.split('_')
 		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
 		.join(' ');

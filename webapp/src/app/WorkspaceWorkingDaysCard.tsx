@@ -1,17 +1,22 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { ReactElement } from 'react';
+import { CalendarDays, CheckCircle2, Loader2, Save } from 'lucide-react';
+import { toast } from 'sonner';
 
-import { ApiClientError, listWorkspaceWorkingDays, updateWorkspaceWorkingDays } from '../api/client';
-import type { Workspace, WorkspaceWorkingDay } from '../types/domain';
+import { ApiClientError, listWorkspaceWorkingDays, updateWorkspaceWorkingDays } from '@/api';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
+import type { Workspace, WorkspaceWorkingDay } from '@/types/domain';
 
-const weekdayLabels = [
-	{ weekday: 0, shortName: 'Sun', longName: 'Sunday' },
-	{ weekday: 1, shortName: 'Mon', longName: 'Monday' },
-	{ weekday: 2, shortName: 'Tue', longName: 'Tuesday' },
-	{ weekday: 3, shortName: 'Wed', longName: 'Wednesday' },
-	{ weekday: 4, shortName: 'Thu', longName: 'Thursday' },
-	{ weekday: 5, shortName: 'Fri', longName: 'Friday' },
-	{ weekday: 6, shortName: 'Sat', longName: 'Saturday' },
-] as const;
+import {
+	CampfireCardBody,
+	CampfireCardHeader,
+	CampfireEmpty,
+	CampfireMetric,
+	CampfirePanel,
+	CampfireStatusPill,
+} from './campfire-ui';
 
 /**
  * WorkspaceWorkingDaysCardProps contains workspace calendar configuration data.
@@ -27,6 +32,16 @@ type WorkspaceWorkingDaysCardProps = {
  * LoadState describes the workspace working-days panel state.
  */
 type LoadState = 'idle' | 'loading' | 'ready' | 'saving' | 'error';
+
+const weekdayOptions = [
+	{ weekday: 0, shortName: 'Sun', longName: 'Sunday' },
+	{ weekday: 1, shortName: 'Mon', longName: 'Monday' },
+	{ weekday: 2, shortName: 'Tue', longName: 'Tuesday' },
+	{ weekday: 3, shortName: 'Wed', longName: 'Wednesday' },
+	{ weekday: 4, shortName: 'Thu', longName: 'Thursday' },
+	{ weekday: 5, shortName: 'Fri', longName: 'Friday' },
+	{ weekday: 6, shortName: 'Sat', longName: 'Saturday' },
+] as const;
 
 /**
  * WorkspaceWorkingDaysCard lets workspace Leads configure which weekdays count as working days.
@@ -55,7 +70,12 @@ export function WorkspaceWorkingDaysCard(props: WorkspaceWorkingDaysCardProps): 
 				}
 
 				setWorkingDays(response.workingDays);
-				setSelectedWeekdays(enabledWeekdaysFromRows(response.workingDays));
+				setSelectedWeekdays(
+					response.workingDays
+						.filter(workingDay => workingDay.enabled)
+						.map(workingDay => workingDay.weekday)
+						.sort((first, second) => first - second),
+				);
 				setLoadState('ready');
 			} catch (error: unknown) {
 				if (!isActive) {
@@ -74,28 +94,27 @@ export function WorkspaceWorkingDaysCard(props: WorkspaceWorkingDaysCardProps): 
 		};
 	}, [props.workspace.id, props.refreshToken]);
 
-	const selectedSet = useMemo(() => new Set(selectedWeekdays), [selectedWeekdays]);
+	const savedWeekdays = useMemo(() => {
+		return workingDays
+			.filter(workingDay => workingDay.enabled)
+			.map(workingDay => workingDay.weekday)
+			.sort((first, second) => first - second);
+	}, [workingDays]);
+
+	const changed = useMemo(() => !sameNumbers(savedWeekdays, selectedWeekdays), [savedWeekdays, selectedWeekdays]);
+	const selectedLabels = useMemo(() => selectedWeekdays.map(weekdayToShortName).join(', '), [selectedWeekdays]);
 	const isBusy = loadState === 'loading' || loadState === 'saving';
-	const hasChanges = !sameWeekdays(selectedWeekdays, enabledWeekdaysFromRows(workingDays));
 
 	/**
-	 * Toggles one weekday in the local draft.
+	 * Toggles one weekday in the draft selection.
 	 */
 	function toggleWeekday(weekday: number): void {
-		if (!props.canManageWorkspace || isBusy) {
-			return;
-		}
-
 		setSelectedWeekdays(current => {
-			const currentSet = new Set(current);
-
-			if (currentSet.has(weekday)) {
-				currentSet.delete(weekday);
-			} else {
-				currentSet.add(weekday);
+			if (current.includes(weekday)) {
+				return current.filter(value => value !== weekday);
 			}
 
-			return [...currentSet].sort((first, second) => first - second);
+			return [...current, weekday].sort((first, second) => first - second);
 		});
 	}
 
@@ -104,11 +123,13 @@ export function WorkspaceWorkingDaysCard(props: WorkspaceWorkingDaysCardProps): 
 	 */
 	async function handleSave(): Promise<void> {
 		if (!props.canManageWorkspace) {
+			setLoadState('error');
 			setMessage('Only workspace Leads and system admins can manage working days.');
 			return;
 		}
 
 		if (selectedWeekdays.length === 0) {
+			setLoadState('error');
 			setMessage('Choose at least one working day.');
 			return;
 		}
@@ -118,123 +139,191 @@ export function WorkspaceWorkingDaysCard(props: WorkspaceWorkingDaysCardProps): 
 
 		try {
 			const response = await updateWorkspaceWorkingDays(props.workspace.id, {
-				workingDays: selectedWeekdays,
+				workingDays: [...selectedWeekdays],
 			});
 
 			setWorkingDays(response.workingDays);
-			setSelectedWeekdays(enabledWeekdaysFromRows(response.workingDays));
+			setSelectedWeekdays(
+				response.workingDays
+					.filter(workingDay => workingDay.enabled)
+					.map(workingDay => workingDay.weekday)
+					.sort((first, second) => first - second),
+			);
 			setLoadState('ready');
 			setMessage('Working days updated.');
+			toast.success('Working days updated');
 			props.onWorkingDaysChanged();
 		} catch (error: unknown) {
-			setMessage(errorToMessage(error));
+			const errorMessage = errorToMessage(error);
+			setMessage(errorMessage);
 			setLoadState('error');
+			toast.error(errorMessage);
 		}
 	}
 
 	return (
-		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-emerald-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-			<div className="cf:grid cf:gap-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
-				<div>
-					<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-emerald-200">
-						Workspace rhythm
-					</p>
-					<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-						Working days
-					</h2>
-					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						Choose the weekdays when Campfire should expect standups and include people in missing-user
-						checks for {props.workspace.name}.
-					</p>
+		<CampfirePanel className="cf:overflow-hidden">
+			<CampfireCardHeader
+				eyebrow="Calendar"
+				title="Working days"
+				description="Choose which weekdays count as normal workdays. Standup automation uses this before checking off-days and leave."
+				icon={CalendarDays}
+				action={
+					<CampfireStatusPill tone={changed ? 'ember' : 'green'}>
+						{changed ? 'Unsaved changes' : 'Saved'}
+					</CampfireStatusPill>
+				}
+			/>
+
+			<CampfireCardBody className="cf:grid cf:gap-5">
+				<div className="cf:grid cf:gap-3 cf:md:grid-cols-3">
+					<CampfireMetric
+						label="Selected"
+						value={String(selectedWeekdays.length)}
+						helper={selectedLabels || 'None'}
+					/>
+					<CampfireMetric
+						label="Saved"
+						value={String(savedWeekdays.length)}
+						helper={savedWeekdays.map(weekdayToShortName).join(', ') || 'None'}
+					/>
+					<CampfireMetric
+						label="Timezone"
+						value={props.workspace.timezone}
+						helper="Workspace local calendar"
+					/>
 				</div>
 
-				<div className="cf:w-fit cf:rounded-full cf:border cf:border-emerald-300/25 cf:bg-emerald-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-emerald-200">
-					{selectedWeekdays.length} selected
-				</div>
-			</div>
+				{message !== '' && <MessageRow state={loadState} message={message} />}
+				{loadState === 'loading' && <LoadingRow label="Loading working days…" />}
 
-			{!props.canManageWorkspace && (
-				<p className="cf:m-0 cf:mt-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-3 cf:text-sm cf:leading-6 cf:text-slate-300">
-					You can view working days, but only workspace Leads and system admins can change them.
-				</p>
-			)}
+				{!props.canManageWorkspace && (
+					<MessageRow state="error" message="You can view working days, but you cannot edit them." />
+				)}
 
-			<div className="cf:mt-5 cf:grid cf:gap-3 cf:sm:grid-cols-2 cf:lg:grid-cols-7">
-				{weekdayLabels.map(day => {
-					const selected = selectedSet.has(day.weekday);
-
-					return (
+				<div className="cf:grid cf:grid-cols-2 cf:gap-3 cf:sm:grid-cols-4 cf:xl:grid-cols-7">
+					{weekdayOptions.map(option => (
 						<button
-							className={weekdayButtonClassName(selected)}
-							disabled={isBusy || !props.canManageWorkspace}
-							key={day.weekday}
+							key={option.weekday}
 							type="button"
-							onClick={() => toggleWeekday(day.weekday)}
+							disabled={isBusy || !props.canManageWorkspace}
+							className={weekdayButtonClassName(selectedWeekdays.includes(option.weekday))}
+							onClick={() => toggleWeekday(option.weekday)}
 						>
-							<span className="cf:block cf:text-lg cf:font-black">{day.shortName}</span>
-							<span className="cf:mt-1 cf:block cf:text-xs cf:font-bold cf:opacity-80">
-								{day.longName}
+							<span className="cf:text-xl cf:font-black">{option.shortName}</span>
+							<span className="cf:mt-1 cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:opacity-80">
+								{option.longName}
 							</span>
 						</button>
-					);
-				})}
-			</div>
+					))}
+				</div>
 
-			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
+				<Separator className="cf:bg-white/10" />
 
-			{props.canManageWorkspace && (
-				<div className="cf:mt-5 cf:flex cf:flex-wrap cf:items-center cf:gap-3">
-					<button
-						className="cf:rounded-2xl cf:border cf:border-emerald-300/30 cf:bg-emerald-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-emerald-50 cf:transition cf:hover:bg-emerald-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-						disabled={isBusy || !hasChanges}
+				<div className="cf:flex cf:flex-col cf:gap-3 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4 cf:sm:flex-row cf:sm:items-center cf:sm:justify-between">
+					<div>
+						<p className="cf:text-sm cf:font-black cf:text-white">Calendar impact</p>
+						<p className="cf:mt-1 cf:text-sm cf:font-medium cf:leading-6 cf:text-slate-400">
+							Daily standups skip non-working days when the schedule enables that setting. Weekly runs use
+							the backend working-day rules.
+						</p>
+					</div>
+
+					<Button
 						type="button"
+						disabled={isBusy || !props.canManageWorkspace || !changed}
 						onClick={() => void handleSave()}
 					>
-						{loadState === 'saving' ? 'Saving…' : 'Save working days'}
-					</button>
-
-					{hasChanges && (
-						<span className="cf:text-sm cf:font-bold cf:text-slate-300">Unsaved working-day changes</span>
-					)}
+						{loadState === 'saving' ? (
+							<Loader2 className="cf:size-4 cf:animate-spin" />
+						) : (
+							<Save className="cf:size-4" />
+						)}
+						Save days
+					</Button>
 				</div>
-			)}
-		</section>
+
+				{loadState !== 'loading' && workingDays.length === 0 && (
+					<CampfireEmpty
+						icon={CalendarDays}
+						title="No working-day rows returned"
+						description="The workspace exists, but the backend did not return working-day settings."
+					/>
+				)}
+			</CampfireCardBody>
+		</CampfirePanel>
 	);
 }
 
 /**
- * enabledWeekdaysFromRows returns enabled weekday numbers from API rows.
+ * MessageRow renders load/save feedback.
  */
-function enabledWeekdaysFromRows(rows: readonly WorkspaceWorkingDay[]): readonly number[] {
-	return rows
-		.filter(row => row.enabled)
-		.map(row => row.weekday)
-		.sort((first, second) => first - second);
+function MessageRow(props: { readonly state: LoadState; readonly message: string }): ReactElement {
+	const isError = props.state === 'error';
+
+	return (
+		<div
+			className={cn(
+				'cf:flex cf:items-center cf:gap-2 cf:rounded-2xl cf:border cf:px-4 cf:py-3 cf:text-sm cf:font-black',
+				isError
+					? 'cf:border-red-300/25 cf:bg-red-950/30 cf:text-red-100'
+					: 'cf:border-amber-300/25 cf:bg-amber-950/30 cf:text-amber-100',
+			)}
+		>
+			{isError ? null : <CheckCircle2 className="cf:size-4" />}
+			{props.message}
+		</div>
+	);
 }
 
 /**
- * sameWeekdays returns true when two weekday lists contain the same values in the same order.
+ * LoadingRow renders a loading message.
  */
-function sameWeekdays(first: readonly number[], second: readonly number[]): boolean {
+function LoadingRow(props: { readonly label: string }): ReactElement {
+	return (
+		<div className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4 cf:text-sm cf:font-bold cf:text-slate-300">
+			<Loader2 className="cf:size-4 cf:animate-spin cf:text-amber-200" />
+			{props.label}
+		</div>
+	);
+}
+
+/**
+ * weekdayButtonClassName returns classes for one weekday toggle.
+ */
+function weekdayButtonClassName(selected: boolean): string {
+	const baseClassName =
+		'cf:flex cf:min-h-24 cf:flex-col cf:items-center cf:justify-center cf:rounded-3xl cf:border cf:px-4 cf:py-3 cf:text-center cf:transition cf:disabled:cursor-not-allowed cf:disabled:opacity-60';
+
+	if (selected) {
+		return cn(baseClassName, 'cf:border-orange-300/40 cf:bg-orange-400/20 cf:text-orange-50 cf:shadow-xl');
+	}
+
+	return cn(
+		baseClassName,
+		'cf:border-white/10 cf:bg-white/5 cf:text-slate-300 cf:hover:bg-white/10 cf:hover:text-white',
+	);
+}
+
+/**
+ * sameNumbers compares two sorted or unsorted numeric arrays.
+ */
+function sameNumbers(first: readonly number[], second: readonly number[]): boolean {
 	if (first.length !== second.length) {
 		return false;
 	}
 
-	return first.every((weekday, index) => weekday === second[index]);
+	const sortedFirst = [...first].sort((left, right) => left - right);
+	const sortedSecond = [...second].sort((left, right) => left - right);
+
+	return sortedFirst.every((value, index) => value === sortedSecond[index]);
 }
 
 /**
- * weekdayButtonClassName returns the visual class name for a weekday toggle.
+ * weekdayToShortName returns a short weekday label.
  */
-function weekdayButtonClassName(selected: boolean): string {
-	const baseClassName =
-		'cf:rounded-2xl cf:border cf:px-4 cf:py-4 cf:text-left cf:transition cf:disabled:cursor-not-allowed cf:disabled:opacity-60';
-
-	if (selected) {
-		return `${baseClassName} cf:border-emerald-300/35 cf:bg-emerald-400/20 cf:text-emerald-50`;
-	}
-
-	return `${baseClassName} cf:border-white/10 cf:bg-slate-950/40 cf:text-slate-300 cf:hover:bg-white/10`;
+function weekdayToShortName(weekday: number): string {
+	return weekdayOptions.find(option => option.weekday === weekday)?.shortName ?? String(weekday);
 }
 
 /**
@@ -249,5 +338,5 @@ function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not update workspace working days.';
+	return 'Could not update working days.';
 }

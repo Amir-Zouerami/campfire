@@ -1,9 +1,21 @@
 import type { ReactElement } from 'react';
 import { useEffect, useMemo, useState } from 'react';
+import { CalendarDays, Loader2, Umbrella, Users } from 'lucide-react';
 
+import { ApiClientError, listApprovedLeaveRequests } from '@/api';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import type { ApprovedLeaveRequest, Workspace } from '@/types/domain';
+
+import {
+	CampfireCardBody,
+	CampfireCardHeader,
+	CampfireEmpty,
+	CampfireMetric,
+	CampfirePanel,
+	CampfireStatusPill,
+} from './campfire-ui';
 import { useUserProfiles } from './useUserProfiles';
-import { ApiClientError, listApprovedLeaveRequests } from '../api/client';
-import type { ApprovedLeaveRequest, Workspace } from '../types/domain';
 
 /**
  * WhoIsOutCardProps contains workspace and refresh inputs.
@@ -95,60 +107,69 @@ export function WhoIsOutCard(props: WhoIsOutCardProps): ReactElement {
 	} = useUserProfiles(userIDsForProfiles);
 
 	return (
-		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-sky-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-			<div className="cf:grid cf:gap-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
-				<div>
-					<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-sky-200">
-						Availability
-					</p>
-					<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-						Who is out
-					</h2>
-					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						Approved leave for today and this week. These users should not be counted as missing for
-						standups.
-					</p>
+		<CampfirePanel className="cf:overflow-hidden">
+			<CampfireCardHeader
+				eyebrow="Availability"
+				title="Who is out"
+				description="Approved leave for today and this week. These users should not be counted as missing for standups."
+				icon={Umbrella}
+				action={
+					<div className="cf:flex cf:flex-wrap cf:gap-2">
+						<CampfireStatusPill tone="green">Today: {todayLeaves.length}</CampfireStatusPill>
+						<CampfireStatusPill tone="ember">Week: {weekLeaves.length}</CampfireStatusPill>
+					</div>
+				}
+			/>
+
+			<CampfireCardBody className="cf:grid cf:gap-5">
+				<div className="cf:grid cf:gap-3 cf:md:grid-cols-3">
+					<CampfireMetric
+						label="Today"
+						value={String(todayLeaves.length)}
+						helper={today}
+						icon={CalendarDays}
+					/>
+					<CampfireMetric
+						label="This week"
+						value={String(weekLeaves.length)}
+						helper={`${weekRange.startDate} → ${weekRange.endDate}`}
+						icon={Users}
+					/>
+					<CampfireMetric
+						label="Profiles"
+						value={profilesLoading ? 'Loading' : 'Ready'}
+						helper="Resolved display names"
+					/>
 				</div>
 
-				<div className="cf:flex cf:flex-wrap cf:gap-2">
-					<span className="cf:rounded-full cf:border cf:border-sky-300/25 cf:bg-sky-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-sky-100">
-						Today: {todayLeaves.length}
-					</span>
-					<span className="cf:rounded-full cf:border cf:border-violet-300/25 cf:bg-violet-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-violet-100">
-						Week: {weekLeaves.length}
-					</span>
+				{message !== '' && <MessageRow tone="red" message={message} />}
+				{profileErrorMessage !== '' && <MessageRow tone="amber" message={profileErrorMessage} />}
+				{profilesLoading && <LoadingRow label="Resolving user names…" />}
+
+				<Separator className="cf:bg-white/10" />
+
+				<div className="cf:grid cf:gap-5 cf:xl:grid-cols-2">
+					<LeaveGroup
+						emptyMessage="No one is out today."
+						leaves={todayLeaves}
+						title={`Today · ${today}`}
+						labelForUserID={labelForUserID}
+					/>
+
+					<LeaveGroup
+						emptyMessage="No approved leave this week."
+						leaves={weekLeaves}
+						title={`This week · ${weekRange.startDate} → ${weekRange.endDate}`}
+						labelForUserID={labelForUserID}
+					/>
 				</div>
-			</div>
 
-			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
-			{profileErrorMessage !== '' && (
-				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{profileErrorMessage}</p>
-			)}
-			{profilesLoading && (
-				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-slate-300">Resolving user names…</p>
-			)}
-
-			<div className="cf:mt-5 cf:grid cf:gap-5 cf:xl:grid-cols-2">
-				<LeaveGroup
-					emptyMessage="No one is out today."
-					leaves={todayLeaves}
-					title={`Today · ${today}`}
-					labelForUserID={labelForUserID}
-				/>
-
-				<LeaveGroup
-					emptyMessage="No approved leave this week."
-					leaves={weekLeaves}
-					title={`This week · ${weekRange.startDate} → ${weekRange.endDate}`}
-					labelForUserID={labelForUserID}
-				/>
-			</div>
-
-			{loadState === 'loading' && <p className="cf:m-0 cf:mt-4 cf:text-slate-300">Loading availability…</p>}
-			{loadState === 'error' && message === '' && (
-				<p className="cf:m-0 cf:mt-4 cf:text-amber-300">Could not load availability.</p>
-			)}
-		</section>
+				{loadState === 'loading' && <LoadingRow label="Loading availability…" />}
+				{loadState === 'error' && message === '' && (
+					<MessageRow tone="amber" message="Could not load availability." />
+				)}
+			</CampfireCardBody>
+		</CampfirePanel>
 	);
 }
 
@@ -163,54 +184,96 @@ function LeaveGroup(props: {
 }): ReactElement {
 	return (
 		<div className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
-			<h3 className="cf:m-0 cf:text-lg cf:font-black cf:text-white">{props.title}</h3>
+			<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3">
+				<h3 className="cf:text-lg cf:font-black cf:text-white">{props.title}</h3>
+				<Badge variant="secondary" className="cf:rounded-full">
+					{props.leaves.length}
+				</Badge>
+			</div>
 
 			<div className="cf:mt-4 cf:grid cf:gap-3">
 				{props.leaves.length === 0 && (
-					<p className="cf:m-0 cf:rounded-2xl cf:border cf:border-dashed cf:border-white/10 cf:p-4 cf:text-slate-300">
-						{props.emptyMessage}
-					</p>
+					<CampfireEmpty
+						icon={Umbrella}
+						title={props.emptyMessage}
+						description="No approved absence rows match this window."
+					/>
 				)}
 
 				{props.leaves.map(row => (
-					<article
-						className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-4"
-						key={row.leaveRequest.id}
-					>
-						<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3">
-							<strong
-								className="cf:text-base cf:font-black cf:text-white"
-								title={row.leaveRequest.userId}
-							>
-								{props.labelForUserID(row.leaveRequest.userId)}
-							</strong>
-
-							<span className="cf:rounded-full cf:border cf:border-sky-300/20 cf:bg-sky-300/10 cf:px-3 cf:py-1 cf:text-xs cf:font-extrabold cf:text-sky-100">
-								{row.leaveTypeName}
-							</span>
-						</div>
-
-						<p className="cf:m-0 cf:mt-2 cf:text-sm cf:font-bold cf:text-slate-300">
-							{row.leaveRequest.startDate} → {row.leaveRequest.endDate}
-						</p>
-
-						<div className="cf:mt-2 cf:flex cf:flex-wrap cf:gap-2">
-							<span className="cf:rounded-full cf:border cf:border-white/10 cf:bg-slate-950/50 cf:px-2.5 cf:py-1 cf:text-xs cf:font-bold cf:text-slate-300">
-								{formatLabel(row.leaveRequest.durationMode)}
-							</span>
-
-							{row.leaveRequest.backupUserId !== '' && (
-								<span
-									className="cf:rounded-full cf:border cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:px-2.5 cf:py-1 cf:text-xs cf:font-bold cf:text-emerald-100"
-									title={row.leaveRequest.backupUserId}
-								>
-									Backup: {props.labelForUserID(row.leaveRequest.backupUserId)}
-								</span>
-							)}
-						</div>
-					</article>
+					<LeaveRow row={row} labelForUserID={props.labelForUserID} key={row.leaveRequest.id} />
 				))}
 			</div>
+		</div>
+	);
+}
+
+/**
+ * LeaveRow renders one approved leave row.
+ */
+function LeaveRow(props: {
+	readonly row: ApprovedLeaveRequest;
+	readonly labelForUserID: (userID: string) => string;
+}): ReactElement {
+	return (
+		<article className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4">
+			<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3">
+				<strong className="cf:text-base cf:font-black cf:text-white" title={props.row.leaveRequest.userId}>
+					{props.labelForUserID(props.row.leaveRequest.userId)}
+				</strong>
+
+				<span className="cf:rounded-full cf:border cf:border-sky-300/20 cf:bg-sky-300/10 cf:px-3 cf:py-1 cf:text-xs cf:font-black cf:text-sky-100">
+					{props.row.leaveTypeName}
+				</span>
+			</div>
+
+			<p className="cf:mt-3 cf:text-sm cf:font-bold cf:text-slate-300">
+				{props.row.leaveRequest.startDate} → {props.row.leaveRequest.endDate}
+			</p>
+
+			<div className="cf:mt-3 cf:flex cf:flex-wrap cf:gap-2">
+				<span className="cf:rounded-full cf:border cf:border-white/10 cf:bg-slate-950/50 cf:px-2.5 cf:py-1 cf:text-xs cf:font-bold cf:text-slate-300">
+					{formatLabel(props.row.leaveRequest.durationMode)}
+				</span>
+
+				{props.row.leaveRequest.backupUserId !== '' && (
+					<span
+						className="cf:rounded-full cf:border cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:px-2.5 cf:py-1 cf:text-xs cf:font-bold cf:text-emerald-100"
+						title={props.row.leaveRequest.backupUserId}
+					>
+						Backup: {props.labelForUserID(props.row.leaveRequest.backupUserId)}
+					</span>
+				)}
+			</div>
+		</article>
+	);
+}
+
+/**
+ * MessageRow renders a status/error row.
+ */
+function MessageRow(props: { readonly tone: 'amber' | 'red'; readonly message: string }): ReactElement {
+	return (
+		<div
+			className={
+				props.tone === 'red'
+					? 'cf:rounded-2xl cf:border cf:border-red-300/25 cf:bg-red-950/30 cf:px-4 cf:py-3 cf:text-sm cf:font-black cf:text-red-100'
+					: 'cf:rounded-2xl cf:border cf:border-amber-300/25 cf:bg-amber-950/30 cf:px-4 cf:py-3 cf:text-sm cf:font-black cf:text-amber-100'
+			}
+		>
+			{props.message}
+		</div>
+	);
+}
+
+/**
+ * LoadingRow renders a loading message.
+ */
+function LoadingRow(props: { readonly label: string }): ReactElement {
+	return (
+		<div className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4 cf:text-sm cf:font-bold cf:text-slate-300">
+			<Loader2 className="cf:size-4 cf:animate-spin cf:text-amber-200" />
+			{props.label}
 		</div>
 	);
 }

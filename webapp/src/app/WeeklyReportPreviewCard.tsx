@@ -1,9 +1,27 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { ReactElement } from 'react';
+import { CalendarDays, CheckCircle2, Clipboard, FileText, Loader2, Megaphone, Search } from 'lucide-react';
+import { toast } from 'sonner';
 
-import { useUserProfiles } from './useUserProfiles';
+import { ApiClientError, getWeeklyReportPreview, postWeeklyReportPreview } from '@/api';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
+import type { DailyReportPreview, ReportSortMode, WeeklyReportPreview, Workspace } from '@/types/domain';
+
+import {
+	CampfireCardBody,
+	CampfireCardHeader,
+	CampfireEmpty,
+	CampfireMetric,
+	CampfirePanel,
+	CampfireStatusPill,
+} from './campfire-ui';
 import { CAMPFIRE_APPLY_REPORT_FILTER_EVENT, isReportFilterApplyEvent } from './events';
-import { ApiClientError, getWeeklyReportPreview, postWeeklyReportPreview } from '../api/client';
-import type { DailyReportPreview, ReportSortMode, WeeklyReportPreview, Workspace } from '../types/domain';
+import { useUserProfiles } from './useUserProfiles';
 
 /**
  * WeeklyReportPreviewCardProps contains workspace data for weekly report previewing.
@@ -17,6 +35,15 @@ type WeeklyReportPreviewCardProps = {
  * LoadState describes the weekly report preview card state.
  */
 type LoadState = 'idle' | 'loading' | 'ready' | 'posting' | 'error';
+
+/**
+ * WeeklyReportFilter is a saved filter shape accepted by this card.
+ */
+type WeeklyReportFilter = {
+	readonly periodStart?: string;
+	readonly periodEnd?: string;
+	readonly sortMode?: ReportSortMode;
+};
 
 const reportSortOptions: readonly ReportSortMode[] = [
 	'name',
@@ -92,6 +119,13 @@ export function WeeklyReportPreviewCard(props: WeeklyReportPreviewCardProps): Re
 	 * Loads a generated weekly report preview.
 	 */
 	async function handleGeneratePreview(): Promise<void> {
+		const validationMessage = validatePeriod(periodStart, periodEnd);
+		if (validationMessage !== null) {
+			setLoadState('error');
+			setMessage(validationMessage);
+			return;
+		}
+
 		setLoadState('loading');
 		setMessage('');
 
@@ -112,14 +146,17 @@ export function WeeklyReportPreviewCard(props: WeeklyReportPreviewCardProps): Re
 	 */
 	async function handleCopyMarkdown(): Promise<void> {
 		if (preview === null) {
+			setMessage('Generate a weekly report preview first.');
 			return;
 		}
 
 		try {
 			await navigator.clipboard.writeText(preview.markdown);
 			setMessage('Weekly report Markdown copied.');
-		} catch {
+			toast.success('Markdown copied');
+		} catch (_error: unknown) {
 			setMessage('Could not copy Markdown.');
+			toast.error('Could not copy Markdown');
 		}
 	}
 
@@ -144,298 +181,341 @@ export function WeeklyReportPreviewCard(props: WeeklyReportPreviewCardProps): Re
 
 			setLoadState('ready');
 			setMessage('Weekly report posted to the channel.');
+			toast.success('Weekly report posted');
 		} catch (error: unknown) {
-			setMessage(errorToMessage(error));
+			const errorMessage = errorToMessage(error);
+			setMessage(errorMessage);
 			setLoadState('error');
+			toast.error(errorMessage);
 		}
 	}
 
 	return (
-		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-fuchsia-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-			<div className="cf:grid cf:gap-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
-				<div>
-					<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-fuchsia-200">
-						Weekly summary
-					</p>
-					<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-						Weekly report preview
-					</h2>
-					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						Generate a weekly summary from daily standup data, copy the Markdown, or post it to the
-						workspace channel.
-					</p>
+		<CampfirePanel className="cf:overflow-hidden">
+			<CampfireCardHeader
+				eyebrow="Weekly report"
+				title="Weekly ember report"
+				description="Generate a compact weekly Markdown summary across daily previews, missing users, leave, and participation totals."
+				icon={CalendarDays}
+				action={
+					<CampfireStatusPill tone={preview === null ? 'slate' : 'green'}>
+						{preview === null ? 'No preview' : 'Preview ready'}
+					</CampfireStatusPill>
+				}
+			/>
+
+			<CampfireCardBody className="cf:grid cf:gap-5">
+				<div className="cf:grid cf:gap-3 cf:md:grid-cols-4">
+					<CampfireMetric label="Submitted" value={String(preview?.submittedCount ?? 0)} />
+					<CampfireMetric label="Missing" value={String(preview?.missingCount ?? 0)} />
+					<CampfireMetric label="On leave" value={String(preview?.onLeaveCount ?? 0)} />
+					<CampfireMetric label="Days" value={String(preview?.dailyPreviews.length ?? 0)} />
 				</div>
 
-				<div className="cf:w-fit cf:rounded-full cf:border cf:border-fuchsia-300/25 cf:bg-fuchsia-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-fuchsia-200">
-					{preview === null ? 'No preview' : `${preview.dailyPreviews.length} days`}
-				</div>
-			</div>
-
-			<div className="cf:mt-5 cf:grid cf:gap-3 cf:lg:grid-cols-[180px_180px_220px_auto] cf:lg:items-end">
-				<div>
-					<label
-						className="cf:mb-1.5 cf:block cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-slate-300"
-						htmlFor="campfire-weekly-report-start"
-					>
-						Period start
-					</label>
-					<input
-						className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:transition cf:focus:border-fuchsia-300/45"
-						disabled={isBusy}
-						id="campfire-weekly-report-start"
-						type="date"
-						value={periodStart}
-						onChange={event => setPeriodStart(event.currentTarget.value)}
-					/>
-				</div>
-
-				<div>
-					<label
-						className="cf:mb-1.5 cf:block cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-slate-300"
-						htmlFor="campfire-weekly-report-end"
-					>
-						Period end
-					</label>
-					<input
-						className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:transition cf:focus:border-fuchsia-300/45"
-						disabled={isBusy}
-						id="campfire-weekly-report-end"
-						type="date"
-						value={periodEnd}
-						onChange={event => setPeriodEnd(event.currentTarget.value)}
-					/>
-				</div>
-
-				<div>
-					<label
-						className="cf:mb-1.5 cf:block cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-slate-300"
-						htmlFor="campfire-weekly-report-sort"
-					>
-						Sort mode
-					</label>
-					<select
-						className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:transition cf:focus:border-fuchsia-300/45"
-						disabled={isBusy}
-						id="campfire-weekly-report-sort"
-						value={sortMode}
-						onChange={event => setSortMode(event.currentTarget.value as ReportSortMode)}
-					>
-						{reportSortOptions.map(option => (
-							<option key={option} value={option}>
-								{formatLabel(option)}
-							</option>
-						))}
-					</select>
-				</div>
-
-				<button
-					className="cf:rounded-2xl cf:border cf:border-fuchsia-300/30 cf:bg-fuchsia-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-fuchsia-50 cf:transition cf:hover:bg-fuchsia-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-					disabled={isBusy}
-					type="button"
-					onClick={() => void handleGeneratePreview()}
-				>
-					{loadState === 'loading' ? 'Generating…' : 'Generate weekly preview'}
-				</button>
-			</div>
-
-			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
-
-			{profileErrorMessage !== '' && (
-				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{profileErrorMessage}</p>
-			)}
-
-			{profilesLoading && (
-				<p className="cf:m-0 cf:mt-4 cf:text-xs cf:font-bold cf:text-slate-400">Resolving user names…</p>
-			)}
-
-			{preview !== null && (
-				<div className="cf:mt-5 cf:grid cf:gap-4">
-					<div className="cf:grid cf:gap-3 cf:md:grid-cols-3">
-						<MetricCard label="Submitted" value={String(preview.submittedCount)} />
-						<MetricCard label="Missing" value={String(preview.missingCount)} />
-						<MetricCard label="On leave" value={String(preview.onLeaveCount)} />
-					</div>
-
-					<WeeklyUserBreakdown preview={preview} labelForUserID={labelForUserID} />
-
-					<div>
-						{' '}
-						<label
-							className="cf:mb-1.5 cf:block cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-slate-300"
-							htmlFor="campfire-weekly-report-markdown"
-						>
-							Markdown
-						</label>
-						<textarea
-							className="cf:min-h-80 cf:w-full cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:p-4 cf:font-mono cf:text-sm cf:leading-6 cf:text-slate-100 cf:outline-none"
-							id="campfire-weekly-report-markdown"
-							readOnly={true}
-							value={preview.markdown}
-						/>
-					</div>
-
-					<div className="cf:flex cf:flex-wrap cf:gap-3">
-						<button
-							className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.06] cf:px-5 cf:py-3 cf:font-black cf:text-white cf:transition cf:hover:bg-white/[0.1]"
-							type="button"
-							onClick={() => void handleCopyMarkdown()}
-						>
-							Copy Markdown
-						</button>
-
-						<button
-							className="cf:rounded-2xl cf:border cf:border-fuchsia-300/30 cf:bg-fuchsia-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-fuchsia-50 cf:transition cf:hover:bg-fuchsia-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
+				<div className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4 cf:lg:grid-cols-[1fr_1fr_1fr_auto] cf:lg:items-end">
+					<FormField label="Period start" htmlFor="campfire-weekly-report-start">
+						<Input
+							id="campfire-weekly-report-start"
+							type="date"
 							disabled={isBusy}
-							type="button"
-							onClick={() => void handlePostPreview()}
+							value={periodStart}
+							onChange={event => setPeriodStart(event.currentTarget.value)}
+						/>
+					</FormField>
+
+					<FormField label="Period end" htmlFor="campfire-weekly-report-end">
+						<Input
+							id="campfire-weekly-report-end"
+							type="date"
+							disabled={isBusy}
+							value={periodEnd}
+							onChange={event => setPeriodEnd(event.currentTarget.value)}
+						/>
+					</FormField>
+
+					<FormField label="Sort mode" htmlFor="campfire-weekly-report-sort">
+						<select
+							id="campfire-weekly-report-sort"
+							className={selectClassName()}
+							disabled={isBusy}
+							value={sortMode}
+							onChange={event => setSortMode(toReportSortMode(event.currentTarget.value))}
 						>
-							{loadState === 'posting' ? 'Posting…' : 'Post weekly report'}
-						</button>
-					</div>
+							{reportSortOptions.map(option => (
+								<option key={option} value={option}>
+									{formatLabel(option)}
+								</option>
+							))}
+						</select>
+					</FormField>
+
+					<Button type="button" disabled={isBusy} onClick={() => void handleGeneratePreview()}>
+						{loadState === 'loading' ? (
+							<Loader2 className="cf:size-4 cf:animate-spin" />
+						) : (
+							<Search className="cf:size-4" />
+						)}
+						Generate
+					</Button>
 				</div>
-			)}
+
+				{message !== '' && <MessageRow state={loadState} message={message} />}
+				{profileErrorMessage !== '' && <MessageRow state="error" message={profileErrorMessage} />}
+				{profilesLoading && <LoadingRow label="Resolving user names…" />}
+
+				{preview === null && loadState !== 'loading' && (
+					<CampfireEmpty
+						icon={FileText}
+						title="No weekly preview yet"
+						description="Choose a period and generate the weekly report preview."
+					/>
+				)}
+
+				{preview !== null && (
+					<>
+						<div className="cf:flex cf:flex-wrap cf:gap-2">
+							<Button
+								type="button"
+								variant="secondary"
+								disabled={isBusy}
+								onClick={() => void handleCopyMarkdown()}
+							>
+								<Clipboard className="cf:size-4" />
+								Copy Markdown
+							</Button>
+
+							<Button type="button" disabled={isBusy} onClick={() => void handlePostPreview()}>
+								{loadState === 'posting' ? (
+									<Loader2 className="cf:size-4 cf:animate-spin" />
+								) : (
+									<Megaphone className="cf:size-4" />
+								)}
+								Post to channel
+							</Button>
+						</div>
+
+						<Separator className="cf:bg-white/10" />
+
+						<div className="cf:grid cf:gap-5 cf:xl:grid-cols-[1fr_1fr]">
+							<WeeklyDailyBreakdown
+								dailyPreviews={preview.dailyPreviews}
+								labelForUserID={labelForUserID}
+							/>
+
+							<MarkdownPreview markdown={preview.markdown} />
+						</div>
+					</>
+				)}
+			</CampfireCardBody>
+		</CampfirePanel>
+	);
+}
+
+/**
+ * WeeklyDailyBreakdown renders daily participation within a weekly report.
+ */
+function WeeklyDailyBreakdown(props: {
+	readonly dailyPreviews: readonly DailyReportPreview[];
+	readonly labelForUserID: (userID: string) => string;
+}): ReactElement {
+	return (
+		<section className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
+			<div className="cf:flex cf:items-center cf:justify-between cf:gap-3">
+				<h3 className="cf:text-lg cf:font-black cf:text-white">Daily breakdown</h3>
+				<CampfireStatusPill tone="green">{props.dailyPreviews.length} days</CampfireStatusPill>
+			</div>
+
+			<div className="cf:mt-4 cf:grid cf:gap-3">
+				{props.dailyPreviews.length === 0 && (
+					<CampfireEmpty
+						icon={FileText}
+						title="No daily previews"
+						description="No daily preview rows were returned for this period."
+					/>
+				)}
+
+				{props.dailyPreviews.map(preview => (
+					<DailyPreviewSummary
+						preview={preview}
+						labelForUserID={props.labelForUserID}
+						key={preview.occurrenceDate}
+					/>
+				))}
+			</div>
 		</section>
 	);
 }
 
 /**
- * WeeklyUserBreakdown renders user lists for each daily preview inside a weekly report.
+ * DailyPreviewSummary renders one daily preview inside a weekly report.
  */
-function WeeklyUserBreakdown(props: {
-	readonly preview: WeeklyReportPreview;
+function DailyPreviewSummary(props: {
+	readonly preview: DailyReportPreview;
 	readonly labelForUserID: (userID: string) => string;
 }): ReactElement {
 	return (
-		<div className="cf:grid cf:gap-3">
-			{props.preview.dailyPreviews.map(dailyPreview => (
-				<article
-					className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/35 cf:p-4"
-					key={dailyPreview.occurrenceDate}
-				>
-					<strong className="cf:block cf:text-base cf:font-black cf:text-white">
-						{dailyPreview.occurrenceDate}
-					</strong>
+		<article className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4">
+			<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3">
+				<strong className="cf:text-base cf:font-black cf:text-white">{props.preview.occurrenceDate}</strong>
+				<CampfireStatusPill tone="green">{props.preview.submittedUserIds.length} submitted</CampfireStatusPill>
+			</div>
 
-					<div className="cf:mt-3 cf:grid cf:gap-3 cf:lg:grid-cols-3">
-						<UserChipList
-							title="Submitted"
-							userIds={dailyPreview.submittedUserIds}
-							tone="emerald"
-							labelForUserID={props.labelForUserID}
-						/>
-						<UserChipList
-							title="Missing"
-							userIds={dailyPreview.missingUserIds}
-							tone="amber"
-							labelForUserID={props.labelForUserID}
-						/>
-						<UserChipList
-							title="On approved leave"
-							userIds={dailyPreview.onLeaveUserIds}
-							tone="sky"
-							labelForUserID={props.labelForUserID}
-						/>
+			<div className="cf:mt-3 cf:grid cf:gap-2 cf:sm:grid-cols-3">
+				<MiniCount label="Submitted" value={props.preview.submittedUserIds.length} />
+				<MiniCount label="Missing" value={props.preview.missingUserIds.length} />
+				<MiniCount label="On leave" value={props.preview.onLeaveUserIds.length} />
+			</div>
+
+			{props.preview.missingUserIds.length > 0 && (
+				<div className="cf:mt-3">
+					<p className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-red-100">Missing</p>
+					<div className="cf:mt-2 cf:flex cf:flex-wrap cf:gap-2">
+						{props.preview.missingUserIds.map(userID => (
+							<span
+								className="cf:rounded-full cf:border cf:border-red-300/25 cf:bg-red-400/10 cf:px-3 cf:py-1 cf:text-xs cf:font-black cf:text-red-100"
+								title={userID}
+								key={userID}
+							>
+								{props.labelForUserID(userID)}
+							</span>
+						))}
 					</div>
-				</article>
-			))}
-		</div>
-	);
-}
-
-/**
- * UserChipList renders resolved users as compact chips.
- */
-function UserChipList(props: {
-	readonly title: string;
-	readonly userIds: readonly string[];
-	readonly tone: 'amber' | 'emerald' | 'sky';
-	readonly labelForUserID: (userID: string) => string;
-}): ReactElement {
-	const toneClassName = userChipToneClassName(props.tone);
-
-	return (
-		<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-3">
-			<strong className="cf:block cf:text-sm cf:font-black cf:text-white">{props.title}</strong>
-
-			{props.userIds.length === 0 && <p className="cf:m-0 cf:mt-2 cf:text-sm cf:text-slate-300">Nobody here.</p>}
-
-			{props.userIds.length > 0 && (
-				<div className="cf:mt-3 cf:flex cf:flex-wrap cf:gap-2">
-					{props.userIds.map(userID => (
-						<span
-							className={`cf:rounded-full cf:border cf:px-3 cf:py-1 cf:text-xs cf:font-extrabold ${toneClassName}`}
-							key={userID}
-							title={userID}
-						>
-							{props.labelForUserID(userID)}
-						</span>
-					))}
 				</div>
 			)}
-		</div>
+		</article>
 	);
 }
 
 /**
- * userChipToneClassName returns tone-specific chip styles.
+ * MiniCount renders a small count tile.
  */
-function userChipToneClassName(tone: 'amber' | 'emerald' | 'sky'): string {
-	switch (tone) {
-		case 'amber':
-			return 'cf:border-amber-300/20 cf:bg-amber-300/10 cf:text-amber-100';
-
-		case 'emerald':
-			return 'cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:text-emerald-100';
-
-		case 'sky':
-			return 'cf:border-sky-300/20 cf:bg-sky-300/10 cf:text-sky-100';
-
-		default:
-			return 'cf:border-white/10 cf:bg-white/[0.06] cf:text-white';
-	}
-}
-
-/**
- * MetricCard renders one weekly report metric.
- */
-function MetricCard(props: { readonly label: string; readonly value: string }): ReactElement {
+function MiniCount(props: { readonly label: string; readonly value: number }): ReactElement {
 	return (
-		<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
-			<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-slate-400">
+		<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/45 cf:p-3">
+			<span className="cf:block cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200">
 				{props.label}
-			</p>
-			<p className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:text-white">{props.value}</p>
+			</span>
+			<strong className="cf:mt-1 cf:block cf:text-lg cf:font-black cf:text-white">{props.value}</strong>
 		</div>
 	);
 }
 
 /**
- * WeeklyReportFilter contains saved weekly report controls this card can apply.
+ * MarkdownPreview renders generated report Markdown.
  */
-type WeeklyReportFilter = {
-	readonly periodStart?: string;
-	readonly periodEnd?: string;
-	readonly sortMode?: ReportSortMode;
-};
+function MarkdownPreview(props: { readonly markdown: string }): ReactElement {
+	return (
+		<section className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
+			<div className="cf:flex cf:items-center cf:justify-between cf:gap-3">
+				<h3 className="cf:text-lg cf:font-black cf:text-white">Markdown</h3>
+				<CampfireStatusPill tone="ember">Preview</CampfireStatusPill>
+			</div>
+
+			<Textarea className="cf:mt-4 cf:min-h-136 cf:font-mono cf:text-xs" readOnly value={props.markdown} />
+		</section>
+	);
+}
 
 /**
- * parseWeeklyReportFilter validates saved JSON for weekly report controls.
+ * FormField renders a labeled field.
+ */
+function FormField(props: {
+	readonly label: string;
+	readonly htmlFor: string;
+	readonly children: ReactElement;
+}): ReactElement {
+	return (
+		<div className="cf:grid cf:gap-2">
+			<Label
+				htmlFor={props.htmlFor}
+				className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200"
+			>
+				{props.label}
+			</Label>
+			{props.children}
+		</div>
+	);
+}
+
+/**
+ * MessageRow renders load/post feedback.
+ */
+function MessageRow(props: { readonly state: LoadState; readonly message: string }): ReactElement {
+	const isError = props.state === 'error';
+
+	return (
+		<div
+			className={cn(
+				'cf:flex cf:items-center cf:gap-2 cf:rounded-2xl cf:border cf:px-4 cf:py-3 cf:text-sm cf:font-black',
+				isError
+					? 'cf:border-red-300/25 cf:bg-red-950/30 cf:text-red-100'
+					: 'cf:border-amber-300/25 cf:bg-amber-950/30 cf:text-amber-100',
+			)}
+		>
+			{isError ? null : <CheckCircle2 className="cf:size-4" />}
+			{props.message}
+		</div>
+	);
+}
+
+/**
+ * LoadingRow renders a loading message.
+ */
+function LoadingRow(props: { readonly label: string }): ReactElement {
+	return (
+		<div className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4 cf:text-sm cf:font-bold cf:text-slate-300">
+			<Loader2 className="cf:size-4 cf:animate-spin cf:text-amber-200" />
+			{props.label}
+		</div>
+	);
+}
+
+/**
+ * collectWeeklyReportUserIDs returns all user IDs referenced by a weekly preview.
+ */
+function collectWeeklyReportUserIDs(preview: WeeklyReportPreview | null): readonly string[] {
+	if (preview === null) {
+		return [];
+	}
+
+	const userIDs = new Set<string>();
+
+	for (const dailyPreview of preview.dailyPreviews) {
+		for (const userID of dailyPreview.submittedUserIds) {
+			userIDs.add(userID);
+		}
+
+		for (const userID of dailyPreview.missingUserIds) {
+			userIDs.add(userID);
+		}
+
+		for (const userID of dailyPreview.onLeaveUserIds) {
+			userIDs.add(userID);
+		}
+
+		for (const row of dailyPreview.rows) {
+			userIDs.add(row.userId);
+		}
+	}
+
+	return [...userIDs];
+}
+
+/**
+ * parseWeeklyReportFilter parses saved filter JSON safely.
  */
 function parseWeeklyReportFilter(filterJson: string): WeeklyReportFilter | null {
 	try {
 		const parsed: unknown = JSON.parse(filterJson);
+
 		if (!isRecord(parsed)) {
 			return null;
 		}
 
-		const periodStart = stringField(parsed, 'periodStart') ?? stringField(parsed, 'startDate');
-		const periodEnd = stringField(parsed, 'periodEnd') ?? stringField(parsed, 'endDate');
-		const sortMode = stringField(parsed, 'sortMode');
-
 		return {
-			...(periodStart === undefined ? {} : { periodStart }),
-			...(periodEnd === undefined ? {} : { periodEnd }),
-			...(sortMode === undefined ? {} : { sortMode: toReportSortMode(sortMode) }),
+			periodStart: typeof parsed.periodStart === 'string' ? parsed.periodStart : undefined,
+			periodEnd: typeof parsed.periodEnd === 'string' ? parsed.periodEnd : undefined,
+			sortMode: isReportSortMode(parsed.sortMode) ? parsed.sortMode : undefined,
 		};
 	} catch (_error: unknown) {
 		return null;
@@ -443,103 +523,71 @@ function parseWeeklyReportFilter(filterJson: string): WeeklyReportFilter | null 
 }
 
 /**
- * stringField reads one optional string field from a parsed JSON object.
+ * isReportSortMode narrows unknown values to report sort modes.
  */
-function stringField(record: Record<string, unknown>, key: string): string | undefined {
-	const value = record[key];
-
-	if (typeof value !== 'string' || value.trim() === '') {
-		return undefined;
-	}
-
-	return value.trim();
+function isReportSortMode(value: unknown): value is ReportSortMode {
+	return (
+		value === 'name' ||
+		value === 'first_submitted' ||
+		value === 'last_submitted' ||
+		value === 'missing_first' ||
+		value === 'blockers_first'
+	);
 }
 
 /**
- * toReportSortMode narrows strings to supported weekly report sort modes.
+ * toReportSortMode normalizes select values.
  */
 function toReportSortMode(value: string): ReportSortMode {
-	switch (value) {
-		case 'name':
-		case 'first_submitted':
-		case 'last_submitted':
-		case 'missing_first':
-		case 'blockers_first':
-			return value;
-
-		default:
-			return 'first_submitted';
-	}
+	return isReportSortMode(value) ? value : 'first_submitted';
 }
 
 /**
- * isRecord narrows JSON values to indexable plain objects.
+ * validatePeriod validates the selected report period.
  */
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-/**
- * collectWeeklyReportUserIDs returns all Mattermost user IDs displayed by this card.
- */
-function collectWeeklyReportUserIDs(preview: WeeklyReportPreview | null): readonly string[] {
-	if (preview === null) {
-		return [];
+function validatePeriod(periodStart: string, periodEnd: string): string | null {
+	if (periodStart.trim() === '' || periodEnd.trim() === '') {
+		return 'Choose a period start and end date.';
 	}
 
-	const userIDs = preview.dailyPreviews.flatMap(dailyPreview => collectDailyPreviewUserIDs(dailyPreview));
-
-	return uniqueNonEmptyUserIDs(userIDs);
-}
-
-/**
- * collectDailyPreviewUserIDs returns all Mattermost user IDs from one daily report preview.
- */
-function collectDailyPreviewUserIDs(preview: DailyReportPreview): readonly string[] {
-	return [
-		...preview.submittedUserIds,
-		...preview.missingUserIds,
-		...preview.onLeaveUserIds,
-		...preview.rows.map(row => row.userId),
-	];
-}
-
-/**
- * uniqueNonEmptyUserIDs trims, de-duplicates, and preserves user ID order.
- */
-function uniqueNonEmptyUserIDs(userIDs: readonly string[]): readonly string[] {
-	const seen = new Set<string>();
-	const result: string[] = [];
-
-	for (const userID of userIDs) {
-		const cleanUserID = userID.trim();
-
-		if (cleanUserID === '' || seen.has(cleanUserID)) {
-			continue;
-		}
-
-		seen.add(cleanUserID);
-		result.push(cleanUserID);
+	if (periodStart > periodEnd) {
+		return 'Period start cannot be after period end.';
 	}
 
-	return result;
+	return null;
 }
 
 /**
- * getDefaultWeeklyRange returns Monday through Sunday for the current local week.
+ * selectClassName returns the shared native select style.
+ */
+function selectClassName(): string {
+	return cn(
+		'cf:h-10 cf:w-full cf:rounded-md cf:border cf:border-input cf:bg-background cf:px-3 cf:py-2 cf:text-sm cf:text-foreground cf:outline-none',
+		'cf:focus-visible:border-ring cf:focus-visible:ring-ring/50 cf:focus-visible:ring-3',
+		'cf:disabled:cursor-not-allowed cf:disabled:opacity-50',
+	);
+}
+
+/**
+ * getDefaultWeeklyRange returns the current Monday-to-Sunday local week.
  */
 function getDefaultWeeklyRange(): { readonly periodStart: string; readonly periodEnd: string } {
 	const today = new Date();
-	const dayOfWeek = today.getDay();
-	const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-
-	const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + mondayOffset);
-	const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+	const weekday = today.getDay();
+	const mondayOffset = weekday === 0 ? -6 : 1 - weekday;
+	const sundayOffset = mondayOffset + 6;
 
 	return {
-		periodStart: dateToLocalDateString(monday),
-		periodEnd: dateToLocalDateString(sunday),
+		periodStart: dateToLocalDateString(addDays(today, mondayOffset)),
+		periodEnd: dateToLocalDateString(addDays(today, sundayOffset)),
 	};
+}
+
+/**
+ * addDays returns a copy of date moved by the given number of days.
+ */
+function addDays(date: Date, days: number): Date {
+	return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 }
 
 /**
@@ -554,13 +602,20 @@ function dateToLocalDateString(date: Date): string {
 }
 
 /**
- * formatLabel returns a human-readable enum label.
+ * formatLabel converts enum-like values to readable labels.
  */
 function formatLabel(value: string): string {
 	return value
 		.split('_')
 		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
 		.join(' ');
+}
+
+/**
+ * isRecord narrows unknown values to indexable records.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /**
@@ -575,5 +630,5 @@ function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not update weekly report preview.';
+	return 'Could not generate weekly report preview.';
 }

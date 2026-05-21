@@ -1,5 +1,8 @@
-import type { MattermostStore } from '../types/mattermost';
+import type { MattermostStore } from '@/types/mattermost';
 
+/**
+ * The Mattermost Redux-like store reference provided during plugin initialization.
+ */
 let mattermostStore: MattermostStore | null = null;
 
 /**
@@ -116,8 +119,8 @@ function firstNonEmptyString(values: readonly (string | null)[]): string | null 
 }
 
 /**
- * isRecord narrows unknown values to string-keyed objects.
+ * isRecord narrows unknown values to string-keyed records.
  */
 function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null;
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

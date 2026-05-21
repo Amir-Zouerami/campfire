@@ -23,6 +23,11 @@ const config = defineConfig({
 		tailwindcss(),
 		cssInjectedByJsPlugin(),
 	],
+	resolve: {
+		alias: {
+			'@': path.resolve(currentDirectory, 'src'),
+		},
+	},
 	define: {
 		'process.env.NODE_ENV': JSON.stringify('production'),
 		'process.env': '{}',

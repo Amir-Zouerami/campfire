@@ -52,7 +52,7 @@ func NewRouter(config RouterConfig) http.Handler {
 
 		api.Get(
 			"/workspaces/by-channel/{channelID}",
-			handleGetWorkspaceByChannel(config.Logger, config.WorkspaceService),
+			handleGetWorkspaceByChannel(config.Logger, config.Mattermost, config.WorkspaceService),
 		)
 		api.Post("/workspaces", handleCreateWorkspace(config.Logger, config.Mattermost, config.WorkspaceService))
 

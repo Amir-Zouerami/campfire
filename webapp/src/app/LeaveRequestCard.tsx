@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { FormEvent, ReactElement } from 'react';
+import type { Dispatch, FormEvent, ReactElement, SetStateAction } from 'react';
+import { AlertTriangle, CalendarPlus, CheckCircle2, Loader2, ShieldCheck, Umbrella } from 'lucide-react';
+import { toast } from 'sonner';
 
 import {
 	ApiClientError,
@@ -8,7 +10,12 @@ import {
 	listLeaveTypes,
 	listMyActiveLeaveRequests,
 	validateLeaveRequest,
-} from '../api/client';
+} from '@/api';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 import type {
 	ApprovedLeaveRequest,
 	LeaveDurationMode,
@@ -17,11 +24,19 @@ import type {
 	LeaveType,
 	PendingLeaveRequest,
 	Workspace,
-} from '../types/domain';
-import { WorkspaceMemberSelect } from './WorkspaceMemberSelect';
+} from '@/types/domain';
+
+import {
+	CampfireCardBody,
+	CampfireCardHeader,
+	CampfireEmpty,
+	CampfireMetric,
+	CampfirePanel,
+	CampfireStatusPill,
+} from './campfire-ui';
 
 /**
- * LeaveRequestCardProps contains the workspace used for leave requests.
+ * LeaveRequestCardProps contains workspace data and post-create callback.
  */
 type LeaveRequestCardProps = {
 	readonly workspace: Workspace;
@@ -29,14 +44,14 @@ type LeaveRequestCardProps = {
 };
 
 /**
- * LeaveFormState contains the controlled leave request form values.
+ * LeaveFormState contains controlled leave request form values.
  */
 type LeaveFormState = {
 	readonly leaveTypeID: string;
 	readonly startDate: string;
 	readonly endDate: string;
 	readonly durationMode: LeaveDurationMode;
-	readonly halfDayPart: LeaveHalfDayPart | '';
+	readonly halfDayPart: '' | LeaveHalfDayPart;
 	readonly startTime: string;
 	readonly endTime: string;
 	readonly reason: string;
@@ -56,6 +71,18 @@ type LeaveConflictWarning = {
  */
 type LoadState = 'idle' | 'loading' | 'ready' | 'validating' | 'saving' | 'error';
 
+const emptyLeaveForm: LeaveFormState = {
+	leaveTypeID: '',
+	startDate: '',
+	endDate: '',
+	durationMode: 'full_day',
+	halfDayPart: '',
+	startTime: '',
+	endTime: '',
+	reason: '',
+	backupUserID: '',
+};
+
 /**
  * LeaveRequestCard renders leave request creation with pre-submit conflict warnings.
  */
@@ -67,17 +94,7 @@ export function LeaveRequestCard(props: LeaveRequestCardProps): ReactElement {
 	const [approvedLeaves, setApprovedLeaves] = useState<readonly ApprovedLeaveRequest[]>([]);
 	const [warnings, setWarnings] = useState<readonly LeaveConflictWarning[]>([]);
 	const [message, setMessage] = useState('');
-	const [form, setForm] = useState<LeaveFormState>({
-		leaveTypeID: '',
-		startDate: '',
-		endDate: '',
-		durationMode: 'full_day',
-		halfDayPart: '',
-		startTime: '',
-		endTime: '',
-		reason: '',
-		backupUserID: '',
-	});
+	const [form, setForm] = useState<LeaveFormState>(emptyLeaveForm);
 
 	useEffect(() => {
 		let isActive = true;
@@ -159,94 +176,61 @@ export function LeaveRequestCard(props: LeaveRequestCardProps): ReactElement {
 		};
 	}, [props.workspace.id, form.startDate, form.endDate]);
 
-	const selectedLeaveType = useMemo(
-		() => leaveTypes.find(leaveType => leaveType.id === form.leaveTypeID) ?? null,
-		[leaveTypes, form.leaveTypeID],
-	);
-
-	const localWarnings = useMemo(
-		() => buildLocalWarnings(form, myActiveLeaves, approvedLeaves),
-		[approvedLeaves, form, myActiveLeaves],
-	);
-
-	const allWarnings = useMemo(() => mergeWarnings(localWarnings, warnings), [localWarnings, warnings]);
+	const selectedLeaveType = useMemo(() => {
+		return leaveTypes.find(leaveType => leaveType.id === form.leaveTypeID) ?? null;
+	}, [leaveTypes, form.leaveTypeID]);
 
 	const isBusy = loadState === 'loading' || loadState === 'validating' || loadState === 'saving';
 
 	/**
-	 * Updates one field on the leave form.
+	 * Validates and creates a leave request.
 	 */
-	function updateForm(patch: Partial<LeaveFormState>): void {
-		setWarnings([]);
-		setCreatedLeaveRequest(null);
-		setForm(current => ({
-			...current,
-			...patch,
-		}));
-	}
+	async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+		event.preventDefault();
 
-	/**
-	 * Validates the leave form and shows hard validation warnings.
-	 */
-	async function handleValidate(): Promise<boolean> {
-		const localValidationMessage = validateFormLocally(form);
+		const localValidationMessage = validateForm(form);
 		if (localValidationMessage !== null) {
-			setWarnings([{ kind: 'validation', message: localValidationMessage }]);
 			setMessage(localValidationMessage);
-			return false;
+			setLoadState('error');
+			return;
 		}
 
 		setLoadState('validating');
 		setMessage('');
 
 		try {
-			await validateLeaveRequest({
+			const validationResponse = await validateLeaveRequest({
 				workspaceId: props.workspace.id,
+				leaveTypeId: form.leaveTypeID,
 				startDate: form.startDate,
 				endDate: form.endDate,
 				durationMode: form.durationMode,
 				halfDayPart: form.halfDayPart,
 				startTime: form.startTime,
 				endTime: form.endTime,
+				backupUserId: form.backupUserID.trim(),
 			});
 
-			setWarnings([]);
-			setLoadState('ready');
-			setMessage('Leave request dates passed hard validation.');
-			return true;
-		} catch (error: unknown) {
-			const warning = errorToMessage(error);
-			setWarnings([{ kind: 'validation', message: warning }]);
-			setMessage(warning);
-			setLoadState('ready');
-			return false;
-		}
-	}
+			const nextWarnings = buildWarnings(form, myActiveLeaves, approvedLeaves, validationResponse.valid);
 
-	/**
-	 * Submits a leave request after validation.
-	 */
-	async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
-		event.preventDefault();
+			if (nextWarnings.length > 0 && warnings.length === 0) {
+				setWarnings(nextWarnings);
+				setLoadState('ready');
+				setMessage('Review the warnings, then submit again if this request is still correct.');
+				return;
+			}
 
-		const isValid = await handleValidate();
-		if (!isValid) {
-			return;
-		}
+			setLoadState('saving');
 
-		setLoadState('saving');
-		setMessage('');
-
-		try {
 			const response = await createLeaveRequest({
 				workspaceId: props.workspace.id,
 				leaveTypeId: form.leaveTypeID,
 				startDate: form.startDate,
 				endDate: form.endDate,
 				durationMode: form.durationMode,
-				halfDayPart: form.durationMode === 'half_day' ? form.halfDayPart : '',
-				startTime: form.durationMode === 'hourly' ? form.startTime : '',
-				endTime: form.durationMode === 'hourly' ? form.endTime : '',
+				halfDayPart: form.halfDayPart,
+				startTime: form.startTime,
+				endTime: form.endTime,
 				reason: form.reason.trim(),
 				backupUserId: form.backupUserID.trim(),
 			});
@@ -260,232 +244,292 @@ export function LeaveRequestCard(props: LeaveRequestCardProps): ReactElement {
 				},
 				...current,
 			]);
-			setForm(current => ({
-				...current,
-				startDate: '',
-				endDate: '',
-				halfDayPart: '',
-				startTime: '',
-				endTime: '',
-				reason: '',
-				backupUserID: '',
-			}));
 			setWarnings([]);
+			setMessage('Leave request created.');
+			setForm(current => ({
+				...emptyLeaveForm,
+				leaveTypeID: current.leaveTypeID,
+			}));
 			setLoadState('ready');
-			setMessage('Leave request created and sent for approval.');
+			toast.success('Leave request created');
 			props.onLeaveCreated();
 		} catch (error: unknown) {
-			setMessage(errorToMessage(error));
+			const errorMessage = errorToMessage(error);
+			setMessage(errorMessage);
 			setLoadState('error');
+			toast.error(errorMessage);
 		}
 	}
 
+	/**
+	 * Updates form and clears warnings for meaningful field changes.
+	 */
+	function patchForm(patch: Partial<LeaveFormState>): void {
+		setWarnings([]);
+		setMessage('');
+		updateForm(setForm, patch);
+	}
+
 	return (
-		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-emerald-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-			<div className="cf:grid cf:gap-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
-				<div>
-					<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-emerald-200">
-						Leaves
-					</p>
-					<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-						Request leave
-					</h2>
-					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						Create a full-day, half-day, or hourly leave request. Campfire checks global off-days and shows
-						conflict warnings before submission.
-					</p>
-				</div>
+		<CampfirePanel className="cf:overflow-hidden">
+			<CampfireCardHeader
+				eyebrow="Leave request"
+				title="Request leave"
+				description="Ask for time away, choose coverage, and let Campfire keep standups and reports leave-aware."
+				icon={CalendarPlus}
+				action={
+					<CampfireStatusPill tone="ember">
+						<Umbrella className="cf:size-3.5" />
+						{myActiveLeaves.length} active
+					</CampfireStatusPill>
+				}
+			/>
 
-				<div className="cf:w-fit cf:rounded-full cf:border cf:border-emerald-300/25 cf:bg-emerald-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-emerald-100">
-					{leaveTypes.length} types
-				</div>
-			</div>
-
-			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
-
-			<LeaveConflictWarnings warnings={allWarnings} />
-
-			<form className="cf:mt-5 cf:grid cf:gap-4" onSubmit={event => void handleSubmit(event)}>
-				<div className="cf:grid cf:gap-4 cf:lg:grid-cols-2">
-					<label className="cf:grid cf:gap-2">
-						<span className="cf:text-sm cf:font-black cf:text-slate-200">Leave type</span>
-						<select
-							className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:focus:border-emerald-300/45"
-							disabled={isBusy || leaveTypes.length === 0}
-							value={form.leaveTypeID}
-							onChange={event => updateForm({ leaveTypeID: event.currentTarget.value })}
-						>
-							{leaveTypes.map(leaveType => (
-								<option key={leaveType.id} value={leaveType.id}>
-									{leaveType.name}
-								</option>
-							))}
-						</select>
-					</label>
-
-					<label className="cf:grid cf:gap-2">
-						<span className="cf:text-sm cf:font-black cf:text-slate-200">Duration mode</span>
-						<select
-							className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:focus:border-emerald-300/45"
-							disabled={isBusy}
-							value={form.durationMode}
-							onChange={event =>
-								updateForm({
-									durationMode: event.currentTarget.value as LeaveDurationMode,
-									halfDayPart: '',
-									startTime: '',
-									endTime: '',
-								})
-							}
-						>
-							<option value="full_day">Full day</option>
-							<option value="half_day">Half day</option>
-							<option value="hourly">Hourly</option>
-						</select>
-					</label>
-				</div>
-
-				<div className="cf:grid cf:gap-4 cf:lg:grid-cols-2">
-					<label className="cf:grid cf:gap-2">
-						<span className="cf:text-sm cf:font-black cf:text-slate-200">Start date</span>
-						<input
-							className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:focus:border-emerald-300/45"
-							disabled={isBusy}
-							type="date"
-							value={form.startDate}
-							onChange={event =>
-								updateForm({
-									startDate: event.currentTarget.value,
-									endDate: form.endDate === '' ? event.currentTarget.value : form.endDate,
-								})
-							}
-						/>
-					</label>
-
-					<label className="cf:grid cf:gap-2">
-						<span className="cf:text-sm cf:font-black cf:text-slate-200">End date</span>
-						<input
-							className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:focus:border-emerald-300/45"
-							disabled={isBusy}
-							type="date"
-							value={form.endDate}
-							onChange={event => updateForm({ endDate: event.currentTarget.value })}
-						/>
-					</label>
-				</div>
-
-				{form.durationMode === 'half_day' && (
-					<label className="cf:grid cf:gap-2">
-						<span className="cf:text-sm cf:font-black cf:text-slate-200">Half day part</span>
-						<select
-							className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:focus:border-emerald-300/45"
-							disabled={isBusy}
-							value={form.halfDayPart}
-							onChange={event =>
-								updateForm({ halfDayPart: event.currentTarget.value as LeaveHalfDayPart })
-							}
-						>
-							<option value="">Choose half</option>
-							<option value="morning">Morning</option>
-							<option value="afternoon">Afternoon</option>
-						</select>
-					</label>
-				)}
-
-				{form.durationMode === 'hourly' && (
-					<div className="cf:grid cf:gap-4 cf:lg:grid-cols-2">
-						<label className="cf:grid cf:gap-2">
-							<span className="cf:text-sm cf:font-black cf:text-slate-200">Start time</span>
-							<input
-								className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:focus:border-emerald-300/45"
-								disabled={isBusy}
-								type="time"
-								value={form.startTime}
-								onChange={event => updateForm({ startTime: event.currentTarget.value })}
-							/>
-						</label>
-
-						<label className="cf:grid cf:gap-2">
-							<span className="cf:text-sm cf:font-black cf:text-slate-200">End time</span>
-							<input
-								className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:focus:border-emerald-300/45"
-								disabled={isBusy}
-								type="time"
-								value={form.endTime}
-								onChange={event => updateForm({ endTime: event.currentTarget.value })}
-							/>
-						</label>
-					</div>
-				)}
-
-				<label className="cf:grid cf:gap-2">
-					<span className="cf:text-sm cf:font-black cf:text-slate-200">Reason</span>
-					<textarea
-						className="cf:min-h-24 cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:placeholder:text-slate-500 cf:focus:border-emerald-300/45"
-						disabled={isBusy}
-						placeholder="Short reason for approvers"
-						value={form.reason}
-						onChange={event => updateForm({ reason: event.currentTarget.value })}
+			<CampfireCardBody className="cf:grid cf:gap-5">
+				<div className="cf:grid cf:gap-3 cf:md:grid-cols-3">
+					<CampfireMetric
+						label="Leave types"
+						value={String(leaveTypes.length)}
+						helper="Workspace configured"
 					/>
-				</label>
-
-				<WorkspaceMemberSelect
-					disabled={isBusy}
-					label="Backup user"
-					placeholder="Search workspace members"
-					value={form.backupUserID}
-					workspaceID={props.workspace.id}
-					onChange={backupUserID => updateForm({ backupUserID })}
-				/>
-
-				<div className="cf:flex cf:flex-wrap cf:gap-3">
-					<button
-						className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.06] cf:px-5 cf:py-3 cf:font-black cf:text-white cf:transition cf:hover:bg-white/[0.1] cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-						disabled={isBusy}
-						type="button"
-						onClick={() => void handleValidate()}
-					>
-						Check conflicts
-					</button>
-
-					<button
-						className="cf:rounded-2xl cf:border cf:border-emerald-300/30 cf:bg-emerald-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-emerald-50 cf:transition cf:hover:bg-emerald-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-						disabled={isBusy || leaveTypes.length === 0}
-						type="submit"
-					>
-						Request leave
-					</button>
+					<CampfireMetric
+						label="My active"
+						value={String(myActiveLeaves.length)}
+						helper="Pending or approved"
+					/>
+					<CampfireMetric
+						label="Range checks"
+						value={approvedLeaves.length === 0 ? 'Clear' : String(approvedLeaves.length)}
+						helper="Approved rows in range"
+					/>
 				</div>
-			</form>
 
-			{createdLeaveRequest !== null && (
-				<div className="cf:mt-5 cf:rounded-2xl cf:border cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:p-4">
-					<strong className="cf:block cf:text-emerald-100">Request created</strong>
-					<p className="cf:m-0 cf:mt-1 cf:text-sm cf:leading-6 cf:text-emerald-50/90">
-						{createdLeaveRequest.startDate} → {createdLeaveRequest.endDate} · {createdLeaveRequest.status}
-					</p>
-				</div>
-			)}
-		</section>
+				{message !== '' && <MessageRow state={loadState} message={message} />}
+				{warnings.length > 0 && <WarningList warnings={warnings} />}
+				{createdLeaveRequest !== null && <CreatedLeaveBanner leaveRequest={createdLeaveRequest} />}
+
+				{loadState === 'loading' && <LoadingRow label="Loading leave settings…" />}
+
+				{loadState !== 'loading' && leaveTypes.length === 0 && (
+					<CampfireEmpty
+						icon={Umbrella}
+						title="No leave types configured"
+						description="This workspace has no active leave types yet. Ask a workspace lead to configure leave settings."
+					/>
+				)}
+
+				{leaveTypes.length > 0 && (
+					<form className="cf:grid cf:gap-5" onSubmit={handleSubmit}>
+						<div className="cf:grid cf:gap-5 cf:xl:grid-cols-[0.92fr_1.08fr]">
+							<section className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
+								<h3 className="cf:text-lg cf:font-black cf:text-white">Leave details</h3>
+
+								<div className="cf:mt-4 cf:grid cf:gap-4">
+									<FormField label="Leave type" htmlFor="campfire-leave-type">
+										<select
+											id="campfire-leave-type"
+											className={selectClassName()}
+											disabled={isBusy}
+											value={form.leaveTypeID}
+											onChange={event => patchForm({ leaveTypeID: event.currentTarget.value })}
+										>
+											{leaveTypes.map(leaveType => (
+												<option key={leaveType.id} value={leaveType.id}>
+													{leaveType.name}
+												</option>
+											))}
+										</select>
+									</FormField>
+
+									<div className="cf:grid cf:gap-4 cf:sm:grid-cols-2">
+										<FormField label="Start date" htmlFor="campfire-leave-start-date">
+											<Input
+												id="campfire-leave-start-date"
+												type="date"
+												disabled={isBusy}
+												value={form.startDate}
+												onChange={event => patchForm({ startDate: event.currentTarget.value })}
+											/>
+										</FormField>
+
+										<FormField label="End date" htmlFor="campfire-leave-end-date">
+											<Input
+												id="campfire-leave-end-date"
+												type="date"
+												disabled={isBusy}
+												value={form.endDate}
+												onChange={event => patchForm({ endDate: event.currentTarget.value })}
+											/>
+										</FormField>
+									</div>
+
+									<FormField label="Duration mode" htmlFor="campfire-leave-duration-mode">
+										<select
+											id="campfire-leave-duration-mode"
+											className={selectClassName()}
+											disabled={isBusy}
+											value={form.durationMode}
+											onChange={event =>
+												patchForm(normalizeDurationMode(event.currentTarget.value))
+											}
+										>
+											<option value="full_day">Full day</option>
+											<option value="half_day">Half day</option>
+											<option value="hourly">Hourly</option>
+										</select>
+									</FormField>
+
+									{form.durationMode === 'half_day' && (
+										<FormField label="Half day part" htmlFor="campfire-leave-half-day">
+											<select
+												id="campfire-leave-half-day"
+												className={selectClassName()}
+												disabled={isBusy}
+												value={form.halfDayPart}
+												onChange={event =>
+													patchForm({
+														halfDayPart:
+															event.currentTarget.value === 'afternoon'
+																? 'afternoon'
+																: 'morning',
+													})
+												}
+											>
+												<option value="">Choose half</option>
+												<option value="morning">Morning</option>
+												<option value="afternoon">Afternoon</option>
+											</select>
+										</FormField>
+									)}
+
+									{form.durationMode === 'hourly' && (
+										<div className="cf:grid cf:gap-4 cf:sm:grid-cols-2">
+											<FormField label="Start time" htmlFor="campfire-leave-start-time">
+												<Input
+													id="campfire-leave-start-time"
+													type="time"
+													disabled={isBusy}
+													value={form.startTime}
+													onChange={event =>
+														patchForm({ startTime: event.currentTarget.value })
+													}
+												/>
+											</FormField>
+
+											<FormField label="End time" htmlFor="campfire-leave-end-time">
+												<Input
+													id="campfire-leave-end-time"
+													type="time"
+													disabled={isBusy}
+													value={form.endTime}
+													onChange={event =>
+														patchForm({ endTime: event.currentTarget.value })
+													}
+												/>
+											</FormField>
+										</div>
+									)}
+								</div>
+							</section>
+
+							<section className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
+								<h3 className="cf:text-lg cf:font-black cf:text-white">Context and coverage</h3>
+
+								<div className="cf:mt-4 cf:grid cf:gap-4">
+									<FormField label="Backup user ID" htmlFor="campfire-leave-backup">
+										<Input
+											id="campfire-leave-backup"
+											disabled={isBusy}
+											placeholder="Optional Mattermost user ID"
+											value={form.backupUserID}
+											onChange={event => patchForm({ backupUserID: event.currentTarget.value })}
+										/>
+									</FormField>
+
+									<FormField label="Reason" htmlFor="campfire-leave-reason">
+										<Textarea
+											id="campfire-leave-reason"
+											className="cf:min-h-32"
+											disabled={isBusy}
+											placeholder="Optional note for approvers..."
+											value={form.reason}
+											onChange={event => patchForm({ reason: event.currentTarget.value })}
+										/>
+									</FormField>
+
+									<div className="cf:rounded-3xl cf:border cf:border-amber-300/20 cf:bg-amber-950/20 cf:p-4">
+										<div className="cf:flex cf:items-start cf:gap-3">
+											<ShieldCheck className="cf:mt-0.5 cf:size-5 cf:text-amber-200" />
+											<div>
+												<p className="cf:text-sm cf:font-black cf:text-amber-100">
+													Approver visibility
+												</p>
+												<p className="cf:mt-1 cf:text-sm cf:font-medium cf:leading-6 cf:text-slate-300">
+													Approvers can review this request. Approved dates are excluded from
+													missing standup reports.
+												</p>
+											</div>
+										</div>
+									</div>
+
+									<Button type="submit" disabled={isBusy}>
+										{loadState === 'validating' || loadState === 'saving' ? (
+											<Loader2 className="cf:size-4 cf:animate-spin" />
+										) : (
+											<CalendarPlus className="cf:size-4" />
+										)}
+										{warnings.length > 0 ? 'Submit with warnings' : 'Request leave'}
+									</Button>
+								</div>
+							</section>
+						</div>
+					</form>
+				)}
+			</CampfireCardBody>
+		</CampfirePanel>
 	);
 }
 
 /**
- * LeaveConflictWarnings renders pre-submit warning messages.
+ * FormField renders a labeled field.
  */
-function LeaveConflictWarnings(props: { readonly warnings: readonly LeaveConflictWarning[] }): ReactElement | null {
-	if (props.warnings.length === 0) {
-		return null;
-	}
-
+function FormField(props: {
+	readonly label: string;
+	readonly htmlFor: string;
+	readonly children: ReactElement;
+}): ReactElement {
 	return (
-		<div className="cf:mt-5 cf:rounded-3xl cf:border cf:border-amber-300/25 cf:bg-amber-300/10 cf:p-4">
-			<strong className="cf:block cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.14em] cf:text-amber-200">
-				Conflict warnings
-			</strong>
-			<ul className="cf:m-0 cf:mt-3 cf:grid cf:gap-2 cf:pl-5 cf:text-sm cf:leading-6 cf:text-amber-50">
+		<div className="cf:grid cf:gap-2">
+			<Label
+				htmlFor={props.htmlFor}
+				className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200"
+			>
+				{props.label}
+			</Label>
+			{props.children}
+		</div>
+	);
+}
+
+/**
+ * WarningList renders pre-submit leave warnings.
+ */
+function WarningList(props: { readonly warnings: readonly LeaveConflictWarning[] }): ReactElement {
+	return (
+		<div className="cf:grid cf:gap-3 cf:rounded-3xl cf:border cf:border-amber-300/25 cf:bg-amber-950/30 cf:p-4">
+			<div className="cf:flex cf:items-center cf:gap-2">
+				<AlertTriangle className="cf:size-5 cf:text-amber-200" />
+				<strong className="cf:text-sm cf:font-black cf:text-amber-100">Review before submitting</strong>
+			</div>
+
+			<ul className="cf:m-0 cf:grid cf:list-none cf:gap-2 cf:p-0">
 				{props.warnings.map(warning => (
-					<li key={`${warning.kind}:${warning.message}`}>{warning.message}</li>
+					<li
+						className="cf:text-sm cf:font-medium cf:leading-6 cf:text-amber-50"
+						key={`${warning.kind}-${warning.message}`}
+					>
+						{warning.message}
+					</li>
 				))}
 			</ul>
 		</div>
@@ -493,103 +537,106 @@ function LeaveConflictWarnings(props: { readonly warnings: readonly LeaveConflic
 }
 
 /**
- * buildLocalWarnings returns non-blocking warnings from already-loaded leave data.
+ * CreatedLeaveBanner renders success details after creation.
  */
-function buildLocalWarnings(
-	form: LeaveFormState,
-	myActiveLeaves: readonly PendingLeaveRequest[],
-	approvedLeaves: readonly ApprovedLeaveRequest[],
-): readonly LeaveConflictWarning[] {
-	if (!hasUsableDateRange(form)) {
-		return [];
-	}
-
-	const warnings: LeaveConflictWarning[] = [];
-
-	const overlappingOwnLeaves = myActiveLeaves.filter(row =>
-		overlapsDateRange(row.leaveRequest.startDate, row.leaveRequest.endDate, form.startDate, form.endDate),
+function CreatedLeaveBanner(props: { readonly leaveRequest: LeaveRequest }): ReactElement {
+	return (
+		<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-3 cf:rounded-3xl cf:border cf:border-emerald-300/25 cf:bg-emerald-950/30 cf:p-4">
+			<CheckCircle2 className="cf:size-5 cf:text-emerald-200" />
+			<div>
+				<p className="cf:text-sm cf:font-black cf:text-emerald-100">Leave request created</p>
+				<p className="cf:text-sm cf:font-medium cf:text-emerald-50">
+					{props.leaveRequest.startDate} → {props.leaveRequest.endDate} ·{' '}
+					{formatLabel(props.leaveRequest.status)}
+				</p>
+			</div>
+		</div>
 	);
-
-	if (overlappingOwnLeaves.length > 0) {
-		warnings.push({
-			kind: 'own_overlap',
-			message: `You already have ${overlappingOwnLeaves.length} active leave request(s) overlapping this date range.`,
-		});
-	}
-
-	const existingSameDayLeaves = approvedLeaves.filter(row =>
-		overlapsDateRange(row.leaveRequest.startDate, row.leaveRequest.endDate, form.startDate, form.endDate),
-	);
-
-	if (existingSameDayLeaves.length > 0) {
-		warnings.push({
-			kind: 'existing_same_day',
-			message: `${existingSameDayLeaves.length} approved leave request(s) already overlap this date range.`,
-		});
-	}
-
-	if (existingSameDayLeaves.length >= 3) {
-		warnings.push({
-			kind: 'many_people_out',
-			message: 'Three or more approved leaves overlap this range. Coverage may be tight.',
-		});
-	}
-
-	const cleanBackupUserID = form.backupUserID.trim();
-	if (cleanBackupUserID !== '') {
-		const backupIsUnavailable = existingSameDayLeaves.some(row => row.leaveRequest.userId === cleanBackupUserID);
-		if (backupIsUnavailable) {
-			warnings.push({
-				kind: 'backup_unavailable',
-				message: 'The selected backup user already has approved leave in this date range.',
-			});
-		}
-	}
-
-	return warnings;
 }
 
 /**
- * mergeWarnings de-duplicates warning messages while preserving order.
+ * MessageRow renders a status or error row.
  */
-function mergeWarnings(
-	firstWarnings: readonly LeaveConflictWarning[],
-	secondWarnings: readonly LeaveConflictWarning[],
-): readonly LeaveConflictWarning[] {
-	const seen = new Set<string>();
-	const merged: LeaveConflictWarning[] = [];
+function MessageRow(props: { readonly state: LoadState; readonly message: string }): ReactElement {
+	const isError = props.state === 'error';
 
-	for (const warning of [...firstWarnings, ...secondWarnings]) {
-		const key = `${warning.kind}:${warning.message}`;
-		if (seen.has(key)) {
-			continue;
-		}
-
-		seen.add(key);
-		merged.push(warning);
-	}
-
-	return merged;
+	return (
+		<div
+			className={cn(
+				'cf:rounded-2xl cf:border cf:px-4 cf:py-3 cf:text-sm cf:font-black',
+				isError
+					? 'cf:border-red-300/25 cf:bg-red-950/30 cf:text-red-100'
+					: 'cf:border-amber-300/25 cf:bg-amber-950/30 cf:text-amber-100',
+			)}
+		>
+			{props.message}
+		</div>
+	);
 }
 
 /**
- * validateFormLocally returns a local validation error, if any.
+ * LoadingRow renders a loading message.
  */
-function validateFormLocally(form: LeaveFormState): string | null {
+function LoadingRow(props: { readonly label: string }): ReactElement {
+	return (
+		<div className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4 cf:text-sm cf:font-bold cf:text-slate-300">
+			<Loader2 className="cf:size-4 cf:animate-spin cf:text-amber-200" />
+			{props.label}
+		</div>
+	);
+}
+
+/**
+ * updateForm merges partial form values.
+ */
+function updateForm(setForm: Dispatch<SetStateAction<LeaveFormState>>, patch: Partial<LeaveFormState>): void {
+	setForm(current => ({
+		...current,
+		...patch,
+	}));
+}
+
+/**
+ * normalizeDurationMode returns a form patch for one duration mode.
+ */
+function normalizeDurationMode(value: string): Partial<LeaveFormState> {
+	if (value === 'half_day') {
+		return {
+			durationMode: 'half_day',
+			startTime: '',
+			endTime: '',
+		};
+	}
+
+	if (value === 'hourly') {
+		return {
+			durationMode: 'hourly',
+			halfDayPart: '',
+		};
+	}
+
+	return {
+		durationMode: 'full_day',
+		halfDayPart: '',
+		startTime: '',
+		endTime: '',
+	};
+}
+
+/**
+ * validateForm performs frontend-only validation.
+ */
+function validateForm(form: LeaveFormState): string | null {
 	if (form.leaveTypeID.trim() === '') {
 		return 'Choose a leave type.';
 	}
 
-	if (form.startDate.trim() === '') {
-		return 'Choose a start date.';
+	if (form.startDate.trim() === '' || form.endDate.trim() === '') {
+		return 'Choose a start and end date.';
 	}
 
-	if (form.endDate.trim() === '') {
-		return 'Choose an end date.';
-	}
-
-	if (form.endDate < form.startDate) {
-		return 'End date must be on or after start date.';
+	if (form.startDate > form.endDate) {
+		return 'Start date cannot be after end date.';
 	}
 
 	if (form.durationMode === 'half_day' && form.halfDayPart === '') {
@@ -602,7 +649,7 @@ function validateFormLocally(form: LeaveFormState): string | null {
 		}
 
 		if (form.startTime >= form.endTime) {
-			return 'Hourly leave end time must be after start time.';
+			return 'Hourly leave start time must be before end time.';
 		}
 	}
 
@@ -610,10 +657,69 @@ function validateFormLocally(form: LeaveFormState): string | null {
 }
 
 /**
- * hasUsableDateRange returns true when date range fields are ready for conflict checks.
+ * hasUsableDateRange returns true when a form has a usable date range.
  */
 function hasUsableDateRange(form: LeaveFormState): boolean {
-	return form.startDate.trim() !== '' && form.endDate.trim() !== '' && form.endDate >= form.startDate;
+	return form.startDate.trim() !== '' && form.endDate.trim() !== '' && form.startDate <= form.endDate;
+}
+
+/**
+ * buildWarnings creates local warning messages before submission.
+ */
+function buildWarnings(
+	form: LeaveFormState,
+	myActiveLeaves: readonly PendingLeaveRequest[],
+	approvedLeaves: readonly ApprovedLeaveRequest[],
+	serverValid: boolean,
+): readonly LeaveConflictWarning[] {
+	const warnings: LeaveConflictWarning[] = [];
+
+	if (!serverValid) {
+		warnings.push({
+			kind: 'validation',
+			message: 'The backend validation found a conflict for this request.',
+		});
+	}
+
+	const ownOverlap = myActiveLeaves.some(row =>
+		overlapsDateRange(row.leaveRequest.startDate, row.leaveRequest.endDate, form.startDate, form.endDate),
+	);
+
+	if (ownOverlap) {
+		warnings.push({
+			kind: 'own_overlap',
+			message: 'You already have an active leave request overlapping this date range.',
+		});
+	}
+
+	if (approvedLeaves.length >= 3) {
+		warnings.push({
+			kind: 'many_people_out',
+			message: `${approvedLeaves.length} approved leave rows already overlap this range.`,
+		});
+	}
+
+	const sameDay = approvedLeaves.some(
+		row => row.leaveRequest.startDate === form.startDate || row.leaveRequest.endDate === form.endDate,
+	);
+	if (sameDay) {
+		warnings.push({
+			kind: 'existing_same_day',
+			message: 'At least one approved leave starts or ends on the same day.',
+		});
+	}
+
+	if (form.backupUserID.trim() !== '') {
+		const backupUnavailable = approvedLeaves.some(row => row.leaveRequest.userId === form.backupUserID.trim());
+		if (backupUnavailable) {
+			warnings.push({
+				kind: 'backup_unavailable',
+				message: 'The backup user appears to be on approved leave in this date range.',
+			});
+		}
+	}
+
+	return warnings;
 }
 
 /**
@@ -621,6 +727,27 @@ function hasUsableDateRange(form: LeaveFormState): boolean {
  */
 function overlapsDateRange(startDate: string, endDate: string, rangeStart: string, rangeEnd: string): boolean {
 	return startDate <= rangeEnd && endDate >= rangeStart;
+}
+
+/**
+ * selectClassName returns the shared native select style.
+ */
+function selectClassName(): string {
+	return cn(
+		'cf:h-10 cf:w-full cf:rounded-md cf:border cf:border-input cf:bg-background cf:px-3 cf:py-2 cf:text-sm cf:text-foreground cf:outline-none',
+		'cf:focus-visible:border-ring cf:focus-visible:ring-ring/50 cf:focus-visible:ring-3',
+		'cf:disabled:cursor-not-allowed cf:disabled:opacity-50',
+	);
+}
+
+/**
+ * formatLabel converts enum-like strings to readable labels.
+ */
+function formatLabel(value: string): string {
+	return value
+		.split('_')
+		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(' ');
 }
 
 /**

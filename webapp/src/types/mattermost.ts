@@ -6,7 +6,9 @@ import type { ComponentType, ReactElement, ReactNode } from 'react';
 export type MattermostChannel = {
 	readonly id: string;
 	readonly team_id?: string;
+	readonly teamId?: string;
 	readonly display_name?: string;
+	readonly displayName?: string;
 	readonly name?: string;
 };
 
@@ -28,11 +30,6 @@ export type PluginIconProps = {
 
 /**
  * Minimal Mattermost webapp plugin registry methods used by Campfire.
- *
- * Standup Raven's working modal pattern is:
- * - register a root component
- * - register a channel-header button
- * - button action opens the root component's modal state
  */
 export type MattermostPluginRegistry = {
 	readonly registerRootComponent: (component: ComponentType) => void;

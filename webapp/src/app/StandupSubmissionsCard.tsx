@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
+import { CheckCircle2, ClipboardList, Loader2, Search, UserRoundCheck, UserRoundX } from 'lucide-react';
 
-import { ApiClientError, listStandupConfiguration, listStandupSubmissions } from '../api/client';
+import { ApiClientError, listStandupConfiguration, listStandupSubmissions } from '@/api';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 import type {
 	StandupAnswer,
 	StandupOccurrenceSummary,
@@ -9,7 +16,16 @@ import type {
 	StandupSubmissionSortMode,
 	StandupSubmissionWithAnswers,
 	Workspace,
-} from '../types/domain';
+} from '@/types/domain';
+
+import {
+	CampfireCardBody,
+	CampfireCardHeader,
+	CampfireEmpty,
+	CampfireMetric,
+	CampfirePanel,
+	CampfireStatusPill,
+} from './campfire-ui';
 import { useUserProfiles } from './useUserProfiles';
 
 /**
@@ -85,236 +101,194 @@ export function StandupSubmissionsCard(props: StandupSubmissionsCardProps): Reac
 		};
 	}, [props.workspace.id, props.refreshToken, occurrenceDate, sortMode]);
 
-	const questionsByID = useMemo(() => groupQuestionsByID(questions), [questions]);
-	const displaySubmissions = useMemo(
-		() => orderSubmissionsForDisplay(summary?.submissions ?? [], sortMode),
-		[summary, sortMode],
-	);
-	const userIDsForProfiles = useMemo(() => collectStandupSummaryUserIDs(summary), [summary]);
+	const userIDsForProfiles = useMemo(() => collectSummaryUserIDs(summary), [summary]);
 	const {
 		errorMessage: profileErrorMessage,
 		labelForUserID,
 		loading: profilesLoading,
 	} = useUserProfiles(userIDsForProfiles);
 
+	const questionsByID = useMemo(() => indexQuestionsByID(questions), [questions]);
+
 	return (
-		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-sky-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-			<div className="cf:grid cf:gap-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
-				<div>
-					<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-sky-200">
-						Submissions
-					</p>
-					<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-						Standup submissions
-					</h2>
-					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						See who submitted, who is missing, and who is skipped because they are on approved leave.
-					</p>
-				</div>
+		<CampfirePanel className="cf:overflow-hidden">
+			<CampfireCardHeader
+				eyebrow="Review"
+				title="Standup submissions"
+				description="Review submitted answers, missing users, and people excluded because they are on approved leave."
+				icon={ClipboardList}
+				action={
+					<CampfireStatusPill tone="green">
+						{summary?.submittedUserIds.length ?? 0} submitted
+					</CampfireStatusPill>
+				}
+			/>
 
-				<div className="cf:w-fit cf:rounded-full cf:border cf:border-sky-300/25 cf:bg-sky-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-sky-200">
-					{summary?.submittedUserIds.length ?? 0} submitted
-				</div>
-			</div>
-
-			<div className="cf:mt-5 cf:grid cf:gap-4 cf:lg:grid-cols-[1fr_1fr_auto] cf:lg:items-end">
-				<Field label="Date">
-					<input
-						className={inputClassName}
-						type="date"
-						value={occurrenceDate}
-						onChange={event => setOccurrenceDate(event.currentTarget.value)}
+			<CampfireCardBody className="cf:grid cf:gap-5">
+				<div className="cf:grid cf:gap-3 cf:md:grid-cols-4">
+					<CampfireMetric label="Members" value={String(summary?.memberUserIds.length ?? 0)} />
+					<CampfireMetric
+						label="Submitted"
+						value={String(summary?.submittedUserIds.length ?? 0)}
+						icon={UserRoundCheck}
 					/>
-				</Field>
+					<CampfireMetric
+						label="Missing"
+						value={String(summary?.missingUserIds.length ?? 0)}
+						icon={UserRoundX}
+					/>
+					<CampfireMetric label="On leave" value={String(summary?.onLeaveUserIds.length ?? 0)} />
+				</div>
 
-				<Field label="Sort">
-					<select
-						className={inputClassName}
-						value={sortMode}
-						onChange={event => setSortMode(toSortMode(event.currentTarget.value))}
+				<div className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4 cf:lg:grid-cols-[1fr_1fr_auto] cf:lg:items-end">
+					<FormField label="Occurrence date" htmlFor="campfire-submissions-date">
+						<Input
+							id="campfire-submissions-date"
+							type="date"
+							value={occurrenceDate}
+							onChange={event => setOccurrenceDate(event.currentTarget.value)}
+						/>
+					</FormField>
+
+					<FormField label="Sort mode" htmlFor="campfire-submissions-sort">
+						<select
+							id="campfire-submissions-sort"
+							className={selectClassName()}
+							value={sortMode}
+							onChange={event => setSortMode(toSortMode(event.currentTarget.value))}
+						>
+							<option value="first_submitted">First submitted</option>
+							<option value="last_submitted">Last submitted</option>
+							<option value="missing_first">Missing first</option>
+							<option value="name">Name</option>
+						</select>
+					</FormField>
+
+					<Button
+						type="button"
+						variant="secondary"
+						onClick={() => setOccurrenceDate(getTodayLocalDateString())}
 					>
-						<option value="first_submitted">First submitted</option>
-						<option value="last_submitted">Last updated</option>
-						<option value="name">Name / user ID</option>
-						<option value="missing_first">Missing first</option>
-					</select>
-				</Field>
+						<Search className="cf:size-4" />
+						Today
+					</Button>
+				</div>
 
-				<button
-					className="cf:w-fit cf:rounded-2xl cf:border cf:border-sky-300/25 cf:bg-sky-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-sky-50 cf:transition cf:hover:bg-sky-400/30"
-					type="button"
-					onClick={() => setOccurrenceDate(getTodayLocalDateString())}
-				>
-					Today
-				</button>
-			</div>
+				{message !== '' && <MessageRow state={loadState} message={message} />}
+				{profileErrorMessage !== '' && <MessageRow state="error" message={profileErrorMessage} />}
+				{profilesLoading && <LoadingRow label="Resolving users…" />}
+				{loadState === 'loading' && <LoadingRow label="Loading standup submissions…" />}
 
-			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
-
-			{profileErrorMessage !== '' && (
-				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{profileErrorMessage}</p>
-			)}
-
-			{profilesLoading && (
-				<p className="cf:m-0 cf:mt-4 cf:text-xs cf:font-bold cf:text-slate-400">Resolving user names…</p>
-			)}
-
-			{loadState === 'loading' && <p className="cf:m-0 cf:mt-5 cf:text-slate-300">Loading submissions…</p>}
-
-			{summary !== null && (
-				<div className="cf:mt-5 cf:grid cf:gap-4">
-					<div className="cf:grid cf:gap-3 cf:md:grid-cols-4">
-						<Metric label="Members" value={String(summary.memberUserIds.length)} />
-						<Metric label="Submitted" value={String(summary.submittedUserIds.length)} />
-						<Metric label="Missing" value={String(summary.missingUserIds.length)} />
-						<Metric label="On leave" value={String(summary.onLeaveUserIds.length)} />
-					</div>
-
-					{sortMode === 'missing_first' && (
-						<UserList
+				{summary !== null && (
+					<div className="cf:grid cf:gap-5 cf:xl:grid-cols-[1fr_1fr]">
+						<UserBucket
 							title="Missing"
-							userIds={summary.missingUserIds}
-							tone="amber"
+							tone="red"
+							userIDs={summary.missingUserIds}
 							labelForUserID={labelForUserID}
 						/>
-					)}
+						<UserBucket
+							title="On leave"
+							tone="green"
+							userIDs={summary.onLeaveUserIds}
+							labelForUserID={labelForUserID}
+						/>
+					</div>
+				)}
 
-					<UserList
-						title="On approved leave"
-						userIds={summary.onLeaveUserIds}
-						tone="emerald"
-						labelForUserID={labelForUserID}
+				<Separator className="cf:bg-white/10" />
+
+				{summary !== null && summary.submissions.length === 0 && loadState !== 'loading' && (
+					<CampfireEmpty
+						icon={ClipboardList}
+						title="No submissions for this date"
+						description="Submitted standups will appear here after team members answer their forms."
 					/>
+				)}
 
-					{displaySubmissions.length === 0 && (
-						<p className="cf:m-0 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/35 cf:p-4 cf:text-slate-300">
-							No submissions for this date yet.
-						</p>
-					)}
-
-					{displaySubmissions.map(submission => (
+				<div className="cf:grid cf:gap-4">
+					{summary?.submissions.map(row => (
 						<SubmissionCard
-							key={submission.submission.id}
-							submission={submission}
+							row={row}
 							questionsByID={questionsByID}
 							labelForUserID={labelForUserID}
+							key={row.submission.id}
 						/>
 					))}
-
-					{sortMode !== 'missing_first' && (
-						<UserList
-							title="Missing"
-							userIds={summary.missingUserIds}
-							tone="amber"
-							labelForUserID={labelForUserID}
-						/>
-					)}
 				</div>
-			)}
-		</section>
-	);
-}
-
-const inputClassName =
-	'cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/55 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:transition cf:[color-scheme:dark] cf:placeholder:text-slate-500 cf:focus:border-sky-300/60 cf:focus:ring-4 cf:focus:ring-sky-300/15';
-
-/**
- * Field renders a labeled control shell.
- */
-function Field(props: { readonly label: string; readonly children: ReactElement }): ReactElement {
-	return (
-		<label className="cf:grid cf:gap-2">
-			<span className="cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.14em] cf:text-sky-200">
-				{props.label}
-			</span>
-			{props.children}
-		</label>
+			</CampfireCardBody>
+		</CampfirePanel>
 	);
 }
 
 /**
- * Metric renders a compact count card.
+ * UserBucket renders a compact list of users by status.
  */
-function Metric(props: { readonly label: string; readonly value: string }): ReactElement {
+function UserBucket(props: {
+	readonly title: string;
+	readonly tone: 'green' | 'red';
+	readonly userIDs: readonly string[];
+	readonly labelForUserID: UserLabelResolver;
+}): ReactElement {
 	return (
-		<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/35 cf:p-4">
-			<span className="cf:block cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.14em] cf:text-sky-200">
-				{props.label}
-			</span>
-			<strong className="cf:mt-1 cf:block cf:text-lg cf:font-black cf:text-white">{props.value}</strong>
+		<div className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
+			<div className="cf:flex cf:items-center cf:justify-between cf:gap-3">
+				<h3 className="cf:text-lg cf:font-black cf:text-white">{props.title}</h3>
+				<Badge variant="secondary" className="cf:rounded-full">
+					{props.userIDs.length}
+				</Badge>
+			</div>
+
+			<div className="cf:mt-4 cf:flex cf:flex-wrap cf:gap-2">
+				{props.userIDs.length === 0 && (
+					<span className="cf:text-sm cf:font-medium cf:text-slate-400">None</span>
+				)}
+
+				{props.userIDs.map(userID => (
+					<span className={userChipClassName(props.tone)} title={userID} key={userID}>
+						{props.labelForUserID(userID)}
+					</span>
+				))}
+			</div>
 		</div>
 	);
 }
 
 /**
- * UserList renders a compact list of users.
- */
-function UserList(props: {
-	readonly title: string;
-	readonly userIds: readonly string[];
-	readonly tone: 'amber' | 'emerald';
-	readonly labelForUserID: UserLabelResolver;
-}): ReactElement {
-	const toneClassName =
-		props.tone === 'amber'
-			? 'cf:border-amber-300/20 cf:bg-amber-300/10 cf:text-amber-100'
-			: 'cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:text-emerald-100';
-
-	return (
-		<article className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/35 cf:p-4">
-			<strong className="cf:block cf:text-base cf:font-black cf:text-white">{props.title}</strong>
-
-			{props.userIds.length === 0 && <p className="cf:m-0 cf:mt-2 cf:text-sm cf:text-slate-300">Nobody here.</p>}
-
-			{props.userIds.length > 0 && (
-				<div className="cf:mt-3 cf:flex cf:flex-wrap cf:gap-2">
-					{props.userIds.map(userID => (
-						<span
-							className={`cf:rounded-full cf:border cf:px-3 cf:py-1 cf:text-xs cf:font-extrabold ${toneClassName}`}
-							key={userID}
-							title={userID}
-						>
-							{props.labelForUserID(userID)}
-						</span>
-					))}
-				</div>
-			)}
-		</article>
-	);
-}
-
-/**
- * SubmissionCard renders one submitted standup.
+ * SubmissionCard renders one submitted standup with answers.
  */
 function SubmissionCard(props: {
-	readonly submission: StandupSubmissionWithAnswers;
+	readonly row: StandupSubmissionWithAnswers;
 	readonly questionsByID: Readonly<Record<string, StandupQuestion>>;
 	readonly labelForUserID: UserLabelResolver;
 }): ReactElement {
-	const userID = props.submission.submission.userId;
+	const sortedAnswers = [...props.row.answers].sort((first, second) => {
+		const firstQuestion = props.questionsByID[first.questionId];
+		const secondQuestion = props.questionsByID[second.questionId];
+
+		return (firstQuestion?.position ?? 0) - (secondQuestion?.position ?? 0);
+	});
 
 	return (
 		<article className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
 			<div className="cf:flex cf:flex-col cf:gap-3 cf:sm:flex-row cf:sm:items-start cf:sm:justify-between">
 				<div>
-					<strong className="cf:block cf:text-lg cf:font-black cf:text-white" title={userID}>
-						{props.labelForUserID(userID)}
-					</strong>
-					<p className="cf:m-0 cf:mt-1 cf:text-sm cf:text-slate-300">
-						First submitted: {formatDateTime(props.submission.submission.firstSubmittedAt)}
-					</p>
-					<p className="cf:m-0 cf:mt-1 cf:text-sm cf:text-slate-300">
-						Last updated: {formatDateTime(props.submission.submission.lastUpdatedAt)}
+					<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
+						<strong className="cf:text-lg cf:font-black cf:text-white" title={props.row.submission.userId}>
+							{props.labelForUserID(props.row.submission.userId)}
+						</strong>
+						<CampfireStatusPill tone="green">Submitted</CampfireStatusPill>
+					</div>
+
+					<p className="cf:mt-2 cf:text-sm cf:font-medium cf:text-slate-400">
+						First: {formatDateTime(props.row.submission.firstSubmittedAt)} · Last:{' '}
+						{formatDateTime(props.row.submission.lastUpdatedAt)}
 					</p>
 				</div>
-
-				<span className="cf:w-fit cf:rounded-full cf:border cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:px-3 cf:py-1 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-emerald-200">
-					{props.submission.submission.status}
-				</span>
 			</div>
 
 			<div className="cf:mt-4 cf:grid cf:gap-3">
-				{props.submission.answers.map(answer => (
+				{sortedAnswers.map(answer => (
 					<AnswerRow answer={answer} question={props.questionsByID[answer.questionId]} key={answer.id} />
 				))}
 			</div>
@@ -323,28 +297,118 @@ function SubmissionCard(props: {
 }
 
 /**
- * AnswerRow renders one standup answer with question context.
+ * AnswerRow renders one submitted answer.
  */
 function AnswerRow(props: {
 	readonly answer: StandupAnswer;
 	readonly question: StandupQuestion | undefined;
 }): ReactElement {
 	return (
-		<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-3">
-			<strong className="cf:block cf:text-sm cf:font-black cf:text-slate-100">
-				{props.question?.prompt || props.question?.label || props.answer.questionId}
-			</strong>
-			<p className="cf:m-0 cf:mt-2 cf:whitespace-pre-wrap cf:text-sm cf:leading-6 cf:text-slate-300">
-				{answerValueToText(props.answer.valueJson)}
+		<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-3">
+			<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
+				<strong className="cf:text-sm cf:font-black cf:text-white">
+					{props.question?.label ?? props.answer.questionId}
+				</strong>
+				{props.question?.isPrivate === true && <CampfireStatusPill tone="slate">Private</CampfireStatusPill>}
+			</div>
+			<p className="cf:mt-2 cf:whitespace-pre-wrap cf:text-sm cf:font-medium cf:leading-6 cf:text-slate-300">
+				{formatAnswerValue(props.answer.valueJson)}
 			</p>
 		</div>
 	);
 }
 
 /**
- * groupQuestionsByID groups questions by ID.
+ * FormField renders a labeled field.
  */
-function groupQuestionsByID(questions: readonly StandupQuestion[]): Readonly<Record<string, StandupQuestion>> {
+function FormField(props: {
+	readonly label: string;
+	readonly htmlFor: string;
+	readonly children: ReactElement;
+}): ReactElement {
+	return (
+		<div className="cf:grid cf:gap-2">
+			<Label
+				htmlFor={props.htmlFor}
+				className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200"
+			>
+				{props.label}
+			</Label>
+			{props.children}
+		</div>
+	);
+}
+
+/**
+ * MessageRow renders a status or error row.
+ */
+function MessageRow(props: { readonly state: LoadState; readonly message: string }): ReactElement {
+	const isError = props.state === 'error';
+
+	return (
+		<div
+			className={cn(
+				'cf:flex cf:items-center cf:gap-2 cf:rounded-2xl cf:border cf:px-4 cf:py-3 cf:text-sm cf:font-black',
+				isError
+					? 'cf:border-red-300/25 cf:bg-red-950/30 cf:text-red-100'
+					: 'cf:border-amber-300/25 cf:bg-amber-950/30 cf:text-amber-100',
+			)}
+		>
+			{isError ? null : <CheckCircle2 className="cf:size-4" />}
+			{props.message}
+		</div>
+	);
+}
+
+/**
+ * LoadingRow renders a loading message.
+ */
+function LoadingRow(props: { readonly label: string }): ReactElement {
+	return (
+		<div className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4 cf:text-sm cf:font-bold cf:text-slate-300">
+			<Loader2 className="cf:size-4 cf:animate-spin cf:text-amber-200" />
+			{props.label}
+		</div>
+	);
+}
+
+/**
+ * collectSummaryUserIDs returns every user ID referenced by the summary.
+ */
+function collectSummaryUserIDs(summary: StandupOccurrenceSummary | null): readonly string[] {
+	if (summary === null) {
+		return [];
+	}
+
+	const userIDs = new Set<string>();
+
+	for (const userID of summary.memberUserIds) {
+		userIDs.add(userID);
+	}
+
+	for (const userID of summary.submittedUserIds) {
+		userIDs.add(userID);
+	}
+
+	for (const userID of summary.missingUserIds) {
+		userIDs.add(userID);
+	}
+
+	for (const userID of summary.onLeaveUserIds) {
+		userIDs.add(userID);
+	}
+
+	for (const row of summary.submissions) {
+		userIDs.add(row.submission.userId);
+	}
+
+	return [...userIDs];
+}
+
+/**
+ * indexQuestionsByID returns questions keyed by ID.
+ */
+function indexQuestionsByID(questions: readonly StandupQuestion[]): Readonly<Record<string, StandupQuestion>> {
 	const result: Record<string, StandupQuestion> = {};
 
 	for (const question of questions) {
@@ -355,81 +419,9 @@ function groupQuestionsByID(questions: readonly StandupQuestion[]): Readonly<Rec
 }
 
 /**
- * collectStandupSummaryUserIDs returns all user IDs displayed by the submissions card.
+ * formatAnswerValue decodes stored JSON answer values for display.
  */
-function collectStandupSummaryUserIDs(summary: StandupOccurrenceSummary | null): readonly string[] {
-	if (summary === null) {
-		return [];
-	}
-
-	const userIDs = [
-		...summary.memberUserIds,
-		...summary.submittedUserIds,
-		...summary.missingUserIds,
-		...summary.onLeaveUserIds,
-		...summary.submissions.map(item => item.submission.userId),
-	];
-
-	return uniqueNonEmptyUserIDs(userIDs);
-}
-
-/**
- * uniqueNonEmptyUserIDs trims, de-duplicates, and preserves user ID order.
- */
-function uniqueNonEmptyUserIDs(userIDs: readonly string[]): readonly string[] {
-	const seen = new Set<string>();
-	const result: string[] = [];
-
-	for (const userID of userIDs) {
-		const cleanUserID = userID.trim();
-
-		if (cleanUserID === '' || seen.has(cleanUserID)) {
-			continue;
-		}
-
-		seen.add(cleanUserID);
-		result.push(cleanUserID);
-	}
-
-	return result;
-}
-
-/**
- * orderSubmissionsForDisplay applies frontend-only sort behavior.
- */
-function orderSubmissionsForDisplay(
-	submissions: readonly StandupSubmissionWithAnswers[],
-	sortMode: StandupSubmissionSortMode,
-): readonly StandupSubmissionWithAnswers[] {
-	if (sortMode !== 'last_submitted') {
-		return submissions;
-	}
-
-	return [...submissions].sort((first, second) =>
-		first.submission.lastUpdatedAt.localeCompare(second.submission.lastUpdatedAt),
-	);
-}
-
-/**
- * toSortMode narrows strings to supported sort modes.
- */
-function toSortMode(value: string): StandupSubmissionSortMode {
-	switch (value) {
-		case 'name':
-		case 'first_submitted':
-		case 'last_submitted':
-		case 'missing_first':
-			return value;
-
-		default:
-			return 'first_submitted';
-	}
-}
-
-/**
- * answerValueToText converts stored JSON answer text into a human-readable label.
- */
-function answerValueToText(valueJson: string): string {
+function formatAnswerValue(valueJson: string): string {
 	try {
 		const parsed: unknown = JSON.parse(valueJson);
 
@@ -437,7 +429,11 @@ function answerValueToText(valueJson: string): string {
 			return parsed;
 		}
 
-		if (typeof parsed === 'number' || typeof parsed === 'boolean') {
+		if (typeof parsed === 'boolean') {
+			return parsed ? 'Yes' : 'No';
+		}
+
+		if (typeof parsed === 'number') {
 			return String(parsed);
 		}
 
@@ -445,14 +441,55 @@ function answerValueToText(valueJson: string): string {
 			return parsed.map(value => String(value)).join(', ');
 		}
 
-		if (parsed === null) {
-			return '';
-		}
-
 		return JSON.stringify(parsed);
 	} catch (_error: unknown) {
 		return valueJson;
 	}
+}
+
+/**
+ * toSortMode narrows a string to a known sort mode.
+ */
+function toSortMode(value: string): StandupSubmissionSortMode {
+	if (value === 'name' || value === 'last_submitted' || value === 'missing_first') {
+		return value;
+	}
+
+	return 'first_submitted';
+}
+
+/**
+ * userChipClassName returns a user chip style.
+ */
+function userChipClassName(tone: 'green' | 'red'): string {
+	if (tone === 'green') {
+		return 'cf:rounded-full cf:border cf:border-emerald-300/25 cf:bg-emerald-400/10 cf:px-3 cf:py-1 cf:text-xs cf:font-black cf:text-emerald-100';
+	}
+
+	return 'cf:rounded-full cf:border cf:border-red-300/25 cf:bg-red-400/10 cf:px-3 cf:py-1 cf:text-xs cf:font-black cf:text-red-100';
+}
+
+/**
+ * selectClassName returns the shared native select style.
+ */
+function selectClassName(): string {
+	return cn(
+		'cf:h-10 cf:w-full cf:rounded-md cf:border cf:border-input cf:bg-background cf:px-3 cf:py-2 cf:text-sm cf:text-foreground cf:outline-none',
+		'cf:focus-visible:border-ring cf:focus-visible:ring-ring/50 cf:focus-visible:ring-3',
+		'cf:disabled:cursor-not-allowed cf:disabled:opacity-50',
+	);
+}
+
+/**
+ * getTodayLocalDateString returns today's local YYYY-MM-DD date.
+ */
+function getTodayLocalDateString(): string {
+	const today = new Date();
+	const year = String(today.getFullYear());
+	const month = String(today.getMonth() + 1).padStart(2, '0');
+	const day = String(today.getDate()).padStart(2, '0');
+
+	return `${year}-${month}-${day}`;
 }
 
 /**
@@ -466,18 +503,6 @@ function formatDateTime(value: string): string {
 	}
 
 	return date.toLocaleString();
-}
-
-/**
- * getTodayLocalDateString returns today's local YYYY-MM-DD date.
- */
-function getTodayLocalDateString(): string {
-	const date = new Date();
-	const year = String(date.getFullYear());
-	const month = String(date.getMonth() + 1).padStart(2, '0');
-	const day = String(date.getDate()).padStart(2, '0');
-
-	return `${year}-${month}-${day}`;
 }
 
 /**

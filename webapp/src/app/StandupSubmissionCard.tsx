@@ -1,8 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
+import { CheckCircle2, ClipboardList, Loader2, Send, TimerReset } from 'lucide-react';
+import { toast } from 'sonner';
 
-import { ApiClientError, listMyTasks, listStandupConfiguration, submitStandup } from '../api/client';
-import type { QuestionType, StandupQuestion, StandupSchedule, StandupTemplate, Task, Workspace } from '../types/domain';
+import { ApiClientError, listMyTasks, listStandupConfiguration, submitStandup } from '@/api';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
+import type { QuestionType, StandupQuestion, StandupSchedule, StandupTemplate, Task, Workspace } from '@/types/domain';
+
+import {
+	CampfireCardBody,
+	CampfireCardHeader,
+	CampfireEmpty,
+	CampfireMetric,
+	CampfirePanel,
+	CampfireStatusPill,
+} from './campfire-ui';
 
 /**
  * StandupSubmissionCardProps contains the workspace used for submissions.
@@ -45,7 +64,7 @@ export function StandupSubmissionCard(props: StandupSubmissionCardProps): ReactE
 		let isActive = true;
 
 		/**
-		 * Loads standup configuration and recent current-user tasks for submit context.
+		 * Loads standup configuration and current-user tasks.
 		 */
 		async function loadInitialData(): Promise<void> {
 			setLoadState('loading');
@@ -62,13 +81,18 @@ export function StandupSubmissionCard(props: StandupSubmissionCardProps): ReactE
 				}
 
 				const enabledSchedules = configurationResponse.schedules.filter(schedule => schedule.enabled);
-				const defaultScheduleID = enabledSchedules[0]?.id ?? '';
+				const firstSchedule = enabledSchedules[0] ?? configurationResponse.schedules[0];
 
 				setTemplates(configurationResponse.templates);
 				setQuestions(configurationResponse.questions);
-				setSchedules(enabledSchedules);
+				setSchedules(configurationResponse.schedules);
 				setTasks(tasksResponse.tasks);
-				setSelectedScheduleID(defaultScheduleID);
+
+				if (firstSchedule !== undefined) {
+					setSelectedScheduleID(firstSchedule.id);
+					setAnswers(buildInitialAnswers(configurationResponse.questions, firstSchedule.templateId));
+				}
+
 				setLoadState('ready');
 			} catch (error: unknown) {
 				if (!isActive) {
@@ -92,47 +116,44 @@ export function StandupSubmissionCard(props: StandupSubmissionCardProps): ReactE
 		[schedules, selectedScheduleID],
 	);
 
-	const selectedTemplate = useMemo(
-		() =>
-			selectedSchedule === null
-				? null
-				: (templates.find(template => template.id === selectedSchedule.templateId) ?? null),
-		[selectedSchedule, templates],
-	);
+	const selectedTemplate = useMemo(() => {
+		if (selectedSchedule === null) {
+			return null;
+		}
 
-	const selectedQuestions = useMemo(
-		() =>
-			selectedTemplate === null
-				? []
-				: questions
-						.filter(question => question.templateId === selectedTemplate.id)
-						.sort((first, second) => first.position - second.position),
-		[questions, selectedTemplate],
-	);
+		return templates.find(template => template.id === selectedSchedule.templateId) ?? null;
+	}, [templates, selectedSchedule]);
 
-	const visibleTasks = useMemo(
-		() =>
-			tasks
-				.filter(task => task.status !== 'archived' && task.status !== 'dropped')
-				.sort((first, second) => {
-					if (first.status === second.status) {
-						return first.title.localeCompare(second.title);
-					}
+	const visibleQuestions = useMemo(() => {
+		if (selectedTemplate === null) {
+			return [];
+		}
 
-					return taskStatusWeight(first.status) - taskStatusWeight(second.status);
-				})
-				.slice(0, 8),
-		[tasks],
-	);
+		return questions
+			.filter(question => question.templateId === selectedTemplate.id)
+			.sort((first, second) => first.position - second.position || first.label.localeCompare(second.label));
+	}, [questions, selectedTemplate]);
 
-	useEffect(() => {
-		setAnswers(buildInitialAnswers(selectedQuestions));
-	}, [selectedQuestions]);
+	const activeTasks = useMemo(() => {
+		return tasks.filter(task => task.status === 'active' || task.status === 'blocked');
+	}, [tasks]);
 
 	const isBusy = loadState === 'loading' || loadState === 'saving';
 
 	/**
-	 * Updates one question answer draft.
+	 * Changes selected schedule and rebuilds answers for that template.
+	 */
+	function handleScheduleChange(scheduleID: string): void {
+		const nextSchedule = schedules.find(schedule => schedule.id === scheduleID) ?? null;
+		setSelectedScheduleID(scheduleID);
+
+		if (nextSchedule !== null) {
+			setAnswers(buildInitialAnswers(questions, nextSchedule.templateId));
+		}
+	}
+
+	/**
+	 * Updates one answer draft.
 	 */
 	function updateAnswer(questionID: string, value: AnswerDraftValue): void {
 		setAnswers(current => ({
@@ -142,24 +163,21 @@ export function StandupSubmissionCard(props: StandupSubmissionCardProps): ReactE
 	}
 
 	/**
-	 * Submits the standup form.
+	 * Submits the current standup response.
 	 */
 	async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
 		event.preventDefault();
 
 		if (selectedSchedule === null || selectedTemplate === null) {
-			setMessage('Choose a standup schedule.');
+			setMessage('Choose a standup schedule before submitting.');
+			setLoadState('error');
 			return;
 		}
 
-		if (occurrenceDate.trim() === '') {
-			setMessage('Choose an occurrence date.');
-			return;
-		}
-
-		const validationMessage = validateRequiredAnswers(selectedQuestions, answers);
+		const validationMessage = validateRequiredAnswers(visibleQuestions, answers);
 		if (validationMessage !== null) {
 			setMessage(validationMessage);
+			setLoadState('error');
 			return;
 		}
 
@@ -167,268 +185,229 @@ export function StandupSubmissionCard(props: StandupSubmissionCardProps): ReactE
 		setMessage('');
 
 		try {
-			const response = await submitStandup({
+			await submitStandup({
 				workspaceId: props.workspace.id,
 				templateId: selectedTemplate.id,
 				scheduleId: selectedSchedule.id,
 				occurrenceDate,
-				answers: selectedQuestions.map(question => ({
+				answers: visibleQuestions.map(question => ({
 					questionId: question.id,
-					valueJson: answerValueToJSON(question.type, answers[question.id]),
+					valueJson: JSON.stringify(normalizeAnswerValue(question, answers[question.id])),
 				})),
 			});
 
 			setLoadState('ready');
-			setMessage(`Standup submitted. Submission ${response.submission.id} is saved.`);
+			setMessage('Standup submitted.');
+			toast.success('Standup submitted');
 			props.onStandupSubmitted();
 		} catch (error: unknown) {
+			const errorMessage = errorToMessage(error);
+			setMessage(errorMessage);
 			setLoadState('error');
-			setMessage(errorToMessage(error));
+			toast.error(errorMessage);
 		}
 	}
 
 	return (
-		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-orange-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-			<div className="cf:grid cf:gap-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
-				<div>
-					<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-orange-200">
-						Submit
-					</p>
-					<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-						Submit a standup
-					</h2>
-					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						Fill today’s form with your active tasks visible beside it. Submitting again for the same date
-						updates your previous submission.
-					</p>
+		<CampfirePanel className="cf:overflow-hidden">
+			<CampfireCardHeader
+				eyebrow="Submit"
+				title="My standup"
+				description="Answer the current daily or weekly form. Submitting again updates your response without losing first-submitted timing."
+				icon={ClipboardList}
+				action={
+					<CampfireStatusPill tone={selectedSchedule?.kind === 'weekly' ? 'ember' : 'green'}>
+						{selectedSchedule === null ? 'No schedule' : formatLabel(selectedSchedule.kind)}
+					</CampfireStatusPill>
+				}
+			/>
+
+			<CampfireCardBody className="cf:grid cf:gap-5">
+				<div className="cf:grid cf:gap-3 cf:md:grid-cols-3">
+					<CampfireMetric label="Schedules" value={String(schedules.length)} helper="Configured" />
+					<CampfireMetric
+						label="Questions"
+						value={String(visibleQuestions.length)}
+						helper={selectedTemplate?.name ?? 'No template'}
+					/>
+					<CampfireMetric
+						label="Active tasks"
+						value={String(activeTasks.length)}
+						helper="For context"
+						icon={TimerReset}
+					/>
 				</div>
 
-				<div className="cf:w-fit cf:rounded-full cf:border cf:border-orange-300/25 cf:bg-orange-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-orange-100">
-					{visibleTasks.length} active tasks
-				</div>
-			</div>
+				{message !== '' && <MessageRow state={loadState} message={message} />}
+				{loadState === 'loading' && <LoadingRow label="Loading standup form…" />}
 
-			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
-
-			<div className="cf:mt-5 cf:grid cf:gap-5 cf:xl:grid-cols-[minmax(0,1fr)_22rem]">
-				<form className="cf:grid cf:gap-4" onSubmit={event => void handleSubmit(event)}>
-					<div className="cf:grid cf:gap-4 cf:lg:grid-cols-2">
-						<label className="cf:grid cf:gap-2">
-							<span className="cf:text-sm cf:font-black cf:text-slate-200">Schedule</span>
-							<select
-								className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:focus:border-orange-300/45"
-								disabled={isBusy || schedules.length === 0}
-								value={selectedScheduleID}
-								onChange={event => setSelectedScheduleID(event.currentTarget.value)}
-							>
-								<option value="">Choose schedule</option>
-								{schedules.map(schedule => (
-									<option key={schedule.id} value={schedule.id}>
-										{formatLabel(schedule.kind)} · {schedule.timeOfDay}
-									</option>
-								))}
-							</select>
-						</label>
-
-						<label className="cf:grid cf:gap-2">
-							<span className="cf:text-sm cf:font-black cf:text-slate-200">Occurrence date</span>
-							<input
-								className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:focus:border-orange-300/45"
-								disabled={isBusy}
-								type="date"
-								value={occurrenceDate}
-								onChange={event => setOccurrenceDate(event.currentTarget.value)}
-							/>
-						</label>
-					</div>
-
-					{selectedTemplate !== null && (
-						<div className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/35 cf:p-4">
-							<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
-								<div>
-									<h3 className="cf:m-0 cf:text-lg cf:font-black cf:text-white">
-										{selectedTemplate.name}
-									</h3>
-									{selectedTemplate.description !== '' && (
-										<p className="cf:m-0 cf:mt-1 cf:text-sm cf:leading-6 cf:text-slate-300">
-											{selectedTemplate.description}
-										</p>
-									)}
-								</div>
-
-								<span className="cf:rounded-full cf:border cf:border-white/10 cf:bg-white/[0.06] cf:px-3 cf:py-1 cf:text-xs cf:font-extrabold cf:text-slate-200">
-									{formatLabel(selectedTemplate.kind)}
-								</span>
-							</div>
-
-							<div className="cf:mt-4 cf:grid cf:gap-4">
-								{selectedQuestions.length === 0 && (
-									<p className="cf:m-0 cf:rounded-2xl cf:border cf:border-dashed cf:border-white/10 cf:p-4 cf:text-slate-300">
-										This template has no questions yet.
-									</p>
-								)}
-
-								{selectedQuestions.map(question => (
-									<QuestionField
-										disabled={isBusy}
-										key={question.id}
-										question={question}
-										value={answers[question.id]}
-										onChange={value => updateAnswer(question.id, value)}
-									/>
-								))}
-							</div>
-						</div>
-					)}
-
-					{loadState === 'loading' && <p className="cf:m-0 cf:text-slate-300">Loading standup form…</p>}
-
-					{loadState !== 'loading' && schedules.length === 0 && (
-						<p className="cf:m-0 cf:rounded-2xl cf:border cf:border-dashed cf:border-white/10 cf:p-4 cf:text-slate-300">
-							No enabled standup schedules are configured yet.
-						</p>
-					)}
-
-					<button
-						className="cf:rounded-2xl cf:border cf:border-orange-300/30 cf:bg-orange-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-orange-50 cf:transition cf:hover:bg-orange-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-						disabled={isBusy || selectedSchedule === null || selectedTemplate === null}
-						type="submit"
-					>
-						Submit standup
-					</button>
-				</form>
-
-				<PreviousTasksPanel tasks={visibleTasks} />
-			</div>
-		</section>
-	);
-}
-
-/**
- * PreviousTasksPanel renders active task context next to the standup form.
- */
-function PreviousTasksPanel(props: { readonly tasks: readonly Task[] }): ReactElement {
-	return (
-		<aside className="cf:h-fit cf:rounded-3xl cf:border cf:border-lime-300/20 cf:bg-lime-300/10 cf:p-4">
-			<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.16em] cf:text-lime-200">
-				Task context
-			</p>
-			<h3 className="cf:m-0 cf:mt-2 cf:text-lg cf:font-black cf:text-white">Previous active tasks</h3>
-			<p className="cf:m-0 cf:mt-1 cf:text-sm cf:leading-6 cf:text-slate-300">
-				Use these as context while writing today’s update.
-			</p>
-
-			<div className="cf:mt-4 cf:grid cf:gap-3">
-				{props.tasks.length === 0 && (
-					<p className="cf:m-0 cf:rounded-2xl cf:border cf:border-dashed cf:border-lime-200/20 cf:p-4 cf:text-sm cf:text-slate-300">
-						No active tasks yet.
-					</p>
+				{loadState !== 'loading' && schedules.length === 0 && (
+					<CampfireEmpty
+						icon={ClipboardList}
+						title="No standup schedules"
+						description="Create a daily or weekly schedule in Settings before submitting standups."
+					/>
 				)}
 
-				{props.tasks.map(task => (
-					<article
-						className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/45 cf:p-3"
-						key={task.id}
-					>
-						<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-2">
-							<strong className="cf:text-sm cf:font-black cf:text-white">{task.title}</strong>
-							<span className="cf:rounded-full cf:border cf:border-white/10 cf:bg-white/[0.06] cf:px-2.5 cf:py-1 cf:text-[11px] cf:font-extrabold cf:text-slate-200">
-								{formatLabel(task.status)}
-							</span>
+				{schedules.length > 0 && (
+					<form className="cf:grid cf:gap-5" onSubmit={handleSubmit}>
+						<div className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4 cf:lg:grid-cols-[1fr_14rem]">
+							<FormField label="Schedule" htmlFor="campfire-standup-schedule">
+								<select
+									id="campfire-standup-schedule"
+									className={selectClassName()}
+									disabled={isBusy}
+									value={selectedScheduleID}
+									onChange={event => handleScheduleChange(event.currentTarget.value)}
+								>
+									{schedules.map(schedule => (
+										<option key={schedule.id} value={schedule.id}>
+											{formatLabel(schedule.kind)} ·{' '}
+											{templateLabel(templates, schedule.templateId)} · {schedule.timeOfDay}
+										</option>
+									))}
+								</select>
+							</FormField>
+
+							<FormField label="Occurrence date" htmlFor="campfire-standup-date">
+								<Input
+									id="campfire-standup-date"
+									type="date"
+									disabled={isBusy}
+									value={occurrenceDate}
+									onChange={event => setOccurrenceDate(event.currentTarget.value)}
+								/>
+							</FormField>
 						</div>
 
-						{task.description !== '' && (
-							<p className="cf:m-0 cf:mt-2 cf:line-clamp-3 cf:text-xs cf:leading-5 cf:text-slate-300">
-								{task.description}
-							</p>
+						{activeTasks.length > 0 && (
+							<div className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4">
+								<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3">
+									<div>
+										<h3 className="cf:text-lg cf:font-black cf:text-white">Current task context</h3>
+										<p className="cf:mt-1 cf:text-sm cf:font-medium cf:text-slate-400">
+											Use this as context while writing your update.
+										</p>
+									</div>
+									<Badge variant="secondary" className="cf:rounded-full">
+										{activeTasks.length} active
+									</Badge>
+								</div>
+
+								<div className="cf:mt-4 cf:grid cf:gap-2 cf:lg:grid-cols-2">
+									{activeTasks.slice(0, 6).map(task => (
+										<div
+											className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/45 cf:p-3"
+											key={task.id}
+										>
+											<strong className="cf:block cf:text-sm cf:font-black cf:text-white">
+												{task.title}
+											</strong>
+											<span className="cf:mt-1 cf:block cf:text-xs cf:font-bold cf:text-slate-400">
+												{formatLabel(task.status)}
+											</span>
+										</div>
+									))}
+								</div>
+							</div>
 						)}
 
-						<div className="cf:mt-2 cf:flex cf:flex-wrap cf:gap-2">
-							<TaskMetaChip label="Project" value={task.projectId} />
-							<TaskMetaChip label="Category" value={task.categoryId} />
+						<Separator className="cf:bg-white/10" />
+
+						<div className="cf:grid cf:gap-4">
+							{visibleQuestions.length === 0 && (
+								<CampfireEmpty
+									icon={ClipboardList}
+									title="No questions in this template"
+									description="Choose another schedule or add questions to this template in Settings."
+								/>
+							)}
+
+							{visibleQuestions.map(question => (
+								<QuestionControl
+									key={question.id}
+									question={question}
+									value={answers[question.id] ?? defaultAnswerForType(question.type)}
+									disabled={isBusy}
+									onChange={value => updateAnswer(question.id, value)}
+								/>
+							))}
 						</div>
 
-						{task.boardUrl !== '' && (
-							<a
-								className="cf:mt-2 cf:inline-block cf:text-xs cf:font-black cf:text-lime-200 cf:hover:text-lime-100"
-								href={task.boardUrl}
-								rel="noreferrer"
-								target="_blank"
-							>
-								Open board link
-							</a>
-						)}
-					</article>
-				))}
-			</div>
-		</aside>
+						<Button type="submit" size="lg" disabled={isBusy || visibleQuestions.length === 0}>
+							{loadState === 'saving' ? (
+								<Loader2 className="cf:size-4 cf:animate-spin" />
+							) : (
+								<Send className="cf:size-4" />
+							)}
+							Submit standup
+						</Button>
+					</form>
+				)}
+			</CampfireCardBody>
+		</CampfirePanel>
 	);
 }
 
 /**
- * TaskMetaChip renders optional task metadata.
+ * QuestionControl renders one dynamic question input.
  */
-function TaskMetaChip(props: { readonly label: string; readonly value: string }): ReactElement | null {
-	if (props.value.trim() === '') {
-		return null;
-	}
-
-	return (
-		<span className="cf:rounded-full cf:border cf:border-lime-300/20 cf:bg-lime-300/10 cf:px-2.5 cf:py-1 cf:text-[11px] cf:font-extrabold cf:text-lime-100">
-			{props.label}: {props.value}
-		</span>
-	);
-}
-
-/**
- * QuestionField renders one dynamic standup question.
- */
-function QuestionField(props: {
-	readonly disabled: boolean;
+function QuestionControl(props: {
 	readonly question: StandupQuestion;
-	readonly value: AnswerDraftValue | undefined;
+	readonly value: AnswerDraftValue;
+	readonly disabled: boolean;
 	readonly onChange: (value: AnswerDraftValue) => void;
 }): ReactElement {
-	const requiredMark = props.question.required ? ' *' : '';
-
 	return (
-		<label className="cf:grid cf:gap-2">
-			<span className="cf:text-sm cf:font-black cf:text-slate-200">
-				{props.question.label}
-				{requiredMark}
-			</span>
+		<div className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
+			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
+				<div>
+					<Label className="cf:text-base cf:font-black cf:text-white">
+						{props.question.label}
+						{props.question.required && <span className="cf:ml-1 cf:text-amber-200">*</span>}
+					</Label>
+					{props.question.helpText !== '' && (
+						<p className="cf:mt-1 cf:text-sm cf:font-medium cf:leading-6 cf:text-slate-400">
+							{props.question.helpText}
+						</p>
+					)}
+				</div>
 
-			{props.question.helpText !== '' && (
-				<span className="cf:text-xs cf:font-bold cf:text-slate-400">{props.question.helpText}</span>
-			)}
+				<div className="cf:flex cf:flex-wrap cf:gap-2">
+					{props.question.isPrivate && <CampfireStatusPill tone="slate">Private</CampfireStatusPill>}
+					{props.question.showInReport && <CampfireStatusPill tone="green">Report</CampfireStatusPill>}
+				</div>
+			</div>
 
-			<QuestionInput
-				disabled={props.disabled}
-				question={props.question}
-				value={props.value}
-				onChange={props.onChange}
-			/>
-		</label>
+			<div className="cf:mt-4">
+				<QuestionInput
+					question={props.question}
+					value={props.value}
+					disabled={props.disabled}
+					onChange={props.onChange}
+				/>
+			</div>
+		</div>
 	);
 }
 
 /**
- * QuestionInput renders the input control for one question type.
+ * QuestionInput renders the correct control for one question type.
  */
 function QuestionInput(props: {
-	readonly disabled: boolean;
 	readonly question: StandupQuestion;
-	readonly value: AnswerDraftValue | undefined;
+	readonly value: AnswerDraftValue;
+	readonly disabled: boolean;
 	readonly onChange: (value: AnswerDraftValue) => void;
 }): ReactElement {
 	switch (props.question.type) {
 		case 'long_text':
 			return (
-				<textarea
-					className="cf:min-h-28 cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:placeholder:text-slate-500 cf:focus:border-orange-300/45"
+				<Textarea
+					className="cf:min-h-32"
 					disabled={props.disabled}
 					placeholder={props.question.placeholder}
-					value={stringValue(props.value)}
+					value={stringAnswer(props.value)}
 					onChange={event => props.onChange(event.currentTarget.value)}
 				/>
 			);
@@ -436,23 +415,22 @@ function QuestionInput(props: {
 		case 'checkbox':
 		case 'boolean':
 			return (
-				<span className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3">
-					<input
-						checked={booleanValue(props.value)}
+				<label className="cf:flex cf:cursor-pointer cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-3 cf:text-sm cf:font-bold cf:text-slate-200">
+					<Checkbox
+						checked={booleanAnswer(props.value)}
 						disabled={props.disabled}
-						type="checkbox"
-						onChange={event => props.onChange(event.currentTarget.checked)}
+						onCheckedChange={checked => props.onChange(checked === true)}
 					/>
-					<span className="cf:text-sm cf:font-bold cf:text-slate-200">Yes</span>
-				</span>
+					Yes
+				</label>
 			);
 
 		case 'dropdown':
 			return (
 				<select
-					className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:focus:border-orange-300/45"
+					className={selectClassName()}
 					disabled={props.disabled}
-					value={stringValue(props.value)}
+					value={stringAnswer(props.value)}
 					onChange={event => props.onChange(event.currentTarget.value)}
 				>
 					<option value="">Choose an option</option>
@@ -466,69 +444,44 @@ function QuestionInput(props: {
 
 		case 'multi_select':
 			return (
-				<div className="cf:grid cf:gap-2 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:p-3">
-					{props.question.options.length === 0 && (
-						<p className="cf:m-0 cf:text-sm cf:text-slate-400">No options configured.</p>
-					)}
-
-					{props.question.options.map(option => {
-						const currentValues = stringArrayValue(props.value);
-						const checked = currentValues.includes(option);
-
-						return (
-							<label className="cf:flex cf:items-center cf:gap-3" key={option}>
-								<input
-									checked={checked}
-									disabled={props.disabled}
-									type="checkbox"
-									onChange={event =>
-										props.onChange(
-											event.currentTarget.checked
-												? [...currentValues, option]
-												: currentValues.filter(value => value !== option),
-										)
-									}
-								/>
-								<span className="cf:text-sm cf:font-bold cf:text-slate-200">{option}</span>
-							</label>
-						);
-					})}
+				<div className="cf:grid cf:gap-2 cf:sm:grid-cols-2">
+					{props.question.options.map(option => (
+						<label
+							className="cf:flex cf:cursor-pointer cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-3 cf:text-sm cf:font-bold cf:text-slate-200"
+							key={option}
+						>
+							<Checkbox
+								checked={arrayAnswer(props.value).includes(option)}
+								disabled={props.disabled}
+								onCheckedChange={checked =>
+									props.onChange(toggleOption(arrayAnswer(props.value), option, checked === true))
+								}
+							/>
+							{option}
+						</label>
+					))}
 				</div>
 			);
 
 		case 'number':
-			return (
-				<input
-					className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:placeholder:text-slate-500 cf:focus:border-orange-300/45"
-					disabled={props.disabled}
-					placeholder={props.question.placeholder}
-					type="number"
-					value={stringValue(props.value)}
-					onChange={event => props.onChange(event.currentTarget.value)}
-				/>
-			);
-
 		case 'duration':
 			return (
-				<input
-					className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:placeholder:text-slate-500 cf:focus:border-orange-300/45"
+				<Input
 					disabled={props.disabled}
-					min={0}
-					placeholder={props.question.placeholder || 'Minutes'}
 					type="number"
-					value={stringValue(props.value)}
+					placeholder={props.question.placeholder}
+					value={stringAnswer(props.value)}
 					onChange={event => props.onChange(event.currentTarget.value)}
 				/>
 			);
 
 		case 'text':
+		default:
 			return (
-				<input
-					className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:placeholder:text-slate-500 cf:focus:border-orange-300/45"
+				<Input
 					disabled={props.disabled}
 					placeholder={props.question.placeholder}
-					type="text"
-					value={stringValue(props.value)}
+					value={stringAnswer(props.value)}
 					onChange={event => props.onChange(event.currentTarget.value)}
 				/>
 			);
@@ -536,41 +489,109 @@ function QuestionInput(props: {
 }
 
 /**
- * buildInitialAnswers creates empty answer drafts for a template's questions.
+ * FormField renders a labeled field.
  */
-function buildInitialAnswers(questions: readonly StandupQuestion[]): AnswerDrafts {
+function FormField(props: {
+	readonly label: string;
+	readonly htmlFor: string;
+	readonly children: ReactElement;
+}): ReactElement {
+	return (
+		<div className="cf:grid cf:gap-2">
+			<Label
+				htmlFor={props.htmlFor}
+				className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200"
+			>
+				{props.label}
+			</Label>
+			{props.children}
+		</div>
+	);
+}
+
+/**
+ * MessageRow renders save/load feedback.
+ */
+function MessageRow(props: { readonly state: LoadState; readonly message: string }): ReactElement {
+	const isError = props.state === 'error';
+
+	return (
+		<div
+			className={cn(
+				'cf:flex cf:items-center cf:gap-2 cf:rounded-2xl cf:border cf:px-4 cf:py-3 cf:text-sm cf:font-black',
+				isError
+					? 'cf:border-red-300/25 cf:bg-red-950/30 cf:text-red-100'
+					: 'cf:border-amber-300/25 cf:bg-amber-950/30 cf:text-amber-100',
+			)}
+		>
+			{isError ? null : <CheckCircle2 className="cf:size-4" />}
+			{props.message}
+		</div>
+	);
+}
+
+/**
+ * LoadingRow renders a loading message.
+ */
+function LoadingRow(props: { readonly label: string }): ReactElement {
+	return (
+		<div className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4 cf:text-sm cf:font-bold cf:text-slate-300">
+			<Loader2 className="cf:size-4 cf:animate-spin cf:text-amber-200" />
+			{props.label}
+		</div>
+	);
+}
+
+/**
+ * buildInitialAnswers returns default answer drafts for one template.
+ */
+function buildInitialAnswers(questions: readonly StandupQuestion[], templateID: string): AnswerDrafts {
 	const result: Record<string, AnswerDraftValue> = {};
 
 	for (const question of questions) {
-		result[question.id] = initialAnswerValue(question.type);
+		if (question.templateId === templateID) {
+			result[question.id] = defaultAnswerForType(question.type);
+		}
 	}
 
 	return result;
 }
 
 /**
- * initialAnswerValue returns an empty draft value for a question type.
+ * defaultAnswerForType returns a safe UI default for one question type.
  */
-function initialAnswerValue(type: QuestionType): AnswerDraftValue {
-	switch (type) {
-		case 'checkbox':
-		case 'boolean':
-			return false;
-
-		case 'multi_select':
-			return [];
-
-		case 'text':
-		case 'long_text':
-		case 'dropdown':
-		case 'number':
-		case 'duration':
-			return '';
+function defaultAnswerForType(type: QuestionType): AnswerDraftValue {
+	if (type === 'checkbox' || type === 'boolean') {
+		return false;
 	}
+
+	if (type === 'multi_select') {
+		return [];
+	}
+
+	return '';
 }
 
 /**
- * validateRequiredAnswers checks required question drafts.
+ * normalizeAnswerValue maps a UI answer draft to the stored JSON value.
+ */
+function normalizeAnswerValue(
+	question: StandupQuestion,
+	value: AnswerDraftValue | undefined,
+): string | boolean | readonly string[] | number {
+	const safeValue = value ?? defaultAnswerForType(question.type);
+
+	if (question.type === 'number' || question.type === 'duration') {
+		const parsed = Number.parseInt(stringAnswer(safeValue), 10);
+
+		return Number.isFinite(parsed) ? parsed : 0;
+	}
+
+	return safeValue;
+}
+
+/**
+ * validateRequiredAnswers validates required question drafts.
  */
 function validateRequiredAnswers(questions: readonly StandupQuestion[], answers: AnswerDrafts): string | null {
 	for (const question of questions) {
@@ -582,22 +603,22 @@ function validateRequiredAnswers(questions: readonly StandupQuestion[], answers:
 
 		if (question.type === 'checkbox' || question.type === 'boolean') {
 			if (value !== true) {
-				return `${question.label} is required.`;
+				return `Required question "${question.label}" must be checked.`;
 			}
 
 			continue;
 		}
 
 		if (question.type === 'multi_select') {
-			if (stringArrayValue(value).length === 0) {
-				return `${question.label} is required.`;
+			if (arrayAnswer(value).length === 0) {
+				return `Required question "${question.label}" needs at least one option.`;
 			}
 
 			continue;
 		}
 
-		if (stringValue(value).trim() === '') {
-			return `${question.label} is required.`;
+		if (stringAnswer(value).trim() === '') {
+			return `Required question "${question.label}" is empty.`;
 		}
 	}
 
@@ -605,89 +626,53 @@ function validateRequiredAnswers(questions: readonly StandupQuestion[], answers:
 }
 
 /**
- * answerValueToJSON serializes one answer draft for the backend.
+ * templateLabel returns the display label for a template ID.
  */
-function answerValueToJSON(type: QuestionType, value: AnswerDraftValue | undefined): string {
-	switch (type) {
-		case 'checkbox':
-		case 'boolean':
-			return JSON.stringify(booleanValue(value));
-
-		case 'multi_select':
-			return JSON.stringify(stringArrayValue(value));
-
-		case 'number': {
-			const rawValue = stringValue(value).trim();
-			if (rawValue === '') {
-				return JSON.stringify('');
-			}
-
-			const parsed = Number(rawValue);
-			return Number.isFinite(parsed) ? JSON.stringify(parsed) : JSON.stringify(rawValue);
-		}
-
-		case 'duration': {
-			const rawValue = stringValue(value).trim();
-			if (rawValue === '') {
-				return JSON.stringify('');
-			}
-
-			const parsed = Number.parseInt(rawValue, 10);
-			return Number.isFinite(parsed) ? JSON.stringify(parsed) : JSON.stringify(rawValue);
-		}
-
-		case 'text':
-		case 'long_text':
-		case 'dropdown':
-			return JSON.stringify(stringValue(value));
-	}
+function templateLabel(templates: readonly StandupTemplate[], templateID: string): string {
+	return templates.find(template => template.id === templateID)?.name ?? 'Unknown template';
 }
 
 /**
- * stringValue normalizes draft values into a string.
+ * toggleOption returns a new multi-select value.
  */
-function stringValue(value: AnswerDraftValue | undefined): string {
+function toggleOption(current: readonly string[], option: string, checked: boolean): readonly string[] {
+	if (checked) {
+		return current.includes(option) ? current : [...current, option];
+	}
+
+	return current.filter(value => value !== option);
+}
+
+/**
+ * stringAnswer narrows an answer draft to string.
+ */
+function stringAnswer(value: AnswerDraftValue | undefined): string {
 	return typeof value === 'string' ? value : '';
 }
 
 /**
- * booleanValue normalizes draft values into a boolean.
+ * booleanAnswer narrows an answer draft to boolean.
  */
-function booleanValue(value: AnswerDraftValue | undefined): boolean {
+function booleanAnswer(value: AnswerDraftValue | undefined): boolean {
 	return typeof value === 'boolean' ? value : false;
 }
 
 /**
- * stringArrayValue normalizes draft values into a string array.
+ * arrayAnswer narrows an answer draft to string array.
  */
-function stringArrayValue(value: AnswerDraftValue | undefined): readonly string[] {
-	if (!Array.isArray(value)) {
-		return [];
-	}
-
-	return value.filter(item => typeof item === 'string');
+function arrayAnswer(value: AnswerDraftValue | undefined): readonly string[] {
+	return Array.isArray(value) ? value : [];
 }
 
 /**
- * taskStatusWeight sorts active task statuses before less-current statuses.
+ * selectClassName returns the shared native select style.
  */
-function taskStatusWeight(status: Task['status']): number {
-	switch (status) {
-		case 'active':
-			return 0;
-
-		case 'blocked':
-			return 1;
-
-		case 'completed':
-			return 2;
-
-		case 'dropped':
-			return 3;
-
-		case 'archived':
-			return 4;
-	}
+function selectClassName(): string {
+	return cn(
+		'cf:h-10 cf:w-full cf:rounded-md cf:border cf:border-input cf:bg-background cf:px-3 cf:py-2 cf:text-sm cf:text-foreground cf:outline-none',
+		'cf:focus-visible:border-ring cf:focus-visible:ring-ring/50 cf:focus-visible:ring-3',
+		'cf:disabled:cursor-not-allowed cf:disabled:opacity-50',
+	);
 }
 
 /**

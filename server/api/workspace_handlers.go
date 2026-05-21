@@ -16,13 +16,18 @@ handleGetWorkspaceByChannel handles current-channel workspace lookup.
 */
 func handleGetWorkspaceByChannel(
 	log logger.Logger,
+	mm mattermost.Client,
 	workspaceService *service.WorkspaceService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userID := strings.TrimSpace(r.Header.Get("Mattermost-User-Id"))
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
 		channelID := strings.TrimSpace(chi.URLParam(r, "channelID"))
 
-		result, err := workspaceService.GetByChannel(r.Context(), userID, channelID)
+		result, err := workspaceService.GetByChannel(r.Context(), user.ID, channelID)
 		if err != nil {
 			logServiceError(log, err)
 			WriteServiceError(w, err)
@@ -48,7 +53,6 @@ func handleCreateWorkspace(
 		}
 
 		var request CreateWorkspaceRequest
-
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			WriteError(w, http.StatusBadRequest, "invalid_request", "Request body must be valid JSON.")
 			return

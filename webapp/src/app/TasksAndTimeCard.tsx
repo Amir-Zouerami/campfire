@@ -1,7 +1,26 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactElement } from 'react';
+import { CheckCircle2, Clock3, ExternalLink, Loader2, Plus, TimerReset } from 'lucide-react';
+import { toast } from 'sonner';
 
-import { ApiClientError, createTask, createTimeEntry, listMyTasks, listMyTimeEntries, updateTask } from '../api/client';
-import type { Task, TaskStatus, TimeEntry, Workspace } from '../types/domain';
+import { ApiClientError, createTask, createTimeEntry, listMyTasks, listMyTimeEntries, updateTask } from '@/api';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
+import type { Task, TaskStatus, TimeEntry, Workspace } from '@/types/domain';
+
+import {
+	CampfireCardBody,
+	CampfireCardHeader,
+	CampfireEmpty,
+	CampfireMetric,
+	CampfirePanel,
+	CampfireStatusPill,
+} from './campfire-ui';
 
 /**
  * TasksAndTimeCardProps contains workspace data for task and time tracking.
@@ -110,8 +129,11 @@ export function TasksAndTimeCard(props: TasksAndTimeCardProps): ReactElement {
 		return timeEntries.reduce((total, entry) => total + entry.minutes, 0);
 	}, [timeEntries]);
 
-	const tasksByID = useMemo(() => indexTasksByID(tasks), [tasks]);
+	const activeTaskCount = useMemo(() => {
+		return tasks.filter(task => task.status === 'active' || task.status === 'blocked').length;
+	}, [tasks]);
 
+	const tasksByID = useMemo(() => indexTasksByID(tasks), [tasks]);
 	const isBusy = loadState === 'loading' || loadState === 'saving';
 
 	/**
@@ -149,9 +171,12 @@ export function TasksAndTimeCard(props: TasksAndTimeCardProps): ReactElement {
 			setTimeCategoryID(response.task.categoryId);
 			setLoadState('ready');
 			setMessage('Task created.');
+			toast.success('Task created');
 		} catch (error: unknown) {
-			setMessage(errorToMessage(error));
+			const errorMessage = errorToMessage(error);
+			setMessage(errorMessage);
 			setLoadState('error');
+			toast.error(errorMessage);
 		}
 	}
 
@@ -175,9 +200,12 @@ export function TasksAndTimeCard(props: TasksAndTimeCardProps): ReactElement {
 			setTasks(current => replaceTask(current, response.task));
 			setLoadState('ready');
 			setMessage('Task updated.');
+			toast.success('Task updated');
 		} catch (error: unknown) {
-			setMessage(errorToMessage(error));
+			const errorMessage = errorToMessage(error);
+			setMessage(errorMessage);
 			setLoadState('error');
+			toast.error(errorMessage);
 		}
 	}
 
@@ -210,6 +238,11 @@ export function TasksAndTimeCard(props: TasksAndTimeCardProps): ReactElement {
 			return;
 		}
 
+		if (timeEntryDate.trim() === '') {
+			setMessage('Choose a time entry date.');
+			return;
+		}
+
 		if (!Number.isInteger(minutes) || minutes <= 0 || minutes > 1440) {
 			setMessage('Minutes must be between 1 and 1440.');
 			return;
@@ -233,289 +266,480 @@ export function TasksAndTimeCard(props: TasksAndTimeCardProps): ReactElement {
 			setTimeNote('');
 			setLoadState('ready');
 			setMessage('Time entry added.');
+			toast.success('Time entry added');
 		} catch (error: unknown) {
-			setMessage(errorToMessage(error));
+			const errorMessage = errorToMessage(error);
+			setMessage(errorMessage);
 			setLoadState('error');
+			toast.error(errorMessage);
 		}
 	}
 
 	return (
-		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-lime-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-			<div className="cf:grid cf:gap-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
-				<div>
-					<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-lime-200">
-						Tasks & time
-					</p>
-					<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-						My tasks and time
-					</h2>
-					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						Track tasks and add time to any task for any date. Project and category keys feed the time
-						reports.
-					</p>
+		<CampfirePanel className="cf:overflow-hidden">
+			<CampfireCardHeader
+				eyebrow="Tasks & time"
+				title="My tasks and time"
+				description="Track tasks and add time to any task for any date. Project and category keys feed the time reports."
+				icon={TimerReset}
+				action={
+					<CampfireStatusPill tone="green">
+						<Clock3 className="cf:size-3.5" />
+						{formatMinutes(totalMinutes)} logged
+					</CampfireStatusPill>
+				}
+			/>
+
+			<CampfireCardBody className="cf:grid cf:gap-5">
+				<div className="cf:grid cf:gap-3 cf:md:grid-cols-3">
+					<CampfireMetric label="Active tasks" value={String(activeTaskCount)} helper="Active or blocked" />
+					<CampfireMetric label="Recent entries" value={String(timeEntries.length)} helper="Last 14 days" />
+					<CampfireMetric label="Total time" value={formatMinutes(totalMinutes)} helper="Visible window" />
 				</div>
 
-				<div className="cf:w-fit cf:rounded-full cf:border cf:border-lime-300/25 cf:bg-lime-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-lime-200">
-					{formatMinutes(totalMinutes)} logged
-				</div>
-			</div>
+				{message !== '' && <StatusMessage state={loadState} message={message} />}
 
-			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
-
-			<div className="cf:mt-5 cf:grid cf:gap-5 cf:xl:grid-cols-2">
-				<form
-					className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4"
-					onSubmit={event => void handleCreateTask(event)}
-				>
-					<h3 className="cf:m-0 cf:text-lg cf:font-black cf:text-white">Create task</h3>
-
-					<div className="cf:mt-4 cf:grid cf:gap-3">
-						<input
-							className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:placeholder:text-slate-500 cf:focus:border-lime-300/45"
-							disabled={isBusy}
-							placeholder="Task title"
-							type="text"
-							value={taskTitle}
-							onChange={event => setTaskTitle(event.currentTarget.value)}
-						/>
-
-						<textarea
-							className="cf:min-h-24 cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:placeholder:text-slate-500 cf:focus:border-lime-300/45"
-							disabled={isBusy}
-							placeholder="Description"
-							value={taskDescription}
-							onChange={event => setTaskDescription(event.currentTarget.value)}
-						/>
-
-						<div className="cf:grid cf:gap-3 cf:sm:grid-cols-2">
-							<input
-								className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:placeholder:text-slate-500 cf:focus:border-lime-300/45"
-								disabled={isBusy}
-								placeholder="Project key, e.g. frontend"
-								type="text"
-								value={taskProjectID}
-								onChange={event => setTaskProjectID(event.currentTarget.value)}
-							/>
-
-							<input
-								className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:placeholder:text-slate-500 cf:focus:border-lime-300/45"
-								disabled={isBusy}
-								placeholder="Category key, e.g. bugfix"
-								type="text"
-								value={taskCategoryID}
-								onChange={event => setTaskCategoryID(event.currentTarget.value)}
-							/>
-						</div>
-
-						<input
-							className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:placeholder:text-slate-500 cf:focus:border-lime-300/45"
-							disabled={isBusy}
-							placeholder="Board URL"
-							type="url"
-							value={taskBoardUrl}
-							onChange={event => setTaskBoardUrl(event.currentTarget.value)}
-						/>
-
-						<button
-							className="cf:rounded-2xl cf:border cf:border-lime-300/30 cf:bg-lime-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-lime-50 cf:transition cf:hover:bg-lime-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-							disabled={isBusy}
-							type="submit"
-						>
-							Create task
-						</button>
-					</div>
-				</form>
-
-				<form
-					className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4"
-					onSubmit={event => void handleCreateTimeEntry(event)}
-				>
-					<h3 className="cf:m-0 cf:text-lg cf:font-black cf:text-white">Log time</h3>
-
-					<div className="cf:mt-4 cf:grid cf:gap-3">
-						<select
-							className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:focus:border-lime-300/45"
-							disabled={isBusy || sortedTasks.length === 0}
-							value={timeTaskID}
-							onChange={event => handleTimeTaskChange(event.currentTarget.value)}
-						>
-							<option value="">Choose task</option>
-							{sortedTasks.map(task => (
-								<option key={task.id} value={task.id}>
-									{task.title}
-								</option>
-							))}
-						</select>
-
-						<div className="cf:grid cf:gap-3 cf:sm:grid-cols-2">
-							<input
-								className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:focus:border-lime-300/45"
-								disabled={isBusy}
-								type="date"
-								value={timeEntryDate}
-								onChange={event => setTimeEntryDate(event.currentTarget.value)}
-							/>
-
-							<input
-								className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:placeholder:text-slate-500 cf:focus:border-lime-300/45"
-								disabled={isBusy}
-								min={1}
-								max={1440}
-								placeholder="Minutes"
-								type="number"
-								value={timeMinutes}
-								onChange={event => setTimeMinutes(event.currentTarget.value)}
-							/>
-						</div>
-
-						<div className="cf:grid cf:gap-3 cf:sm:grid-cols-2">
-							<input
-								className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:placeholder:text-slate-500 cf:focus:border-lime-300/45"
-								disabled={isBusy}
-								placeholder="Project override"
-								type="text"
-								value={timeProjectID}
-								onChange={event => setTimeProjectID(event.currentTarget.value)}
-							/>
-
-							<input
-								className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:placeholder:text-slate-500 cf:focus:border-lime-300/45"
-								disabled={isBusy}
-								placeholder="Category override"
-								type="text"
-								value={timeCategoryID}
-								onChange={event => setTimeCategoryID(event.currentTarget.value)}
-							/>
-						</div>
-
-						<input
-							className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:placeholder:text-slate-500 cf:focus:border-lime-300/45"
-							disabled={isBusy}
-							placeholder="Note"
-							type="text"
-							value={timeNote}
-							onChange={event => setTimeNote(event.currentTarget.value)}
-						/>
-
-						<button
-							className="cf:rounded-2xl cf:border cf:border-lime-300/30 cf:bg-lime-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-lime-50 cf:transition cf:hover:bg-lime-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-							disabled={isBusy || sortedTasks.length === 0}
-							type="submit"
-						>
-							Add time
-						</button>
-					</div>
-				</form>
-			</div>
-
-			<div className="cf:mt-5 cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3">
-				<h3 className="cf:m-0 cf:text-lg cf:font-black cf:text-white">My tasks</h3>
-				<label className="cf:flex cf:items-center cf:gap-2 cf:text-sm cf:font-bold cf:text-slate-300">
-					<input
-						checked={includeArchived}
-						className="cf:h-4 cf:w-4"
-						type="checkbox"
-						onChange={event => setIncludeArchived(event.currentTarget.checked)}
+				<div className="cf:grid cf:gap-5 cf:xl:grid-cols-2">
+					<CreateTaskForm
+						isBusy={isBusy}
+						taskTitle={taskTitle}
+						taskDescription={taskDescription}
+						taskProjectID={taskProjectID}
+						taskCategoryID={taskCategoryID}
+						taskBoardUrl={taskBoardUrl}
+						onTaskTitleChange={setTaskTitle}
+						onTaskDescriptionChange={setTaskDescription}
+						onTaskProjectIDChange={setTaskProjectID}
+						onTaskCategoryIDChange={setTaskCategoryID}
+						onTaskBoardUrlChange={setTaskBoardUrl}
+						onSubmit={handleCreateTask}
 					/>
-					Include archived
-				</label>
-			</div>
 
-			<div className="cf:mt-3 cf:grid cf:gap-3">
-				{loadState === 'loading' && <p className="cf:m-0 cf:text-slate-300">Loading tasks and time…</p>}
+					<CreateTimeEntryForm
+						isBusy={isBusy}
+						sortedTasks={sortedTasks}
+						timeTaskID={timeTaskID}
+						timeEntryDate={timeEntryDate}
+						timeMinutes={timeMinutes}
+						timeNote={timeNote}
+						timeProjectID={timeProjectID}
+						timeCategoryID={timeCategoryID}
+						onTimeTaskIDChange={handleTimeTaskChange}
+						onTimeEntryDateChange={setTimeEntryDate}
+						onTimeMinutesChange={setTimeMinutes}
+						onTimeNoteChange={setTimeNote}
+						onTimeProjectIDChange={setTimeProjectID}
+						onTimeCategoryIDChange={setTimeCategoryID}
+						onSubmit={handleCreateTimeEntry}
+					/>
+				</div>
 
-				{loadState !== 'loading' && sortedTasks.length === 0 && (
-					<p className="cf:m-0 cf:rounded-2xl cf:border cf:border-dashed cf:border-white/10 cf:p-4 cf:text-slate-300">
-						No tasks yet.
-					</p>
-				)}
+				<Separator className="cf:bg-white/10" />
 
-				{sortedTasks.map(task => (
-					<article
-						className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4"
-						key={task.id}
-					>
-						<div className="cf:grid cf:gap-3 cf:lg:grid-cols-[1fr_180px] cf:lg:items-start">
-							<div>
-								<strong className="cf:block cf:text-base cf:font-black cf:text-white">
-									{task.title}
-								</strong>
-
-								<div className="cf:mt-2 cf:flex cf:flex-wrap cf:gap-2">
-									<TaskMetaChip label="Project" value={task.projectId} />
-									<TaskMetaChip label="Category" value={task.categoryId} />
-								</div>
-
-								{task.description !== '' && (
-									<p className="cf:m-0 cf:mt-2 cf:text-sm cf:leading-6 cf:text-slate-300">
-										{task.description}
-									</p>
-								)}
-								{task.boardUrl !== '' && (
-									<a
-										className="cf:mt-2 cf:inline-block cf:text-sm cf:font-bold cf:text-lime-200 cf:hover:text-lime-100"
-										href={task.boardUrl}
-										rel="noreferrer"
-										target="_blank"
-									>
-										Open board item
-									</a>
-								)}
-							</div>
-
-							<select
-								className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-3 cf:py-2 cf:text-sm cf:font-bold cf:text-white cf:outline-none"
-								disabled={isBusy}
-								value={task.status}
-								onChange={event =>
-									void handleStatusChange(task, event.currentTarget.value as TaskStatus)
-								}
-							>
-								{taskStatusOptions.map(status => (
-									<option key={status} value={status}>
-										{formatStatus(status)}
-									</option>
-								))}
-							</select>
-						</div>
-					</article>
-				))}
-			</div>
-
-			<div className="cf:mt-5">
-				<h3 className="cf:m-0 cf:text-lg cf:font-black cf:text-white">Recent time</h3>
-				<div className="cf:mt-3 cf:grid cf:gap-3">
-					{recentTimeEntries.length === 0 ? (
-						<p className="cf:m-0 cf:rounded-2xl cf:border cf:border-dashed cf:border-white/10 cf:p-4 cf:text-slate-300">
-							No recent time entries.
+				<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3">
+					<div>
+						<h3 className="cf:text-xl cf:font-black cf:tracking-tight cf:text-white">My tasks</h3>
+						<p className="cf:mt-1 cf:text-sm cf:font-medium cf:text-slate-400">
+							Keep the list focused, or include archived work for lookup.
 						</p>
-					) : null}
+					</div>
 
-					{recentTimeEntries.map(entry => (
-						<article
-							className="cf:flex cf:flex-col cf:gap-2 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-3 cf:sm:flex-row cf:sm:items-center cf:sm:justify-between"
-							key={entry.id}
-						>
-							<div>
-								<strong className="cf:block cf:text-sm cf:font-black cf:text-white">
-									{entry.entryDate} · {formatMinutes(entry.minutes)}
-								</strong>
-								<p className="cf:m-0 cf:mt-1 cf:text-xs cf:text-slate-400" title={entry.taskId}>
-									Task {taskLabelForID(tasksByID, entry.taskId)}
-								</p>
-								<div className="cf:mt-2 cf:flex cf:flex-wrap cf:gap-2">
-									<TaskMetaChip label="Project" value={entry.projectId} />
-									<TaskMetaChip label="Category" value={entry.categoryId} />
-								</div>
-								{entry.note !== '' && (
-									<p className="cf:m-0 cf:mt-1 cf:text-sm cf:text-slate-300">{entry.note}</p>
-								)}
-							</div>
-						</article>
+					<label className="cf:flex cf:cursor-pointer cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:px-4 cf:py-3 cf:text-sm cf:font-bold cf:text-slate-200">
+						<Checkbox
+							checked={includeArchived}
+							onCheckedChange={checked => setIncludeArchived(checked === true)}
+						/>
+						Include archived
+					</label>
+				</div>
+
+				<div className="cf:grid cf:gap-3">
+					{loadState === 'loading' && <LoadingRow label="Loading tasks and time…" />}
+
+					{loadState !== 'loading' && sortedTasks.length === 0 && (
+						<CampfireEmpty
+							icon={Plus}
+							title="No tasks yet"
+							description="Create your first task, then log time against it for any date."
+						/>
+					)}
+
+					{sortedTasks.map(task => (
+						<TaskCard
+							key={task.id}
+							task={task}
+							isBusy={isBusy}
+							onStatusChange={status => void handleStatusChange(task, status)}
+						/>
 					))}
 				</div>
+
+				<Separator className="cf:bg-white/10" />
+
+				<div>
+					<div className="cf:flex cf:flex-wrap cf:items-end cf:justify-between cf:gap-3">
+						<div>
+							<h3 className="cf:text-xl cf:font-black cf:tracking-tight cf:text-white">Recent time</h3>
+							<p className="cf:mt-1 cf:text-sm cf:font-medium cf:text-slate-400">
+								Recent entries from the visible two-week window.
+							</p>
+						</div>
+						<Badge variant="secondary" className="cf:rounded-full">
+							{recentTimeEntries.length} entries
+						</Badge>
+					</div>
+
+					<div className="cf:mt-4 cf:grid cf:gap-3">
+						{recentTimeEntries.length === 0 && (
+							<CampfireEmpty
+								icon={Clock3}
+								title="No recent time"
+								description="Log time against a task to make reports useful."
+							/>
+						)}
+
+						{recentTimeEntries.map(entry => (
+							<TimeEntryRow entry={entry} tasksByID={tasksByID} key={entry.id} />
+						))}
+					</div>
+				</div>
+			</CampfireCardBody>
+		</CampfirePanel>
+	);
+}
+
+/**
+ * CreateTaskFormProps describes the task creation form.
+ */
+type CreateTaskFormProps = {
+	readonly isBusy: boolean;
+	readonly taskTitle: string;
+	readonly taskDescription: string;
+	readonly taskProjectID: string;
+	readonly taskCategoryID: string;
+	readonly taskBoardUrl: string;
+	readonly onTaskTitleChange: (value: string) => void;
+	readonly onTaskDescriptionChange: (value: string) => void;
+	readonly onTaskProjectIDChange: (value: string) => void;
+	readonly onTaskCategoryIDChange: (value: string) => void;
+	readonly onTaskBoardUrlChange: (value: string) => void;
+	readonly onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+};
+
+/**
+ * CreateTaskForm renders the task creation form.
+ */
+function CreateTaskForm(props: CreateTaskFormProps): ReactElement {
+	return (
+		<form
+			className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4"
+			onSubmit={event => void props.onSubmit(event)}
+		>
+			<div className="cf:flex cf:items-center cf:justify-between cf:gap-3">
+				<h3 className="cf:text-lg cf:font-black cf:text-white">Create task</h3>
+				<CampfireStatusPill tone="ember">New</CampfireStatusPill>
 			</div>
-		</section>
+
+			<div className="cf:mt-4 cf:grid cf:gap-4">
+				<FormField label="Task title" htmlFor="campfire-task-title">
+					<Input
+						id="campfire-task-title"
+						disabled={props.isBusy}
+						placeholder="Task title"
+						value={props.taskTitle}
+						onChange={event => props.onTaskTitleChange(event.currentTarget.value)}
+					/>
+				</FormField>
+
+				<FormField label="Description" htmlFor="campfire-task-description">
+					<Textarea
+						id="campfire-task-description"
+						disabled={props.isBusy}
+						placeholder="What needs to happen?"
+						value={props.taskDescription}
+						onChange={event => props.onTaskDescriptionChange(event.currentTarget.value)}
+					/>
+				</FormField>
+
+				<div className="cf:grid cf:gap-4 cf:sm:grid-cols-2">
+					<FormField label="Project key" htmlFor="campfire-task-project">
+						<Input
+							id="campfire-task-project"
+							disabled={props.isBusy}
+							placeholder="frontend"
+							value={props.taskProjectID}
+							onChange={event => props.onTaskProjectIDChange(event.currentTarget.value)}
+						/>
+					</FormField>
+
+					<FormField label="Category key" htmlFor="campfire-task-category">
+						<Input
+							id="campfire-task-category"
+							disabled={props.isBusy}
+							placeholder="bugfix"
+							value={props.taskCategoryID}
+							onChange={event => props.onTaskCategoryIDChange(event.currentTarget.value)}
+						/>
+					</FormField>
+				</div>
+
+				<FormField label="Board URL" htmlFor="campfire-task-board-url">
+					<Input
+						id="campfire-task-board-url"
+						disabled={props.isBusy}
+						placeholder="https://..."
+						type="url"
+						value={props.taskBoardUrl}
+						onChange={event => props.onTaskBoardUrlChange(event.currentTarget.value)}
+					/>
+				</FormField>
+
+				<Button disabled={props.isBusy} type="submit">
+					<Plus className="cf:size-4" />
+					Create task
+				</Button>
+			</div>
+		</form>
+	);
+}
+
+/**
+ * CreateTimeEntryFormProps describes the time entry form.
+ */
+type CreateTimeEntryFormProps = {
+	readonly isBusy: boolean;
+	readonly sortedTasks: readonly Task[];
+	readonly timeTaskID: string;
+	readonly timeEntryDate: string;
+	readonly timeMinutes: string;
+	readonly timeNote: string;
+	readonly timeProjectID: string;
+	readonly timeCategoryID: string;
+	readonly onTimeTaskIDChange: (value: string) => void;
+	readonly onTimeEntryDateChange: (value: string) => void;
+	readonly onTimeMinutesChange: (value: string) => void;
+	readonly onTimeNoteChange: (value: string) => void;
+	readonly onTimeProjectIDChange: (value: string) => void;
+	readonly onTimeCategoryIDChange: (value: string) => void;
+	readonly onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+};
+
+/**
+ * CreateTimeEntryForm renders the time entry form.
+ */
+function CreateTimeEntryForm(props: CreateTimeEntryFormProps): ReactElement {
+	return (
+		<form
+			className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4"
+			onSubmit={event => void props.onSubmit(event)}
+		>
+			<div className="cf:flex cf:items-center cf:justify-between cf:gap-3">
+				<h3 className="cf:text-lg cf:font-black cf:text-white">Log time</h3>
+				<CampfireStatusPill tone="green">Any date</CampfireStatusPill>
+			</div>
+
+			<div className="cf:mt-4 cf:grid cf:gap-4">
+				<FormField label="Task" htmlFor="campfire-time-task">
+					<select
+						id="campfire-time-task"
+						className={selectClassName()}
+						disabled={props.isBusy || props.sortedTasks.length === 0}
+						value={props.timeTaskID}
+						onChange={event => props.onTimeTaskIDChange(event.currentTarget.value)}
+					>
+						<option value="">Choose task</option>
+						{props.sortedTasks.map(task => (
+							<option key={task.id} value={task.id}>
+								{task.title}
+							</option>
+						))}
+					</select>
+				</FormField>
+
+				<div className="cf:grid cf:gap-4 cf:sm:grid-cols-2">
+					<FormField label="Date" htmlFor="campfire-time-date">
+						<Input
+							id="campfire-time-date"
+							disabled={props.isBusy}
+							type="date"
+							value={props.timeEntryDate}
+							onChange={event => props.onTimeEntryDateChange(event.currentTarget.value)}
+						/>
+					</FormField>
+
+					<FormField label="Minutes" htmlFor="campfire-time-minutes">
+						<Input
+							id="campfire-time-minutes"
+							disabled={props.isBusy}
+							min={1}
+							max={1440}
+							placeholder="30"
+							type="number"
+							value={props.timeMinutes}
+							onChange={event => props.onTimeMinutesChange(event.currentTarget.value)}
+						/>
+					</FormField>
+				</div>
+
+				<div className="cf:grid cf:gap-4 cf:sm:grid-cols-2">
+					<FormField label="Project override" htmlFor="campfire-time-project">
+						<Input
+							id="campfire-time-project"
+							disabled={props.isBusy}
+							placeholder="optional"
+							value={props.timeProjectID}
+							onChange={event => props.onTimeProjectIDChange(event.currentTarget.value)}
+						/>
+					</FormField>
+
+					<FormField label="Category override" htmlFor="campfire-time-category">
+						<Input
+							id="campfire-time-category"
+							disabled={props.isBusy}
+							placeholder="optional"
+							value={props.timeCategoryID}
+							onChange={event => props.onTimeCategoryIDChange(event.currentTarget.value)}
+						/>
+					</FormField>
+				</div>
+
+				<FormField label="Note" htmlFor="campfire-time-note">
+					<Input
+						id="campfire-time-note"
+						disabled={props.isBusy}
+						placeholder="Short note"
+						value={props.timeNote}
+						onChange={event => props.onTimeNoteChange(event.currentTarget.value)}
+					/>
+				</FormField>
+
+				<Button disabled={props.isBusy || props.sortedTasks.length === 0} type="submit">
+					<TimerReset className="cf:size-4" />
+					Add time
+				</Button>
+			</div>
+		</form>
+	);
+}
+
+/**
+ * TaskCard renders one task row.
+ */
+function TaskCard(props: {
+	readonly task: Task;
+	readonly isBusy: boolean;
+	readonly onStatusChange: (status: TaskStatus) => void;
+}): ReactElement {
+	return (
+		<article className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
+			<div className="cf:grid cf:gap-4 cf:lg:grid-cols-[1fr_190px] cf:lg:items-start">
+				<div>
+					<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
+						<strong className="cf:text-base cf:font-black cf:text-white">{props.task.title}</strong>
+						<TaskStatusBadge status={props.task.status} />
+					</div>
+
+					<div className="cf:mt-3 cf:flex cf:flex-wrap cf:gap-2">
+						<TaskMetaChip label="Project" value={props.task.projectId} />
+						<TaskMetaChip label="Category" value={props.task.categoryId} />
+					</div>
+
+					{props.task.description !== '' && (
+						<p className="cf:mt-3 cf:text-sm cf:font-medium cf:leading-6 cf:text-slate-300">
+							{props.task.description}
+						</p>
+					)}
+
+					{props.task.boardUrl !== '' && (
+						<a
+							className="cf:mt-3 cf:inline-flex cf:items-center cf:gap-2 cf:text-sm cf:font-black cf:text-amber-200 cf:hover:text-amber-100"
+							href={props.task.boardUrl}
+							rel="noreferrer"
+							target="_blank"
+						>
+							Open board item
+							<ExternalLink className="cf:size-4" />
+						</a>
+					)}
+				</div>
+
+				<FormField label="Status" htmlFor={`campfire-task-status-${props.task.id}`}>
+					<select
+						id={`campfire-task-status-${props.task.id}`}
+						className={selectClassName()}
+						disabled={props.isBusy}
+						value={props.task.status}
+						onChange={event => props.onStatusChange(event.currentTarget.value as TaskStatus)}
+					>
+						{taskStatusOptions.map(status => (
+							<option key={status} value={status}>
+								{formatStatus(status)}
+							</option>
+						))}
+					</select>
+				</FormField>
+			</div>
+		</article>
+	);
+}
+
+/**
+ * TimeEntryRow renders one recent time entry.
+ */
+function TimeEntryRow(props: {
+	readonly entry: TimeEntry;
+	readonly tasksByID: Readonly<Record<string, Task>>;
+}): ReactElement {
+	return (
+		<article className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4">
+			<div className="cf:flex cf:flex-col cf:gap-3 cf:sm:flex-row cf:sm:items-start cf:sm:justify-between">
+				<div>
+					<strong className="cf:block cf:text-base cf:font-black cf:text-white">
+						{props.entry.entryDate} · {formatMinutes(props.entry.minutes)}
+					</strong>
+					<p className="cf:mt-1 cf:text-sm cf:font-medium cf:text-slate-400" title={props.entry.taskId}>
+						{taskLabelForID(props.tasksByID, props.entry.taskId)}
+					</p>
+
+					<div className="cf:mt-3 cf:flex cf:flex-wrap cf:gap-2">
+						<TaskMetaChip label="Project" value={props.entry.projectId} />
+						<TaskMetaChip label="Category" value={props.entry.categoryId} />
+					</div>
+
+					{props.entry.note !== '' && (
+						<p className="cf:mt-3 cf:text-sm cf:font-medium cf:leading-6 cf:text-slate-300">
+							{props.entry.note}
+						</p>
+					)}
+				</div>
+
+				<CampfireStatusPill tone="green">
+					<Clock3 className="cf:size-3.5" />
+					{formatMinutes(props.entry.minutes)}
+				</CampfireStatusPill>
+			</div>
+		</article>
+	);
+}
+
+/**
+ * FormField renders a labeled field.
+ */
+function FormField(props: {
+	readonly label: string;
+	readonly htmlFor: string;
+	readonly children: ReactElement;
+}): ReactElement {
+	return (
+		<div className="cf:grid cf:gap-2">
+			<Label
+				htmlFor={props.htmlFor}
+				className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200"
+			>
+				{props.label}
+			</Label>
+			{props.children}
+		</div>
 	);
 }
 
@@ -528,10 +752,84 @@ function TaskMetaChip(props: { readonly label: string; readonly value: string })
 	}
 
 	return (
-		<span className="cf:rounded-full cf:border cf:border-lime-300/20 cf:bg-lime-300/10 cf:px-2.5 cf:py-1 cf:text-xs cf:font-extrabold cf:text-lime-100">
+		<span className="cf:rounded-full cf:border cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:px-2.5 cf:py-1 cf:text-xs cf:font-black cf:text-emerald-100">
 			{props.label}: {props.value}
 		</span>
 	);
+}
+
+/**
+ * TaskStatusBadge renders task status with a visual tone.
+ */
+function TaskStatusBadge(props: { readonly status: TaskStatus }): ReactElement {
+	const className = cn(
+		'cf:rounded-full cf:border cf:px-2.5 cf:py-1 cf:text-xs cf:font-black cf:uppercase cf:tracking-widest',
+		statusClassName(props.status),
+	);
+
+	return <span className={className}>{formatStatus(props.status)}</span>;
+}
+
+/**
+ * StatusMessage renders save/load feedback.
+ */
+function StatusMessage(props: { readonly state: LoadState; readonly message: string }): ReactElement {
+	const isError = props.state === 'error';
+
+	return (
+		<div
+			className={cn(
+				'cf:flex cf:items-center cf:gap-2 cf:rounded-2xl cf:border cf:px-4 cf:py-3 cf:text-sm cf:font-black',
+				isError
+					? 'cf:border-red-300/25 cf:bg-red-950/30 cf:text-red-100'
+					: 'cf:border-amber-300/25 cf:bg-amber-950/30 cf:text-amber-100',
+			)}
+		>
+			{isError ? null : <CheckCircle2 className="cf:size-4" />}
+			{props.message}
+		</div>
+	);
+}
+
+/**
+ * LoadingRow renders a loading message.
+ */
+function LoadingRow(props: { readonly label: string }): ReactElement {
+	return (
+		<div className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4 cf:text-sm cf:font-bold cf:text-slate-300">
+			<Loader2 className="cf:size-4 cf:animate-spin cf:text-amber-200" />
+			{props.label}
+		</div>
+	);
+}
+
+/**
+ * selectClassName returns the shared native select style.
+ */
+function selectClassName(): string {
+	return cn(
+		'cf:h-10 cf:w-full cf:rounded-md cf:border cf:border-input cf:bg-background cf:px-3 cf:py-2 cf:text-sm cf:text-foreground cf:outline-none',
+		'cf:focus-visible:border-ring cf:focus-visible:ring-ring/50 cf:focus-visible:ring-3',
+		'cf:disabled:cursor-not-allowed cf:disabled:opacity-50',
+	);
+}
+
+/**
+ * statusClassName returns tone classes for task statuses.
+ */
+function statusClassName(status: TaskStatus): string {
+	switch (status) {
+		case 'active':
+			return 'cf:border-emerald-300/25 cf:bg-emerald-400/10 cf:text-emerald-100';
+		case 'blocked':
+			return 'cf:border-red-300/25 cf:bg-red-400/10 cf:text-red-100';
+		case 'completed':
+			return 'cf:border-sky-300/25 cf:bg-sky-400/10 cf:text-sky-100';
+		case 'dropped':
+			return 'cf:border-slate-300/20 cf:bg-slate-400/10 cf:text-slate-200';
+		case 'archived':
+			return 'cf:border-white/10 cf:bg-white/5 cf:text-slate-300';
+	}
 }
 
 /**

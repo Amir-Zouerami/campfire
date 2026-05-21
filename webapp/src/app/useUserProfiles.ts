@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { ApiClientError, lookupUsers } from '../api/client';
-import type { UserProfile } from '../types/api';
+import { ApiClientError, lookupUsers } from '@/api';
+import type { UserProfile } from '@/types/api';
 
 /**
  * UserProfilesByID stores resolved user profiles by Mattermost user ID.
@@ -74,21 +74,14 @@ export function useUserProfiles(userIDs: readonly string[]): UseUserProfilesResu
 	 * labelForUserID returns the best available user label.
 	 */
 	function labelForUserID(userID: string): string {
-		const profile = profilesByID[userID];
+		const cleanUserID = userID.trim();
+		const profile = profilesByID[cleanUserID];
 
 		if (profile === undefined) {
-			return userID;
+			return cleanUserID;
 		}
 
-		if (profile.displayName.trim() !== '') {
-			return profile.displayName;
-		}
-
-		if (profile.username.trim() !== '') {
-			return `@${profile.username}`;
-		}
-
-		return profile.id;
+		return profileLabel(profile);
 	}
 
 	return {
@@ -97,6 +90,25 @@ export function useUserProfiles(userIDs: readonly string[]): UseUserProfilesResu
 		errorMessage,
 		labelForUserID,
 	};
+}
+
+/**
+ * profileLabel returns the best display label for one user profile.
+ */
+export function profileLabel(profile: UserProfile): string {
+	if (profile.displayName.trim() !== '') {
+		return profile.displayName;
+	}
+
+	if (profile.username.trim() !== '') {
+		return `@${profile.username}`;
+	}
+
+	if (profile.email.trim() !== '') {
+		return profile.email;
+	}
+
+	return profile.id;
 }
 
 /**

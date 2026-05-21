@@ -1,8 +1,31 @@
-import { useMemo, useState, type FormEvent, type ReactElement } from 'react';
+import { useMemo, useState } from 'react';
+import type { FormEvent, ReactElement } from 'react';
+import { CalendarX2, CheckCircle2, Download, Loader2, Search, Umbrella } from 'lucide-react';
+import { toast } from 'sonner';
 
+import { ApiClientError, exportGlobalLeaveReportCSV, getGlobalLeaveReportSummary } from '@/api';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
+import type {
+	GlobalLeaveReportRow,
+	GlobalLeaveReportSummary,
+	GlobalLeaveReportTypeSummary,
+	GlobalLeaveReportWorkspaceSummary,
+} from '@/types/domain';
+
+import {
+	CampfireCardBody,
+	CampfireCardHeader,
+	CampfireEmpty,
+	CampfireMetric,
+	CampfirePanel,
+	CampfireStatusPill,
+} from './campfire-ui';
 import { useUserProfiles } from './useUserProfiles';
-import type { GlobalLeaveReportSummary } from '../types/domain';
-import { ApiClientError, exportGlobalLeaveReportCSV, getGlobalLeaveReportSummary } from '../api/client';
 
 /**
  * GlobalLeaveReportsCardProps contains global leave report access state.
@@ -17,7 +40,7 @@ type GlobalLeaveReportsCardProps = {
 type LoadState = 'idle' | 'loading' | 'exporting' | 'ready' | 'error';
 
 /**
- * GlobalLeaveReportsCard renders an MVP global leave dashboard.
+ * GlobalLeaveReportsCard renders a global leave dashboard.
  */
 export function GlobalLeaveReportsCard(props: GlobalLeaveReportsCardProps): ReactElement {
 	const defaultRange = useMemo(() => getDefaultDateRange(), []);
@@ -42,14 +65,28 @@ export function GlobalLeaveReportsCard(props: GlobalLeaveReportsCardProps): Reac
 	async function handleLoadReport(event: FormEvent<HTMLFormElement>): Promise<void> {
 		event.preventDefault();
 
+		if (!props.isSystemAdmin) {
+			setLoadState('error');
+			setMessage('Only system admins can view global leave reports.');
+			return;
+		}
+
+		const validationMessage = validateDateRange(startDate, endDate);
+		if (validationMessage !== null) {
+			setLoadState('error');
+			setMessage(validationMessage);
+			return;
+		}
+
 		setLoadState('loading');
 		setMessage('');
 
 		try {
 			const response = await getGlobalLeaveReportSummary(startDate, endDate);
+
 			setSummary(response.summary);
 			setLoadState('ready');
-			setMessage('');
+			setMessage('Global leave report loaded.');
 		} catch (error: unknown) {
 			setMessage(errorToMessage(error));
 			setLoadState('error');
@@ -60,248 +97,437 @@ export function GlobalLeaveReportsCard(props: GlobalLeaveReportsCardProps): Reac
 	 * Exports the current global leave report controls as CSV.
 	 */
 	async function handleExportCSV(): Promise<void> {
+		if (!props.isSystemAdmin) {
+			setLoadState('error');
+			setMessage('Only system admins can export global leave reports.');
+			return;
+		}
+
+		const validationMessage = validateDateRange(startDate, endDate);
+		if (validationMessage !== null) {
+			setLoadState('error');
+			setMessage(validationMessage);
+			return;
+		}
+
 		setLoadState('exporting');
 		setMessage('');
 
 		try {
 			const blob = await exportGlobalLeaveReportCSV(startDate, endDate);
+
 			downloadBlob(blob, buildExportFilename('campfire-global-leaves', startDate, endDate));
 			setLoadState('ready');
 			setMessage('Global leave CSV downloaded.');
+			toast.success('Global leave CSV downloaded');
 		} catch (error: unknown) {
-			setMessage(errorToMessage(error));
+			const errorMessage = errorToMessage(error);
+			setMessage(errorMessage);
 			setLoadState('error');
+			toast.error(errorMessage);
 		}
 	}
 
-	if (!props.isSystemAdmin) {
-		return (
-			<section className="cf:rounded-3xl cf:border cf:border-emerald-300/20 cf:bg-white/[0.055] cf:p-6">
-				<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-emerald-200">
-					Global leaves
-				</p>
-				<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-					Admin-only leave dashboard
-				</h2>
-				<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-					Global leave reports are restricted to system admins in this MVP.
-				</p>
-			</section>
-		);
-	}
-
 	return (
-		<section className="cf:rounded-3xl cf:border cf:border-emerald-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-			<div className="cf:grid cf:gap-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
-				<div>
-					<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-emerald-200">
-						Global leaves
-					</p>
-					<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-						Global leave dashboard
-					</h2>
-					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						See approved and pending leave across all active Campfire workspaces.
-					</p>
+		<CampfirePanel className="cf:overflow-hidden">
+			<CampfireCardHeader
+				eyebrow="Global reports"
+				title="Global leave report"
+				description="System-wide leave visibility across active workspaces. Review approved and pending leave by workspace, type, user, and date range."
+				icon={Umbrella}
+				action={
+					<CampfireStatusPill tone={props.isSystemAdmin ? 'green' : 'slate'}>
+						{props.isSystemAdmin ? 'System admin' : 'No global access'}
+					</CampfireStatusPill>
+				}
+			/>
+
+			<CampfireCardBody className="cf:grid cf:gap-5">
+				<div className="cf:grid cf:gap-3 cf:md:grid-cols-4">
+					<CampfireMetric
+						label="Approved"
+						value={String(summary?.approvedCount ?? 0)}
+						helper="Approved leave rows"
+					/>
+					<CampfireMetric
+						label="Pending"
+						value={String(summary?.pendingCount ?? 0)}
+						helper="Pending leave rows"
+					/>
+					<CampfireMetric
+						label="Workspaces"
+						value={String(summary?.workspaceCount ?? 0)}
+						helper="Active scope"
+					/>
+					<CampfireMetric label="Rows" value={String(summary?.rows.length ?? 0)} helper="Selected range" />
 				</div>
+
+				<form
+					className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4 cf:lg:grid-cols-3"
+					onSubmit={handleLoadReport}
+				>
+					<FormField label="Start date" htmlFor="campfire-global-leaves-start">
+						<Input
+							id="campfire-global-leaves-start"
+							type="date"
+							disabled={isBusy || !props.isSystemAdmin}
+							value={startDate}
+							onChange={event => setStartDate(event.currentTarget.value)}
+						/>
+					</FormField>
+
+					<FormField label="End date" htmlFor="campfire-global-leaves-end">
+						<Input
+							id="campfire-global-leaves-end"
+							type="date"
+							disabled={isBusy || !props.isSystemAdmin}
+							value={endDate}
+							onChange={event => setEndDate(event.currentTarget.value)}
+						/>
+					</FormField>
+
+					<div className="cf:flex cf:items-end cf:gap-2">
+						<Button className="cf:flex-1" type="submit" disabled={isBusy || !props.isSystemAdmin}>
+							{loadState === 'loading' ? (
+								<Loader2 className="cf:size-4 cf:animate-spin" />
+							) : (
+								<Search className="cf:size-4" />
+							)}
+							Load
+						</Button>
+
+						<Button
+							type="button"
+							variant="secondary"
+							disabled={isBusy || !props.isSystemAdmin}
+							onClick={() => void handleExportCSV()}
+						>
+							{loadState === 'exporting' ? (
+								<Loader2 className="cf:size-4 cf:animate-spin" />
+							) : (
+								<Download className="cf:size-4" />
+							)}
+							CSV
+						</Button>
+					</div>
+				</form>
+
+				{message !== '' && <MessageRow state={loadState} message={message} />}
+				{profileErrorMessage !== '' && <MessageRow state="error" message={profileErrorMessage} />}
+				{profilesLoading && <LoadingRow label="Resolving user names…" />}
+
+				{!props.isSystemAdmin && (
+					<MessageRow
+						state="error"
+						message="Global leave reports are currently limited to system admins in this UI."
+					/>
+				)}
+
+				<Separator className="cf:bg-white/10" />
+
+				{summary === null && loadState !== 'loading' && (
+					<CampfireEmpty
+						icon={CalendarX2}
+						title="No global leave report loaded"
+						description="Choose a date range, then load the global leave report."
+					/>
+				)}
 
 				{summary !== null && (
-					<div className="cf:flex cf:flex-wrap cf:gap-2">
-						<MetricPill label="Workspaces" value={String(summary.workspaceCount)} />
-						<MetricPill label="Approved" value={String(summary.approvedCount)} />
-						<MetricPill label="Pending" value={String(summary.pendingCount)} />
+					<div className="cf:grid cf:gap-5">
+						<div className="cf:grid cf:gap-5 cf:xl:grid-cols-2">
+							<GlobalLeaveWorkspaceTotals workspaces={summary.workspaces} />
+							<GlobalLeaveTypeTotals types={summary.types} />
+						</div>
+
+						<GlobalLeaveRows rows={summary.rows} labelForUserID={labelForUserID} />
 					</div>
 				)}
+			</CampfireCardBody>
+		</CampfirePanel>
+	);
+}
+
+/**
+ * GlobalLeaveWorkspaceTotals renders workspace totals in a global leave report.
+ */
+function GlobalLeaveWorkspaceTotals(props: {
+	readonly workspaces: readonly GlobalLeaveReportWorkspaceSummary[];
+}): ReactElement {
+	return (
+		<section className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
+			<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3">
+				<h3 className="cf:text-lg cf:font-black cf:text-white">Workspace totals</h3>
+				<CampfireStatusPill tone="ember">{props.workspaces.length} workspaces</CampfireStatusPill>
 			</div>
 
-			<form
-				className="cf:mt-5 cf:grid cf:gap-3 cf:lg:grid-cols-[1fr_1fr_auto]"
-				onSubmit={event => void handleLoadReport(event)}
-			>
-				<input
-					className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:focus:border-emerald-300/45"
-					disabled={isBusy}
-					type="date"
-					value={startDate}
-					onChange={event => setStartDate(event.currentTarget.value)}
-				/>
+			<div className="cf:mt-4 cf:grid cf:gap-3">
+				{props.workspaces.length === 0 && (
+					<CampfireEmpty
+						icon={Umbrella}
+						title="No workspace leave totals"
+						description="No leave rows were found in this date range."
+					/>
+				)}
 
-				<input
-					className="cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/60 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:focus:border-emerald-300/45"
-					disabled={isBusy}
-					type="date"
-					value={endDate}
-					onChange={event => setEndDate(event.currentTarget.value)}
-				/>
-
-				<div className="cf:flex cf:flex-wrap cf:gap-3">
-					<button
-						className="cf:rounded-2xl cf:border cf:border-emerald-300/30 cf:bg-emerald-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-emerald-50 cf:transition cf:hover:bg-emerald-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-						disabled={isBusy}
-						type="submit"
-					>
-						Load leave report
-					</button>
-
-					<button
-						className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.06] cf:px-5 cf:py-3 cf:font-black cf:text-white cf:transition cf:hover:bg-white/[0.1] cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-						disabled={isBusy}
-						type="button"
-						onClick={() => void handleExportCSV()}
-					>
-						Export CSV
-					</button>
-				</div>
-			</form>
-
-			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
-			{profileErrorMessage !== '' && (
-				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{profileErrorMessage}</p>
-			)}
-			{profilesLoading && (
-				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-slate-300">Resolving user names…</p>
-			)}
-
-			{summary !== null && (
-				<div className="cf:mt-5 cf:grid cf:gap-5 cf:xl:grid-cols-2">
-					<WorkspaceLeaveTotals summary={summary} />
-					<LeaveTypeTotals summary={summary} />
-					<GlobalLeaveRows summary={summary} labelForUserID={labelForUserID} />
-				</div>
-			)}
+				{props.workspaces.map(workspace => (
+					<WorkspaceLeaveTotalRow workspace={workspace} key={workspace.workspaceId} />
+				))}
+			</div>
 		</section>
 	);
 }
 
 /**
- * MetricPill renders one compact metric.
+ * WorkspaceLeaveTotalRow renders one workspace leave total.
  */
-function MetricPill(props: { readonly label: string; readonly value: string }): ReactElement {
+function WorkspaceLeaveTotalRow(props: { readonly workspace: GlobalLeaveReportWorkspaceSummary }): ReactElement {
+	const total = props.workspace.approvedCount + props.workspace.pendingCount;
+
 	return (
-		<span className="cf:rounded-full cf:border cf:border-emerald-300/25 cf:bg-emerald-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-emerald-100">
+		<article className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4">
+			<div className="cf:flex cf:flex-col cf:gap-3 cf:sm:flex-row cf:sm:items-start cf:sm:justify-between">
+				<div>
+					<strong className="cf:block cf:text-base cf:font-black cf:text-white">
+						{props.workspace.workspaceName}
+					</strong>
+					<span className="cf:mt-1 cf:block cf:text-xs cf:font-bold cf:text-slate-500">
+						{props.workspace.workspaceId}
+					</span>
+				</div>
+
+				<div className="cf:flex cf:flex-wrap cf:gap-2 cf:sm:justify-end">
+					<Badge variant="secondary" className="cf:rounded-full">
+						Total {total}
+					</Badge>
+					<Badge variant="secondary" className="cf:rounded-full">
+						Approved {props.workspace.approvedCount}
+					</Badge>
+					<Badge variant="outline" className="cf:rounded-full">
+						Pending {props.workspace.pendingCount}
+					</Badge>
+				</div>
+			</div>
+		</article>
+	);
+}
+
+/**
+ * GlobalLeaveTypeTotals renders leave-type totals.
+ */
+function GlobalLeaveTypeTotals(props: { readonly types: readonly GlobalLeaveReportTypeSummary[] }): ReactElement {
+	return (
+		<section className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
+			<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3">
+				<h3 className="cf:text-lg cf:font-black cf:text-white">Leave type totals</h3>
+				<CampfireStatusPill tone="green">{props.types.length} types</CampfireStatusPill>
+			</div>
+
+			<div className="cf:mt-4 cf:grid cf:gap-3">
+				{props.types.length === 0 && (
+					<CampfireEmpty
+						icon={Umbrella}
+						title="No leave type totals"
+						description="No leave rows were found in this date range."
+					/>
+				)}
+
+				{props.types.map(type => (
+					<LeaveTypeTotalRow type={type} key={type.leaveTypeName} />
+				))}
+			</div>
+		</section>
+	);
+}
+
+/**
+ * LeaveTypeTotalRow renders one leave type total.
+ */
+function LeaveTypeTotalRow(props: { readonly type: GlobalLeaveReportTypeSummary }): ReactElement {
+	const total = props.type.approvedCount + props.type.pendingCount;
+
+	return (
+		<article className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4">
+			<div className="cf:flex cf:flex-col cf:gap-3 cf:sm:flex-row cf:sm:items-start cf:sm:justify-between">
+				<div>
+					<strong className="cf:block cf:text-base cf:font-black cf:text-white">
+						{props.type.leaveTypeName}
+					</strong>
+					<span className="cf:mt-1 cf:block cf:text-xs cf:font-bold cf:text-slate-500">
+						{props.type.leaveTypeColor || 'No color'}
+					</span>
+				</div>
+
+				<div className="cf:flex cf:flex-wrap cf:gap-2 cf:sm:justify-end">
+					<Badge variant="secondary" className="cf:rounded-full">
+						Total {total}
+					</Badge>
+					<Badge variant="secondary" className="cf:rounded-full">
+						Approved {props.type.approvedCount}
+					</Badge>
+					<Badge variant="outline" className="cf:rounded-full">
+						Pending {props.type.pendingCount}
+					</Badge>
+				</div>
+			</div>
+		</article>
+	);
+}
+
+/**
+ * GlobalLeaveRows renders all leave rows in the global report.
+ */
+function GlobalLeaveRows(props: {
+	readonly rows: readonly GlobalLeaveReportRow[];
+	readonly labelForUserID: (userID: string) => string;
+}): ReactElement {
+	return (
+		<section className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
+			<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3">
+				<h3 className="cf:text-lg cf:font-black cf:text-white">Leave rows</h3>
+				<CampfireStatusPill tone="green">{props.rows.length} rows</CampfireStatusPill>
+			</div>
+
+			<div className="cf:mt-4 cf:grid cf:gap-3">
+				{props.rows.length === 0 && (
+					<CampfireEmpty
+						icon={Umbrella}
+						title="No leave rows"
+						description="No approved or pending leave rows were found."
+					/>
+				)}
+
+				{props.rows.map(row => (
+					<GlobalLeaveRow
+						row={row}
+						labelForUserID={props.labelForUserID}
+						key={`${row.workspaceId}-${row.leaveRequest.leaveRequest.id}`}
+					/>
+				))}
+			</div>
+		</section>
+	);
+}
+
+/**
+ * GlobalLeaveRow renders one global leave report row.
+ */
+function GlobalLeaveRow(props: {
+	readonly row: GlobalLeaveReportRow;
+	readonly labelForUserID: (userID: string) => string;
+}): ReactElement {
+	const request = props.row.leaveRequest.leaveRequest;
+
+	return (
+		<article className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4">
+			<div className="cf:flex cf:flex-col cf:gap-3 cf:lg:flex-row cf:lg:items-start cf:lg:justify-between">
+				<div>
+					<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
+						<strong className="cf:text-base cf:font-black cf:text-white" title={request.userId}>
+							{props.labelForUserID(request.userId)}
+						</strong>
+						<CampfireStatusPill tone={request.status === 'approved' ? 'green' : 'ember'}>
+							{formatLabel(request.status)}
+						</CampfireStatusPill>
+						<CampfireStatusPill tone="slate">{props.row.leaveRequest.leaveTypeName}</CampfireStatusPill>
+					</div>
+
+					<p className="cf:mt-2 cf:text-sm cf:font-bold cf:text-slate-300">
+						{request.startDate} → {request.endDate}
+						{formatDurationDetails(props.row)}
+					</p>
+
+					<div className="cf:mt-3 cf:flex cf:flex-wrap cf:gap-2">
+						<MetaChip label="Workspace" value={props.row.workspaceName} />
+						<MetaChip label="Backup" value={backupLabel(request.backupUserId, props.labelForUserID)} />
+					</div>
+
+					{request.reason !== '' && (
+						<p className="cf:mt-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/45 cf:p-3 cf:text-sm cf:font-medium cf:leading-6 cf:text-slate-300">
+							{request.reason}
+						</p>
+					)}
+				</div>
+
+				<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/45 cf:px-3 cf:py-2 cf:text-xs cf:font-bold cf:text-slate-300">
+					{request.id}
+				</div>
+			</div>
+		</article>
+	);
+}
+
+/**
+ * FormField renders a labeled field.
+ */
+function FormField(props: {
+	readonly label: string;
+	readonly htmlFor: string;
+	readonly children: ReactElement;
+}): ReactElement {
+	return (
+		<div className="cf:grid cf:gap-2">
+			<Label
+				htmlFor={props.htmlFor}
+				className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200"
+			>
+				{props.label}
+			</Label>
+			{props.children}
+		</div>
+	);
+}
+
+/**
+ * MetaChip renders optional row metadata.
+ */
+function MetaChip(props: { readonly label: string; readonly value: string }): ReactElement | null {
+	if (props.value.trim() === '') {
+		return null;
+	}
+
+	return (
+		<span className="cf:rounded-full cf:border cf:border-white/10 cf:bg-slate-950/45 cf:px-2.5 cf:py-1 cf:text-xs cf:font-bold cf:text-slate-300">
 			{props.label}: {props.value}
 		</span>
 	);
 }
 
 /**
- * WorkspaceLeaveTotals renders leave totals by workspace.
+ * MessageRow renders load/export feedback.
  */
-function WorkspaceLeaveTotals(props: { readonly summary: GlobalLeaveReportSummary }): ReactElement {
+function MessageRow(props: { readonly state: LoadState; readonly message: string }): ReactElement {
+	const isError = props.state === 'error';
+
 	return (
-		<div className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
-			<h3 className="cf:m-0 cf:text-lg cf:font-black cf:text-white">Workspace totals</h3>
-
-			<div className="cf:mt-4 cf:grid cf:gap-3">
-				{props.summary.workspaces.length === 0 && (
-					<p className="cf:m-0 cf:rounded-2xl cf:border cf:border-dashed cf:border-white/10 cf:p-4 cf:text-slate-300">
-						No workspace leave found for this range.
-					</p>
-				)}
-
-				{props.summary.workspaces.map(workspace => (
-					<div
-						className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-4"
-						key={workspace.workspaceId}
-					>
-						<strong className="cf:text-sm cf:font-black cf:text-white">
-							{workspace.workspaceName || workspace.workspaceId}
-						</strong>
-						<p className="cf:m-0 cf:mt-1 cf:text-xs cf:font-bold cf:text-slate-400">
-							Approved {workspace.approvedCount} · Pending {workspace.pendingCount}
-						</p>
-					</div>
-				))}
-			</div>
+		<div
+			className={cn(
+				'cf:flex cf:items-center cf:gap-2 cf:rounded-2xl cf:border cf:px-4 cf:py-3 cf:text-sm cf:font-black',
+				isError
+					? 'cf:border-red-300/25 cf:bg-red-950/30 cf:text-red-100'
+					: 'cf:border-amber-300/25 cf:bg-amber-950/30 cf:text-amber-100',
+			)}
+		>
+			{isError ? null : <CheckCircle2 className="cf:size-4" />}
+			{props.message}
 		</div>
 	);
 }
 
 /**
- * LeaveTypeTotals renders leave totals by type.
+ * LoadingRow renders a loading message.
  */
-function LeaveTypeTotals(props: { readonly summary: GlobalLeaveReportSummary }): ReactElement {
+function LoadingRow(props: { readonly label: string }): ReactElement {
 	return (
-		<div className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
-			<h3 className="cf:m-0 cf:text-lg cf:font-black cf:text-white">Leave type totals</h3>
-
-			<div className="cf:mt-4 cf:grid cf:gap-3">
-				{props.summary.types.length === 0 && (
-					<p className="cf:m-0 cf:rounded-2xl cf:border cf:border-dashed cf:border-white/10 cf:p-4 cf:text-slate-300">
-						No leave type totals for this range.
-					</p>
-				)}
-
-				{props.summary.types.map(type => (
-					<div
-						className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-4"
-						key={type.leaveTypeName}
-					>
-						<strong className="cf:text-sm cf:font-black cf:text-white">{type.leaveTypeName}</strong>
-						<p className="cf:m-0 cf:mt-1 cf:text-xs cf:font-bold cf:text-slate-400">
-							Approved {type.approvedCount} · Pending {type.pendingCount}
-						</p>
-					</div>
-				))}
-			</div>
+		<div className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4 cf:text-sm cf:font-bold cf:text-slate-300">
+			<Loader2 className="cf:size-4 cf:animate-spin cf:text-amber-200" />
+			{props.label}
 		</div>
 	);
 }
 
 /**
- * GlobalLeaveRows renders individual global leave rows.
- */
-function GlobalLeaveRows(props: {
-	readonly summary: GlobalLeaveReportSummary;
-	readonly labelForUserID: (userID: string) => string;
-}): ReactElement {
-	return (
-		<div className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4 cf:xl:col-span-2">
-			<h3 className="cf:m-0 cf:text-lg cf:font-black cf:text-white">Leave rows</h3>
-
-			<div className="cf:mt-4 cf:grid cf:gap-3">
-				{props.summary.rows.length === 0 && (
-					<p className="cf:m-0 cf:rounded-2xl cf:border cf:border-dashed cf:border-white/10 cf:p-4 cf:text-slate-300">
-						No leave rows for this range.
-					</p>
-				)}
-
-				{props.summary.rows.map(row => (
-					<article
-						className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-4"
-						key={`${row.workspaceId}:${row.leaveRequest.leaveRequest.id}`}
-					>
-						<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3">
-							<div>
-								<strong
-									className="cf:block cf:text-sm cf:font-black cf:text-white"
-									title={row.leaveRequest.leaveRequest.userId}
-								>
-									{props.labelForUserID(row.leaveRequest.leaveRequest.userId)}
-								</strong>
-								<span className="cf:mt-1 cf:block cf:text-xs cf:font-bold cf:text-slate-400">
-									{row.workspaceName || row.workspaceId}
-								</span>
-							</div>
-
-							<span className="cf:rounded-full cf:border cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:px-3 cf:py-1 cf:text-xs cf:font-extrabold cf:text-emerald-100">
-								{row.leaveRequest.leaveRequest.status}
-							</span>
-						</div>
-
-						<p className="cf:m-0 cf:mt-2 cf:text-sm cf:font-bold cf:text-slate-300">
-							{row.leaveRequest.leaveRequest.startDate} → {row.leaveRequest.leaveRequest.endDate} ·{' '}
-							{row.leaveRequest.leaveTypeName}
-						</p>
-					</article>
-				))}
-			</div>
-		</div>
-	);
-}
-
-/**
- * collectGlobalLeaveUserIDs returns all user IDs visible in the report.
+ * collectGlobalLeaveUserIDs returns user IDs referenced by global leave rows.
  */
 function collectGlobalLeaveUserIDs(summary: GlobalLeaveReportSummary | null): readonly string[] {
 	if (summary === null) {
@@ -313,26 +539,122 @@ function collectGlobalLeaveUserIDs(summary: GlobalLeaveReportSummary | null): re
 	for (const row of summary.rows) {
 		userIDs.push(row.leaveRequest.leaveRequest.userId);
 
-		if (row.leaveRequest.leaveRequest.backupUserId.trim() !== '') {
+		if (row.leaveRequest.leaveRequest.backupUserId !== '') {
 			userIDs.push(row.leaveRequest.leaveRequest.backupUserId);
 		}
 	}
 
-	return userIDs;
+	return uniqueStrings(userIDs);
 }
 
 /**
- * getDefaultDateRange returns a practical default range.
+ * backupLabel returns a readable backup label.
+ */
+function backupLabel(backupUserID: string, labelForUserID: (userID: string) => string): string {
+	if (backupUserID.trim() === '') {
+		return '';
+	}
+
+	return labelForUserID(backupUserID);
+}
+
+/**
+ * formatDurationDetails returns compact leave duration details.
+ */
+function formatDurationDetails(row: GlobalLeaveReportRow): string {
+	const request = row.leaveRequest.leaveRequest;
+
+	switch (request.durationMode) {
+		case 'half_day':
+			return request.halfDayPart === '' ? ' · half day' : ` · half day · ${formatLabel(request.halfDayPart)}`;
+
+		case 'hourly':
+			return ` · ${request.startTime} → ${request.endTime}`;
+
+		case 'full_day':
+			return '';
+
+		default:
+			return '';
+	}
+}
+
+/**
+ * validateDateRange validates report dates.
+ */
+function validateDateRange(startDate: string, endDate: string): string | null {
+	if (startDate.trim() === '' || endDate.trim() === '') {
+		return 'Choose a start and end date.';
+	}
+
+	if (startDate > endDate) {
+		return 'Start date cannot be after end date.';
+	}
+
+	return null;
+}
+
+/**
+ * downloadBlob downloads a browser blob.
+ */
+function downloadBlob(blob: Blob, filename: string): void {
+	const url = URL.createObjectURL(blob);
+	const link = document.createElement('a');
+
+	link.href = url;
+	link.download = filename;
+	document.body.appendChild(link);
+	link.click();
+	link.remove();
+
+	URL.revokeObjectURL(url);
+}
+
+/**
+ * buildExportFilename returns a CSV filename.
+ */
+function buildExportFilename(prefix: string, startDate: string, endDate: string): string {
+	return `${prefix}-${startDate}-to-${endDate}.csv`;
+}
+
+/**
+ * getDefaultDateRange returns a recent thirty-day report window.
  */
 function getDefaultDateRange(): { readonly startDate: string; readonly endDate: string } {
-	const end = new Date();
-	const start = new Date(end);
-	start.setDate(end.getDate() - 13);
+	const endDate = getTodayLocalDateString();
 
 	return {
-		startDate: dateToLocalDateString(start),
-		endDate: dateToLocalDateString(end),
+		startDate: addDaysToLocalDate(endDate, -30),
+		endDate,
 	};
+}
+
+/**
+ * addDaysToLocalDate adds days to a YYYY-MM-DD local date string.
+ */
+function addDaysToLocalDate(localDate: string, days: number): string {
+	const parts = localDate.split('-');
+
+	if (parts.length !== 3) {
+		return getTodayLocalDateString();
+	}
+
+	const year = Number(parts[0]);
+	const month = Number(parts[1]);
+	const day = Number(parts[2]);
+
+	if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+		return getTodayLocalDateString();
+	}
+
+	return dateToLocalDateString(new Date(year, month - 1, day + days));
+}
+
+/**
+ * getTodayLocalDateString returns today's local YYYY-MM-DD date.
+ */
+function getTodayLocalDateString(): string {
+	return dateToLocalDateString(new Date());
 }
 
 /**
@@ -344,6 +666,23 @@ function dateToLocalDateString(date: Date): string {
 	const day = String(date.getDate()).padStart(2, '0');
 
 	return `${year}-${month}-${day}`;
+}
+
+/**
+ * uniqueStrings returns unique non-empty strings.
+ */
+function uniqueStrings(values: readonly string[]): readonly string[] {
+	return [...new Set(values.map(value => value.trim()).filter(Boolean))];
+}
+
+/**
+ * formatLabel converts enum-like strings to readable labels.
+ */
+function formatLabel(value: string): string {
+	return value
+		.split('_')
+		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(' ');
 }
 
 /**
@@ -359,27 +698,4 @@ function errorToMessage(error: unknown): string {
 	}
 
 	return 'Could not load global leave report.';
-}
-
-/**
- * downloadBlob downloads a browser Blob with a generated filename.
- */
-function downloadBlob(blob: Blob, filename: string): void {
-	const url = URL.createObjectURL(blob);
-	const anchor = document.createElement('a');
-
-	anchor.href = url;
-	anchor.download = filename;
-	document.body.appendChild(anchor);
-	anchor.click();
-	anchor.remove();
-
-	URL.revokeObjectURL(url);
-}
-
-/**
- * buildExportFilename builds a stable CSV export filename.
- */
-function buildExportFilename(prefix: string, startDate: string, endDate: string): string {
-	return `${prefix}-${startDate}-to-${endDate}.csv`;
 }

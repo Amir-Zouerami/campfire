@@ -1,9 +1,25 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { ReactElement } from 'react';
+import { BarChart3, CheckCircle2, Clock3, Loader2, Search } from 'lucide-react';
 
-import { useUserProfiles } from './useUserProfiles';
-import { ApiClientError, getTimeReportSummary } from '../api/client';
+import { ApiClientError, getTimeReportSummary } from '@/api';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
+import type { TimeReportGroupBy, TimeReportRow, TimeReportSummary, Workspace } from '@/types/domain';
+
+import {
+	CampfireCardBody,
+	CampfireCardHeader,
+	CampfireEmpty,
+	CampfireMetric,
+	CampfirePanel,
+	CampfireStatusPill,
+} from './campfire-ui';
 import { CAMPFIRE_APPLY_REPORT_FILTER_EVENT, isReportFilterApplyEvent } from './events';
-import type { TimeReportGroupBy, TimeReportRow, TimeReportSummary, Workspace } from '../types/domain';
+import { useUserProfiles } from './useUserProfiles';
 
 /**
  * TimeReportSummaryCardProps contains the current workspace.
@@ -16,6 +32,15 @@ type TimeReportSummaryCardProps = {
  * LoadState describes the time report card state.
  */
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
+
+/**
+ * TimeReportFilter is a saved filter shape accepted by this card.
+ */
+type TimeReportFilter = {
+	readonly startDate?: string;
+	readonly endDate?: string;
+	readonly groupBy?: TimeReportGroupBy;
+};
 
 const groupByOptions: readonly TimeReportGroupBy[] = ['person', 'project', 'category', 'task', 'day', 'week'];
 
@@ -85,6 +110,13 @@ export function TimeReportSummaryCard(props: TimeReportSummaryCardProps): ReactE
 	 * Loads the time report summary from the backend.
 	 */
 	async function handleLoadSummary(): Promise<void> {
+		const validationMessage = validateDateRange(startDate, endDate);
+		if (validationMessage !== null) {
+			setLoadState('error');
+			setMessage(validationMessage);
+			return;
+		}
+
 		setLoadState('loading');
 		setMessage('');
 
@@ -101,295 +133,237 @@ export function TimeReportSummaryCard(props: TimeReportSummaryCardProps): ReactE
 	}
 
 	return (
-		<section className="cf:mt-5 cf:rounded-3xl cf:border cf:border-teal-300/20 cf:bg-white/[0.055] cf:p-6 cf:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-			<div className="cf:grid cf:gap-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-start">
-				<div>
-					<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.18em] cf:text-teal-200">
-						Time report
-					</p>
-					<h2 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-white">
-						Workspace time summary
-					</h2>
-					<p className="cf:m-0 cf:mt-2 cf:max-w-3xl cf:leading-7 cf:text-slate-300">
-						Review tracked time by person, project, category, task, day, or week for this workspace.
-					</p>
+		<CampfirePanel className="cf:overflow-hidden">
+			<CampfireCardHeader
+				eyebrow="Time report"
+				title="Workspace time summary"
+				description="Group tracked time by person, project, category, task, day, or week."
+				icon={BarChart3}
+				action={
+					<CampfireStatusPill tone="green">
+						<Clock3 className="cf:size-3.5" />
+						{formatMinutes(summary?.totalMinutes ?? 0)}
+					</CampfireStatusPill>
+				}
+			/>
+
+			<CampfireCardBody className="cf:grid cf:gap-5">
+				<div className="cf:grid cf:gap-3 cf:md:grid-cols-4">
+					<CampfireMetric
+						label="Total time"
+						value={formatMinutes(summary?.totalMinutes ?? 0)}
+						helper="Selected range"
+					/>
+					<CampfireMetric label="Rows" value={String(summary?.rows.length ?? 0)} helper="Grouped result" />
+					<CampfireMetric label="Group by" value={formatLabel(groupBy)} helper="Current grouping" />
+					<CampfireMetric label="Range" value={rangeLabel(startDate, endDate)} helper="Filter window" />
 				</div>
 
-				<div className="cf:w-fit cf:rounded-full cf:border cf:border-teal-300/25 cf:bg-teal-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-teal-200">
-					{summary === null ? 'No report' : formatMinutes(summary.totalMinutes)}
+				<div className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4 cf:lg:grid-cols-[1fr_1fr_1fr_auto] cf:lg:items-end">
+					<FormField label="Start date" htmlFor="campfire-time-report-start">
+						<Input
+							id="campfire-time-report-start"
+							type="date"
+							disabled={isBusy}
+							value={startDate}
+							onChange={event => setStartDate(event.currentTarget.value)}
+						/>
+					</FormField>
+
+					<FormField label="End date" htmlFor="campfire-time-report-end">
+						<Input
+							id="campfire-time-report-end"
+							type="date"
+							disabled={isBusy}
+							value={endDate}
+							onChange={event => setEndDate(event.currentTarget.value)}
+						/>
+					</FormField>
+
+					<FormField label="Group by" htmlFor="campfire-time-report-group-by">
+						<select
+							id="campfire-time-report-group-by"
+							className={selectClassName()}
+							disabled={isBusy}
+							value={groupBy}
+							onChange={event => setGroupBy(toTimeReportGroupBy(event.currentTarget.value))}
+						>
+							{groupByOptions.map(option => (
+								<option key={option} value={option}>
+									{formatLabel(option)}
+								</option>
+							))}
+						</select>
+					</FormField>
+
+					<Button type="button" disabled={isBusy} onClick={() => void handleLoadSummary()}>
+						{isBusy ? <Loader2 className="cf:size-4 cf:animate-spin" /> : <Search className="cf:size-4" />}
+						Load
+					</Button>
 				</div>
-			</div>
 
-			<div className="cf:mt-5 cf:grid cf:gap-4 cf:lg:grid-cols-[180px_180px_220px_auto] cf:lg:items-end">
-				<Field label="Start date">
-					<input
-						className={inputClassName}
-						disabled={isBusy}
-						type="date"
-						value={startDate}
-						onChange={event => setStartDate(event.currentTarget.value)}
+				{message !== '' && <MessageRow state={loadState} message={message} />}
+				{profileErrorMessage !== '' && <MessageRow state="error" message={profileErrorMessage} />}
+				{profilesLoading && <LoadingRow label="Resolving user names…" />}
+
+				<Separator className="cf:bg-white/10" />
+
+				{summary === null && loadState !== 'loading' && (
+					<CampfireEmpty
+						icon={BarChart3}
+						title="No time report loaded"
+						description="Choose a date range and grouping, then load the report."
 					/>
-				</Field>
+				)}
 
-				<Field label="End date">
-					<input
-						className={inputClassName}
-						disabled={isBusy}
-						type="date"
-						value={endDate}
-						onChange={event => setEndDate(event.currentTarget.value)}
+				{summary !== null && summary.rows.length === 0 && (
+					<CampfireEmpty
+						icon={Clock3}
+						title="No time entries in this range"
+						description="Time rows will appear here after users log time against tasks."
 					/>
-				</Field>
+				)}
 
-				<Field label="Group by">
-					<select
-						className={inputClassName}
-						disabled={isBusy}
-						value={groupBy}
-						onChange={event => setGroupBy(toTimeReportGroupBy(event.currentTarget.value))}
-					>
-						{groupByOptions.map(option => (
-							<option key={option} value={option}>
-								{formatLabel(option)}
-							</option>
+				{summary !== null && summary.rows.length > 0 && (
+					<div className="cf:grid cf:gap-3">
+						{summary.rows.map(row => (
+							<TimeReportRowCard
+								key={`${row.key}-${row.periodStart}-${row.periodEnd}`}
+								row={row}
+								groupBy={summary.groupBy}
+								labelForUserID={labelForUserID}
+							/>
 						))}
-					</select>
-				</Field>
-
-				<button
-					className="cf:rounded-2xl cf:border cf:border-teal-300/30 cf:bg-teal-400/20 cf:px-5 cf:py-3 cf:font-black cf:text-teal-50 cf:transition cf:hover:bg-teal-400/30 cf:disabled:cursor-not-allowed cf:disabled:opacity-60"
-					disabled={isBusy}
-					type="button"
-					onClick={() => void handleLoadSummary()}
-				>
-					{loadState === 'loading' ? 'Loading…' : 'Load time report'}
-				</button>
-			</div>
-
-			{message !== '' && <p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{message}</p>}
-
-			{profileErrorMessage !== '' && (
-				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-bold cf:text-amber-300">{profileErrorMessage}</p>
-			)}
-
-			{profilesLoading && (
-				<p className="cf:m-0 cf:mt-4 cf:text-xs cf:font-bold cf:text-slate-400">Resolving user names…</p>
-			)}
-
-			{summary !== null && (
-				<div className="cf:mt-5 cf:grid cf:gap-4">
-					<div className="cf:grid cf:gap-3 cf:md:grid-cols-3">
-						<Metric label="Total time" value={formatMinutes(summary.totalMinutes)} />
-						<Metric label="Rows" value={String(summary.rows.length)} />
-						<Metric label="Grouped by" value={formatLabel(summary.groupBy)} />
 					</div>
-
-					<TimeReportRows
-						groupBy={summary.groupBy}
-						rows={summary.rows}
-						totalMinutes={summary.totalMinutes}
-						labelForUserID={labelForUserID}
-					/>
-				</div>
-			)}
-		</section>
-	);
-}
-
-const inputClassName =
-	'cf:w-full cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/55 cf:px-4 cf:py-3 cf:text-white cf:outline-none cf:transition cf:[color-scheme:dark] cf:placeholder:text-slate-500 cf:focus:border-teal-300/60 cf:focus:ring-4 cf:focus:ring-teal-300/15';
-
-/**
- * Field renders a labeled control.
- */
-function Field(props: { readonly label: string; readonly children: ReactElement }): ReactElement {
-	return (
-		<label className="cf:grid cf:gap-2">
-			<span className="cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.14em] cf:text-teal-200">
-				{props.label}
-			</span>
-			{props.children}
-		</label>
+				)}
+			</CampfireCardBody>
+		</CampfirePanel>
 	);
 }
 
 /**
- * Metric renders one summary metric.
- */
-function Metric(props: { readonly label: string; readonly value: string }): ReactElement {
-	return (
-		<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-slate-950/35 cf:p-4">
-			<p className="cf:m-0 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-slate-400">
-				{props.label}
-			</p>
-			<p className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:text-white">{props.value}</p>
-		</div>
-	);
-}
-
-/**
- * TimeReportFilter contains saved time report controls this card can apply.
- */
-type TimeReportFilter = {
-	readonly startDate?: string;
-	readonly endDate?: string;
-	readonly groupBy?: TimeReportGroupBy;
-};
-
-/**
- * parseTimeReportFilter validates saved JSON for time report controls.
- */
-function parseTimeReportFilter(filterJson: string): TimeReportFilter | null {
-	try {
-		const parsed: unknown = JSON.parse(filterJson);
-		if (!isRecord(parsed)) {
-			return null;
-		}
-
-		const startDate = stringField(parsed, 'startDate') ?? stringField(parsed, 'periodStart');
-		const endDate = stringField(parsed, 'endDate') ?? stringField(parsed, 'periodEnd');
-		const groupBy = stringField(parsed, 'groupBy');
-
-		return {
-			...(startDate === undefined ? {} : { startDate }),
-			...(endDate === undefined ? {} : { endDate }),
-			...(groupBy === undefined ? {} : { groupBy: toTimeReportGroupBy(groupBy) }),
-		};
-	} catch (_error: unknown) {
-		return null;
-	}
-}
-
-/**
- * stringField reads one optional string field from a parsed JSON object.
- */
-function stringField(record: Record<string, unknown>, key: string): string | undefined {
-	const value = record[key];
-
-	if (typeof value !== 'string' || value.trim() === '') {
-		return undefined;
-	}
-
-	return value.trim();
-}
-
-/**
- * isRecord narrows JSON values to indexable plain objects.
- */
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-/**
- * TimeReportRows renders aggregated time report rows.
- */
-function TimeReportRows(props: {
-	readonly groupBy: TimeReportGroupBy;
-	readonly rows: readonly TimeReportRow[];
-	readonly totalMinutes: number;
-	readonly labelForUserID: (userID: string) => string;
-}): ReactElement {
-	if (props.rows.length === 0) {
-		return (
-			<p className="cf:m-0 cf:rounded-2xl cf:border cf:border-dashed cf:border-white/10 cf:p-4 cf:text-slate-300">
-				No time entries found for this range.
-			</p>
-		);
-	}
-
-	return (
-		<div className="cf:grid cf:gap-3">
-			{props.rows.map(row => (
-				<TimeReportRowCard
-					groupBy={props.groupBy}
-					key={row.key}
-					label={displayLabelForRow(props.groupBy, row, props.labelForUserID)}
-					row={row}
-					totalMinutes={props.totalMinutes}
-				/>
-			))}
-		</div>
-	);
-}
-
-/**
- * TimeReportRowCard renders one aggregated row.
+ * TimeReportRowCard renders one grouped time report row.
  */
 function TimeReportRowCard(props: {
-	readonly groupBy: TimeReportGroupBy;
-	readonly label: string;
 	readonly row: TimeReportRow;
-	readonly totalMinutes: number;
+	readonly groupBy: TimeReportGroupBy;
+	readonly labelForUserID: (userID: string) => string;
 }): ReactElement {
-	const percentage = props.totalMinutes === 0 ? 0 : Math.round((props.row.minutes / props.totalMinutes) * 100);
-
 	return (
 		<article className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-slate-950/40 cf:p-4">
-			<div className="cf:flex cf:flex-col cf:gap-3 cf:md:flex-row cf:md:items-start cf:md:justify-between">
+			<div className="cf:flex cf:flex-col cf:gap-4 cf:lg:flex-row cf:lg:items-start cf:lg:justify-between">
 				<div>
-					<strong className="cf:block cf:text-lg cf:font-black cf:text-white" title={props.row.key}>
-						{props.label}
-					</strong>
-					<p className="cf:m-0 cf:mt-1 cf:text-sm cf:text-slate-300">
-						{formatMinutes(props.row.minutes)} · {props.row.entryCount} entries · {percentage}%
-					</p>
-					<RowMeta groupBy={props.groupBy} row={props.row} />
+					<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
+						<strong className="cf:text-lg cf:font-black cf:text-white">
+							{displayRowLabel(props.row, props.groupBy, props.labelForUserID)}
+						</strong>
+						<CampfireStatusPill tone="ember">{formatLabel(props.groupBy)}</CampfireStatusPill>
+					</div>
+
+					<div className="cf:mt-3 cf:flex cf:flex-wrap cf:gap-2">
+						<MetaChip label="Period" value={`${props.row.periodStart} → ${props.row.periodEnd}`} />
+						<MetaChip label="Entries" value={String(props.row.entryCount)} />
+						<MetaChip label="Project" value={props.row.projectId} />
+						<MetaChip label="Category" value={props.row.categoryId} />
+						<MetaChip label="Task" value={props.row.taskId} />
+					</div>
 				</div>
 
-				<span className="cf:w-fit cf:rounded-full cf:border cf:border-teal-300/25 cf:bg-teal-300/10 cf:px-3 cf:py-1 cf:text-xs cf:font-extrabold cf:uppercase cf:tracking-[0.12em] cf:text-teal-100">
-					{formatMinutes(props.row.minutes)}
-				</span>
-			</div>
-
-			<div className="cf:mt-4 cf:h-2 cf:overflow-hidden cf:rounded-full cf:bg-white/10">
-				<div className="cf:h-full cf:rounded-full cf:bg-teal-300/60" style={{ width: `${percentage}%` }} />
+				<div className="cf:rounded-2xl cf:border cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:px-4 cf:py-3 cf:text-right">
+					<p className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-emerald-100">Time</p>
+					<p className="cf:mt-1 cf:text-xl cf:font-black cf:text-white">{formatMinutes(props.row.minutes)}</p>
+				</div>
 			</div>
 		</article>
 	);
 }
 
 /**
- * RowMeta renders group-specific secondary metadata.
+ * FormField renders a labeled field.
  */
-function RowMeta(props: { readonly groupBy: TimeReportGroupBy; readonly row: TimeReportRow }): ReactElement | null {
-	switch (props.groupBy) {
-		case 'day':
-		case 'week':
-			return (
-				<p className="cf:m-0 cf:mt-1 cf:text-xs cf:font-bold cf:text-slate-500">
-					{props.row.periodStart} → {props.row.periodEnd}
-				</p>
-			);
-
-		case 'task':
-			return <p className="cf:m-0 cf:mt-1 cf:text-xs cf:font-bold cf:text-slate-500">Task {props.row.taskId}</p>;
-
-		case 'project':
-			return (
-				<p className="cf:m-0 cf:mt-1 cf:text-xs cf:font-bold cf:text-slate-500">
-					Project {props.row.projectId || 'none'}
-				</p>
-			);
-
-		case 'category':
-			return (
-				<p className="cf:m-0 cf:mt-1 cf:text-xs cf:font-bold cf:text-slate-500">
-					Category {props.row.categoryId || 'none'}
-				</p>
-			);
-
-		case 'person':
-		default:
-			return null;
-	}
+function FormField(props: {
+	readonly label: string;
+	readonly htmlFor: string;
+	readonly children: ReactElement;
+}): ReactElement {
+	return (
+		<div className="cf:grid cf:gap-2">
+			<Label
+				htmlFor={props.htmlFor}
+				className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200"
+			>
+				{props.label}
+			</Label>
+			{props.children}
+		</div>
+	);
 }
 
 /**
- * displayLabelForRow returns the best visible label for one report row.
+ * MetaChip renders optional row metadata.
  */
-function displayLabelForRow(
-	groupBy: TimeReportGroupBy,
+function MetaChip(props: { readonly label: string; readonly value: string }): ReactElement | null {
+	if (props.value.trim() === '') {
+		return null;
+	}
+
+	return (
+		<span className="cf:rounded-full cf:border cf:border-white/10 cf:bg-white/5 cf:px-2.5 cf:py-1 cf:text-xs cf:font-bold cf:text-slate-300">
+			{props.label}: {props.value}
+		</span>
+	);
+}
+
+/**
+ * MessageRow renders load feedback.
+ */
+function MessageRow(props: { readonly state: LoadState; readonly message: string }): ReactElement {
+	const isError = props.state === 'error';
+
+	return (
+		<div
+			className={cn(
+				'cf:flex cf:items-center cf:gap-2 cf:rounded-2xl cf:border cf:px-4 cf:py-3 cf:text-sm cf:font-black',
+				isError
+					? 'cf:border-red-300/25 cf:bg-red-950/30 cf:text-red-100'
+					: 'cf:border-amber-300/25 cf:bg-amber-950/30 cf:text-amber-100',
+			)}
+		>
+			{isError ? null : <CheckCircle2 className="cf:size-4" />}
+			{props.message}
+		</div>
+	);
+}
+
+/**
+ * LoadingRow renders a loading message.
+ */
+function LoadingRow(props: { readonly label: string }): ReactElement {
+	return (
+		<div className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4 cf:text-sm cf:font-bold cf:text-slate-300">
+			<Loader2 className="cf:size-4 cf:animate-spin cf:text-amber-200" />
+			{props.label}
+		</div>
+	);
+}
+
+/**
+ * collectTimeReportUserIDs returns report user IDs that need display names.
+ */
+function collectTimeReportUserIDs(summary: TimeReportSummary | null): readonly string[] {
+	if (summary === null) {
+		return [];
+	}
+
+	return summary.rows.map(row => row.userId).filter(userID => userID.trim() !== '');
+}
+
+/**
+ * displayRowLabel returns the best label for one report row.
+ */
+function displayRowLabel(
 	row: TimeReportRow,
+	groupBy: TimeReportGroupBy,
 	labelForUserID: (userID: string) => string,
 ): string {
 	if (groupBy === 'person' && row.userId.trim() !== '') {
@@ -400,54 +374,119 @@ function displayLabelForRow(
 		return row.label;
 	}
 
-	return row.key;
-}
-
-/**
- * collectTimeReportUserIDs returns all Mattermost user IDs displayed by this card.
- */
-function collectTimeReportUserIDs(summary: TimeReportSummary | null): readonly string[] {
-	if (summary === null) {
-		return [];
+	if (row.key.trim() !== '') {
+		return row.key;
 	}
 
-	const userIDs = summary.rows.map(row => row.userId);
-
-	return uniqueNonEmptyUserIDs(userIDs);
+	return 'Unlabeled';
 }
 
 /**
- * uniqueNonEmptyUserIDs trims, de-duplicates, and preserves user ID order.
+ * parseTimeReportFilter parses saved filter JSON safely.
  */
-function uniqueNonEmptyUserIDs(userIDs: readonly string[]): readonly string[] {
-	const seen = new Set<string>();
-	const result: string[] = [];
+function parseTimeReportFilter(filterJson: string): TimeReportFilter | null {
+	try {
+		const parsed: unknown = JSON.parse(filterJson);
 
-	for (const userID of userIDs) {
-		const cleanUserID = userID.trim();
-
-		if (cleanUserID === '' || seen.has(cleanUserID)) {
-			continue;
+		if (!isRecord(parsed)) {
+			return null;
 		}
 
-		seen.add(cleanUserID);
-		result.push(cleanUserID);
+		return {
+			startDate: typeof parsed.startDate === 'string' ? parsed.startDate : undefined,
+			endDate: typeof parsed.endDate === 'string' ? parsed.endDate : undefined,
+			groupBy: isTimeReportGroupBy(parsed.groupBy) ? parsed.groupBy : undefined,
+		};
+	} catch (_error: unknown) {
+		return null;
 	}
-
-	return result;
 }
 
 /**
- * getDefaultDateRange returns a practical default report range.
+ * isTimeReportGroupBy narrows unknown values to supported grouping modes.
+ */
+function isTimeReportGroupBy(value: unknown): value is TimeReportGroupBy {
+	return (
+		value === 'person' ||
+		value === 'project' ||
+		value === 'category' ||
+		value === 'task' ||
+		value === 'day' ||
+		value === 'week'
+	);
+}
+
+/**
+ * toTimeReportGroupBy normalizes select values.
+ */
+function toTimeReportGroupBy(value: string): TimeReportGroupBy {
+	return isTimeReportGroupBy(value) ? value : 'person';
+}
+
+/**
+ * validateDateRange validates the selected local-date range.
+ */
+function validateDateRange(startDate: string, endDate: string): string | null {
+	if (startDate.trim() === '' || endDate.trim() === '') {
+		return 'Choose a start and end date.';
+	}
+
+	if (startDate > endDate) {
+		return 'Start date cannot be after end date.';
+	}
+
+	return null;
+}
+
+/**
+ * selectClassName returns the shared native select style.
+ */
+function selectClassName(): string {
+	return cn(
+		'cf:h-10 cf:w-full cf:rounded-md cf:border cf:border-input cf:bg-background cf:px-3 cf:py-2 cf:text-sm cf:text-foreground cf:outline-none',
+		'cf:focus-visible:border-ring cf:focus-visible:ring-ring/50 cf:focus-visible:ring-3',
+		'cf:disabled:cursor-not-allowed cf:disabled:opacity-50',
+	);
+}
+
+/**
+ * getDefaultDateRange returns a recent thirty-day report window.
  */
 function getDefaultDateRange(): { readonly startDate: string; readonly endDate: string } {
-	const end = new Date();
-	const start = new Date(end.getFullYear(), end.getMonth(), end.getDate() - 30);
+	const endDate = getTodayLocalDateString();
 
 	return {
-		startDate: dateToLocalDateString(start),
-		endDate: dateToLocalDateString(end),
+		startDate: addDaysToLocalDate(endDate, -30),
+		endDate,
 	};
+}
+
+/**
+ * addDaysToLocalDate adds days to a YYYY-MM-DD local date string.
+ */
+function addDaysToLocalDate(localDate: string, days: number): string {
+	const parts = localDate.split('-');
+
+	if (parts.length !== 3) {
+		return getTodayLocalDateString();
+	}
+
+	const year = Number(parts[0]);
+	const month = Number(parts[1]);
+	const day = Number(parts[2]);
+
+	if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+		return getTodayLocalDateString();
+	}
+
+	return dateToLocalDateString(new Date(year, month - 1, day + days));
+}
+
+/**
+ * getTodayLocalDateString returns today's local YYYY-MM-DD date.
+ */
+function getTodayLocalDateString(): string {
+	return dateToLocalDateString(new Date());
 }
 
 /**
@@ -462,25 +501,14 @@ function dateToLocalDateString(date: Date): string {
 }
 
 /**
- * toTimeReportGroupBy narrows a string to a supported group-by mode.
+ * rangeLabel formats a compact date range.
  */
-function toTimeReportGroupBy(value: string): TimeReportGroupBy {
-	switch (value) {
-		case 'person':
-		case 'project':
-		case 'category':
-		case 'task':
-		case 'day':
-		case 'week':
-			return value;
-
-		default:
-			return 'person';
-	}
+function rangeLabel(startDate: string, endDate: string): string {
+	return `${startDate} → ${endDate}`;
 }
 
 /**
- * formatMinutes returns compact hours/minutes display text.
+ * formatMinutes formats minutes as compact hours/minutes text.
  */
 function formatMinutes(minutes: number): string {
 	const hours = Math.floor(minutes / 60);
@@ -505,6 +533,13 @@ function formatLabel(value: string): string {
 		.split('_')
 		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
 		.join(' ');
+}
+
+/**
+ * isRecord narrows unknown values to indexable records.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /**
