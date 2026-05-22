@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
-import { BarChart3, CalendarCheck, Clock3, Flame, Settings2, UsersRound } from 'lucide-react';
+import { BarChart3, CalendarCheck, Clock3, Flame, Settings2, Sparkles, UsersRound } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import type { Workspace } from '@/types/domain';
@@ -65,7 +66,7 @@ type CampfireTabDefinition = {
 	readonly eyebrow: string;
 	readonly title: string;
 	readonly description: string;
-	readonly icon: typeof Flame;
+	readonly icon: LucideIcon;
 	readonly requiresManager: boolean;
 };
 
@@ -98,8 +99,8 @@ const tabDefinitions: readonly CampfireTabDefinition[] = [
 	},
 	{
 		id: 'time',
-		label: 'Time',
-		eyebrow: 'Tasks and effort',
+		label: 'Tasks & Time',
+		eyebrow: 'Effort tracking',
 		title: 'Tasks and time',
 		description: 'Create tasks, log time for any date, and summarize effort by person, task, project, or week.',
 		icon: Clock3,
@@ -160,98 +161,55 @@ export function CampfireWorkspaceTabs(props: CampfireWorkspaceTabsProps): ReactE
 	}
 
 	return (
-		<section className="cf:grid cf:gap-5 cf:lg:grid-cols-12">
-			<WorkspaceSidebar
+		<section className="campfire-workspace-shell">
+			<WorkspacePageHeader
+				definition={activeDefinition}
 				workspace={props.workspace}
-				activeTab={activeDefinition.id}
-				tabs={visibleTabs}
 				canManageWorkspace={props.canManageWorkspace}
 				isSystemAdmin={props.isSystemAdmin}
-				onSelectTab={handleSelectTab}
 			/>
 
-			<div className="cf:grid cf:gap-5 cf:lg:col-span-9">
-				<WorkspacePageHeader
-					definition={activeDefinition}
-					workspace={props.workspace}
-					canManageWorkspace={props.canManageWorkspace}
-					isSystemAdmin={props.isSystemAdmin}
-				/>
+			<WorkspaceTabBar activeTab={activeDefinition.id} tabs={visibleTabs} onSelectTab={handleSelectTab} />
 
-				<WorkspaceTabPanel activeTab={activeDefinition.id} {...props} />
-			</div>
+			<WorkspaceTabPanel activeTab={activeDefinition.id} {...props} />
 		</section>
 	);
 }
 
 /**
- * WorkspaceSidebar renders workspace identity and tab navigation.
+ * WorkspaceTabBar renders large readable workspace tabs.
  */
-function WorkspaceSidebar(props: {
-	readonly workspace: Workspace;
+function WorkspaceTabBar(props: {
 	readonly activeTab: CampfireWorkspaceTab;
 	readonly tabs: readonly CampfireTabDefinition[];
-	readonly canManageWorkspace: boolean;
-	readonly isSystemAdmin: boolean;
 	readonly onSelectTab: (tab: CampfireWorkspaceTab) => void;
 }): ReactElement {
 	return (
-		<aside className="cf:lg:col-span-3">
-			<div className="cf:sticky cf:top-4 cf:grid cf:gap-4">
-				<CampfirePanel>
-					<CampfireCardBody className="cf:grid cf:gap-4">
-						<div>
-							<p className="cf:m-0 cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200">
-								Workspace
-							</p>
-							<h2 className="cf:m-0 cf:mt-2 cf:truncate cf:text-xl cf:font-black cf:tracking-tight cf:text-white">
-								{props.workspace.name}
-							</h2>
-							<p className="cf:m-0 cf:mt-1 cf:truncate cf:text-xs cf:font-bold cf:text-slate-400">
-								{props.workspace.timezone}
-							</p>
-						</div>
+		<nav className="campfire-tab-grid" aria-label="Campfire workspace sections">
+			{props.tabs.map(tab => {
+				const isActive = tab.id === props.activeTab;
+				const Icon = tab.icon;
 
-						<div className="cf:grid cf:gap-2">
-							<CampfireMetric
-								label="Channel"
-								value={shortID(props.workspace.channelId)}
-								helper="Mattermost workspace"
-							/>
-							<CampfireMetric
-								label="Access"
-								value={accessLabel(props.canManageWorkspace, props.isSystemAdmin)}
-								helper="Current user"
-							/>
-						</div>
-					</CampfireCardBody>
-				</CampfirePanel>
+				return (
+					<button
+						key={tab.id}
+						type="button"
+						aria-current={isActive ? 'page' : undefined}
+						className={tabButtonClassName(isActive)}
+						onClick={() => props.onSelectTab(tab.id)}
+					>
+						<span className={tabIconClassName(isActive)}>
+							<Icon className="cf:size-7" />
+						</span>
 
-				<nav className="cf:grid cf:gap-2" aria-label="Campfire workspace sections">
-					{props.tabs.map(tab => (
-						<button
-							key={tab.id}
-							type="button"
-							className={tabButtonClassName(tab.id === props.activeTab)}
-							onClick={() => props.onSelectTab(tab.id)}
-						>
-							<span className="cf:flex cf:items-center cf:gap-3">
-								<span className={tabIconClassName(tab.id === props.activeTab)}>
-									<tab.icon className="cf:size-4" />
-								</span>
-
-								<span className="cf:min-w-0">
-									<span className="cf:block cf:text-left cf:text-sm cf:font-black">{tab.label}</span>
-									<span className="cf:mt-0.5 cf:block cf:truncate cf:text-left cf:text-xs cf:font-bold cf:opacity-75">
-										{tab.eyebrow}
-									</span>
-								</span>
-							</span>
-						</button>
-					))}
-				</nav>
-			</div>
-		</aside>
+						<span className="campfire-tab-copy">
+							<span className="campfire-tab-label">{tab.label}</span>
+							<span className="campfire-tab-eyebrow">{tab.eyebrow}</span>
+						</span>
+					</button>
+				);
+			})}
+		</nav>
 	);
 }
 
@@ -264,13 +222,15 @@ function WorkspacePageHeader(props: {
 	readonly canManageWorkspace: boolean;
 	readonly isSystemAdmin: boolean;
 }): ReactElement {
+	const Icon = props.definition.icon;
+
 	return (
 		<CampfirePanel>
 			<CampfireCardHeader
 				eyebrow={props.definition.eyebrow}
 				title={props.definition.title}
 				description={props.definition.description}
-				icon={props.definition.icon}
+				icon={Icon}
 				action={
 					<div className="cf:flex cf:flex-wrap cf:gap-2">
 						<CampfireStatusPill tone={props.canManageWorkspace ? 'green' : 'slate'}>
@@ -282,13 +242,14 @@ function WorkspacePageHeader(props: {
 				}
 			/>
 
-			<CampfireCardBody className="cf:grid cf:gap-3 cf:md:grid-cols-3">
+			<CampfireCardBody className="campfire-context-grid">
 				<CampfireMetric label="Workspace" value={props.workspace.name} helper="Current channel" />
 				<CampfireMetric label="Timezone" value={props.workspace.timezone} helper="Schedule basis" />
+				<CampfireMetric label="Board" value={boardLabel(props.workspace.boardUrl)} helper="External link" />
 				<CampfireMetric
-					label="Board"
-					value={boardLabel(props.workspace.boardUrl)}
-					helper="Optional external link"
+					label="Access"
+					value={accessLabel(props.canManageWorkspace, props.isSystemAdmin)}
+					helper="Current user"
 				/>
 			</CampfireCardBody>
 		</CampfirePanel>
@@ -448,8 +409,11 @@ function SettingsTab(props: TabPanelProps): ReactElement {
 		return (
 			<CampfirePanel>
 				<CampfireCardBody className="cf:grid cf:gap-4">
-					<h3 className="cf:text-xl cf:font-black cf:text-white">Settings are restricted</h3>
-					<p className="cf:m-0 cf:text-sm cf:font-medium cf:leading-6 cf:text-slate-400">
+					<div className="campfire-restricted-state-icon">
+						<Sparkles className="cf:size-7" />
+					</div>
+					<h3 className="cf:m-0 cf:text-2xl cf:font-black cf:text-white">Settings are restricted</h3>
+					<p className="cf:m-0 cf:text-base cf:font-semibold cf:leading-7 cf:text-muted-foreground">
 						Only workspace Leads and system admins can manage workspace settings.
 					</p>
 				</CampfireCardBody>
@@ -517,25 +481,17 @@ function getDefaultTabDefinition(): CampfireTabDefinition {
 }
 
 /**
- * tabButtonClassName returns sidebar tab button classes.
+ * tabButtonClassName returns workspace tab button classes.
  */
 function tabButtonClassName(active: boolean): string {
-	return cn(
-		'cf:w-full cf:rounded-2xl cf:border cf:p-3 cf:text-left cf:transition cf:disabled:cursor-not-allowed cf:disabled:opacity-60',
-		active
-			? 'cf:border-orange-300/35 cf:bg-orange-400/15 cf:text-orange-50 cf:shadow-lg'
-			: 'cf:border-white/10 cf:bg-white/5 cf:text-slate-300 cf:hover:bg-white/10 cf:hover:text-white',
-	);
+	return cn('campfire-tab-button', active && 'campfire-tab-button--active');
 }
 
 /**
- * tabIconClassName returns sidebar tab icon container classes.
+ * tabIconClassName returns workspace tab icon container classes.
  */
 function tabIconClassName(active: boolean): string {
-	return cn(
-		'cf:grid cf:size-9 cf:shrink-0 cf:place-items-center cf:rounded-xl',
-		active ? 'cf:bg-orange-300/15 cf:text-orange-100' : 'cf:bg-slate-900 cf:text-slate-400',
-	);
+	return cn('campfire-tab-icon', active && 'campfire-tab-icon--active');
 }
 
 /**
@@ -566,15 +522,4 @@ function boardLabel(boardUrl: string): string {
 	} catch (_error: unknown) {
 		return 'Linked';
 	}
-}
-
-/**
- * shortID returns a compact ID display value.
- */
-function shortID(value: string): string {
-	if (value.length <= 10) {
-		return value;
-	}
-
-	return value.slice(0, 10);
 }
