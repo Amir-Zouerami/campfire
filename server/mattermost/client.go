@@ -30,6 +30,7 @@ raw Mattermost plugin API.
 type Client interface {
 	GetUser(userID string) (*User, error)
 	GetUserFromSessionToken(sessionToken string) (*User, error)
+	IsChannelAdmin(channelID string, userID string) (bool, error)
 }
 
 /*
@@ -97,7 +98,36 @@ func (c *PluginClient) GetUserFromSessionToken(sessionToken string) (*User, erro
 }
 
 /*
-hasRole returns true when the Mattermost role string contains the requested role.
+IsChannelAdmin reports whether a Mattermost user is an admin of a channel.
+
+Mattermost stores channel membership roles on the channel member record. Campfire
+uses this as the bridge for the "channel admins are Leads" workspace setting.
+*/
+func (c *PluginClient) IsChannelAdmin(channelID string, userID string) (bool, error) {
+	cleanChannelID := strings.TrimSpace(channelID)
+	if cleanChannelID == "" {
+		return false, errors.New("channel ID is required")
+	}
+
+	cleanUserID := strings.TrimSpace(userID)
+	if cleanUserID == "" {
+		return false, errors.New("user ID is required")
+	}
+
+	member, appErr := c.api.GetChannelMember(cleanChannelID, cleanUserID)
+	if appErr != nil {
+		return false, appErr
+	}
+
+	if member == nil {
+		return false, nil
+	}
+
+	return hasRole(member.Roles, "channel_admin"), nil
+}
+
+/*
+hasRole returns true when a Mattermost role string contains the requested role.
 */
 func hasRole(roles string, role string) bool {
 	for _, existingRole := range strings.Fields(roles) {

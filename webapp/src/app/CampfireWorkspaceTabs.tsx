@@ -245,7 +245,7 @@ function WorkspacePageHeader(props: {
 			<CampfireCardBody className="campfire-context-grid">
 				<CampfireMetric label="Workspace" value={props.workspace.name} helper="Current channel" />
 				<CampfireMetric label="Timezone" value={props.workspace.timezone} helper="Schedule basis" />
-				<CampfireMetric label="Board" value={boardLabel(props.workspace.boardUrl)} helper="External link" />
+				<BoardMetric boardUrl={props.workspace.boardUrl} />
 				<CampfireMetric
 					label="Access"
 					value={accessLabel(props.canManageWorkspace, props.isSystemAdmin)}
@@ -465,6 +465,52 @@ function SettingsTab(props: TabPanelProps): ReactElement {
 			/>
 		</div>
 	);
+}
+
+/**
+ * BoardMetric renders the workspace board URL as a real clickable link.
+ */
+function BoardMetric(props: { readonly boardUrl: string }): ReactElement {
+	const normalizedURL = normalizeExternalURL(props.boardUrl);
+
+	if (normalizedURL === '') {
+		return <CampfireMetric label="Board" value="Not set" helper="Optional external link" />;
+	}
+
+	return (
+		<a
+			className="campfire-metric campfire-metric-link"
+			href={normalizedURL}
+			target="_blank"
+			rel="noreferrer"
+			title={normalizedURL}
+		>
+			<div className="cf:flex cf:items-start cf:justify-between cf:gap-3">
+				<div className="cf:min-w-0">
+					<p className="campfire-metric-label">Board</p>
+					<p className="campfire-metric-value">{boardLabel(props.boardUrl)}</p>
+				</div>
+			</div>
+			<p className="campfire-metric-helper">Open external link</p>
+		</a>
+	);
+}
+
+/**
+ * normalizeExternalURL adds a safe protocol when users enter a bare domain.
+ */
+function normalizeExternalURL(value: string): string {
+	const cleanValue = value.trim();
+
+	if (cleanValue === '') {
+		return '';
+	}
+
+	if (cleanValue.startsWith('http://') || cleanValue.startsWith('https://')) {
+		return cleanValue;
+	}
+
+	return `https://${cleanValue}`;
 }
 
 /**

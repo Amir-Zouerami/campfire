@@ -135,6 +135,13 @@ function CampfireTopbar(props: {
 			<div className="campfire-brand">
 				<div className="campfire-logo-tile">
 					<img src={campfireLogoURL} alt="Campfire" className="campfire-logo-image" />
+
+					<span className="campfire-logo-embers" aria-hidden="true">
+						<span className="campfire-logo-ember campfire-logo-ember--one" />
+						<span className="campfire-logo-ember campfire-logo-ember--two" />
+						<span className="campfire-logo-ember campfire-logo-ember--three" />
+						<span className="campfire-logo-ember campfire-logo-ember--four" />
+					</span>
 				</div>
 
 				<div className="campfire-brand-copy">

@@ -3,7 +3,7 @@ import type { CreateTimeEntryRequest, CreateTimeEntryResponse, ListMyTimeEntries
 import { encodePath, requestJson, withQuery } from './http';
 
 /**
- * listMyTimeEntries calls GET /workspaces/{workspaceID}/time/my.
+ * listMyTimeEntries calls GET /workspaces/{workspaceID}/time-entries/my.
  */
 export function listMyTimeEntries(
 	workspaceID: string,
@@ -11,7 +11,7 @@ export function listMyTimeEntries(
 	endDate: string,
 ): Promise<ListMyTimeEntriesResponse> {
 	return requestJson<ListMyTimeEntriesResponse>(
-		withQuery(`/workspaces/${encodePath(workspaceID)}/time/my`, {
+		withQuery(`/workspaces/${encodePath(workspaceID)}/time-entries/my`, {
 			startDate,
 			endDate,
 		}),
@@ -19,13 +19,13 @@ export function listMyTimeEntries(
 }
 
 /**
- * createTimeEntry calls POST /workspaces/{workspaceID}/time.
+ * createTimeEntry calls POST /workspaces/{workspaceID}/time-entries.
  */
 export function createTimeEntry(
 	workspaceID: string,
 	request: CreateTimeEntryRequest,
 ): Promise<CreateTimeEntryResponse> {
-	return requestJson<CreateTimeEntryResponse>(`/workspaces/${encodePath(workspaceID)}/time`, {
+	return requestJson<CreateTimeEntryResponse>(`/workspaces/${encodePath(workspaceID)}/time-entries`, {
 		method: 'POST',
 		body: request,
 	});

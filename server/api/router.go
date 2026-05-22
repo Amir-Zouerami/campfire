@@ -45,6 +45,9 @@ They should not contain domain rules.
 func NewRouter(config RouterConfig) http.Handler {
 	router := chi.NewRouter()
 
+	router.NotFound(handleAPINotFound())
+	router.MethodNotAllowed(handleAPIMethodNotAllowed())
+
 	router.Route("/api/v1", func(api chi.Router) {
 		api.Get("/health", handleHealth(config.Logger))
 		api.Get("/me", handleMe(config.Logger, config.Mattermost))
@@ -340,5 +343,26 @@ func handleMe(log logger.Logger, mm mattermost.Client) http.HandlerFunc {
 			},
 			IsSystemAdmin: user.IsSystemAdmin,
 		})
+	}
+}
+
+/*
+handleAPINotFound writes a JSON API error for unmatched Campfire routes.
+
+This prevents Chi's plain-text "404 page not found" response from leaking into
+the frontend and lets the UI render a typed API error.
+*/
+func handleAPINotFound() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		WriteError(w, http.StatusNotFound, "route_not_found", "Campfire API route was not found.")
+	}
+}
+
+/*
+handleAPIMethodNotAllowed writes a JSON API error for valid routes with invalid methods.
+*/
+func handleAPIMethodNotAllowed() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Campfire API method is not allowed.")
 	}
 }
