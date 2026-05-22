@@ -165,7 +165,7 @@ async function loadWorkspaceForChannel(channelID: string): Promise<WorkspaceLoad
 			return {
 				workspace: null,
 				capabilities: null,
-				notice: 'Campfire is not configured for this channel yet.',
+				notice: '⚠️ Campfire is not configured for this channel yet.',
 			};
 		}
 

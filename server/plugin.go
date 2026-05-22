@@ -72,13 +72,39 @@ ServeHTTP routes Mattermost plugin HTTP traffic into the Campfire API router.
 All API authentication, request parsing, and response formatting belongs in
 the api package rather than in this plugin lifecycle file.
 */
-func (p *Plugin) ServeHTTP(_ *plugin.Context, w http.ResponseWriter, r *http.Request) {
+func (p *Plugin) ServeHTTP(context *plugin.Context, w http.ResponseWriter, r *http.Request) {
 	if p.application == nil {
 		http.Error(w, "Campfire is not ready", http.StatusServiceUnavailable)
 		return
 	}
 
+	attachMattermostSessionHeader(context, r)
+
 	p.application.Router.ServeHTTP(w, r)
+}
+
+/*
+attachMattermostSessionHeader forwards Mattermost's plugin request session ID
+into the HTTP request headers used by the Campfire API layer.
+
+Mattermost may not expose browser cookies to the plugin process in every local
+deployment path. The plugin context still carries the authenticated session ID,
+so forwarding it keeps API authentication centralized in server/api/current_user.go.
+*/
+func attachMattermostSessionHeader(context *plugin.Context, r *http.Request) {
+	if context == nil {
+		return
+	}
+
+	if strings.TrimSpace(r.Header.Get("Mattermost-Session-Id")) != "" {
+		return
+	}
+
+	if strings.TrimSpace(context.SessionId) == "" {
+		return
+	}
+
+	r.Header.Set("Mattermost-Session-Id", context.SessionId)
 }
 
 /*

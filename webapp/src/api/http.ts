@@ -94,14 +94,17 @@ export function encodePath(value: string): string {
  * buildHeaders returns request headers for JSON API calls.
  */
 function buildHeaders(body: unknown): HeadersInit {
+	const baseHeaders: HeadersInit = {
+		Accept: 'application/json',
+		'X-Requested-With': 'XMLHttpRequest',
+	};
+
 	if (body === undefined) {
-		return {
-			Accept: 'application/json',
-		};
+		return baseHeaders;
 	}
 
 	return {
-		Accept: 'application/json',
+		...baseHeaders,
 		'Content-Type': 'application/json',
 	};
 }

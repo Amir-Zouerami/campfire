@@ -29,3 +29,6 @@ Thumbs.db
 # Mattermost plugin upload artifacts
 *.tar.gz
 *.tar
+
+# vscode
+.vscode

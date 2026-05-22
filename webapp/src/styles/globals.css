@@ -52,72 +52,33 @@
 }
 
 :root {
-	--background: oklch(1 0 0);
-	--foreground: oklch(0.145 0 0);
-	--card: oklch(1 0 0);
-	--card-foreground: oklch(0.145 0 0);
-	--popover: oklch(1 0 0);
-	--popover-foreground: oklch(0.145 0 0);
-	--primary: oklch(0.205 0 0);
-	--primary-foreground: oklch(0.985 0 0);
-	--secondary: oklch(0.97 0 0);
-	--secondary-foreground: oklch(0.205 0 0);
-	--muted: oklch(0.97 0 0);
-	--muted-foreground: oklch(0.556 0 0);
-	--accent: oklch(0.97 0 0);
-	--accent-foreground: oklch(0.205 0 0);
-	--destructive: oklch(0.577 0.245 27.325);
-	--border: oklch(0.922 0 0);
-	--input: oklch(0.922 0 0);
-	--ring: oklch(0.708 0 0);
-	--chart-1: oklch(0.87 0 0);
-	--chart-2: oklch(0.556 0 0);
-	--chart-3: oklch(0.439 0 0);
-	--chart-4: oklch(0.371 0 0);
-	--chart-5: oklch(0.269 0 0);
-	--radius: 0.625rem;
-	--sidebar: oklch(0.985 0 0);
-	--sidebar-foreground: oklch(0.145 0 0);
-	--sidebar-primary: oklch(0.205 0 0);
-	--sidebar-primary-foreground: oklch(0.985 0 0);
-	--sidebar-accent: oklch(0.97 0 0);
-	--sidebar-accent-foreground: oklch(0.205 0 0);
-	--sidebar-border: oklch(0.922 0 0);
-	--sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-	--background: oklch(0.145 0 0);
-	--foreground: oklch(0.985 0 0);
-	--card: oklch(0.205 0 0);
-	--card-foreground: oklch(0.985 0 0);
-	--popover: oklch(0.205 0 0);
-	--popover-foreground: oklch(0.985 0 0);
-	--primary: oklch(0.922 0 0);
-	--primary-foreground: oklch(0.205 0 0);
-	--secondary: oklch(0.269 0 0);
-	--secondary-foreground: oklch(0.985 0 0);
-	--muted: oklch(0.269 0 0);
-	--muted-foreground: oklch(0.708 0 0);
-	--accent: oklch(0.269 0 0);
-	--accent-foreground: oklch(0.985 0 0);
-	--destructive: oklch(0.704 0.191 22.216);
-	--border: oklch(1 0 0 / 10%);
-	--input: oklch(1 0 0 / 15%);
-	--ring: oklch(0.556 0 0);
-	--chart-1: oklch(0.87 0 0);
-	--chart-2: oklch(0.556 0 0);
-	--chart-3: oklch(0.439 0 0);
-	--chart-4: oklch(0.371 0 0);
-	--chart-5: oklch(0.269 0 0);
-	--sidebar: oklch(0.205 0 0);
-	--sidebar-foreground: oklch(0.985 0 0);
-	--sidebar-primary: oklch(0.488 0.243 264.376);
-	--sidebar-primary-foreground: oklch(0.985 0 0);
-	--sidebar-accent: oklch(0.269 0 0);
-	--sidebar-accent-foreground: oklch(0.985 0 0);
-	--sidebar-border: oklch(1 0 0 / 10%);
-	--sidebar-ring: oklch(0.556 0 0);
+	--background: #0b0b0b;
+	--foreground: #f6f5f4;
+	--card: #171717;
+	--card-foreground: #f6f5f4;
+	--popover: #18181b;
+	--popover-foreground: #f6f5f4;
+	--primary: #f6f5f4;
+	--primary-foreground: #09090b;
+	--secondary: #27272a;
+	--secondary-foreground: #f6f5f4;
+	--muted: #27272a;
+	--muted-foreground: #c4c4c7;
+	--accent: #2f2f33;
+	--accent-foreground: #f6f5f4;
+	--destructive: #ef4444;
+	--border: #37373b;
+	--input: #3b3b41;
+	--ring: #d4d4d8;
+	--radius: 1rem;
+	--sidebar: #18181b;
+	--sidebar-foreground: #f6f5f4;
+	--sidebar-primary: #f6f5f4;
+	--sidebar-primary-foreground: #09090b;
+	--sidebar-accent: #2f2f33;
+	--sidebar-accent-foreground: #f6f5f4;
+	--sidebar-border: #37373b;
+	--sidebar-ring: #d4d4d8;
 }
 
 @layer base {
@@ -782,16 +743,16 @@
 .campfire-section-description {
 	margin: 0.6rem 0 0;
 	color: var(--muted-foreground);
-	font-size: 1.14rem;
-	font-weight: 540;
-	line-height: 1.72;
+	font-size: 1.18rem;
+	font-weight: 560;
+	line-height: 1.75;
 }
 
 .campfire-field-label {
 	color: var(--foreground);
-	font-size: 1.12rem;
-	font-weight: 700;
-	line-height: 1.2;
+	font-size: 1.16rem;
+	font-weight: 740;
+	line-height: 1.25;
 }
 
 .campfire-input {
@@ -922,12 +883,13 @@
 
 .campfire-check-card {
 	display: flex;
+	align-items: flex-start;
 	cursor: pointer;
-	gap: 1rem;
+	gap: 1.15rem;
 	border: 1px solid rgba(255, 255, 255, 0.11);
 	border-radius: 1.45rem;
 	background: rgba(0, 0, 0, 0.2);
-	padding: 1.25rem;
+	padding: 1.35rem;
 	transition:
 		background-color 160ms ease,
 		border-color 160ms ease,
@@ -941,21 +903,28 @@
 	transform: translateY(-1px);
 }
 
+.campfire-check-box {
+	width: 1.35rem !important;
+	height: 1.35rem !important;
+	margin-top: 0.2rem;
+	border-radius: 0.5rem !important;
+}
+
 .campfire-check-title {
 	display: block;
 	color: var(--foreground);
-	font-size: 1.13rem;
-	font-weight: 720;
-	line-height: 1.25;
+	font-size: 1.22rem;
+	font-weight: 820;
+	line-height: 1.35;
 }
 
 .campfire-check-description {
 	display: block;
 	margin-top: 0.55rem;
 	color: var(--muted-foreground);
-	font-size: 1rem;
-	font-weight: 520;
-	line-height: 1.65;
+	font-size: 1.08rem;
+	font-weight: 540;
+	line-height: 1.68;
 }
 
 .campfire-submit-row {
@@ -980,9 +949,9 @@
 .campfire-submit-description {
 	margin: 0.45rem 0 0;
 	color: var(--muted-foreground);
-	font-size: 1.02rem;
-	font-weight: 520;
-	line-height: 1.65;
+	font-size: 1.08rem;
+	font-weight: 540;
+	line-height: 1.68;
 }
 
 .campfire-submit-button {
