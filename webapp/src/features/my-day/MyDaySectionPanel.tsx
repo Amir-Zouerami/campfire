@@ -1,13 +1,11 @@
 import type { ReactElement } from 'react';
 
-import { LeaveRequestCard } from '@/app/LeaveRequestCard';
-import { MyPendingLeavesCard } from '@/app/MyPendingLeavesCard';
-import { TasksAndTimeCard } from '@/app/TasksAndTimeCard';
-
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
 
+import { MyLeavePage } from './leave/MyLeavePage';
 import type { MyDaySectionID } from './my-day.types';
 import { MyStandupPage } from './standup/MyStandupPage';
+import { MyTimePage } from './time/MyTimePage';
 
 /**
  * MyDaySectionPanelProps contains the selected personal workflow section.
@@ -31,18 +29,16 @@ export function MyDaySectionPanel(props: MyDaySectionPanelProps): ReactElement {
 		case 'time-log':
 			return (
 				<section aria-label="My tasks and time">
-					<TasksAndTimeCard workspace={props.workspace} />
+					<MyTimePage workspace={props.workspace} />
 				</section>
 			);
 
 		case 'leave':
 			return (
-				<section className="cf:grid cf:gap-5" aria-label="My leave">
-					<LeaveRequestCard workspace={props.workspace} onLeaveCreated={props.onLeaveCreated} />
-
-					<MyPendingLeavesCard
+				<section aria-label="My leave">
+					<MyLeavePage
 						workspace={props.workspace}
-						refreshToken={props.leaveRefreshToken}
+						onLeaveCreated={props.onLeaveCreated}
 						onLeaveCancelled={props.onLeaveCancelled}
 					/>
 				</section>
