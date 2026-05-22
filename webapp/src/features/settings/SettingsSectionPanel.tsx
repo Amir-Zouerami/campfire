@@ -1,9 +1,5 @@
 import type { ReactElement } from 'react';
 
-import { StandupConfigurationCard } from '@/app/StandupConfigurationCard';
-import { StandupFormBuilderCard } from '@/app/StandupFormBuilderCard';
-import { StandupScheduleBuilderCard } from '@/app/StandupScheduleBuilderCard';
-
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
 
 import { AuditLogPage } from './audit-log/AuditLogPage';
@@ -12,6 +8,7 @@ import { ReminderSettingsPage } from './reminders/ReminderSettingsPage';
 import { ReportRulesSettingsPage } from './report-rules/ReportRulesSettingsPage';
 import { RolesAccessPage } from './roles-access/RolesAccessPage';
 import type { SettingsSectionID } from './settings.types';
+import { StandupSettingsPage } from './standups/StandupSettingsPage';
 import { WorkspaceOverviewPanel } from './WorkspaceOverviewPanel';
 import { WorkingCalendarPage } from './working-calendar/WorkingCalendarPage';
 
@@ -37,23 +34,7 @@ export function SettingsSectionPanel(props: SettingsSectionPanelProps): ReactEle
 			return <WorkingCalendarPage {...props} />;
 
 		case 'standups':
-			return (
-				<div className="cf:grid cf:gap-5">
-					<StandupConfigurationCard workspace={props.workspace} />
-
-					<StandupScheduleBuilderCard
-						workspace={props.workspace}
-						canManageWorkspace={props.canManageWorkspace}
-						onConfigurationChanged={props.onStandupConfigurationChanged}
-					/>
-
-					<StandupFormBuilderCard
-						workspace={props.workspace}
-						canManageWorkspace={props.canManageWorkspace}
-						onConfigurationChanged={props.onStandupConfigurationChanged}
-					/>
-				</div>
-			);
+			return <StandupSettingsPage {...props} />;
 
 		case 'reminders':
 			return <ReminderSettingsPage {...props} />;
