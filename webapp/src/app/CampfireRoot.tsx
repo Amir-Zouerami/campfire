@@ -315,6 +315,7 @@ function ReadyContent(props: {
 		return (
 			<CampfireWorkspaceTabs
 				workspace={props.bootstrap.workspace}
+				capabilities={props.bootstrap.capabilities}
 				canManageWorkspace={props.bootstrap.capabilities.canManageWorkspace}
 				isSystemAdmin={props.bootstrap.me.isSystemAdmin}
 				leaveRefreshToken={props.leaveRefreshToken}
