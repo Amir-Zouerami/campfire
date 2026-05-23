@@ -5,11 +5,6 @@
 
 /* Campfire final pre-redesign polish: calmer nested radius, visible logo embers, checkbox optical alignment */
 
-.campfire-theme .campfire-card-body [class*='cf:rounded-3xl'],
-.campfire-theme .campfire-card-body [class*='cf:rounded-4xl'] {
-	border-radius: 1.05rem !important;
-}
-
 .campfire-theme .campfire-card-body [class*='cf:rounded-2xl'] {
 	border-radius: 0.95rem !important;
 }
