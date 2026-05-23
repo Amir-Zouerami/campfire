@@ -21,7 +21,7 @@ type MyStandupControlsProps = {
 };
 
 /**
- * MyStandupControls renders the schedule and occurrence date controls.
+ * MyStandupControls renders the schedule and standup date controls.
  */
 export function MyStandupControls(props: MyStandupControlsProps): ReactElement {
 	return (
@@ -42,7 +42,7 @@ export function MyStandupControls(props: MyStandupControlsProps): ReactElement {
 				</CampfireSelect>
 			</CampfireField>
 
-			<CampfireField id="campfire-my-standup-date" label="Occurrence date">
+			<CampfireField id="campfire-my-standup-date" label="Standup date">
 				<CampfireDateInput
 					id="campfire-my-standup-date"
 					disabled={props.disabled}

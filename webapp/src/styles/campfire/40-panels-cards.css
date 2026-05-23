@@ -319,3 +319,10 @@
 	transform-origin: 50% 72%;
 	animation: campfire-logo-flicker 1.9s ease-in-out infinite;
 }
+
+/* Campfire spacing repair: separate metric/status cells without changing the glass style. */
+.campfire-context-grid,
+.campfire-summary-grid,
+.campfire-metric-grid {
+	gap: 1.15rem;
+}

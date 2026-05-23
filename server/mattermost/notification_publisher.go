@@ -153,6 +153,9 @@ func (p *NotificationPublisher) SendChannelMissingReminder(
 	)
 }
 
+/*
+sendDirectMessage sends a bot-authored direct message.
+*/
 func (p *NotificationPublisher) sendDirectMessage(userID string, message string) error {
 	_, err := p.sendDirectMessageWithPostID(userID, message)
 
@@ -194,6 +197,9 @@ func (p *NotificationPublisher) sendDirectMessageWithPostID(userID string, messa
 	return post.Id, nil
 }
 
+/*
+sendChannelMessage sends a bot-authored channel message.
+*/
 func (p *NotificationPublisher) sendChannelMessage(channelID string, message string) error {
 	_, err := p.sendChannelMessageWithPostID(channelID, message)
 
@@ -232,15 +238,22 @@ func (p *NotificationPublisher) sendChannelMessageWithPostID(channelID string, m
 
 /*
 formatStandupDMReminderMessage formats a direct standup reminder.
+
+A DM cannot submit a channel-scoped Campfire standup by itself. The reminder
+therefore links the actual workspace channel and tells the user to open Campfire
+there, instead of saying "this channel" inside a DM.
 */
 func formatStandupDMReminderMessage(api plugin.API, reminder service.StandupDMReminder) string {
 	targetLabel := userMentionOrID(api, reminder.TargetUserID)
+	channelReference := channelReferenceOrWorkspaceName(api, reminder.ChannelID, reminder.WorkspaceName)
 
 	lines := []string{
 		"🔥 **Campfire standup reminder**",
 		"",
 		fmt.Sprintf("%s, your standup for **%s** is still missing.", targetLabel, reminder.OccurrenceDate),
-		"Open Campfire in this channel to submit your update.",
+		fmt.Sprintf("Open %s, then open Campfire in that channel to submit your update.", channelReference),
+		"",
+		"_Campfire submissions are tied to the workspace channel, not this DM._",
 	}
 
 	if reminder.SequenceNumber > 0 {
@@ -473,6 +486,29 @@ func formatLeaveRequestDetails(durationMode string, halfDayPart string, startTim
 	default:
 		return ""
 	}
+}
+
+/*
+channelReferenceOrWorkspaceName returns a Mattermost channel reference when possible.
+
+Mattermost renders "~channel-name" as a channel link. If the channel cannot be
+loaded, Campfire falls back to the readable workspace name.
+*/
+func channelReferenceOrWorkspaceName(api plugin.API, channelID string, workspaceName string) string {
+	cleanChannelID := strings.TrimSpace(channelID)
+	if cleanChannelID != "" {
+		channel, appErr := api.GetChannel(cleanChannelID)
+		if appErr == nil && channel != nil && strings.TrimSpace(channel.Name) != "" {
+			return "~" + channel.Name
+		}
+	}
+
+	cleanWorkspaceName := strings.TrimSpace(workspaceName)
+	if cleanWorkspaceName != "" {
+		return fmt.Sprintf("**%s**", cleanWorkspaceName)
+	}
+
+	return "the workspace channel"
 }
 
 /*

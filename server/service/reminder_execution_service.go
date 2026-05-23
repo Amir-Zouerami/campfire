@@ -141,7 +141,7 @@ func (s *ReminderExecutionService) ExecuteSequence(
 			continue
 		}
 
-		if rule.DMReminderEnabled {
+		if standupDMRemindersEnabled(rule) {
 			sentCount, skippedCount, err := s.sendDMReminders(
 				ctx,
 				*workspace,
@@ -294,6 +294,19 @@ func (s *ReminderExecutionService) sendChannelReminder(
 
 	return true, false, nil
 }
+
+
+/*
+standupDMRemindersEnabled returns whether direct-message standup reminders may be sent.
+
+Campfire currently opens against the active Mattermost channel. Direct-message
+reminders send users into a DM-scoped context, so they are intentionally disabled
+until Campfire has a safe channel deep-link/open action.
+*/
+func standupDMRemindersEnabled(_ domain.ReminderRule) bool {
+	return false
+}
+
 
 /*
 notificationRunExists returns true when a notification run already exists.

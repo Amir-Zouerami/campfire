@@ -172,7 +172,7 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 		setMessage('');
 
 		try {
-			await submitStandup({
+			const response = await submitStandup({
 				workspaceId: input.workspace.id,
 				templateId: selectedTemplate.id,
 				scheduleId: selectedSchedule.id,
@@ -183,9 +183,11 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 				})),
 			});
 
+			const updatedLabel = formatStandupSubmissionTime(response.submission.lastUpdatedAt);
+
 			setLoadState('ready');
-			setMessage('Standup submitted.');
-			toast.success('Standup submitted');
+			setMessage(`Standup saved. Last updated ${updatedLabel}.`);
+			toast.success('Standup saved');
 			input.onStandupSubmitted();
 		} catch (error: unknown) {
 			const errorMessage = errorToMessage(error);
@@ -215,4 +217,20 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 		updateAnswer,
 		submitCurrentStandup,
 	};
+}
+
+/**
+ * formatStandupSubmissionTime formats a submission timestamp for compact feedback.
+ */
+function formatStandupSubmissionTime(value: string): string {
+	const date = new Date(value);
+
+	if (Number.isNaN(date.getTime())) {
+		return value;
+	}
+
+	return date.toLocaleString(undefined, {
+		dateStyle: 'medium',
+		timeStyle: 'short',
+	});
 }

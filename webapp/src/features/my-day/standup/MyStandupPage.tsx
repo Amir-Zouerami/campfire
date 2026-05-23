@@ -1,7 +1,6 @@
 import type { FormEvent, ReactElement } from 'react';
 import { ClipboardList, Loader2, Send } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
 import {
 	CampfireCardBody,
 	CampfireCardHeader,
@@ -9,6 +8,7 @@ import {
 	CampfirePanel,
 	CampfireStatusPill,
 } from '@/app/campfire-ui';
+import { Button } from '@/components/ui/button';
 import type { Workspace } from '@/types/domain';
 
 import { formatLabel } from './my-standup.helpers';
@@ -90,7 +90,7 @@ export function MyStandupPage(props: MyStandupPageProps): ReactElement {
 
 						<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-4">
 							<p className="cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
-								Submitting again updates your response while preserving the original first-submitted
+								Submitting again keeps the original first-submitted time and records a new last-updated
 								time.
 							</p>
 

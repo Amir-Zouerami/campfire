@@ -124,3 +124,18 @@
 	background: rgba(249, 115, 22, 0.1);
 	color: #fdba74;
 }
+
+/* Campfire navigation repair: preserve glassy cards but distribute them evenly. */
+.campfire-tab-grid {
+	grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+	gap: 1rem;
+	align-items: stretch;
+}
+
+.campfire-tab-button {
+	min-height: 5.25rem;
+}
+
+.campfire-tab-copy {
+	min-width: 0;
+}

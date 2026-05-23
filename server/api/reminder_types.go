@@ -65,7 +65,7 @@ func (r UpdateReminderRuleRequest) ToServiceInput(
 		ReminderRuleID:          reminderRuleID,
 		Enabled:                 r.Enabled,
 		ChannelReminderEnabled:  r.ChannelReminderEnabled,
-		DMReminderEnabled:       r.DMReminderEnabled,
+		DMReminderEnabled:       false,
 		ReminderOffsets:         r.ReminderOffsets,
 		MentionMissingInChannel: r.MentionMissingInChannel,
 	}
@@ -94,7 +94,7 @@ func ReminderRuleToPayload(rule domain.ReminderRule) ReminderRulePayload {
 		ScheduleID:              rule.ScheduleID.String(),
 		Enabled:                 rule.Enabled,
 		ChannelReminderEnabled:  rule.ChannelReminderEnabled,
-		DMReminderEnabled:       rule.DMReminderEnabled,
+		DMReminderEnabled:       false,
 		ReminderOffsets:         decodeReminderOffsets(rule.ReminderOffsetsJSON),
 		MentionMissingInChannel: rule.MentionMissingInChannel,
 		CreatedBy:               rule.CreatedBy,

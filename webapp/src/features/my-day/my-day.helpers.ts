@@ -34,7 +34,7 @@ export function iconForMyDaySection(sectionID: MyDaySectionID): LucideIcon {
  */
 export function myDaySectionButtonClassName(active: boolean): string {
 	return cn(
-		'cf:flex cf:min-h-[112px] cf:items-center cf:gap-4 cf:rounded-2xl cf:border cf:px-5 cf:py-5 cf:text-left cf:transition',
+		'cf:flex cf:min-h-[88px] cf:items-center cf:gap-4 cf:rounded-2xl cf:border cf:px-5 cf:py-4 cf:text-left cf:transition',
 		'cf:cursor-pointer cf:border-white/10 cf:bg-white/[0.045] hover:cf:border-amber-300/35 hover:cf:bg-amber-300/[0.065]',
 		active && 'cf:border-amber-300/45 cf:bg-amber-300/[0.115] cf:shadow-xl',
 	);

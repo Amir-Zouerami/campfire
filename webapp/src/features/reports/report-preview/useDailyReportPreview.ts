@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 
 import { getDailyReportPreview, postDailyReportPreview } from '@/api';
 import { CAMPFIRE_APPLY_REPORT_FILTER_EVENT, isReportFilterApplyEvent } from '@/app/events';
+import { isISODateInputValue, normalizeISODateInputValue } from '@/lib/dates';
 import type { DailyReportPreview, StandupSubmissionSortMode, Workspace } from '@/types/domain';
 
 import {
@@ -75,7 +76,7 @@ export function useDailyReportPreview(input: UseDailyReportPreviewInput): UseDai
 				const record = parsed as Record<string, unknown>;
 
 				if (typeof record.occurrenceDate === 'string' && record.occurrenceDate.trim() !== '') {
-					setOccurrenceDate(record.occurrenceDate);
+					setOccurrenceDate(normalizeISODateInputValue(record.occurrenceDate));
 				}
 
 				if (typeof record.sortMode === 'string') {
@@ -111,11 +112,25 @@ export function useDailyReportPreview(input: UseDailyReportPreviewInput): UseDai
 				return;
 			}
 
+			const cleanOccurrenceDate = normalizeISODateInputValue(occurrenceDate);
+
+			if (!isISODateInputValue(cleanOccurrenceDate)) {
+				setPreview(null);
+				setMessage('Choose a real report date using YYYY-MM-DD.');
+				setLoadState('error');
+				return;
+			}
+
+			if (cleanOccurrenceDate !== occurrenceDate) {
+				setOccurrenceDate(cleanOccurrenceDate);
+				return;
+			}
+
 			setLoadState('loading');
 			setMessage('');
 
 			try {
-				const response = await getDailyReportPreview(input.workspace.id, occurrenceDate, sortMode);
+				const response = await getDailyReportPreview(input.workspace.id, cleanOccurrenceDate, sortMode);
 
 				if (!isActive) {
 					return;
@@ -155,12 +170,24 @@ export function useDailyReportPreview(input: UseDailyReportPreviewInput): UseDai
 			return;
 		}
 
+		const cleanOccurrenceDate = normalizeISODateInputValue(occurrenceDate);
+
+		if (!isISODateInputValue(cleanOccurrenceDate)) {
+			setMessage('Choose a real report date using YYYY-MM-DD.');
+			setLoadState('error');
+			return;
+		}
+
+		if (cleanOccurrenceDate !== occurrenceDate) {
+			setOccurrenceDate(cleanOccurrenceDate);
+		}
+
 		setLoadState('posting');
 		setMessage('');
 
 		try {
 			await postDailyReportPreview(input.workspace.id, {
-				occurrenceDate,
+				occurrenceDate: cleanOccurrenceDate,
 				sortMode,
 			});
 

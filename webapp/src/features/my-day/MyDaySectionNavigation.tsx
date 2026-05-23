@@ -13,11 +13,11 @@ type MyDaySectionNavigationProps = {
 };
 
 /**
- * MyDaySectionNavigation renders large focused personal workflow buttons.
+ * MyDaySectionNavigation renders focused personal workflow buttons.
  */
 export function MyDaySectionNavigation(props: MyDaySectionNavigationProps): ReactElement {
 	return (
-		<nav className="cf:grid cf:gap-3 cf:lg:grid-cols-3" aria-label="My Day workflow">
+		<nav className="cf:grid cf:grid-cols-3 cf:gap-4" aria-label="My Day workflow">
 			{myDaySections.map(section => {
 				const active = section.id === props.activeSectionID;
 				const Icon = iconForMyDaySection(section.id);
@@ -31,14 +31,14 @@ export function MyDaySectionNavigation(props: MyDaySectionNavigationProps): Reac
 						onClick={() => props.onSelectSection(section.id)}
 					>
 						<span className={myDaySectionIconClassName(active)}>
-							<Icon className="cf:size-6" />
+							<Icon className="cf:size-5" />
 						</span>
 
 						<span className="cf:min-w-0">
-							<span className="cf:block cf:text-lg cf:font-black cf:tracking-[-0.02em] cf:text-foreground">
+							<span className="cf:block cf:text-base cf:font-black cf:tracking-[-0.02em] cf:text-foreground">
 								{section.label}
 							</span>
-							<span className="cf:mt-1 cf:block cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
+							<span className="cf:mt-1 cf:block cf:text-sm cf:font-semibold cf:leading-5 cf:text-muted-foreground">
 								{section.helper}
 							</span>
 						</span>

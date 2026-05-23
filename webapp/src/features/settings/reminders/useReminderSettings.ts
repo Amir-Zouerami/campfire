@@ -79,8 +79,13 @@ export function useReminderSettings(input: UseReminderSettingsInput): UseReminde
 					return;
 				}
 
-				setRules(response.reminderRules);
-				setDrafts(buildReminderDrafts(response.reminderRules));
+				const channelOnlyRules = response.reminderRules.map(rule => ({
+					...rule,
+					dmReminderEnabled: false,
+				}));
+
+				setRules(channelOnlyRules);
+				setDrafts(buildReminderDrafts(channelOnlyRules));
 				setLoadState('ready');
 			} catch (error: unknown) {
 				if (!isActive) {
@@ -163,7 +168,7 @@ export function useReminderSettings(input: UseReminderSettingsInput): UseReminde
 			const response = await updateReminderRule(input.workspace.id, rule.id, {
 				enabled: draft.enabled,
 				channelReminderEnabled: draft.channelReminderEnabled,
-				dmReminderEnabled: draft.dmReminderEnabled,
+				dmReminderEnabled: false,
 				reminderOffsets: [...offsets],
 				mentionMissingInChannel: draft.mentionMissingInChannel,
 			});
