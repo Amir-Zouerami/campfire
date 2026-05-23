@@ -296,6 +296,13 @@ export type CreateLeaveResponse = {
 };
 
 /**
+ * DeleteWorkspaceResponse is returned by DELETE /workspaces/{workspaceID}.
+ */
+export type DeleteWorkspaceResponse = {
+	readonly deleted: boolean;
+};
+
+/**
  * DecideLeaveRequest is sent to POST /leaves/{leaveRequestID}/decision.
  */
 export type DecideLeaveRequest = {

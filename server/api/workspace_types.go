@@ -71,6 +71,13 @@ type CreateWorkspaceResponse struct {
 }
 
 /*
+DeleteWorkspaceResponse is returned by DELETE /workspaces/{workspaceID}.
+*/
+type DeleteWorkspaceResponse struct {
+	Deleted bool `json:"deleted"`
+}
+
+/*
 WorkspaceResultToResponse maps a service result to an API response.
 */
 func WorkspaceResultToResponse(result service.WorkspaceByChannelResult) WorkspaceByChannelResponse {

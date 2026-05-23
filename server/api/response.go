@@ -111,6 +111,15 @@ func WriteUpsertWorkspaceRole(w http.ResponseWriter, statusCode int, payload Ups
 }
 
 /*
+WriteDeleteWorkspace writes the workspace archive/delete response.
+*/
+func WriteDeleteWorkspace(w http.ResponseWriter, statusCode int, payload DeleteWorkspaceResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode delete workspace response")
+}
+
+/*
 WriteDeleteWorkspaceRole writes the role assignment delete response.
 */
 func WriteDeleteWorkspaceRole(w http.ResponseWriter, statusCode int, payload DeleteWorkspaceRoleResponse) {

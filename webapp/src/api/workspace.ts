@@ -1,6 +1,7 @@
 import type {
 	CreateWorkspaceRequest,
 	CreateWorkspaceResponse,
+	DeleteWorkspaceResponse,
 	DeleteWorkspaceRoleResponse,
 	ListAuditLogResponse,
 	ListWorkspaceMembersResponse,
@@ -27,6 +28,15 @@ export function createWorkspace(request: CreateWorkspaceRequest): Promise<Create
 	return requestJson<CreateWorkspaceResponse>('/workspaces', {
 		method: 'POST',
 		body: request,
+	});
+}
+
+/**
+ * deleteWorkspace calls DELETE /workspaces/{workspaceID}.
+ */
+export function deleteWorkspace(workspaceID: string): Promise<DeleteWorkspaceResponse> {
+	return requestJson<DeleteWorkspaceResponse>(`/workspaces/${encodePath(workspaceID)}`, {
+		method: 'DELETE',
 	});
 }
 

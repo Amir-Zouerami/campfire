@@ -72,6 +72,16 @@ func NewRouter(config RouterConfig) http.Handler {
 				config.PermissionService,
 			),
 		)
+		api.Delete(
+			"/workspaces/{workspaceID}",
+			handleDeleteWorkspace(
+				config.Logger,
+				config.Mattermost,
+				config.WorkspaceService,
+				config.PermissionService,
+				config.AuditService,
+			),
+		)
 
 		api.Get(
 			"/workspaces/{workspaceID}/members",

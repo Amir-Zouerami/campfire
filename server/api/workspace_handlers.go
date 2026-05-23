@@ -129,3 +129,56 @@ func permissionUserFromMattermost(user *mattermost.User) service.PermissionUser 
 		IsSystemAdmin: user.IsSystemAdmin,
 	}
 }
+
+/*
+handleDeleteWorkspace handles disconnecting Campfire from a Mattermost channel.
+
+The operation archives the workspace instead of hard-deleting data. Archived
+workspaces are no longer returned by channel lookup or active scheduler queries.
+*/
+func handleDeleteWorkspace(
+	log logger.Logger,
+	mm mattermost.Client,
+	workspaceService *service.WorkspaceService,
+	permissionService *service.PermissionService,
+	auditService *service.AuditService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireManageWorkspace(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
+
+		deleted, err := workspaceService.Archive(r.Context(), service.ArchiveWorkspaceInput{
+			ActorUserID: user.ID,
+			WorkspaceID: workspaceID,
+		})
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		recordAuditEvent(
+			r.Context(),
+			auditService,
+			workspaceID,
+			user.ID,
+			"workspace_archived",
+			"workspace",
+			workspaceID,
+			map[string]string{
+				"deleted": boolLabel(deleted),
+			},
+		)
+
+		WriteDeleteWorkspace(w, http.StatusOK, DeleteWorkspaceResponse{
+			Deleted: deleted,
+		})
+	}
+}

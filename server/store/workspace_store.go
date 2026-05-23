@@ -44,6 +44,7 @@ type WorkspaceStore interface {
 	GetByChannelID(ctx context.Context, channelID string) (*domain.Workspace, error)
 	ListActive(ctx context.Context) ([]domain.Workspace, error)
 	Create(ctx context.Context, params CreateWorkspaceParams) (*domain.Workspace, error)
+	ArchiveByID(ctx context.Context, workspaceID domain.ID, archivedAt time.Time) (bool, error)
 }
 
 /*
@@ -51,6 +52,33 @@ SQLWorkspaceStore persists workspace configuration in SQL.
 */
 type SQLWorkspaceStore struct {
 	db *sqlx.DB
+}
+
+/*
+ArchiveByID archives an active workspace without deleting historical data.
+*/
+func (s *SQLWorkspaceStore) ArchiveByID(
+	ctx context.Context,
+	workspaceID domain.ID,
+	archivedAt time.Time,
+) (bool, error) {
+	query := s.db.Rebind(`
+		UPDATE campfire_workspaces
+		SET is_archived = ?, updated_at = ?
+		WHERE id = ? AND is_archived = FALSE
+	`)
+
+	result, err := s.db.ExecContext(ctx, query, true, archivedAt, workspaceID.String())
+	if err != nil {
+		return false, fmt.Errorf("archive workspace: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("read archived workspace rows: %w", err)
+	}
+
+	return rowsAffected > 0, nil
 }
 
 /*

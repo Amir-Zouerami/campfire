@@ -24,6 +24,7 @@ type CampfireWorkspaceTabsProps = {
 	readonly onStandupSubmitted: () => void;
 	readonly onStandupConfigurationChanged: () => void;
 	readonly onWorkspaceCalendarChanged: () => void;
+	readonly onWorkspaceArchived: () => void;
 };
 
 /**
@@ -44,6 +45,7 @@ export function CampfireWorkspaceTabs(props: CampfireWorkspaceTabsProps): ReactE
 		onStandupSubmitted: props.onStandupSubmitted,
 		onStandupConfigurationChanged: props.onStandupConfigurationChanged,
 		onWorkspaceCalendarChanged: props.onWorkspaceCalendarChanged,
+		onWorkspaceArchived: props.onWorkspaceArchived,
 	};
 
 	return <CampfireWorkspaceShell {...shellProps} />;

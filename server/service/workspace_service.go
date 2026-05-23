@@ -36,6 +36,17 @@ type WorkspaceByChannelResult struct {
 }
 
 /*
+ArchiveWorkspaceInput contains the request to disconnect Campfire from a channel.
+
+Archiving keeps historical data but removes the workspace from active channel
+lookup, scheduler work, and normal workspace lists.
+*/
+type ArchiveWorkspaceInput struct {
+	ActorUserID string
+	WorkspaceID string
+}
+
+/*
 CreateWorkspaceInput contains user-submitted workspace setup data.
 */
 type CreateWorkspaceInput struct {
@@ -58,6 +69,40 @@ WorkspaceService owns workspace business rules.
 */
 type WorkspaceService struct {
 	workspaceStore store.WorkspaceStore
+}
+
+/*
+Archive disconnects Campfire from a channel by archiving the active workspace.
+
+This is intentionally not a hard delete. Historical reports, audit rows, leave
+requests, submissions, and time entries remain available in the database for
+future recovery/manual inspection.
+*/
+func (s *WorkspaceService) Archive(ctx context.Context, input ArchiveWorkspaceInput) (bool, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return false, NewError(ErrorCodePermissionDenied, "You must be signed in to archive a Campfire workspace.")
+	}
+
+	cleanWorkspaceID := domain.ID(strings.TrimSpace(input.WorkspaceID))
+	if cleanWorkspaceID.String() == "" {
+		return false, NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
+	}
+
+	archived, err := s.workspaceStore.ArchiveByID(ctx, cleanWorkspaceID, time.Now().UTC())
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return false, NewError(ErrorCodeNotFound, "Workspace was not found.")
+		}
+
+		return false, NewError(ErrorCodeInternal, "Could not archive workspace.")
+	}
+
+	if !archived {
+		return false, NewError(ErrorCodeNotFound, "Workspace was not found or was already archived.")
+	}
+
+	return true, nil
 }
 
 /*

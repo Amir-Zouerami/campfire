@@ -92,6 +92,10 @@ export function CampfireRoot(): ReactElement | null {
 		setWorkspaceCalendarRefreshToken(current => current + 1);
 	}
 
+	function handleWorkspaceArchived(): void {
+		refreshBootstrap();
+	}
+
 	return createPortal(
 		<div className="campfire-overlay campfire-theme dark" role="dialog" aria-modal="true" aria-label="Campfire">
 			<div className="campfire-modal">
@@ -104,6 +108,7 @@ export function CampfireRoot(): ReactElement | null {
 						<BootstrapContent
 							bootstrap={bootstrap}
 							onWorkspaceCreated={refreshBootstrap}
+							onWorkspaceArchived={handleWorkspaceArchived}
 							leaveRefreshToken={leaveRefreshToken}
 							standupRefreshToken={standupRefreshToken}
 							workspaceCalendarRefreshToken={workspaceCalendarRefreshToken}
@@ -252,6 +257,7 @@ function BootstrapSummary(props: { readonly bootstrap: BootstrapStatus }): React
 function BootstrapContent(props: {
 	readonly bootstrap: BootstrapStatus;
 	readonly onWorkspaceCreated: () => void;
+	readonly onWorkspaceArchived: () => void;
 	readonly leaveRefreshToken: number;
 	readonly standupRefreshToken: number;
 	readonly workspaceCalendarRefreshToken: number;
@@ -301,6 +307,7 @@ function BootstrapContent(props: {
 function ReadyContent(props: {
 	readonly bootstrap: Extract<BootstrapStatus, { readonly state: 'ready' }>;
 	readonly onWorkspaceCreated: () => void;
+	readonly onWorkspaceArchived: () => void;
 	readonly leaveRefreshToken: number;
 	readonly standupRefreshToken: number;
 	readonly workspaceCalendarRefreshToken: number;
@@ -327,6 +334,7 @@ function ReadyContent(props: {
 				onStandupSubmitted={props.onStandupSubmitted}
 				onStandupConfigurationChanged={props.onStandupConfigurationChanged}
 				onWorkspaceCalendarChanged={props.onWorkspaceCalendarChanged}
+				onWorkspaceArchived={props.onWorkspaceArchived}
 			/>
 		);
 	}
