@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
-import { Checkbox } from '@/components/ui/checkbox';
+import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
+import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,7 +12,6 @@ import {
 	questionValueAsBoolean,
 	questionValueAsList,
 	questionValueAsString,
-	selectClassName,
 } from './my-standup.helpers';
 import type { MyStandupQuestionFieldProps } from './my-standup.types';
 
@@ -58,32 +58,25 @@ function QuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID
 			);
 
 		case 'checkbox':
+			return <CheckboxQuestionControl {...props} />;
+
 		case 'boolean':
 			return (
-				<label
-					htmlFor={props.inputID}
-					className="cf:flex cf:cursor-pointer cf:items-center cf:gap-3 cf:rounded-xl cf:border cf:border-white/10 cf:bg-black/20 cf:px-4 cf:py-3"
-				>
-					<Checkbox
-						id={props.inputID}
-						disabled={props.disabled}
-						checked={questionValueAsBoolean(props.value)}
-						onCheckedChange={checked => props.onChange(checked === true)}
-					/>
-					<span className="cf:text-sm cf:font-bold cf:text-foreground">
-						{props.question.placeholder.trim() === '' ? 'Yes' : props.question.placeholder}
-					</span>
-				</label>
+				<CampfireCheckboxField
+					checked={questionValueAsBoolean(props.value)}
+					label="Yes"
+					disabled={props.disabled}
+					onCheckedChange={checked => props.onChange(checked)}
+				/>
 			);
 
 		case 'dropdown':
 			return (
-				<select
+				<CampfireSelect
 					id={props.inputID}
-					className={selectClassName()}
 					disabled={props.disabled}
 					value={questionValueAsString(props.value)}
-					onChange={event => props.onChange(event.currentTarget.value)}
+					onValueChange={value => props.onChange(value)}
 				>
 					<option value="">Choose…</option>
 					{props.question.options.map(option => (
@@ -91,38 +84,11 @@ function QuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID
 							{option}
 						</option>
 					))}
-				</select>
+				</CampfireSelect>
 			);
 
 		case 'multi_select':
-			return (
-				<div className="cf:grid cf:gap-2">
-					{props.question.options.map(option => {
-						const selected = questionValueAsList(props.value).includes(option);
-
-						return (
-							<label
-								key={option}
-								className={cn(
-									'cf:flex cf:cursor-pointer cf:items-center cf:gap-3 cf:rounded-xl cf:border cf:px-4 cf:py-3 cf:transition',
-									selected
-										? 'cf:border-amber-300/35 cf:bg-amber-300/10'
-										: 'cf:border-white/10 cf:bg-black/20 hover:cf:border-amber-300/25',
-								)}
-							>
-								<Checkbox
-									disabled={props.disabled}
-									checked={selected}
-									onCheckedChange={checked => {
-										props.onChange(nextMultiSelectValue(props.value, option, checked === true));
-									}}
-								/>
-								<span className="cf:text-sm cf:font-bold cf:text-foreground">{option}</span>
-							</label>
-						);
-					})}
-				</div>
-			);
+			return <MultiSelectQuestionControl {...props} />;
 
 		case 'number':
 			return (
@@ -141,8 +107,7 @@ function QuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID
 				<Input
 					id={props.inputID}
 					type="number"
-					min="0"
-					step="5"
+					min={0}
 					disabled={props.disabled}
 					placeholder={props.question.placeholder || 'Minutes'}
 					value={questionValueAsString(props.value)}
@@ -162,4 +127,74 @@ function QuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID
 				/>
 			);
 	}
+}
+
+/**
+ * CheckboxQuestionControl renders checkbox questions with or without options.
+ */
+function CheckboxQuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID: string }): ReactElement {
+	if (props.question.options.length === 0) {
+		return (
+			<CampfireCheckboxField
+				checked={questionValueAsBoolean(props.value)}
+				label="Checked"
+				disabled={props.disabled}
+				onCheckedChange={checked => props.onChange(checked)}
+			/>
+		);
+	}
+
+	return (
+		<div id={props.inputID} className="cf:grid cf:gap-2">
+			{props.question.options.map(option => (
+				<CampfireCheckboxField
+					key={option}
+					checked={questionValueAsList(props.value).includes(option)}
+					label={option}
+					disabled={props.disabled}
+					onCheckedChange={checked => props.onChange(nextMultiSelectValue(props.value, option, checked))}
+				/>
+			))}
+		</div>
+	);
+}
+
+/**
+ * MultiSelectQuestionControl renders a multi-select question as a checkbox group.
+ */
+function MultiSelectQuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID: string }): ReactElement {
+	if (props.question.options.length === 0) {
+		return (
+			<p className="cf:m-0 cf:rounded-2xl cf:border cf:border-amber-300/20 cf:bg-amber-950/20 cf:p-3 cf:text-sm cf:font-bold cf:text-amber-100">
+				This question has no configured options.
+			</p>
+		);
+	}
+
+	return (
+		<div id={props.inputID} className="cf:grid cf:gap-2">
+			{props.question.options.map(option => {
+				const checked = questionValueAsList(props.value).includes(option);
+
+				return (
+					<button
+						key={option}
+						type="button"
+						disabled={props.disabled}
+						className={cn(
+							'cf:flex cf:items-center cf:justify-between cf:gap-3 cf:rounded-2xl cf:border cf:px-4 cf:py-3 cf:text-left cf:text-sm cf:font-black cf:transition',
+							checked
+								? 'cf:border-emerald-300/30 cf:bg-emerald-300/10 cf:text-emerald-100'
+								: 'cf:border-white/10 cf:bg-black/20 cf:text-muted-foreground hover:cf:border-amber-300/25 hover:cf:text-foreground',
+							props.disabled && 'cf:cursor-not-allowed cf:opacity-60',
+						)}
+						onClick={() => props.onChange(nextMultiSelectValue(props.value, option, !checked))}
+					>
+						<span>{option}</span>
+						<span>{checked ? 'Selected' : 'Select'}</span>
+					</button>
+				);
+			})}
+		</div>
+	);
 }

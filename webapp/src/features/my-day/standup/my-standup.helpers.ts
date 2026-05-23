@@ -1,5 +1,4 @@
 import { ApiClientError } from '@/api';
-import { cn } from '@/lib/utils';
 import type { QuestionType, StandupQuestion, StandupSchedule, StandupTemplate, Task } from '@/types/domain';
 
 import type { AnswerDrafts, AnswerDraftValue, NormalizedAnswerValue } from './my-standup.types';
@@ -227,13 +226,6 @@ export function formatLabel(value: string): string {
 /**
  * selectClassName returns the shared native select style.
  */
-export function selectClassName(): string {
-	return cn(
-		'cf:h-11 cf:w-full cf:rounded-xl cf:border cf:border-white/10 cf:bg-black/25 cf:px-3 cf:py-2 cf:text-base cf:font-semibold cf:text-foreground cf:outline-none',
-		'cf:focus-visible:border-amber-300/45 cf:focus-visible:ring-2 cf:focus-visible:ring-amber-300/20',
-		'cf:disabled:cursor-not-allowed cf:disabled:opacity-60',
-	);
-}
 
 /**
  * errorToMessage converts unknown thrown values into a safe UI message.

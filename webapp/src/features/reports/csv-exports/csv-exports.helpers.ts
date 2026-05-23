@@ -188,13 +188,6 @@ export function downloadCSVBlob(blob: Blob, filename: string): void {
 /**
  * selectClassName returns the shared native select style.
  */
-export function selectClassName(): string {
-	return cn(
-		'cf:h-11 cf:w-full cf:rounded-xl cf:border cf:border-white/10 cf:bg-black/25 cf:px-3 cf:py-2 cf:text-base cf:font-semibold cf:text-foreground cf:outline-none',
-		'cf:focus-visible:border-amber-300/45 cf:focus-visible:ring-2 cf:focus-visible:ring-amber-300/20',
-		'cf:disabled:cursor-not-allowed cf:disabled:opacity-60',
-	);
-}
 
 /**
  * exportActionCardClassName returns a style for one export action card.

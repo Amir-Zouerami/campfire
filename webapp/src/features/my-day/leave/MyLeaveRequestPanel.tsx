@@ -1,19 +1,15 @@
 import type { FormEvent, ReactElement } from 'react';
 import { CalendarPlus } from 'lucide-react';
 
+import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
+import { CampfireField } from '@/components/campfire/CampfireField';
+import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { LeaveDurationMode, LeaveHalfDayPart, LeaveType } from '@/types/domain';
 
-import {
-	formatDurationMode,
-	formatLeaveOptionLabel,
-	leaveDurationModes,
-	leaveHalfDayParts,
-	selectClassName,
-} from './my-leave.helpers';
+import { formatDurationMode, formatLeaveOptionLabel, leaveDurationModes, leaveHalfDayParts } from './my-leave.helpers';
 import type { MyLeaveDraft, MyLeaveDraftPatch } from './my-leave.types';
 
 /**
@@ -41,7 +37,7 @@ export function MyLeaveRequestPanel(props: MyLeaveRequestPanelProps): ReactEleme
 
 	return (
 		<form
-			className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5"
+			className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5"
 			onSubmit={handleSubmit}
 		>
 			<div>
@@ -54,13 +50,12 @@ export function MyLeaveRequestPanel(props: MyLeaveRequestPanelProps): ReactEleme
 			</div>
 
 			<div className="cf:grid cf:gap-4">
-				<FormField label="Leave type" htmlFor="campfire-my-leave-type">
-					<select
+				<CampfireField id="campfire-my-leave-type" label="Leave type">
+					<CampfireSelect
 						id="campfire-my-leave-type"
-						className={selectClassName()}
-						disabled={props.disabled || props.leaveTypes.length === 0}
+						disabled={props.disabled}
 						value={props.draft.leaveTypeId}
-						onChange={event => props.onChange({ leaveTypeId: event.currentTarget.value })}
+						onValueChange={value => props.onChange({ leaveTypeId: value })}
 					>
 						<option value="">Choose leave type…</option>
 						{props.leaveTypes.map(leaveType => (
@@ -68,73 +63,65 @@ export function MyLeaveRequestPanel(props: MyLeaveRequestPanelProps): ReactEleme
 								{leaveType.name}
 							</option>
 						))}
-					</select>
-				</FormField>
+					</CampfireSelect>
+				</CampfireField>
 
 				<div className="cf:grid cf:gap-4 cf:md:grid-cols-2">
-					<FormField label="Start date" htmlFor="campfire-my-leave-start">
-						<Input
+					<CampfireField id="campfire-my-leave-start" label="Start date">
+						<CampfireDateInput
 							id="campfire-my-leave-start"
-							type="date"
 							disabled={props.disabled}
 							value={props.draft.startDate}
-							onChange={event => props.onChange({ startDate: event.currentTarget.value })}
+							onValueChange={value => props.onChange({ startDate: value })}
 						/>
-					</FormField>
+					</CampfireField>
 
-					<FormField label="End date" htmlFor="campfire-my-leave-end">
-						<Input
+					<CampfireField id="campfire-my-leave-end" label="End date">
+						<CampfireDateInput
 							id="campfire-my-leave-end"
-							type="date"
 							disabled={props.disabled}
 							value={props.draft.endDate}
-							onChange={event => props.onChange({ endDate: event.currentTarget.value })}
+							onValueChange={value => props.onChange({ endDate: value })}
 						/>
-					</FormField>
+					</CampfireField>
 				</div>
 
-				<FormField label="Duration" htmlFor="campfire-my-leave-duration">
-					<select
+				<CampfireField id="campfire-my-leave-duration" label="Duration">
+					<CampfireSelect
 						id="campfire-my-leave-duration"
-						className={selectClassName()}
 						disabled={props.disabled}
 						value={props.draft.durationMode}
-						onChange={event =>
-							props.onChange({ durationMode: event.currentTarget.value as LeaveDurationMode })
-						}
+						onValueChange={value => props.onChange({ durationMode: value as LeaveDurationMode })}
 					>
 						{leaveDurationModes.map(mode => (
 							<option key={mode} value={mode}>
 								{formatDurationMode(mode)}
 							</option>
 						))}
-					</select>
-				</FormField>
+					</CampfireSelect>
+				</CampfireField>
 
 				{props.draft.durationMode === 'half_day' && (
-					<FormField label="Half day part" htmlFor="campfire-my-leave-half-day">
-						<select
+					<CampfireField id="campfire-my-leave-half-day" label="Half day part">
+						<CampfireSelect
 							id="campfire-my-leave-half-day"
-							className={selectClassName()}
 							disabled={props.disabled}
 							value={props.draft.halfDayPart}
-							onChange={event =>
-								props.onChange({ halfDayPart: event.currentTarget.value as LeaveHalfDayPart | '' })
-							}
+							onValueChange={value => props.onChange({ halfDayPart: value as LeaveHalfDayPart | '' })}
 						>
 							<option value="">Choose…</option>
 							{leaveHalfDayParts.map(part => (
 								<option key={part} value={part}>
-									{formatLeaveOptionLabel(part)}{' '}
+									{formatLeaveOptionLabel(part)}
 								</option>
 							))}
-						</select>
-					</FormField>
+						</CampfireSelect>
+					</CampfireField>
 				)}
 
 				{props.draft.durationMode === 'hourly' && (
 					<div className="cf:grid cf:gap-4 cf:md:grid-cols-2">
-						<FormField label="Start time" htmlFor="campfire-my-leave-start-time">
+						<CampfireField id="campfire-my-leave-start-time" label="Start time">
 							<Input
 								id="campfire-my-leave-start-time"
 								type="time"
@@ -142,9 +129,9 @@ export function MyLeaveRequestPanel(props: MyLeaveRequestPanelProps): ReactEleme
 								value={props.draft.startTime}
 								onChange={event => props.onChange({ startTime: event.currentTarget.value })}
 							/>
-						</FormField>
+						</CampfireField>
 
-						<FormField label="End time" htmlFor="campfire-my-leave-end-time">
+						<CampfireField id="campfire-my-leave-end-time" label="End time">
 							<Input
 								id="campfire-my-leave-end-time"
 								type="time"
@@ -152,11 +139,11 @@ export function MyLeaveRequestPanel(props: MyLeaveRequestPanelProps): ReactEleme
 								value={props.draft.endTime}
 								onChange={event => props.onChange({ endTime: event.currentTarget.value })}
 							/>
-						</FormField>
+						</CampfireField>
 					</div>
 				)}
 
-				<FormField label="Backup person ID" htmlFor="campfire-my-leave-backup">
+				<CampfireField id="campfire-my-leave-backup" label="Backup person ID">
 					<Input
 						id="campfire-my-leave-backup"
 						disabled={props.disabled}
@@ -164,9 +151,9 @@ export function MyLeaveRequestPanel(props: MyLeaveRequestPanelProps): ReactEleme
 						value={props.draft.backupUserId}
 						onChange={event => props.onChange({ backupUserId: event.currentTarget.value })}
 					/>
-				</FormField>
+				</CampfireField>
 
-				<FormField label="Reason" htmlFor="campfire-my-leave-reason">
+				<CampfireField id="campfire-my-leave-reason" label="Reason">
 					<Textarea
 						id="campfire-my-leave-reason"
 						disabled={props.disabled}
@@ -174,7 +161,7 @@ export function MyLeaveRequestPanel(props: MyLeaveRequestPanelProps): ReactEleme
 						value={props.draft.reason}
 						onChange={event => props.onChange({ reason: event.currentTarget.value })}
 					/>
-				</FormField>
+				</CampfireField>
 			</div>
 
 			<div className="cf:flex cf:justify-end">
@@ -184,26 +171,5 @@ export function MyLeaveRequestPanel(props: MyLeaveRequestPanelProps): ReactEleme
 				</Button>
 			</div>
 		</form>
-	);
-}
-
-/**
- * FormField renders a consistent labeled form field.
- */
-function FormField(props: {
-	readonly label: string;
-	readonly htmlFor: string;
-	readonly children: ReactElement;
-}): ReactElement {
-	return (
-		<div className="cf:grid cf:gap-2">
-			<Label
-				htmlFor={props.htmlFor}
-				className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200"
-			>
-				{props.label}
-			</Label>
-			{props.children}
-		</div>
 	);
 }

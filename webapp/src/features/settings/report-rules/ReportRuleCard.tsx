@@ -1,10 +1,12 @@
 import type { ReactElement } from 'react';
 import { FileText, Save } from 'lucide-react';
 
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import type { ReportRule } from '@/types/domain';
 import { CampfireStatusPill } from '@/app/campfire-ui';
+
+import { CampfireField } from '@/components/campfire/CampfireField';
+import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 
 import {
 	formatDateTime,
@@ -13,7 +15,6 @@ import {
 	reportRuleCardClassName,
 	reportRuleHasChanges,
 	reportSortOptions,
-	selectClassName,
 	shortID,
 	toReportSortMode,
 } from './report-rules.helpers';
@@ -125,24 +126,20 @@ export function ReportRuleCard(props: ReportRuleCardProps): ReactElement {
 				/>
 			</div>
 
-			<div className="cf:grid cf:gap-2">
-				<Label htmlFor={`campfire-report-sort-${props.rule.id}`}>Sort mode</Label>
-				<select
+			<CampfireField id={`campfire-report-sort-${props.rule.id}`} label="Sort mode">
+				<CampfireSelect
 					id={`campfire-report-sort-${props.rule.id}`}
-					className={selectClassName()}
 					disabled={formDisabled}
 					value={props.draft.sortMode}
-					onChange={event =>
-						props.onDraftChange(props.rule.id, { sortMode: toReportSortMode(event.currentTarget.value) })
-					}
+					onValueChange={value => props.onDraftChange(props.rule.id, { sortMode: toReportSortMode(value) })}
 				>
 					{reportSortOptions.map(sortMode => (
 						<option key={sortMode} value={sortMode}>
 							{formatReportSortMode(sortMode)}
 						</option>
 					))}
-				</select>
-			</div>
+				</CampfireSelect>
+			</CampfireField>
 
 			<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4">
 				<p className="cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">

@@ -1,15 +1,11 @@
 import type { ReactElement } from 'react';
 
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { CampfireField } from '@/components/campfire/CampfireField';
+import { CampfireSelect } from '@/components/campfire/CampfireSelect';
+import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
 
-import {
-	csvExportSortOptions,
-	formatCSVExportSortMode,
-	selectClassName,
-	toCSVExportSortMode,
-} from './csv-exports.helpers';
 import type { CSVExportFilterDraft, CSVExportFilterPatch } from './csv-exports.types';
+import { csvExportSortOptions, formatCSVExportSortMode, toCSVExportSortMode } from './csv-exports.helpers';
 
 /**
  * CSVExportControlsProps contains CSV export filters.
@@ -26,44 +22,38 @@ type CSVExportControlsProps = {
 export function CSVExportControls(props: CSVExportControlsProps): ReactElement {
 	return (
 		<div className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5 cf:xl:grid-cols-[1fr_1fr_1.2fr]">
-			<div className="cf:grid cf:gap-2">
-				<Label htmlFor="campfire-csv-export-start">Start date</Label>
-				<Input
+			<CampfireField id="campfire-csv-export-start" label="Start date">
+				<CampfireDateInput
 					id="campfire-csv-export-start"
-					type="date"
 					disabled={props.disabled}
 					value={props.filter.startDate}
-					onChange={event => props.onChange({ startDate: event.currentTarget.value })}
+					onValueChange={value => props.onChange({ startDate: value })}
 				/>
-			</div>
+			</CampfireField>
 
-			<div className="cf:grid cf:gap-2">
-				<Label htmlFor="campfire-csv-export-end">End date</Label>
-				<Input
+			<CampfireField id="campfire-csv-export-end" label="End date">
+				<CampfireDateInput
 					id="campfire-csv-export-end"
-					type="date"
 					disabled={props.disabled}
 					value={props.filter.endDate}
-					onChange={event => props.onChange({ endDate: event.currentTarget.value })}
+					onValueChange={value => props.onChange({ endDate: value })}
 				/>
-			</div>
+			</CampfireField>
 
-			<div className="cf:grid cf:gap-2">
-				<Label htmlFor="campfire-csv-export-sort">Standup sort mode</Label>
-				<select
+			<CampfireField id="campfire-csv-export-sort" label="Sort mode">
+				<CampfireSelect
 					id="campfire-csv-export-sort"
-					className={selectClassName()}
 					disabled={props.disabled}
 					value={props.filter.sortMode}
-					onChange={event => props.onChange({ sortMode: toCSVExportSortMode(event.currentTarget.value) })}
+					onValueChange={value => props.onChange({ sortMode: toCSVExportSortMode(value) })}
 				>
 					{csvExportSortOptions.map(sortMode => (
 						<option key={sortMode} value={sortMode}>
 							{formatCSVExportSortMode(sortMode)}
 						</option>
 					))}
-				</select>
-			</div>
+				</CampfireSelect>
+			</CampfireField>
 		</div>
 	);
 }

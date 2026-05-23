@@ -2,16 +2,11 @@ import type { ReactElement } from 'react';
 import { Bookmark, Send, Trash2 } from 'lucide-react';
 
 import { CampfireEmpty, CampfireStatusPill } from '@/app/campfire-ui';
+import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { Button } from '@/components/ui/button';
 import type { ReportKind, SavedReportFilter } from '@/types/domain';
 
-import {
-	formatDateTime,
-	formatReportKind,
-	savedFilterReportKinds,
-	selectClassName,
-	toReportKind,
-} from './saved-filters.helpers';
+import { formatDateTime, formatReportKind, savedFilterReportKinds, toReportKind } from './saved-filters.helpers';
 
 /**
  * SavedFilterListPanelProps contains saved-filter list state and actions.
@@ -30,7 +25,7 @@ type SavedFilterListPanelProps = {
  */
 export function SavedFilterListPanel(props: SavedFilterListPanelProps): ReactElement {
 	return (
-		<section className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
+		<section className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-4">
 				<div>
 					<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
@@ -41,20 +36,19 @@ export function SavedFilterListPanel(props: SavedFilterListPanelProps): ReactEle
 					</h3>
 				</div>
 
-				<div className="cf:min-w-[220px]">
-					<select
-						className={selectClassName()}
+				<div className="cf:min-w-55">
+					<CampfireSelect
+						id="campfire-saved-filter-list-type"
 						disabled={props.disabled}
 						value={props.selectedReportType}
-						aria-label="Saved filter report type"
-						onChange={event => props.onReportTypeChange(toReportKind(event.currentTarget.value))}
+						onValueChange={value => props.onReportTypeChange(toReportKind(value))}
 					>
 						{savedFilterReportKinds.map(reportKind => (
 							<option key={reportKind} value={reportKind}>
 								{formatReportKind(reportKind)}
 							</option>
 						))}
-					</select>
+					</CampfireSelect>
 				</div>
 			</div>
 
@@ -108,19 +102,19 @@ function SavedFilterRow(props: {
 			</pre>
 
 			<div className="cf:flex cf:flex-wrap cf:justify-end cf:gap-2">
+				<Button type="button" variant="outline" disabled={props.disabled} onClick={props.onApply}>
+					<Send className="cf:size-4" />
+					Apply
+				</Button>
+
 				<Button
 					type="button"
-					variant="secondary"
+					variant="destructive"
 					disabled={props.disabled}
 					onClick={() => void props.onDelete()}
 				>
 					<Trash2 className="cf:size-4" />
 					Delete
-				</Button>
-
-				<Button type="button" disabled={props.disabled} onClick={props.onApply}>
-					<Send className="cf:size-4" />
-					Apply
 				</Button>
 			</div>
 		</article>

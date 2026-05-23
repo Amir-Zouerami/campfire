@@ -2,15 +2,12 @@ import type { ReactElement } from 'react';
 import { Download, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
-import {
-	formatGroupBy,
-	globalTimeGroupByOptions,
-	selectClassName,
-	toTimeReportGroupBy,
-} from './global-reports.helpers';
+import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
+import { CampfireField } from '@/components/campfire/CampfireField';
+import { CampfireSelect } from '@/components/campfire/CampfireSelect';
+
+import { formatGroupBy, globalTimeGroupByOptions, toTimeReportGroupBy } from './global-reports.helpers';
 import type { GlobalTimeReportFilter, GlobalTimeReportFilterPatch } from './global-reports.types';
 
 /**
@@ -30,44 +27,38 @@ type GlobalTimeControlsProps = {
 export function GlobalTimeControls(props: GlobalTimeControlsProps): ReactElement {
 	return (
 		<div className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5 cf:xl:grid-cols-[1fr_1fr_1.2fr_auto_auto] cf:xl:items-end">
-			<div className="cf:grid cf:gap-2">
-				<Label htmlFor="campfire-global-time-start">Start date</Label>
-				<Input
+			<CampfireField id="campfire-global-time-start" label="Start date">
+				<CampfireDateInput
 					id="campfire-global-time-start"
-					type="date"
 					disabled={props.disabled}
 					value={props.filter.startDate}
-					onChange={event => props.onChange({ startDate: event.currentTarget.value })}
+					onValueChange={value => props.onChange({ startDate: value })}
 				/>
-			</div>
+			</CampfireField>
 
-			<div className="cf:grid cf:gap-2">
-				<Label htmlFor="campfire-global-time-end">End date</Label>
-				<Input
+			<CampfireField id="campfire-global-time-end" label="End date">
+				<CampfireDateInput
 					id="campfire-global-time-end"
-					type="date"
 					disabled={props.disabled}
 					value={props.filter.endDate}
-					onChange={event => props.onChange({ endDate: event.currentTarget.value })}
+					onValueChange={value => props.onChange({ endDate: value })}
 				/>
-			</div>
+			</CampfireField>
 
-			<div className="cf:grid cf:gap-2">
-				<Label htmlFor="campfire-global-time-group">Group by</Label>
-				<select
+			<CampfireField id="campfire-global-time-group" label="Group by">
+				<CampfireSelect
 					id="campfire-global-time-group"
-					className={selectClassName()}
 					disabled={props.disabled}
 					value={props.filter.groupBy}
-					onChange={event => props.onChange({ groupBy: toTimeReportGroupBy(event.currentTarget.value) })}
+					onValueChange={value => props.onChange({ groupBy: toTimeReportGroupBy(value) })}
 				>
 					{globalTimeGroupByOptions.map(groupBy => (
 						<option key={groupBy} value={groupBy}>
 							{formatGroupBy(groupBy)}
 						</option>
 					))}
-				</select>
-			</div>
+				</CampfireSelect>
+			</CampfireField>
 
 			<Button type="button" disabled={props.disabled} onClick={() => void props.onLoad()}>
 				<Search className="cf:size-4" />

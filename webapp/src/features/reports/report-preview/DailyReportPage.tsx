@@ -8,16 +8,12 @@ import {
 	CampfirePanel,
 	CampfireStatusPill,
 } from '@/app/campfire-ui';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
+import { CampfireField } from '@/components/campfire/CampfireField';
+import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import type { Workspace } from '@/types/domain';
 
-import {
-	dailyReportSortOptions,
-	formatReportSortMode,
-	selectClassName,
-	toDailyReportSortMode,
-} from './report-preview.helpers';
+import { dailyReportSortOptions, formatReportSortMode, toDailyReportSortMode } from './report-preview.helpers';
 import { ReportMarkdownPreview } from './ReportMarkdownPreview';
 import { ReportPreviewFeedback, ReportPreviewLoading } from './ReportPreviewFeedback';
 import { useDailyReportPreview } from './useDailyReportPreview';
@@ -79,45 +75,39 @@ export function DailyReportPage(props: DailyReportPageProps): ReactElement {
 				<CampfireCardBody className="cf:grid cf:gap-5">
 					<ReportPreviewFeedback state={report.loadState} message={report.message} />
 
-					<div className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5 cf:md:grid-cols-[16rem_1fr]">
-						<div className="cf:grid cf:gap-2">
-							<Label htmlFor="campfire-daily-report-date">Report date</Label>
-							<Input
+					<div className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5 cf:md:grid-cols-[16rem_1fr]">
+						<CampfireField id="campfire-daily-report-date" label="Report date">
+							<CampfireDateInput
 								id="campfire-daily-report-date"
-								type="date"
 								disabled={report.isBusy}
 								value={report.occurrenceDate}
-								onChange={event => report.setOccurrenceDate(event.currentTarget.value)}
+								onValueChange={report.setOccurrenceDate}
 							/>
-						</div>
+						</CampfireField>
 
-						<div className="cf:grid cf:gap-2">
-							<Label htmlFor="campfire-daily-report-sort">Sort by</Label>
-							<select
+						<CampfireField id="campfire-daily-report-sort" label="Sort mode">
+							<CampfireSelect
 								id="campfire-daily-report-sort"
-								className={selectClassName()}
 								disabled={report.isBusy}
 								value={report.sortMode}
-								onChange={event => report.setSortMode(toDailyReportSortMode(event.currentTarget.value))}
+								onValueChange={value => report.setSortMode(toDailyReportSortMode(value))}
 							>
 								{dailyReportSortOptions.map(sortMode => (
 									<option key={sortMode} value={sortMode}>
 										{formatReportSortMode(sortMode)}
 									</option>
 								))}
-							</select>
-						</div>
+							</CampfireSelect>
+						</CampfireField>
 					</div>
 
 					{report.loadState === 'loading' && <ReportPreviewLoading />}
 
-					{report.loadState !== 'loading' && (
-						<ReportMarkdownPreview
-							markdown={report.preview?.markdown ?? ''}
-							disabled={report.isBusy}
-							onPost={report.postReport}
-						/>
-					)}
+					<ReportMarkdownPreview
+						markdown={report.preview?.markdown ?? ''}
+						disabled={report.isBusy || report.preview === null}
+						onPost={report.postReport}
+					/>
 				</CampfireCardBody>
 			</CampfirePanel>
 		</div>
