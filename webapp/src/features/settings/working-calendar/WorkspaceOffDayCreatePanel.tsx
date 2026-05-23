@@ -32,7 +32,7 @@ export function WorkspaceOffDayCreatePanel(props: WorkspaceOffDayCreatePanelProp
 
 	return (
 		<form
-			className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5"
+			className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5"
 			onSubmit={handleSubmit}
 		>
 			<div>

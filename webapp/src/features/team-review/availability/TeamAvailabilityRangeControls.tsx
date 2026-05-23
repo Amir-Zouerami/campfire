@@ -20,7 +20,7 @@ type TeamAvailabilityRangeControlsProps = {
  */
 export function TeamAvailabilityRangeControls(props: TeamAvailabilityRangeControlsProps): ReactElement {
 	return (
-		<div className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5 cf:md:grid-cols-2">
+		<div className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5 cf:md:grid-cols-2">
 			<div className={rangeInputClassName()}>
 				<Label htmlFor="campfire-availability-start">Start date</Label>
 				<Input

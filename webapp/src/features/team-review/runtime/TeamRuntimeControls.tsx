@@ -20,7 +20,7 @@ type TeamRuntimeControlsProps = {
  */
 export function TeamRuntimeControls(props: TeamRuntimeControlsProps): ReactElement {
 	return (
-		<div className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-end">
+		<div className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-end">
 			<div className="cf:grid cf:gap-2">
 				<Label htmlFor="campfire-team-runtime-date">Runtime date</Label>
 				<Input

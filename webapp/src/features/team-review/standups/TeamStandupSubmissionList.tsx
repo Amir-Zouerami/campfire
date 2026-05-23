@@ -20,7 +20,7 @@ type TeamStandupSubmissionListProps = {
  */
 export function TeamStandupSubmissionList(props: TeamStandupSubmissionListProps): ReactElement {
 	return (
-		<section className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
+		<section className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
 			<div>
 				<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 					Submissions
@@ -63,7 +63,7 @@ function TeamStandupSubmissionCard(props: {
 	const submission = props.item.submission;
 
 	return (
-		<article className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-5">
+		<article className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-5">
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-4">
 				<div className="cf:min-w-0">
 					<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">

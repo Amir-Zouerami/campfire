@@ -194,7 +194,7 @@ export function downloadCSVBlob(blob: Blob, filename: string): void {
  */
 export function exportActionCardClassName(active: boolean): string {
 	return cn(
-		'cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:p-5 cf:transition',
+		'cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:p-5 cf:transition',
 		active
 			? 'cf:border-amber-300/35 cf:bg-amber-300/[0.08]'
 			: 'cf:border-white/10 cf:bg-white/[0.035] hover:cf:border-amber-300/25',

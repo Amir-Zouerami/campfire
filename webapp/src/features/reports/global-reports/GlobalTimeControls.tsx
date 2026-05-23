@@ -26,7 +26,7 @@ type GlobalTimeControlsProps = {
  */
 export function GlobalTimeControls(props: GlobalTimeControlsProps): ReactElement {
 	return (
-		<div className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5 cf:xl:grid-cols-[1fr_1fr_1.2fr_auto_auto] cf:xl:items-end">
+		<div className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5 cf:xl:grid-cols-[1fr_1fr_1.2fr_auto_auto] cf:xl:items-end">
 			<CampfireField id="campfire-global-time-start" label="Start date">
 				<CampfireDateInput
 					id="campfire-global-time-start"

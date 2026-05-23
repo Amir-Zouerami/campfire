@@ -74,7 +74,7 @@ export function formatDurationMode(value: string): string {
  */
 export function approvalCardClassName(): string {
 	return cn(
-		'cf:grid cf:gap-5 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5',
+		'cf:grid cf:gap-5 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5',
 		'cf:shadow-[0_18px_60px_rgba(0,0,0,0.18)]',
 	);
 }

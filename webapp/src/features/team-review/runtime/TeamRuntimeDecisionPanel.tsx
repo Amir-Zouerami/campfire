@@ -21,7 +21,7 @@ export function TeamRuntimeDecisionPanel(props: TeamRuntimeDecisionPanelProps): 
 
 	return (
 		<section className="cf:grid cf:gap-5">
-			<div className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-5">
+			<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-5">
 				<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
 					<div>
 						<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
@@ -73,7 +73,7 @@ export function TeamRuntimeDecisionPanel(props: TeamRuntimeDecisionPanelProps): 
 				/>
 			</div>
 
-			<div className="cf:rounded-3xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
+			<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
 				<div className="cf:flex cf:items-center cf:gap-2">
 					<Umbrella className="cf:size-4 cf:text-amber-200" />
 					<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
