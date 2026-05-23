@@ -3,10 +3,10 @@ import type { ReactElement } from 'react';
 import { Loader2, Search, UserRoundCheck } from 'lucide-react';
 
 import { ApiClientError, listWorkspaceMembers } from '@/api';
+import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
 import type { UserProfile } from '@/types/api';
 
 import { profileLabel } from './useUserProfiles';
@@ -117,11 +117,11 @@ export function WorkspaceMemberSelect(props: WorkspaceMemberSelectProps): ReactE
 				/>
 			</div>
 
-			<select
-				className={selectClassName()}
+			<CampfireSelect
+				id="campfire-workspace-member-select"
 				disabled={isBusy}
 				value={props.value}
-				onChange={event => props.onChange(event.currentTarget.value)}
+				onValueChange={props.onChange}
 			>
 				<option value="">{props.emptyOptionLabel ?? 'No user selected'}</option>
 				{filteredMembers.map(member => (
@@ -129,7 +129,7 @@ export function WorkspaceMemberSelect(props: WorkspaceMemberSelectProps): ReactE
 						{profileLabel(member)}
 					</option>
 				))}
-			</select>
+			</CampfireSelect>
 
 			{selectedMember !== null && (
 				<div className="cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:p-3">
@@ -188,17 +188,6 @@ function MessageRow(props: { readonly state: LoadState; readonly message: string
  */
 function memberSearchText(member: UserProfile): string {
 	return [member.id, member.username, member.displayName, member.email].join(' ').toLowerCase();
-}
-
-/**
- * selectClassName returns the shared native select style.
- */
-function selectClassName(): string {
-	return cn(
-		'cf:h-10 cf:w-full cf:rounded-md cf:border cf:border-input cf:bg-background cf:px-3 cf:py-2 cf:text-sm cf:text-foreground cf:outline-none',
-		'cf:focus-visible:border-ring cf:focus-visible:ring-ring/50 cf:focus-visible:ring-3',
-		'cf:disabled:cursor-not-allowed cf:disabled:opacity-50',
-	);
 }
 
 /**
