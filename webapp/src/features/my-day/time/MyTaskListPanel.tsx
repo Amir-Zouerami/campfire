@@ -1,11 +1,14 @@
 import type { ReactElement } from 'react';
 
 import { CampfireEmpty, CampfireStatusPill } from '@/app/campfire-ui';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
+
 import type { Task, TaskStatus } from '@/types/domain';
 
-import { formatTaskStatus, selectClassName, statusTone, taskStatusOptions } from './my-time.helpers';
+import { CampfireField } from '@/components/campfire/CampfireField';
+import { CampfireSelect } from '@/components/campfire/CampfireSelect';
+import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
+
+import { formatTaskStatus, statusTone, taskStatusOptions } from './my-time.helpers';
 
 /**
  * MyTaskListPanelProps contains task list state and actions.
@@ -34,14 +37,13 @@ export function MyTaskListPanel(props: MyTaskListPanelProps): ReactElement {
 					</h3>
 				</div>
 
-				<label className="cf:flex cf:cursor-pointer cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:px-4 cf:py-3">
-					<Checkbox
-						checked={props.includeArchived}
-						disabled={props.disabled}
-						onCheckedChange={checked => props.onIncludeArchivedChange(checked === true)}
-					/>
-					<Label className="cf:cursor-pointer cf:text-sm cf:font-bold">Include archived</Label>
-				</label>
+				<CampfireCheckboxField
+					checked={props.includeArchived}
+					label="Include archived"
+					disabled={props.disabled}
+					className="cf:px-4 cf:py-3"
+					onCheckedChange={props.onIncludeArchivedChange}
+				/>
 			</div>
 
 			{props.tasks.length === 0 ? (
@@ -98,27 +100,20 @@ function TaskRow(props: {
 				</div>
 			</div>
 
-			<div className="cf:grid cf:gap-2">
-				<Label
-					htmlFor={`campfire-my-task-status-${props.task.id}`}
-					className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200"
-				>
-					Status
-				</Label>
-				<select
+			<CampfireField id={`campfire-my-task-status-${props.task.id}`} label="Status">
+				<CampfireSelect
 					id={`campfire-my-task-status-${props.task.id}`}
-					className={selectClassName()}
 					disabled={props.disabled}
 					value={props.task.status}
-					onChange={event => props.onStatusChange(event.currentTarget.value as TaskStatus)}
+					onValueChange={value => props.onStatusChange(value as TaskStatus)}
 				>
 					{taskStatusOptions.map(status => (
 						<option key={status} value={status}>
 							{formatTaskStatus(status)}
 						</option>
 					))}
-				</select>
-			</div>
+				</CampfireSelect>
+			</CampfireField>
 		</article>
 	);
 }

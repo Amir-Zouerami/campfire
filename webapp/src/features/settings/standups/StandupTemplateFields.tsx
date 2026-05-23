@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 
 import { formatLabel, nativeSelectClassName, STANDUP_KINDS, toStandupKind } from './standup-settings.helpers';
 import type { StandupTemplateDraft, StandupTemplateDraftPatch } from './standup-settings.types';
-import { StandupBooleanField } from './StandupBooleanField';
+import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
 import { StandupField } from './StandupField';
 
 /**
@@ -65,12 +65,12 @@ export function StandupTemplateFields(props: StandupTemplateFieldsProps): ReactE
 			</StandupField>
 
 			{props.includeActiveToggle && (
-				<StandupBooleanField
+				<CampfireCheckboxField
 					checked={props.draft.isActive}
 					disabled={props.disabled}
 					label="Template is active"
 					description="Inactive templates remain in history but should not be used for new schedules."
-					onChange={checked => props.onChange({ isActive: checked })}
+					onCheckedChange={checked => props.onChange({ isActive: checked })}
 				/>
 			)}
 		</div>

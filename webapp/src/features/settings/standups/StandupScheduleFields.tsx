@@ -12,7 +12,7 @@ import {
 	WEEKLY_MODES,
 } from './standup-settings.helpers';
 import type { StandupScheduleDraft, StandupScheduleDraftPatch } from './standup-settings.types';
-import { StandupBooleanField } from './StandupBooleanField';
+import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
 import { StandupField } from './StandupField';
 
 /**
@@ -101,26 +101,26 @@ export function StandupScheduleFields(props: StandupScheduleFieldsProps): ReactE
 				</StandupField>
 
 				<div className="cf:grid cf:gap-3 cf:xl:grid-cols-3">
-					<StandupBooleanField
+					<CampfireCheckboxField
 						checked={props.draft.enabled}
 						disabled={props.disabled}
 						label="Enabled"
 						description="Allow this schedule to run."
-						onChange={checked => props.onChange({ enabled: checked })}
+						onCheckedChange={checked => props.onChange({ enabled: checked })}
 					/>
-					<StandupBooleanField
+					<CampfireCheckboxField
 						checked={props.draft.skipNonWorkingDays}
 						disabled={props.disabled}
 						label="Skip non-working days"
 						description="Do not run on disabled weekdays."
-						onChange={checked => props.onChange({ skipNonWorkingDays: checked })}
+						onCheckedChange={checked => props.onChange({ skipNonWorkingDays: checked })}
 					/>
-					<StandupBooleanField
+					<CampfireCheckboxField
 						checked={props.draft.skipDailyWhenWeeklyRuns}
 						disabled={props.disabled}
 						label="Skip daily on weekly"
 						description="Optional. Weekly can suppress daily, but never by force."
-						onChange={checked => props.onChange({ skipDailyWhenWeeklyRuns: checked })}
+						onCheckedChange={checked => props.onChange({ skipDailyWhenWeeklyRuns: checked })}
 					/>
 				</div>
 			</div>

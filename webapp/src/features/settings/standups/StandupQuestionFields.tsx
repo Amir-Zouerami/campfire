@@ -12,7 +12,7 @@ import {
 	toQuestionType,
 } from './standup-settings.helpers';
 import type { StandupQuestionDraft, StandupQuestionDraftPatch } from './standup-settings.types';
-import { StandupBooleanField } from './StandupBooleanField';
+import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
 import { StandupField } from './StandupField';
 
 /**
@@ -146,26 +146,26 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 			)}
 
 			<div className="cf:grid cf:gap-3 cf:xl:grid-cols-3">
-				<StandupBooleanField
+				<CampfireCheckboxField
 					checked={props.draft.required}
 					disabled={props.disabled}
 					label="Required"
 					description="Submitters must answer this question."
-					onChange={checked => props.onChange({ required: checked })}
+					onCheckedChange={checked => props.onChange({ required: checked })}
 				/>
-				<StandupBooleanField
+				<CampfireCheckboxField
 					checked={props.draft.showInReport}
 					disabled={props.disabled}
 					label="Show in report"
 					description="Include answers in Markdown previews and reports."
-					onChange={checked => props.onChange({ showInReport: checked })}
+					onCheckedChange={checked => props.onChange({ showInReport: checked })}
 				/>
-				<StandupBooleanField
+				<CampfireCheckboxField
 					checked={props.draft.isPrivate}
 					disabled={props.disabled}
 					label="Private"
 					description="Keep this answer out of public reports when supported."
-					onChange={checked => props.onChange({ isPrivate: checked })}
+					onCheckedChange={checked => props.onChange({ isPrivate: checked })}
 				/>
 			</div>
 		</div>

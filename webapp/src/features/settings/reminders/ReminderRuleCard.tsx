@@ -1,11 +1,10 @@
 import type { ReactElement } from 'react';
 import { Save, Timer } from 'lucide-react';
 
-import { CampfireStatusPill } from '@/app/campfire-ui';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { ReminderRule } from '@/types/domain';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { CampfireStatusPill } from '@/app/campfire-ui';
 
 import {
 	formatDateTime,
@@ -14,7 +13,10 @@ import {
 	reminderRuleHasChanges,
 	shortID,
 } from './reminders.helpers';
-import { ReminderBooleanField } from './ReminderBooleanField';
+
+import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
+
+import type { ReminderRule } from '@/types/domain';
 import type { ReminderRuleDraft, ReminderRuleDraftPatch } from './reminders.types';
 
 /**
@@ -64,36 +66,38 @@ export function ReminderRuleCard(props: ReminderRuleCardProps): ReactElement {
 			</div>
 
 			<div className="cf:grid cf:gap-3 cf:xl:grid-cols-2">
-				<ReminderBooleanField
+				<CampfireCheckboxField
 					checked={props.draft.enabled}
 					disabled={formDisabled}
 					label="Enable this rule"
 					description="Allow this schedule to send reminders."
-					onChange={checked => props.onDraftChange(props.rule.id, { enabled: checked })}
+					onCheckedChange={checked => props.onDraftChange(props.rule.id, { enabled: checked })}
 				/>
 
-				<ReminderBooleanField
+				<CampfireCheckboxField
 					checked={props.draft.dmReminderEnabled}
 					disabled={formDisabled}
 					label="DM reminders"
 					description="Send private reminders to users who have not submitted."
-					onChange={checked => props.onDraftChange(props.rule.id, { dmReminderEnabled: checked })}
+					onCheckedChange={checked => props.onDraftChange(props.rule.id, { dmReminderEnabled: checked })}
 				/>
 
-				<ReminderBooleanField
+				<CampfireCheckboxField
 					checked={props.draft.channelReminderEnabled}
 					disabled={formDisabled}
 					label="Channel reminders"
 					description="Post a channel reminder when users are still missing."
-					onChange={checked => props.onDraftChange(props.rule.id, { channelReminderEnabled: checked })}
+					onCheckedChange={checked => props.onDraftChange(props.rule.id, { channelReminderEnabled: checked })}
 				/>
 
-				<ReminderBooleanField
+				<CampfireCheckboxField
 					checked={props.draft.mentionMissingInChannel}
 					disabled={formDisabled}
 					label="Mention missing users"
 					description="Include missing users directly in the channel reminder."
-					onChange={checked => props.onDraftChange(props.rule.id, { mentionMissingInChannel: checked })}
+					onCheckedChange={checked =>
+						props.onDraftChange(props.rule.id, { mentionMissingInChannel: checked })
+					}
 				/>
 			</div>
 

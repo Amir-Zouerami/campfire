@@ -1,10 +1,10 @@
 import type { ReactElement } from 'react';
 import { FileText, Save } from 'lucide-react';
 
-import { CampfireStatusPill } from '@/app/campfire-ui';
-import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import type { ReportRule } from '@/types/domain';
+import { CampfireStatusPill } from '@/app/campfire-ui';
 
 import {
 	formatDateTime,
@@ -17,8 +17,9 @@ import {
 	shortID,
 	toReportSortMode,
 } from './report-rules.helpers';
-import { ReportRuleBooleanField } from './ReportRuleBooleanField';
+
 import type { ReportRuleDraft, ReportRuleDraftPatch } from './report-rules.types';
+import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
 
 /**
  * ReportRuleCardProps contains one report rule and its editable draft.
@@ -67,60 +68,60 @@ export function ReportRuleCard(props: ReportRuleCardProps): ReactElement {
 			</div>
 
 			<div className="cf:grid cf:gap-3 cf:xl:grid-cols-2">
-				<ReportRuleBooleanField
+				<CampfireCheckboxField
 					checked={props.draft.enabled}
 					disabled={formDisabled}
 					label="Enable this report rule"
 					description="Allow Campfire to generate this scheduled report."
-					onChange={checked => props.onDraftChange(props.rule.id, { enabled: checked })}
+					onCheckedChange={checked => props.onDraftChange(props.rule.id, { enabled: checked })}
 				/>
 
-				<ReportRuleBooleanField
+				<CampfireCheckboxField
 					checked={props.draft.postToChannel}
 					disabled={formDisabled}
 					label="Post to channel"
 					description="Automatically post the generated report to the workspace channel."
-					onChange={checked => props.onDraftChange(props.rule.id, { postToChannel: checked })}
+					onCheckedChange={checked => props.onDraftChange(props.rule.id, { postToChannel: checked })}
 				/>
 
-				<ReportRuleBooleanField
+				<CampfireCheckboxField
 					checked={props.draft.previewRequired}
 					disabled={formDisabled}
 					label="Preview required"
 					description="Require manual review before posting when supported by the workflow."
-					onChange={checked => props.onDraftChange(props.rule.id, { previewRequired: checked })}
+					onCheckedChange={checked => props.onDraftChange(props.rule.id, { previewRequired: checked })}
 				/>
 
-				<ReportRuleBooleanField
+				<CampfireCheckboxField
 					checked={props.draft.includeMissing}
 					disabled={formDisabled}
 					label="Include missing users"
 					description="Show users who did not submit when the report type supports it."
-					onChange={checked => props.onDraftChange(props.rule.id, { includeMissing: checked })}
+					onCheckedChange={checked => props.onDraftChange(props.rule.id, { includeMissing: checked })}
 				/>
 
-				<ReportRuleBooleanField
+				<CampfireCheckboxField
 					checked={props.draft.includeOnLeave}
 					disabled={formDisabled}
 					label="Include on-leave users"
 					description="Show approved leave context in generated reports."
-					onChange={checked => props.onDraftChange(props.rule.id, { includeOnLeave: checked })}
+					onCheckedChange={checked => props.onDraftChange(props.rule.id, { includeOnLeave: checked })}
 				/>
 
-				<ReportRuleBooleanField
+				<CampfireCheckboxField
 					checked={props.draft.includeTime}
 					disabled={formDisabled}
 					label="Include time"
 					description="Include time-tracking summaries when the report supports it."
-					onChange={checked => props.onDraftChange(props.rule.id, { includeTime: checked })}
+					onCheckedChange={checked => props.onDraftChange(props.rule.id, { includeTime: checked })}
 				/>
 
-				<ReportRuleBooleanField
+				<CampfireCheckboxField
 					checked={props.draft.includeBlockers}
 					disabled={formDisabled}
 					label="Include blockers"
 					description="Highlight blocker-related answers and sections."
-					onChange={checked => props.onDraftChange(props.rule.id, { includeBlockers: checked })}
+					onCheckedChange={checked => props.onDraftChange(props.rule.id, { includeBlockers: checked })}
 				/>
 			</div>
 

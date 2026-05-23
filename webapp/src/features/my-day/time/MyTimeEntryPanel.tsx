@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { Task } from '@/types/domain';
 
-import { selectClassName } from './my-time.helpers';
 import type { TimeEntryDraft, TimeEntryDraftPatch } from './my-time.types';
+
+import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 
 /**
  * MyTimeEntryPanelProps contains log-time form state and actions.
@@ -48,20 +49,19 @@ export function MyTimeEntryPanel(props: MyTimeEntryPanelProps): ReactElement {
 
 			<div className="cf:grid cf:gap-4">
 				<FormField label="Task" htmlFor="campfire-my-time-task">
-					<select
-						id="campfire-my-time-task"
-						className={selectClassName()}
-						disabled={props.disabled || props.tasks.length === 0}
+					<CampfireSelect
+						id="campfire-time-entry-task"
+						disabled={props.disabled}
 						value={props.draft.taskId}
-						onChange={event => props.onTaskChange(event.currentTarget.value)}
+						onValueChange={props.onTaskChange}
 					>
-						<option value="">Choose task…</option>
+						<option value="">Choose task</option>
 						{props.tasks.map(task => (
 							<option key={task.id} value={task.id}>
 								{task.title}
 							</option>
 						))}
-					</select>
+					</CampfireSelect>
 				</FormField>
 
 				<div className="cf:grid cf:gap-4 cf:md:grid-cols-2">

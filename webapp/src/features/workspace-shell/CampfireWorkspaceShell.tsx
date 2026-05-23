@@ -15,6 +15,7 @@ import { MyDayPage } from '@/features/my-day/MyDayPage';
 import { ReportsPage } from '@/features/reports/ReportsPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { TeamReviewPage } from '@/features/team-review/TeamReviewPage';
+import { CampfireExternalLinkMetric } from '@/components/campfire/CampfireExternalLinkMetric';
 
 import type { WorkspacePageDefinition, WorkspacePageID, WorkspaceShellProps } from './workspace-shell.types';
 
@@ -108,7 +109,12 @@ function WorkspaceHeader(props: WorkspaceShellProps & { readonly activePage: Wor
 			<CampfireCardBody className="campfire-context-grid">
 				<CampfireMetric label="Workspace" value={props.workspace.name} helper="Current channel" />
 				<CampfireMetric label="Timezone" value={props.workspace.timezone} helper="Schedule basis" />
-				<BoardMetric boardUrl={props.workspace.boardUrl} />
+				<CampfireExternalLinkMetric
+					label="Board"
+					value={props.workspace.boardUrl}
+					emptyValue="Not set"
+					helper="Open external link"
+				/>
 				<CampfireMetric label="Access" value={accessLabel(props)} helper="Current user" />
 			</CampfireCardBody>
 		</CampfirePanel>
@@ -169,36 +175,6 @@ function WorkspacePage(props: WorkspaceShellProps & { readonly activePage: Works
 		case 'settings':
 			return <SettingsPage {...props} />;
 	}
-}
-
-/**
- * BoardMetric renders the workspace board URL as a clickable external link.
- */
-function BoardMetric(props: { readonly boardUrl: string }): ReactElement {
-	const normalizedURL = normalizeExternalURL(props.boardUrl);
-
-	if (normalizedURL === '') {
-		return <CampfireMetric label="Board" value="Not set" helper="Optional external link" />;
-	}
-
-	return (
-		<a
-			className="campfire-metric campfire-metric-link"
-			href={normalizedURL}
-			target="_blank"
-			rel="noreferrer"
-			title={normalizedURL}
-		>
-			<div className="cf:flex cf:items-start cf:justify-between cf:gap-3">
-				<div className="cf:min-w-0">
-					<p className="campfire-metric-label">Board</p>
-					<p className="campfire-metric-value">{boardLabel(normalizedURL)}</p>
-				</div>
-			</div>
-
-			<p className="campfire-metric-helper">Open external link</p>
-		</a>
-	);
 }
 
 /**
@@ -286,32 +262,4 @@ function accessLabel(props: WorkspaceShellProps): string {
 	}
 
 	return 'Member';
-}
-
-/**
- * normalizeExternalURL adds a safe protocol when users enter a bare domain.
- */
-function normalizeExternalURL(value: string): string {
-	const cleanValue = value.trim();
-
-	if (cleanValue === '') {
-		return '';
-	}
-
-	if (cleanValue.startsWith('http://') || cleanValue.startsWith('https://')) {
-		return cleanValue;
-	}
-
-	return `https://${cleanValue}`;
-}
-
-/**
- * boardLabel returns a compact board URL display value.
- */
-function boardLabel(boardUrl: string): string {
-	try {
-		return new URL(boardUrl).hostname;
-	} catch (_error: unknown) {
-		return 'Linked';
-	}
 }

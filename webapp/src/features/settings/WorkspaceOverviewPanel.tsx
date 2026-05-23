@@ -1,14 +1,17 @@
+import { toast } from 'sonner';
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { AlertTriangle, FileCog, Loader2, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
 
-import { ApiClientError, deleteWorkspace } from '@/api';
-import { CampfireCardBody, CampfireCardHeader, CampfireMetric, CampfirePanel } from '@/app/campfire-ui';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+import { ApiClientError, deleteWorkspace } from '@/api';
+
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
+
+import { CampfireCardBody, CampfireCardHeader, CampfireMetric, CampfirePanel } from '@/app/campfire-ui';
+import { CampfireExternalLinkMetric } from '@/components/campfire/CampfireExternalLinkMetric';
 
 /**
  * WorkspaceOverviewPanel renders static workspace identity and lifecycle controls.
@@ -68,10 +71,11 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 					<CampfireMetric label="Channel ID" value={props.workspace.channelId} helper="Mattermost channel" />
 					<CampfireMetric label="Team ID" value={props.workspace.teamId} helper="Mattermost team" />
 					<CampfireMetric label="Timezone" value={props.workspace.timezone} helper="Schedule calculations" />
-					<CampfireMetric
+					<CampfireExternalLinkMetric
 						label="Board URL"
-						value={props.workspace.boardUrl.trim() === '' ? 'Not set' : props.workspace.boardUrl}
-						helper="External link only"
+						value={props.workspace.boardUrl}
+						emptyValue="Not set"
+						helper="Open external link"
 					/>
 					<CampfireMetric label="Created by" value={props.workspace.createdBy} helper="Mattermost user ID" />
 					<CampfireMetric

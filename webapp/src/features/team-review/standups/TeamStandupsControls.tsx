@@ -1,10 +1,11 @@
 import type { ReactElement } from 'react';
 
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
+import { CampfireField } from '@/components/campfire/CampfireField';
+import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import type { StandupSubmissionSortMode } from '@/types/domain';
 
-import { selectClassName, teamStandupSortOptions, toStandupSortMode } from './team-standups.helpers';
+import { teamStandupSortOptions, toStandupSortMode } from './team-standups.helpers';
 
 /**
  * TeamStandupsControlsProps contains date and sort controls.
@@ -22,34 +23,30 @@ type TeamStandupsControlsProps = {
  */
 export function TeamStandupsControls(props: TeamStandupsControlsProps): ReactElement {
 	return (
-		<div className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5 cf:md:grid-cols-[16rem_1fr]">
-			<div className="cf:grid cf:gap-2">
-				<Label htmlFor="campfire-team-standups-date">Occurrence date</Label>
-				<Input
+		<div className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5 cf:md:grid-cols-[16rem_1fr]">
+			<CampfireField id="campfire-team-standups-date" label="Occurrence date">
+				<CampfireDateInput
 					id="campfire-team-standups-date"
-					type="date"
 					disabled={props.disabled}
 					value={props.occurrenceDate}
-					onChange={event => props.onOccurrenceDateChange(event.currentTarget.value)}
+					onValueChange={props.onOccurrenceDateChange}
 				/>
-			</div>
+			</CampfireField>
 
-			<div className="cf:grid cf:gap-2">
-				<Label htmlFor="campfire-team-standups-sort">Sort review by</Label>
-				<select
+			<CampfireField id="campfire-team-standups-sort" label="Sort review by">
+				<CampfireSelect
 					id="campfire-team-standups-sort"
-					className={selectClassName()}
 					disabled={props.disabled}
 					value={props.sortMode}
-					onChange={event => props.onSortModeChange(toStandupSortMode(event.currentTarget.value))}
+					onValueChange={value => props.onSortModeChange(toStandupSortMode(value))}
 				>
 					{teamStandupSortOptions.map(option => (
 						<option key={option.value} value={option.value}>
 							{option.label} · {option.helper}
 						</option>
 					))}
-				</select>
-			</div>
+				</CampfireSelect>
+			</CampfireField>
 		</div>
 	);
 }
