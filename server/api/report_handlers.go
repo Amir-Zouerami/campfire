@@ -19,6 +19,7 @@ func handleListReportRules(
 	log logger.Logger,
 	mm mattermost.Client,
 	reportService *service.ReportService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -27,6 +28,9 @@ func handleListReportRules(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireManageWorkspace(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		rules, err := reportService.ListRules(r.Context(), service.ListReportRulesInput{
 			ActorUserID: user.ID,
@@ -51,6 +55,7 @@ func handleUpdateReportRule(
 	log logger.Logger,
 	mm mattermost.Client,
 	reportService *service.ReportService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -59,6 +64,10 @@ func handleUpdateReportRule(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireManageWorkspace(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
+
 		reportRuleID := strings.TrimSpace(chi.URLParam(r, "reportRuleID"))
 
 		var request UpdateReportRuleRequest
@@ -100,6 +109,7 @@ func handleGetWeeklyReportPreview(
 	log logger.Logger,
 	mm mattermost.Client,
 	reportService *service.ReportService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -108,6 +118,9 @@ func handleGetWeeklyReportPreview(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireViewWorkspaceReports(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		preview, err := reportService.BuildWeeklyPreview(r.Context(), service.BuildWeeklyReportPreviewInput{
 			ActorUserID: user.ID,
@@ -135,6 +148,7 @@ func handleGetDailyReportPreview(
 	log logger.Logger,
 	mm mattermost.Client,
 	reportService *service.ReportService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -143,6 +157,9 @@ func handleGetDailyReportPreview(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireViewWorkspaceReports(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		preview, err := reportService.BuildDailyPreview(r.Context(), service.BuildDailyReportPreviewInput{
 			ActorUserID:    user.ID,
@@ -169,6 +186,7 @@ func handleListDailyReportRuns(
 	log logger.Logger,
 	mm mattermost.Client,
 	reportService *service.ReportService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -177,6 +195,10 @@ func handleListDailyReportRuns(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireViewWorkspaceReports(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
+
 		limit := parsePositiveIntOrDefault(r.URL.Query().Get("limit"), 20)
 
 		runs, err := reportService.ListDailyRuns(r.Context(), service.ListDailyReportRunsInput{
@@ -204,6 +226,7 @@ func handlePostWeeklyReportPreview(
 	mm mattermost.Client,
 	reportService *service.ReportService,
 	auditService *service.AuditService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -212,6 +235,9 @@ func handlePostWeeklyReportPreview(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireExportReports(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		result, err := reportService.PostWeeklyPreview(r.Context(), service.PostWeeklyReportPreviewInput{
 			ActorUserID:   user.ID,
@@ -258,6 +284,7 @@ func handlePostDailyReportPreview(
 	mm mattermost.Client,
 	reportService *service.ReportService,
 	auditService *service.AuditService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -266,6 +293,9 @@ func handlePostDailyReportPreview(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireExportReports(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		result, err := reportService.PostDailyPreview(r.Context(), service.PostDailyReportPreviewInput{
 			ActorUserID:    user.ID,

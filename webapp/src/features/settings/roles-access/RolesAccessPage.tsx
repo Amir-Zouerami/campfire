@@ -5,19 +5,22 @@ import { useUserProfiles } from '@/app/useUserProfiles';
 
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
 
+import { RoleAssignmentPanel } from './RoleAssignmentPanel';
 import { RoleBehaviorPanel } from './RoleBehaviorPanel';
 import { RoleGroupsPanel } from './RoleGroupsPanel';
 import { RolesAccessFeedback, RolesAccessLoading } from './RolesAccessFeedback';
 import { RolesAccessHero } from './RolesAccessHero';
-import { RolesAssignmentNotice } from './RolesAssignmentNotice';
 import { useRolesAccess } from './useRolesAccess';
 
 /**
- * RolesAccessPage renders effective workspace role access.
+ * RolesAccessPage renders effective workspace role access and assignment controls.
  */
 export function RolesAccessPage(props: WorkspaceShellProps): ReactElement {
+	const canManageRoles = props.capabilities.canManageWorkspace || props.isSystemAdmin;
+
 	const access = useRolesAccess({
 		workspace: props.workspace,
+		canManageRoles,
 	});
 
 	const profiles = useUserProfiles(access.userIDsForProfiles);
@@ -43,8 +46,23 @@ export function RolesAccessPage(props: WorkspaceShellProps): ReactElement {
 					{access.loadState !== 'loading' && access.roles !== null && (
 						<>
 							<RoleBehaviorPanel settings={access.roles.settings} />
-							<RolesAssignmentNotice />
-							<RoleGroupsPanel groups={access.roleGroups} labelForUserID={profiles.labelForUserID} />
+
+							<RoleAssignmentPanel
+								draft={access.assignmentDraft}
+								disabled={access.isBusy}
+								canManageRoles={canManageRoles}
+								saving={access.savingKey === 'assign-role'}
+								onDraftChange={access.updateAssignmentDraft}
+								onAssign={access.assignRole}
+							/>
+
+							<RoleGroupsPanel
+								groups={access.roleGroups}
+								canManageRoles={canManageRoles}
+								savingKey={access.savingKey}
+								labelForUserID={profiles.labelForUserID}
+								onRemoveRole={access.removeRole}
+							/>
 						</>
 					)}
 				</CampfireCardBody>

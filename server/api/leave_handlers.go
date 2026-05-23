@@ -37,7 +37,8 @@ func handleValidateLeave(
 		}
 
 		WriteValidateLeave(w, http.StatusOK, ValidateLeaveResponse{
-			Valid: result.Valid,
+			Valid:    result.Valid,
+			Warnings: result.Warnings,
 		})
 	}
 }

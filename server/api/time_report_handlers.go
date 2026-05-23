@@ -17,6 +17,7 @@ func handleGetTimeReportSummary(
 	log logger.Logger,
 	mm mattermost.Client,
 	timeReportService *service.TimeReportService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -25,6 +26,9 @@ func handleGetTimeReportSummary(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireViewWorkspaceReports(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		summary, err := timeReportService.GetSummary(r.Context(), service.GetTimeReportSummaryInput{
 			ActorUserID:   user.ID,
@@ -53,10 +57,15 @@ func handleGetGlobalTimeReportSummary(
 	log logger.Logger,
 	mm mattermost.Client,
 	globalReportService *service.GlobalReportService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
 		if !ok {
+			return
+		}
+
+		if !requireViewGlobalReports(w, r, permissionService, user) {
 			return
 		}
 

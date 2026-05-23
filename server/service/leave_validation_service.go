@@ -25,9 +25,24 @@ type ValidateLeaveInput struct {
 
 /*
 LeaveValidationResult describes whether a leave request can proceed.
+
+Warnings are user-safe messages that explain why a pre-validation request is not
+valid without forcing the UI to parse raw service errors.
 */
 type LeaveValidationResult struct {
-	Valid bool
+	Valid    bool
+	Warnings []string
+}
+
+/*
+FirstWarning returns the first validation warning when one exists.
+*/
+func (r LeaveValidationResult) FirstWarning() string {
+	if len(r.Warnings) == 0 {
+		return ""
+	}
+
+	return r.Warnings[0]
 }
 
 /*
@@ -50,7 +65,9 @@ func NewLeaveValidationService(globalSkipDateStore store.GlobalSkipDateStore) *L
 ValidateForCreate validates a leave request before it is persisted or sent to approvers.
 
 Global off-days block leave requests because users should not request or consume
-leave on organization-wide holidays or off-days.
+leave on organization-wide holidays or off-days. Calendar-blocking validation is
+returned as a structured invalid result so the frontend can render the warning
+inline without showing raw technical API errors.
 */
 func (s *LeaveValidationService) ValidateForCreate(
 	ctx context.Context,
@@ -96,17 +113,20 @@ func (s *LeaveValidationService) ValidateForCreate(
 	}
 
 	if len(offDays) > 0 {
-		return nil, NewError(
-			ErrorCodeValidationFailed,
-			fmt.Sprintf(
-				"Leave cannot be requested on global off-days: %s.",
-				formatGlobalOffDays(offDays),
-			),
-		)
+		return &LeaveValidationResult{
+			Valid: false,
+			Warnings: []string{
+				fmt.Sprintf(
+					"Leave cannot be requested on global off-days: %s.",
+					formatGlobalOffDays(offDays),
+				),
+			},
+		}, nil
 	}
 
 	return &LeaveValidationResult{
-		Valid: true,
+		Valid:    true,
+		Warnings: []string{},
 	}, nil
 }
 

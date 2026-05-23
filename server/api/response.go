@@ -102,6 +102,24 @@ func WriteListWorkspaceRoles(w http.ResponseWriter, statusCode int, payload List
 }
 
 /*
+WriteUpsertWorkspaceRole writes the role assignment mutation response.
+*/
+func WriteUpsertWorkspaceRole(w http.ResponseWriter, statusCode int, payload UpsertWorkspaceRoleResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode workspace role assignment response")
+}
+
+/*
+WriteDeleteWorkspaceRole writes the role assignment delete response.
+*/
+func WriteDeleteWorkspaceRole(w http.ResponseWriter, statusCode int, payload DeleteWorkspaceRoleResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode workspace role delete response")
+}
+
+/*
 WriteCreateWorkspace writes the create-workspace response.
 */
 func WriteCreateWorkspace(w http.ResponseWriter, statusCode int, payload CreateWorkspaceResponse) {

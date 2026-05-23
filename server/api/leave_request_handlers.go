@@ -47,6 +47,7 @@ func handleListPendingLeaveRequests(
 	log logger.Logger,
 	mm mattermost.Client,
 	leaveService *service.LeaveService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -55,6 +56,9 @@ func handleListPendingLeaveRequests(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireApproveLeaves(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		leaveRequests, err := leaveService.ListPending(r.Context(), service.ListPendingLeavesInput{
 			ActorUserID:   user.ID,
@@ -222,6 +226,9 @@ func handleCreateLeave(
 
 /*
 handleDecideLeave handles approving or rejecting a pending leave request.
+
+LeaveService already loads the request workspace and enforces decision
+permission before updating the request.
 */
 func handleDecideLeave(
 	log logger.Logger,

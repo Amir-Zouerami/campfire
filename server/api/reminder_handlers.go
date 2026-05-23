@@ -18,6 +18,7 @@ func handleListReminderRules(
 	log logger.Logger,
 	mm mattermost.Client,
 	reminderService *service.ReminderService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -26,6 +27,9 @@ func handleListReminderRules(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireManageWorkspace(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		rules, err := reminderService.List(r.Context(), service.ListReminderRulesInput{
 			ActorUserID: user.ID,
@@ -50,6 +54,7 @@ func handleUpdateReminderRule(
 	log logger.Logger,
 	mm mattermost.Client,
 	reminderService *service.ReminderService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -58,6 +63,10 @@ func handleUpdateReminderRule(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireManageWorkspace(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
+
 		reminderRuleID := strings.TrimSpace(chi.URLParam(r, "reminderRuleID"))
 
 		var request UpdateReminderRuleRequest

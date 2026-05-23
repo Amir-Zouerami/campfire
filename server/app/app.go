@@ -42,6 +42,7 @@ type App struct {
 	Mattermost                      mattermost.Client
 	Database                        *store.Database
 	WorkspaceService                *service.WorkspaceService
+	PermissionService               *service.PermissionService
 	WorkspaceRoleService            *service.WorkspaceRoleService
 	UserDirectoryService            *service.UserDirectoryService
 	WorkspaceMemberDirectoryService *service.WorkspaceMemberDirectoryService
@@ -109,6 +110,12 @@ func New(config Config) (*App, error) {
 	workspaceCalendarStore := store.NewSQLWorkspaceCalendarStore(database)
 	workspaceService := service.NewWorkspaceService(workspaceStore)
 
+	permissionService := service.NewPermissionService(
+		workspaceStore,
+		workspaceRoleStore,
+		mattermostClient,
+	)
+
 	workspaceCalendarService := service.NewWorkspaceCalendarService(
 		workspaceStore,
 		workspaceCalendarStore,
@@ -136,6 +143,7 @@ func New(config Config) (*App, error) {
 		workspaceStore,
 		workspaceRoleStore,
 		workspaceMemberProvider,
+		mattermostClient,
 	)
 
 	workspaceMemberDirectoryService := service.NewWorkspaceMemberDirectoryService(
@@ -251,6 +259,7 @@ func New(config Config) (*App, error) {
 		Logger:                          appLogger,
 		Mattermost:                      mattermostClient,
 		WorkspaceService:                workspaceService,
+		PermissionService:               permissionService,
 		WorkspaceRoleService:            workspaceRoleService,
 		UserDirectoryService:            userDirectoryService,
 		WorkspaceMemberDirectoryService: workspaceMemberDirectoryService,
@@ -277,6 +286,7 @@ func New(config Config) (*App, error) {
 		Mattermost:                      mattermostClient,
 		Database:                        database,
 		WorkspaceService:                workspaceService,
+		PermissionService:               permissionService,
 		WorkspaceRoleService:            workspaceRoleService,
 		UserDirectoryService:            userDirectoryService,
 		WorkspaceMemberDirectoryService: workspaceMemberDirectoryService,

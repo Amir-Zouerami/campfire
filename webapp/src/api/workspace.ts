@@ -1,11 +1,15 @@
 import type {
 	CreateWorkspaceRequest,
 	CreateWorkspaceResponse,
+	DeleteWorkspaceRoleResponse,
 	ListAuditLogResponse,
 	ListWorkspaceMembersResponse,
 	ListWorkspaceRolesResponse,
+	UpsertWorkspaceRoleRequest,
+	UpsertWorkspaceRoleResponse,
 	WorkspaceByChannelResponse,
 } from '@/types/api';
+import type { Role } from '@/types/domain';
 
 import { encodePath, requestJson, withQuery } from './http';
 
@@ -38,6 +42,35 @@ export function listWorkspaceMembers(workspaceID: string): Promise<ListWorkspace
  */
 export function listWorkspaceRoles(workspaceID: string): Promise<ListWorkspaceRolesResponse> {
 	return requestJson<ListWorkspaceRolesResponse>(`/workspaces/${encodePath(workspaceID)}/roles`);
+}
+
+/**
+ * upsertWorkspaceRole calls POST /workspaces/{workspaceID}/roles.
+ */
+export function upsertWorkspaceRole(
+	workspaceID: string,
+	request: UpsertWorkspaceRoleRequest,
+): Promise<UpsertWorkspaceRoleResponse> {
+	return requestJson<UpsertWorkspaceRoleResponse>(`/workspaces/${encodePath(workspaceID)}/roles`, {
+		method: 'POST',
+		body: request,
+	});
+}
+
+/**
+ * deleteWorkspaceRole calls DELETE /workspaces/{workspaceID}/roles/{role}/{userID}.
+ */
+export function deleteWorkspaceRole(
+	workspaceID: string,
+	role: Exclude<Role, 'member'>,
+	userID: string,
+): Promise<DeleteWorkspaceRoleResponse> {
+	return requestJson<DeleteWorkspaceRoleResponse>(
+		`/workspaces/${encodePath(workspaceID)}/roles/${encodePath(role)}/${encodePath(userID)}`,
+		{
+			method: 'DELETE',
+		},
+	);
 }
 
 /**

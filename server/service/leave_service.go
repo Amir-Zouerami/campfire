@@ -342,7 +342,12 @@ func (s *LeaveService) Create(ctx context.Context, input CreateLeaveInput) (*dom
 	}
 
 	if !validationResult.Valid {
-		return nil, NewError(ErrorCodeValidationFailed, "Leave request is invalid.")
+		warning := validationResult.FirstWarning()
+		if warning == "" {
+			warning = "Leave request is invalid."
+		}
+
+		return nil, NewError(ErrorCodeValidationFailed, warning)
 	}
 
 	startDate := domain.LocalDate(strings.TrimSpace(input.StartDate))

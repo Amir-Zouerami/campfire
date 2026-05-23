@@ -28,6 +28,7 @@ import type {
 	StandupSubmissionSortMode,
 	StandupTemplate,
 	Task,
+	Role,
 	TaskStatus,
 	TimeEntry,
 	TimeOfDay,
@@ -139,7 +140,6 @@ export type CreateWorkspaceRequest = {
  */
 export type CreateWorkspaceResponse = {
 	readonly workspace: Workspace;
-	readonly capabilities: WorkspaceCapabilities;
 };
 
 /**
@@ -168,7 +168,7 @@ export type ListGlobalSkipDatesResponse = {
  * DeleteGlobalSkipDateResponse is returned by DELETE /settings/global/skip-dates/{skipDateID}.
  */
 export type DeleteGlobalSkipDateResponse = {
-	readonly ok: boolean;
+	readonly deleted: boolean;
 };
 
 /**
@@ -218,13 +218,36 @@ export type ListWorkspaceOffDaysResponse = {
  * DeleteWorkspaceOffDayResponse is returned by DELETE /workspaces/{workspaceID}/off-days/{offDayID}.
  */
 export type DeleteWorkspaceOffDayResponse = {
-	readonly ok: boolean;
+	readonly deleted: boolean;
 };
 
 /**
  * ListWorkspaceRolesResponse is returned by GET /workspaces/{workspaceID}/roles.
  */
 export type ListWorkspaceRolesResponse = {
+	readonly roles: WorkspaceRoleOverview;
+};
+
+/**
+ * UpsertWorkspaceRoleRequest is sent to POST /workspaces/{workspaceID}/roles.
+ */
+export type UpsertWorkspaceRoleRequest = {
+	readonly userId: string;
+	readonly role: Exclude<Role, 'member'>;
+};
+
+/**
+ * UpsertWorkspaceRoleResponse is returned by POST /workspaces/{workspaceID}/roles.
+ */
+export type UpsertWorkspaceRoleResponse = {
+	readonly roles: WorkspaceRoleOverview;
+};
+
+/**
+ * DeleteWorkspaceRoleResponse is returned by DELETE /workspaces/{workspaceID}/roles/{role}/{userID}.
+ */
+export type DeleteWorkspaceRoleResponse = {
+	readonly deleted: boolean;
 	readonly roles: WorkspaceRoleOverview;
 };
 

@@ -14,8 +14,8 @@ import (
 /*
 WorkspaceCapabilities describes the current user's workspace abilities.
 
-This is intentionally simple for MVP. A dedicated PermissionService will own
-deeper role logic later.
+PermissionService owns the role and Mattermost inheritance rules that populate
+these booleans for frontend navigation and backend enforcement.
 */
 type WorkspaceCapabilities struct {
 	CanSubmitStandup        bool

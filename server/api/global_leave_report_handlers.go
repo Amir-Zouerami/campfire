@@ -15,10 +15,15 @@ func handleGetGlobalLeaveReportSummary(
 	log logger.Logger,
 	mm mattermost.Client,
 	globalLeaveReportService *service.GlobalLeaveReportService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
 		if !ok {
+			return
+		}
+
+		if !requireViewGlobalReports(w, r, permissionService, user) {
 			return
 		}
 

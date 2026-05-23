@@ -1,16 +1,21 @@
 import type { ReactElement } from 'react';
-import { UsersRound } from 'lucide-react';
+import { Loader2, Trash2, UsersRound } from 'lucide-react';
 
 import { CampfireEmpty, CampfireStatusPill } from '@/app/campfire-ui';
+import { Button } from '@/components/ui/button';
 
-import type { RoleGroup } from './roles-access.types';
+import { isAssignableWorkspaceRole } from './roles-access.helpers';
+import type { AssignableWorkspaceRole, RoleGroup } from './roles-access.types';
 
 /**
  * RoleGroupsPanelProps contains role groups and user labels.
  */
 type RoleGroupsPanelProps = {
 	readonly groups: readonly RoleGroup[];
+	readonly canManageRoles: boolean;
+	readonly savingKey: string;
 	readonly labelForUserID: (userID: string) => string;
+	readonly onRemoveRole: (role: AssignableWorkspaceRole, userID: string) => Promise<void>;
 };
 
 /**
@@ -20,7 +25,14 @@ export function RoleGroupsPanel(props: RoleGroupsPanelProps): ReactElement {
 	return (
 		<section className="cf:grid cf:gap-4">
 			{props.groups.map(group => (
-				<RoleGroupCard key={group.id} group={group} labelForUserID={props.labelForUserID} />
+				<RoleGroupCard
+					key={group.id}
+					group={group}
+					canManageRoles={props.canManageRoles}
+					savingKey={props.savingKey}
+					labelForUserID={props.labelForUserID}
+					onRemoveRole={props.onRemoveRole}
+				/>
 			))}
 		</section>
 	);
@@ -31,10 +43,18 @@ export function RoleGroupsPanel(props: RoleGroupsPanelProps): ReactElement {
  */
 function RoleGroupCard(props: {
 	readonly group: RoleGroup;
+	readonly canManageRoles: boolean;
+	readonly savingKey: string;
 	readonly labelForUserID: (userID: string) => string;
+	readonly onRemoveRole: (role: AssignableWorkspaceRole, userID: string) => Promise<void>;
 }): ReactElement {
+	const removableRole =
+		props.canManageRoles && props.group.removable && isAssignableWorkspaceRole(props.group.role)
+			? props.group.role
+			: null;
+
 	return (
-		<article className="cf:grid cf:gap-4 cf:rounded-3xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
+		<article className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
 				<div>
 					<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
@@ -55,19 +75,41 @@ function RoleGroupCard(props: {
 				<CampfireEmpty
 					icon={UsersRound}
 					title={`No ${props.group.title.toLowerCase()} yet`}
-					description="Named assignments will appear here when backend role assignment APIs are added."
+					description="Named assignments will appear here after they are added."
 				/>
 			) : (
 				<div className="cf:flex cf:flex-wrap cf:gap-2">
-					{props.group.userIDs.map(userID => (
-						<span
-							key={`${props.group.id}-${userID}`}
-							className="cf:max-w-full cf:truncate cf:rounded-full cf:border cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-black cf:text-emerald-100"
-							title={userID}
-						>
-							{props.labelForUserID(userID)}
-						</span>
-					))}
+					{props.group.userIDs.map(userID => {
+						const saving = props.savingKey === `${props.group.role}:${userID}`;
+
+						return (
+							<span
+								key={`${props.group.id}-${userID}`}
+								className="cf:inline-flex cf:max-w-full cf:items-center cf:gap-2 cf:rounded-full cf:border cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-black cf:text-emerald-100"
+								title={userID}
+							>
+								<span className="cf:truncate">{props.labelForUserID(userID)}</span>
+
+								{removableRole !== null && (
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon-xs"
+										className="cf:-mr-2 cf:size-6 cf:rounded-full cf:text-emerald-100 hover:cf:bg-red-400/15 hover:cf:text-red-100"
+										disabled={saving}
+										aria-label={`Remove ${props.labelForUserID(userID)} from ${props.group.title}`}
+										onClick={() => void props.onRemoveRole(removableRole, userID)}
+									>
+										{saving ? (
+											<Loader2 className="cf:size-3 cf:animate-spin" />
+										) : (
+											<Trash2 className="cf:size-3" />
+										)}
+									</Button>
+								)}
+							</span>
+						);
+					})}
 				</div>
 			)}
 		</article>

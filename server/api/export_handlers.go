@@ -18,6 +18,7 @@ func handleExportWorkspaceTimeCSV(
 	log logger.Logger,
 	mm mattermost.Client,
 	exportService *service.ExportService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -26,6 +27,9 @@ func handleExportWorkspaceTimeCSV(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireExportReports(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		csvBytes, err := exportService.ExportWorkspaceTimeCSV(r.Context(), service.ExportWorkspaceTimeCSVInput{
 			ActorUserID:   user.ID,
@@ -51,6 +55,7 @@ func handleExportWorkspaceStandupSubmissionsCSV(
 	log logger.Logger,
 	mm mattermost.Client,
 	exportService *service.ExportService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -59,6 +64,9 @@ func handleExportWorkspaceStandupSubmissionsCSV(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireExportReports(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		csvBytes, err := exportService.ExportWorkspaceStandupSubmissionsCSV(
 			r.Context(),
@@ -88,6 +96,7 @@ func handleExportWorkspaceMissingStandupsCSV(
 	log logger.Logger,
 	mm mattermost.Client,
 	exportService *service.ExportService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -96,6 +105,9 @@ func handleExportWorkspaceMissingStandupsCSV(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireExportReports(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		csvBytes, err := exportService.ExportWorkspaceMissingStandupsCSV(
 			r.Context(),
@@ -125,6 +137,7 @@ func handleExportWorkspaceLeavesCSV(
 	log logger.Logger,
 	mm mattermost.Client,
 	exportService *service.ExportService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -133,6 +146,9 @@ func handleExportWorkspaceLeavesCSV(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireExportReports(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		csvBytes, err := exportService.ExportWorkspaceLeavesCSV(r.Context(), service.ExportWorkspaceLeavesCSVInput{
 			ActorUserID:   user.ID,

@@ -18,6 +18,7 @@ func handleGetWorkspaceByChannel(
 	log logger.Logger,
 	mm mattermost.Client,
 	workspaceService *service.WorkspaceService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -34,8 +35,14 @@ func handleGetWorkspaceByChannel(
 			return
 		}
 
-		canManageWorkspace := user.IsSystemAdmin || userIsChannelAdmin(log, mm, channelID, user.ID)
-		result.Capabilities = capabilitiesForUser(user.IsSystemAdmin, canManageWorkspace)
+		access, err := permissionService.GetWorkspaceAccess(r.Context(), result.Workspace, permissionUserFromMattermost(user))
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		result.Capabilities = access.Capabilities
 
 		WriteWorkspaceByChannel(w, http.StatusOK, WorkspaceResultToResponse(*result))
 	}
@@ -48,6 +55,7 @@ func handleCreateWorkspace(
 	log logger.Logger,
 	mm mattermost.Client,
 	workspaceService *service.WorkspaceService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -61,7 +69,14 @@ func handleCreateWorkspace(
 			return
 		}
 
-		if !canCreateWorkspace(log, mm, user, request.ChannelID) {
+		canCreate, err := permissionService.CanCreateWorkspace(r.Context(), request.ChannelID, permissionUserFromMattermost(user))
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		if !canCreate {
 			WriteError(
 				w,
 				http.StatusForbidden,
@@ -85,96 +100,6 @@ func handleCreateWorkspace(
 }
 
 /*
-canCreateWorkspace returns whether a user may configure Campfire for a channel.
-*/
-func canCreateWorkspace(
-	log logger.Logger,
-	mm mattermost.Client,
-	user *mattermost.User,
-	channelID string,
-) bool {
-	if user == nil {
-		return false
-	}
-
-	if user.IsSystemAdmin {
-		return true
-	}
-
-	return userIsChannelAdmin(log, mm, channelID, user.ID)
-}
-
-/*
-userIsChannelAdmin checks Mattermost channel admin status without breaking the request
-on lookup failures.
-
-A failure to prove channel admin status should not grant permission.
-*/
-func userIsChannelAdmin(
-	log logger.Logger,
-	mm mattermost.Client,
-	channelID string,
-	userID string,
-) bool {
-	isChannelAdmin, err := mm.IsChannelAdmin(channelID, userID)
-	if err != nil {
-		log.Warn(
-			"failed to check Mattermost channel admin status",
-			logger.String("channel_id", channelID),
-			logger.String("user_id", userID),
-			logger.String("error", err.Error()),
-		)
-		return false
-	}
-
-	return isChannelAdmin
-}
-
-/*
-capabilitiesForUser returns the workspace capabilities sent to the frontend.
-
-This is the immediate capability bridge until a dedicated PermissionService is
-wired through every service. The backend still needs deeper per-action checks,
-but this fixes the broken UI state where system admins and channel admins were
-shown as read-only.
-*/
-func capabilitiesForUser(isSystemAdmin bool, canManageWorkspace bool) service.WorkspaceCapabilities {
-	if isSystemAdmin {
-		return service.WorkspaceCapabilities{
-			CanSubmitStandup:        true,
-			CanManageWorkspace:      true,
-			CanManageStandups:       true,
-			CanViewWorkspaceReports: true,
-			CanApproveLeaves:        true,
-			CanViewGlobalReports:    true,
-			CanExportReports:        true,
-		}
-	}
-
-	if canManageWorkspace {
-		return service.WorkspaceCapabilities{
-			CanSubmitStandup:        true,
-			CanManageWorkspace:      true,
-			CanManageStandups:       true,
-			CanViewWorkspaceReports: true,
-			CanApproveLeaves:        true,
-			CanViewGlobalReports:    false,
-			CanExportReports:        true,
-		}
-	}
-
-	return service.WorkspaceCapabilities{
-		CanSubmitStandup:        true,
-		CanManageWorkspace:      false,
-		CanManageStandups:       false,
-		CanViewWorkspaceReports: false,
-		CanApproveLeaves:        false,
-		CanViewGlobalReports:    false,
-		CanExportReports:        false,
-	}
-}
-
-/*
 logServiceError writes service failures to plugin logs.
 */
 func logServiceError(log logger.Logger, err error) {
@@ -188,4 +113,19 @@ func logServiceError(log logger.Logger, err error) {
 	}
 
 	log.Warn("unexpected service error", logger.String("message", err.Error()))
+}
+
+/*
+permissionUserFromMattermost maps the Mattermost user boundary type to the
+service-local permission user shape.
+*/
+func permissionUserFromMattermost(user *mattermost.User) service.PermissionUser {
+	if user == nil {
+		return service.PermissionUser{}
+	}
+
+	return service.PermissionUser{
+		ID:            user.ID,
+		IsSystemAdmin: user.IsSystemAdmin,
+	}
 }

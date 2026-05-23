@@ -1,11 +1,10 @@
 package api
 
 import (
-	"encoding/csv"
-	"strconv"
-
 	"bytes"
+	"encoding/csv"
 	"net/http"
+	"strconv"
 
 	"github.com/amir-zouerami/campfire/server/domain"
 	"github.com/amir-zouerami/campfire/server/logger"
@@ -20,10 +19,15 @@ func handleExportGlobalTimeReportCSV(
 	log logger.Logger,
 	mm mattermost.Client,
 	globalReportService *service.GlobalReportService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
 		if !ok {
+			return
+		}
+
+		if !requireViewGlobalReports(w, r, permissionService, user) {
 			return
 		}
 
@@ -60,10 +64,15 @@ func handleExportGlobalLeaveReportCSV(
 	log logger.Logger,
 	mm mattermost.Client,
 	globalLeaveReportService *service.GlobalLeaveReportService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
 		if !ok {
+			return
+		}
+
+		if !requireViewGlobalReports(w, r, permissionService, user) {
 			return
 		}
 

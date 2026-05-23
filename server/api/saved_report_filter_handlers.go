@@ -18,6 +18,7 @@ func handleListSavedReportFilters(
 	log logger.Logger,
 	mm mattermost.Client,
 	savedFilterService *service.SavedReportFilterService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -26,6 +27,9 @@ func handleListSavedReportFilters(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireViewWorkspaceReports(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		filters, err := savedFilterService.List(r.Context(), service.ListSavedReportFiltersInput{
 			ActorUserID: user.ID,
@@ -52,6 +56,7 @@ func handleCreateSavedReportFilter(
 	mm mattermost.Client,
 	savedFilterService *service.SavedReportFilterService,
 	auditService *service.AuditService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -60,6 +65,9 @@ func handleCreateSavedReportFilter(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireViewWorkspaceReports(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		var request CreateSavedReportFilterRequest
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -109,6 +117,7 @@ func handleDeleteSavedReportFilter(
 	mm mattermost.Client,
 	savedFilterService *service.SavedReportFilterService,
 	auditService *service.AuditService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -117,6 +126,10 @@ func handleDeleteSavedReportFilter(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireViewWorkspaceReports(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
+
 		filterID := strings.TrimSpace(chi.URLParam(r, "filterID"))
 
 		err := savedFilterService.Delete(r.Context(), service.DeleteSavedReportFilterInput{

@@ -39,6 +39,29 @@ type ListWorkspaceRolesResponse struct {
 }
 
 /*
+UpsertWorkspaceRoleRequest is accepted by POST /workspaces/{workspaceID}/roles.
+*/
+type UpsertWorkspaceRoleRequest struct {
+	UserID string `json:"userId"`
+	Role   string `json:"role"`
+}
+
+/*
+UpsertWorkspaceRoleResponse is returned by POST /workspaces/{workspaceID}/roles.
+*/
+type UpsertWorkspaceRoleResponse struct {
+	Roles WorkspaceRoleOverviewPayload `json:"roles"`
+}
+
+/*
+DeleteWorkspaceRoleResponse is returned by DELETE /workspaces/{workspaceID}/roles/{role}/{userID}.
+*/
+type DeleteWorkspaceRoleResponse struct {
+	Deleted bool                         `json:"deleted"`
+	Roles   WorkspaceRoleOverviewPayload `json:"roles"`
+}
+
+/*
 WorkspaceRoleOverviewToPayload maps a service role overview to API payload.
 */
 func WorkspaceRoleOverviewToPayload(overview service.WorkspaceRoleOverview) WorkspaceRoleOverviewPayload {
@@ -64,5 +87,22 @@ func WorkspaceRoleSettingsToPayload(settings domain.WorkspaceRoleSettings) Works
 		SystemAdminsAreAdmins: settings.SystemAdminsAreAdmins,
 		CreatedAt:             formatAPITime(settings.CreatedAt),
 		UpdatedAt:             formatAPITime(settings.UpdatedAt),
+	}
+}
+
+/*
+ToServiceInput maps an upsert-role API request to service input.
+*/
+func (r UpsertWorkspaceRoleRequest) ToServiceInput(
+	actorUserID string,
+	isSystemAdmin bool,
+	workspaceID string,
+) service.UpsertWorkspaceRoleInput {
+	return service.UpsertWorkspaceRoleInput{
+		ActorUserID:   actorUserID,
+		IsSystemAdmin: isSystemAdmin,
+		WorkspaceID:   workspaceID,
+		UserID:        r.UserID,
+		Role:          r.Role,
 	}
 }

@@ -19,7 +19,8 @@ type ValidateLeaveRequest struct {
 ValidateLeaveResponse is returned by POST /leaves/validate.
 */
 type ValidateLeaveResponse struct {
-	Valid bool `json:"valid"`
+	Valid    bool     `json:"valid"`
+	Warnings []string `json:"warnings"`
 }
 
 /*

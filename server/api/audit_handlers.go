@@ -18,6 +18,7 @@ func handleListAuditLog(
 	log logger.Logger,
 	mm mattermost.Client,
 	auditService *service.AuditService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -26,6 +27,10 @@ func handleListAuditLog(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireManageWorkspace(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
+
 		limit := parseAuditLimit(r.URL.Query().Get("limit"))
 
 		entries, err := auditService.List(r.Context(), service.ListAuditLogInput{

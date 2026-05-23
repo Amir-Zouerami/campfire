@@ -18,6 +18,7 @@ func handleListWorkspaceWorkingDays(
 	log logger.Logger,
 	mm mattermost.Client,
 	workspaceCalendarService *service.WorkspaceCalendarService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -26,6 +27,9 @@ func handleListWorkspaceWorkingDays(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireManageWorkspace(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		workingDays, err := workspaceCalendarService.ListWorkingDays(r.Context(), service.ListWorkspaceWorkingDaysInput{
 			ActorUserID: user.ID,
@@ -50,6 +54,7 @@ func handleUpdateWorkspaceWorkingDays(
 	log logger.Logger,
 	mm mattermost.Client,
 	workspaceCalendarService *service.WorkspaceCalendarService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -58,6 +63,9 @@ func handleUpdateWorkspaceWorkingDays(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireManageWorkspace(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		var request UpdateWorkspaceWorkingDaysRequest
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -93,6 +101,7 @@ func handleListWorkspaceOffDays(
 	log logger.Logger,
 	mm mattermost.Client,
 	workspaceCalendarService *service.WorkspaceCalendarService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -101,6 +110,9 @@ func handleListWorkspaceOffDays(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireManageWorkspace(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		offDays, err := workspaceCalendarService.ListOffDays(r.Context(), service.ListWorkspaceOffDaysInput{
 			ActorUserID: user.ID,
@@ -125,6 +137,7 @@ func handleCreateWorkspaceOffDay(
 	log logger.Logger,
 	mm mattermost.Client,
 	workspaceCalendarService *service.WorkspaceCalendarService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -133,6 +146,9 @@ func handleCreateWorkspaceOffDay(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireManageWorkspace(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		var request CreateWorkspaceOffDayRequest
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -166,6 +182,7 @@ func handleDeleteWorkspaceOffDay(
 	log logger.Logger,
 	mm mattermost.Client,
 	workspaceCalendarService *service.WorkspaceCalendarService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -174,6 +191,10 @@ func handleDeleteWorkspaceOffDay(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireManageWorkspace(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
+
 		offDayID := strings.TrimSpace(chi.URLParam(r, "offDayID"))
 
 		err := workspaceCalendarService.DeleteOffDay(r.Context(), service.DeleteWorkspaceOffDayInput{

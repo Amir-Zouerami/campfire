@@ -18,6 +18,7 @@ func handleCreateStandupTemplate(
 	log logger.Logger,
 	mm mattermost.Client,
 	standupService *service.StandupService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -26,6 +27,9 @@ func handleCreateStandupTemplate(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireManageStandups(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		var request CreateStandupTemplateRequest
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -60,6 +64,7 @@ func handleUpdateStandupTemplate(
 	log logger.Logger,
 	mm mattermost.Client,
 	standupService *service.StandupService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -68,6 +73,10 @@ func handleUpdateStandupTemplate(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireManageStandups(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
+
 		templateID := strings.TrimSpace(chi.URLParam(r, "templateID"))
 
 		var request UpdateStandupTemplateRequest
@@ -105,6 +114,7 @@ func handleCreateStandupQuestion(
 	log logger.Logger,
 	mm mattermost.Client,
 	standupService *service.StandupService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -113,6 +123,9 @@ func handleCreateStandupQuestion(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireManageStandups(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		var request CreateStandupQuestionRequest
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -155,6 +168,7 @@ func handleUpdateStandupQuestion(
 	log logger.Logger,
 	mm mattermost.Client,
 	standupService *service.StandupService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -163,6 +177,10 @@ func handleUpdateStandupQuestion(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireManageStandups(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
+
 		questionID := strings.TrimSpace(chi.URLParam(r, "questionID"))
 
 		var request UpdateStandupQuestionRequest
@@ -207,6 +225,7 @@ func handleCreateStandupSchedule(
 	log logger.Logger,
 	mm mattermost.Client,
 	standupService *service.StandupService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -215,6 +234,9 @@ func handleCreateStandupSchedule(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireManageStandups(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		var request CreateStandupScheduleRequest
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -253,6 +275,7 @@ func handleUpdateStandupSchedule(
 	log logger.Logger,
 	mm mattermost.Client,
 	standupService *service.StandupService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -261,6 +284,10 @@ func handleUpdateStandupSchedule(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireManageStandups(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
+
 		scheduleID := strings.TrimSpace(chi.URLParam(r, "scheduleID"))
 
 		var request UpdateStandupScheduleRequest
@@ -296,6 +323,10 @@ func handleUpdateStandupSchedule(
 
 /*
 handleListStandupConfiguration handles standup configuration listing.
+
+This endpoint intentionally remains available to signed-in workspace users
+because My Day needs the active standup form configuration to render personal
+submission controls.
 */
 func handleListStandupConfiguration(
 	log logger.Logger,
@@ -335,6 +366,7 @@ func handleListStandupSubmissions(
 	log logger.Logger,
 	mm mattermost.Client,
 	standupService *service.StandupService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -343,6 +375,9 @@ func handleListStandupSubmissions(
 		}
 
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireViewWorkspaceReports(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
 
 		summary, err := standupService.ListSubmissions(r.Context(), service.ListStandupSubmissionsInput{
 			ActorUserID:    user.ID,

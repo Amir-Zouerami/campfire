@@ -16,6 +16,7 @@ type RouterConfig struct {
 	Logger                          logger.Logger
 	Mattermost                      mattermost.Client
 	WorkspaceService                *service.WorkspaceService
+	PermissionService               *service.PermissionService
 	UserDirectoryService            *service.UserDirectoryService
 	WorkspaceMemberDirectoryService *service.WorkspaceMemberDirectoryService
 	WorkspaceRoleService            *service.WorkspaceRoleService
@@ -55,9 +56,22 @@ func NewRouter(config RouterConfig) http.Handler {
 
 		api.Get(
 			"/workspaces/by-channel/{channelID}",
-			handleGetWorkspaceByChannel(config.Logger, config.Mattermost, config.WorkspaceService),
+			handleGetWorkspaceByChannel(
+				config.Logger,
+				config.Mattermost,
+				config.WorkspaceService,
+				config.PermissionService,
+			),
 		)
-		api.Post("/workspaces", handleCreateWorkspace(config.Logger, config.Mattermost, config.WorkspaceService))
+		api.Post(
+			"/workspaces",
+			handleCreateWorkspace(
+				config.Logger,
+				config.Mattermost,
+				config.WorkspaceService,
+				config.PermissionService,
+			),
+		)
 
 		api.Get(
 			"/workspaces/{workspaceID}/members",
@@ -67,39 +81,92 @@ func NewRouter(config RouterConfig) http.Handler {
 			"/workspaces/{workspaceID}/roles",
 			handleListWorkspaceRoles(config.Logger, config.Mattermost, config.WorkspaceRoleService),
 		)
+		api.Post(
+			"/workspaces/{workspaceID}/roles",
+			handleUpsertWorkspaceRole(
+				config.Logger,
+				config.Mattermost,
+				config.WorkspaceRoleService,
+				config.AuditService,
+			),
+		)
+		api.Delete(
+			"/workspaces/{workspaceID}/roles/{role}/{userID}",
+			handleDeleteWorkspaceRole(
+				config.Logger,
+				config.Mattermost,
+				config.WorkspaceRoleService,
+				config.AuditService,
+			),
+		)
 		api.Get(
 			"/workspaces/{workspaceID}/audit",
-			handleListAuditLog(config.Logger, config.Mattermost, config.AuditService),
+			handleListAuditLog(config.Logger, config.Mattermost, config.AuditService, config.PermissionService),
 		)
 
 		api.Get(
 			"/workspaces/{workspaceID}/working-days",
-			handleListWorkspaceWorkingDays(config.Logger, config.Mattermost, config.WorkspaceCalendarService),
+			handleListWorkspaceWorkingDays(
+				config.Logger,
+				config.Mattermost,
+				config.WorkspaceCalendarService,
+				config.PermissionService,
+			),
 		)
 		api.Put(
 			"/workspaces/{workspaceID}/working-days",
-			handleUpdateWorkspaceWorkingDays(config.Logger, config.Mattermost, config.WorkspaceCalendarService),
+			handleUpdateWorkspaceWorkingDays(
+				config.Logger,
+				config.Mattermost,
+				config.WorkspaceCalendarService,
+				config.PermissionService,
+			),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/off-days",
-			handleListWorkspaceOffDays(config.Logger, config.Mattermost, config.WorkspaceCalendarService),
+			handleListWorkspaceOffDays(
+				config.Logger,
+				config.Mattermost,
+				config.WorkspaceCalendarService,
+				config.PermissionService,
+			),
 		)
 		api.Post(
 			"/workspaces/{workspaceID}/off-days",
-			handleCreateWorkspaceOffDay(config.Logger, config.Mattermost, config.WorkspaceCalendarService),
+			handleCreateWorkspaceOffDay(
+				config.Logger,
+				config.Mattermost,
+				config.WorkspaceCalendarService,
+				config.PermissionService,
+			),
 		)
 		api.Delete(
 			"/workspaces/{workspaceID}/off-days/{offDayID}",
-			handleDeleteWorkspaceOffDay(config.Logger, config.Mattermost, config.WorkspaceCalendarService),
+			handleDeleteWorkspaceOffDay(
+				config.Logger,
+				config.Mattermost,
+				config.WorkspaceCalendarService,
+				config.PermissionService,
+			),
 		)
 
 		api.Get(
 			"/workspaces/{workspaceID}/reminders",
-			handleListReminderRules(config.Logger, config.Mattermost, config.ReminderService),
+			handleListReminderRules(
+				config.Logger,
+				config.Mattermost,
+				config.ReminderService,
+				config.PermissionService,
+			),
 		)
 		api.Put(
 			"/workspaces/{workspaceID}/reminders/{reminderRuleID}",
-			handleUpdateReminderRule(config.Logger, config.Mattermost, config.ReminderService),
+			handleUpdateReminderRule(
+				config.Logger,
+				config.Mattermost,
+				config.ReminderService,
+				config.PermissionService,
+			),
 		)
 
 		api.Get(
@@ -108,31 +175,66 @@ func NewRouter(config RouterConfig) http.Handler {
 		)
 		api.Post(
 			"/workspaces/{workspaceID}/standups/templates",
-			handleCreateStandupTemplate(config.Logger, config.Mattermost, config.StandupService),
+			handleCreateStandupTemplate(
+				config.Logger,
+				config.Mattermost,
+				config.StandupService,
+				config.PermissionService,
+			),
 		)
 		api.Put(
 			"/workspaces/{workspaceID}/standups/templates/{templateID}",
-			handleUpdateStandupTemplate(config.Logger, config.Mattermost, config.StandupService),
+			handleUpdateStandupTemplate(
+				config.Logger,
+				config.Mattermost,
+				config.StandupService,
+				config.PermissionService,
+			),
 		)
 		api.Post(
 			"/workspaces/{workspaceID}/standups/questions",
-			handleCreateStandupQuestion(config.Logger, config.Mattermost, config.StandupService),
+			handleCreateStandupQuestion(
+				config.Logger,
+				config.Mattermost,
+				config.StandupService,
+				config.PermissionService,
+			),
 		)
 		api.Put(
 			"/workspaces/{workspaceID}/standups/questions/{questionID}",
-			handleUpdateStandupQuestion(config.Logger, config.Mattermost, config.StandupService),
+			handleUpdateStandupQuestion(
+				config.Logger,
+				config.Mattermost,
+				config.StandupService,
+				config.PermissionService,
+			),
 		)
 		api.Post(
 			"/workspaces/{workspaceID}/standups/schedules",
-			handleCreateStandupSchedule(config.Logger, config.Mattermost, config.StandupService),
+			handleCreateStandupSchedule(
+				config.Logger,
+				config.Mattermost,
+				config.StandupService,
+				config.PermissionService,
+			),
 		)
 		api.Put(
 			"/workspaces/{workspaceID}/standups/schedules/{scheduleID}",
-			handleUpdateStandupSchedule(config.Logger, config.Mattermost, config.StandupService),
+			handleUpdateStandupSchedule(
+				config.Logger,
+				config.Mattermost,
+				config.StandupService,
+				config.PermissionService,
+			),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/standups/submissions",
-			handleListStandupSubmissions(config.Logger, config.Mattermost, config.StandupService),
+			handleListStandupSubmissions(
+				config.Logger,
+				config.Mattermost,
+				config.StandupService,
+				config.PermissionService,
+			),
 		)
 		api.Post(
 			"/standups/submissions",
@@ -166,55 +268,122 @@ func NewRouter(config RouterConfig) http.Handler {
 
 		api.Get(
 			"/workspaces/{workspaceID}/reports/rules",
-			handleListReportRules(config.Logger, config.Mattermost, config.ReportService),
+			handleListReportRules(
+				config.Logger,
+				config.Mattermost,
+				config.ReportService,
+				config.PermissionService,
+			),
 		)
 		api.Put(
 			"/workspaces/{workspaceID}/reports/rules/{reportRuleID}",
-			handleUpdateReportRule(config.Logger, config.Mattermost, config.ReportService),
+			handleUpdateReportRule(
+				config.Logger,
+				config.Mattermost,
+				config.ReportService,
+				config.PermissionService,
+			),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/reports/weekly-preview",
-			handleGetWeeklyReportPreview(config.Logger, config.Mattermost, config.ReportService),
+			handleGetWeeklyReportPreview(
+				config.Logger,
+				config.Mattermost,
+				config.ReportService,
+				config.PermissionService,
+			),
 		)
 		api.Post(
 			"/workspaces/{workspaceID}/reports/weekly-preview/post",
-			handlePostWeeklyReportPreview(config.Logger, config.Mattermost, config.ReportService, config.AuditService),
+			handlePostWeeklyReportPreview(
+				config.Logger,
+				config.Mattermost,
+				config.ReportService,
+				config.AuditService,
+				config.PermissionService,
+			),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/reports/daily-preview",
-			handleGetDailyReportPreview(config.Logger, config.Mattermost, config.ReportService),
+			handleGetDailyReportPreview(
+				config.Logger,
+				config.Mattermost,
+				config.ReportService,
+				config.PermissionService,
+			),
 		)
 		api.Post(
 			"/workspaces/{workspaceID}/reports/daily-preview/post",
-			handlePostDailyReportPreview(config.Logger, config.Mattermost, config.ReportService, config.AuditService),
+			handlePostDailyReportPreview(
+				config.Logger,
+				config.Mattermost,
+				config.ReportService,
+				config.AuditService,
+				config.PermissionService,
+			),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/reports/time-summary",
-			handleGetTimeReportSummary(config.Logger, config.Mattermost, config.TimeReportService),
+			handleGetTimeReportSummary(
+				config.Logger,
+				config.Mattermost,
+				config.TimeReportService,
+				config.PermissionService,
+			),
 		)
 		api.Get(
 			"/reports/global/time-summary",
-			handleGetGlobalTimeReportSummary(config.Logger, config.Mattermost, config.GlobalReportService),
+			handleGetGlobalTimeReportSummary(
+				config.Logger,
+				config.Mattermost,
+				config.GlobalReportService,
+				config.PermissionService,
+			),
 		)
 		api.Get(
 			"/reports/global/time/export.csv",
-			handleExportGlobalTimeReportCSV(config.Logger, config.Mattermost, config.GlobalReportService),
+			handleExportGlobalTimeReportCSV(
+				config.Logger,
+				config.Mattermost,
+				config.GlobalReportService,
+				config.PermissionService,
+			),
 		)
 		api.Get(
 			"/reports/global/leaves",
-			handleGetGlobalLeaveReportSummary(config.Logger, config.Mattermost, config.GlobalLeaveReportService),
+			handleGetGlobalLeaveReportSummary(
+				config.Logger,
+				config.Mattermost,
+				config.GlobalLeaveReportService,
+				config.PermissionService,
+			),
 		)
 		api.Get(
 			"/reports/global/leaves/export.csv",
-			handleExportGlobalLeaveReportCSV(config.Logger, config.Mattermost, config.GlobalLeaveReportService),
+			handleExportGlobalLeaveReportCSV(
+				config.Logger,
+				config.Mattermost,
+				config.GlobalLeaveReportService,
+				config.PermissionService,
+			),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/reports/daily-runs",
-			handleListDailyReportRuns(config.Logger, config.Mattermost, config.ReportService),
+			handleListDailyReportRuns(
+				config.Logger,
+				config.Mattermost,
+				config.ReportService,
+				config.PermissionService,
+			),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/reports/saved-filters",
-			handleListSavedReportFilters(config.Logger, config.Mattermost, config.SavedReportFilterService),
+			handleListSavedReportFilters(
+				config.Logger,
+				config.Mattermost,
+				config.SavedReportFilterService,
+				config.PermissionService,
+			),
 		)
 		api.Post(
 			"/workspaces/{workspaceID}/reports/saved-filters",
@@ -223,6 +392,7 @@ func NewRouter(config RouterConfig) http.Handler {
 				config.Mattermost,
 				config.SavedReportFilterService,
 				config.AuditService,
+				config.PermissionService,
 			),
 		)
 		api.Delete(
@@ -232,23 +402,44 @@ func NewRouter(config RouterConfig) http.Handler {
 				config.Mattermost,
 				config.SavedReportFilterService,
 				config.AuditService,
+				config.PermissionService,
 			),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/reports/time/export.csv",
-			handleExportWorkspaceTimeCSV(config.Logger, config.Mattermost, config.ExportService),
+			handleExportWorkspaceTimeCSV(
+				config.Logger,
+				config.Mattermost,
+				config.ExportService,
+				config.PermissionService,
+			),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/reports/leaves/export.csv",
-			handleExportWorkspaceLeavesCSV(config.Logger, config.Mattermost, config.ExportService),
+			handleExportWorkspaceLeavesCSV(
+				config.Logger,
+				config.Mattermost,
+				config.ExportService,
+				config.PermissionService,
+			),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/reports/standups/export.csv",
-			handleExportWorkspaceStandupSubmissionsCSV(config.Logger, config.Mattermost, config.ExportService),
+			handleExportWorkspaceStandupSubmissionsCSV(
+				config.Logger,
+				config.Mattermost,
+				config.ExportService,
+				config.PermissionService,
+			),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/reports/missing/export.csv",
-			handleExportWorkspaceMissingStandupsCSV(config.Logger, config.Mattermost, config.ExportService),
+			handleExportWorkspaceMissingStandupsCSV(
+				config.Logger,
+				config.Mattermost,
+				config.ExportService,
+				config.PermissionService,
+			),
 		)
 
 		api.Get(
@@ -257,7 +448,12 @@ func NewRouter(config RouterConfig) http.Handler {
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/leaves/pending",
-			handleListPendingLeaveRequests(config.Logger, config.Mattermost, config.LeaveService),
+			handleListPendingLeaveRequests(
+				config.Logger,
+				config.Mattermost,
+				config.LeaveService,
+				config.PermissionService,
+			),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/leaves/my-pending",
@@ -295,7 +491,12 @@ func NewRouter(config RouterConfig) http.Handler {
 		)
 		api.Post(
 			"/leaves/{leaveRequestID}/decision",
-			handleDecideLeave(config.Logger, config.Mattermost, config.LeaveService, config.AuditService),
+			handleDecideLeave(
+				config.Logger,
+				config.Mattermost,
+				config.LeaveService,
+				config.AuditService,
+			),
 		)
 		api.Post(
 			"/leaves/{leaveRequestID}/cancel",
