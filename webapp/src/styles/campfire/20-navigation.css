@@ -139,3 +139,23 @@
 .campfire-tab-copy {
 	min-width: 0;
 }
+
+/* Campfire My Day nav repair: never turn the three personal tabs into a left rail in the modal. */
+.campfire-my-day-nav {
+	display: grid !important;
+	width: 100%;
+	grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+	gap: 1rem !important;
+	align-items: stretch;
+}
+
+.campfire-my-day-nav > button {
+	width: 100%;
+	min-width: 0;
+}
+
+@media (max-width: 640px) {
+	.campfire-my-day-nav {
+		grid-template-columns: 1fr !important;
+	}
+}

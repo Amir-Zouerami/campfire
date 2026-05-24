@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { FileText, Send, UserRoundCheck, UserRoundX, Umbrella } from 'lucide-react';
+import { FileText, UserRoundCheck, UserRoundX, Umbrella } from 'lucide-react';
 
 import {
 	CampfireCardBody,
@@ -43,7 +43,7 @@ export function DailyReportPage(props: DailyReportPageProps): ReactElement {
 					action={<CampfireStatusPill tone="ember">Daily</CampfireStatusPill>}
 				/>
 
-				<CampfireCardBody className="campfire-context-grid">
+				<CampfireCardBody className="campfire-context-grid cf:md:grid-cols-3">
 					<CampfireMetric
 						label="Submitted"
 						value={String(report.submittedCount)}
@@ -61,12 +61,6 @@ export function DailyReportPage(props: DailyReportPageProps): ReactElement {
 						value={String(report.onLeaveCount)}
 						helper="Leave-aware report"
 						icon={Umbrella}
-					/>
-					<CampfireMetric
-						label="Markdown"
-						value={String(report.markdownLines)}
-						helper="Preview lines"
-						icon={Send}
 					/>
 				</CampfireCardBody>
 			</CampfirePanel>
@@ -103,11 +97,13 @@ export function DailyReportPage(props: DailyReportPageProps): ReactElement {
 
 					{report.loadState === 'loading' && <ReportPreviewLoading />}
 
-					<ReportMarkdownPreview
-						markdown={report.preview?.markdown ?? ''}
-						disabled={report.isBusy || report.preview === null}
-						onPost={report.postReport}
-					/>
+					{report.loadState !== 'loading' && (
+						<ReportMarkdownPreview
+							markdown={report.preview?.markdown ?? ''}
+							disabled={report.isBusy}
+							onPost={report.postReport}
+						/>
+					)}
 				</CampfireCardBody>
 			</CampfirePanel>
 		</div>

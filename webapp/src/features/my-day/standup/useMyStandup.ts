@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { listMyTasks, listStandupConfiguration, submitStandup } from '@/api';
+import { createTask, listMyTasks, listStandupConfiguration, submitStandup } from '@/api';
 import type { StandupQuestion, StandupSchedule, StandupTemplate, Task, Workspace } from '@/types/domain';
 
 import {
@@ -15,6 +15,7 @@ import {
 	questionsForTemplate,
 	validateRequiredAnswers,
 } from './my-standup.helpers';
+import { taskTitlesFromStandupAnswers } from './standup-task-list.helpers';
 import type { AnswerDrafts, AnswerDraftValue, MyStandupLoadState } from './my-standup.types';
 
 /**
@@ -48,6 +49,29 @@ export type UseMyStandupResult = {
 	readonly updateAnswer: (questionID: string, value: AnswerDraftValue) => void;
 	readonly submitCurrentStandup: () => Promise<void>;
 };
+
+/**
+ * normalizeTaskTitleKey returns a stable comparison key for task titles.
+ */
+function normalizeTaskTitleKey(value: string): string {
+	return value.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/**
+ * formatUpdatedAtLabel returns a readable last-updated timestamp.
+ */
+function formatUpdatedAtLabel(value: string): string {
+	const parsed = new Date(value);
+
+	if (Number.isNaN(parsed.getTime())) {
+		return 'just now';
+	}
+
+	return new Intl.DateTimeFormat(undefined, {
+		dateStyle: 'medium',
+		timeStyle: 'short',
+	}).format(parsed);
+}
 
 /**
  * useMyStandup owns loading, draft state, validation, and submission for My Day check-in.
@@ -152,6 +176,45 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 	}
 
 	/**
+	 * syncStandupTasks creates any missing tasks from itemized standup answers.
+	 */
+	async function syncStandupTasks(): Promise<number> {
+		const titles = taskTitlesFromStandupAnswers(visibleQuestions, answers);
+
+		if (titles.length === 0) {
+			return 0;
+		}
+
+		const existingKeys = new Set(tasks.map(task => normalizeTaskTitleKey(task.title)));
+		const createdTasks: Task[] = [];
+
+		for (const title of titles) {
+			const normalizedTitle = normalizeTaskTitleKey(title);
+
+			if (normalizedTitle === '' || existingKeys.has(normalizedTitle)) {
+				continue;
+			}
+
+			const response = await createTask(input.workspace.id, {
+				title,
+				description: `Auto-created from standup on ${occurrenceDate}.`,
+				projectId: '',
+				categoryId: '',
+				boardUrl: '',
+			});
+
+			createdTasks.push(response.task);
+			existingKeys.add(normalizedTitle);
+		}
+
+		if (createdTasks.length > 0) {
+			setTasks(current => [...createdTasks, ...current]);
+		}
+
+		return createdTasks.length;
+	}
+
+	/**
 	 * submitCurrentStandup validates and submits the current answer draft.
 	 */
 	async function submitCurrentStandup(): Promise<void> {
@@ -183,11 +246,38 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 				})),
 			});
 
-			const updatedLabel = formatStandupSubmissionTime(response.submission.lastUpdatedAt);
+			let createdTaskCount = 0;
+			let taskSyncFailed = false;
+
+			try {
+				createdTaskCount = await syncStandupTasks();
+			} catch (_error: unknown) {
+				taskSyncFailed = true;
+			}
+
+			const updatedAt = formatUpdatedAtLabel(response.submission.lastUpdatedAt);
+
+			let successMessage = `Standup submitted. Last updated ${updatedAt}.`;
+
+			if (createdTaskCount > 0) {
+				successMessage += ` ${createdTaskCount} task${createdTaskCount === 1 ? '' : 's'} added to Time Log.`;
+			}
+
+			if (taskSyncFailed) {
+				successMessage += ' Standup was saved, but task sync failed.';
+			}
 
 			setLoadState('ready');
-			setMessage(`Standup saved. Last updated ${updatedLabel}.`);
-			toast.success('Standup saved');
+			setMessage(successMessage);
+
+			if (taskSyncFailed) {
+				toast.warning('Standup submitted, but tasks could not be synced');
+			} else if (createdTaskCount > 0) {
+				toast.success(`Standup submitted · ${createdTaskCount} tasks synced`);
+			} else {
+				toast.success('Standup submitted');
+			}
+
 			input.onStandupSubmitted();
 		} catch (error: unknown) {
 			const errorMessage = errorToMessage(error);
@@ -217,20 +307,4 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 		updateAnswer,
 		submitCurrentStandup,
 	};
-}
-
-/**
- * formatStandupSubmissionTime formats a submission timestamp for compact feedback.
- */
-function formatStandupSubmissionTime(value: string): string {
-	const date = new Date(value);
-
-	if (Number.isNaN(date.getTime())) {
-		return value;
-	}
-
-	return date.toLocaleString(undefined, {
-		dateStyle: 'medium',
-		timeStyle: 'short',
-	});
 }

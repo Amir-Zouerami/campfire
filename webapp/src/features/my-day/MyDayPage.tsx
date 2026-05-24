@@ -17,7 +17,7 @@ export function MyDayPage(props: WorkspaceShellProps): ReactElement {
 	const activeSection = resolveMyDaySection(activeSectionID);
 
 	return (
-		<div className="cf:grid cf:gap-6">
+		<div className="cf:grid cf:gap-4">
 			<MyDayHero activeSection={activeSection} workspaceName={props.workspace.name} />
 
 			<MyDaySectionNavigation activeSectionID={activeSection.id} onSelectSection={setActiveSectionID} />

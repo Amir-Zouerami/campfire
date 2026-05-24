@@ -326,3 +326,21 @@
 .campfire-metric-grid {
 	gap: 1.15rem;
 }
+
+/* Campfire CSV spacing repair: action panels should not share borders. */
+.campfire-csv-action-list {
+	display: flex;
+	flex-direction: column;
+	gap: 1.25rem;
+}
+
+.campfire-csv-action-card {
+	margin: 0;
+	box-shadow:
+		0 12px 32px rgba(0, 0, 0, 0.22),
+		inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.campfire-csv-action-card + .campfire-csv-action-card {
+	margin-top: 0.15rem;
+}

@@ -2,11 +2,10 @@ import type { ReactElement } from 'react';
 import { Copy, FileText, Send } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { CampfireEmpty } from '@/app/campfire-ui';
 import { Button } from '@/components/ui/button';
 
 /**
- * ReportMarkdownPreviewProps contains Markdown and preview actions.
+ * ReportMarkdownPreviewProps contains Markdown and report actions.
  */
 type ReportMarkdownPreviewProps = {
 	readonly markdown: string;
@@ -15,69 +14,57 @@ type ReportMarkdownPreviewProps = {
 };
 
 /**
- * ReportMarkdownPreview renders raw Markdown in a Mattermost-like preview surface.
+ * ReportMarkdownPreview renders report actions without showing the raw Markdown body.
  */
 export function ReportMarkdownPreview(props: ReportMarkdownPreviewProps): ReactElement {
+	const hasMarkdown = props.markdown.trim() !== '';
+	const actionDisabled = props.disabled || !hasMarkdown;
+
 	/**
 	 * handleCopy copies the current Markdown to the clipboard.
 	 */
 	async function handleCopy(): Promise<void> {
-		if (props.markdown.trim() === '') {
-			toast.error('There is no Markdown to copy');
+		if (!hasMarkdown) {
+			toast.error('There is no report to copy');
 			return;
 		}
 
 		try {
 			await navigator.clipboard.writeText(props.markdown);
-			toast.success('Markdown copied');
+			toast.success('Report copied');
 		} catch (_error: unknown) {
-			toast.error('Could not copy Markdown');
+			toast.error('Could not copy report');
 		}
 	}
 
-	if (props.markdown.trim() === '') {
-		return (
-			<CampfireEmpty
-				icon={FileText}
-				title="No Markdown yet"
-				description="Adjust the filters or wait for the preview to load."
-			/>
-		);
-	}
-
 	return (
-		<section className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
-			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
-				<div>
-					<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
-						Markdown preview
-					</p>
-					<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
-						Ready for Mattermost
-					</h3>
+		<section className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
+			<div className="cf:flex cf:min-w-0 cf:items-center cf:gap-3">
+				<div className="campfire-icon-tile cf:size-10 cf:rounded-xl">
+					<FileText className="cf:size-4" />
 				</div>
 
-				<div className="cf:flex cf:flex-wrap cf:gap-2">
-					<Button
-						type="button"
-						variant="secondary"
-						disabled={props.disabled}
-						onClick={() => void handleCopy()}
-					>
-						<Copy className="cf:size-4" />
-						Copy
-					</Button>
-
-					<Button type="button" disabled={props.disabled} onClick={() => void props.onPost()}>
-						<Send className="cf:size-4" />
-						Post to channel
-					</Button>
+				<div className="cf:min-w-0">
+					<p className="cf:m-0 cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+						Report actions
+					</p>
+					<h3 className="cf:m-0 cf:mt-1 cf:text-lg cf:font-black cf:tracking-[-0.02em] cf:text-foreground">
+						{hasMarkdown ? 'Report is ready' : 'No report loaded yet'}
+					</h3>
 				</div>
 			</div>
 
-			<pre className="cf:max-h-[520px] cf:overflow-auto cf:whitespace-pre-wrap cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/30 cf:p-5 cf:text-sm cf:font-semibold cf:leading-7 cf:text-slate-200">
-				{props.markdown}
-			</pre>
+			<div className="cf:flex cf:flex-wrap cf:gap-2">
+				<Button type="button" variant="secondary" disabled={actionDisabled} onClick={() => void handleCopy()}>
+					<Copy className="cf:size-4" />
+					Copy report
+				</Button>
+
+				<Button type="button" disabled={actionDisabled} onClick={() => void props.onPost()}>
+					<Send className="cf:size-4" />
+					Post to channel
+				</Button>
+			</div>
 		</section>
 	);
 }

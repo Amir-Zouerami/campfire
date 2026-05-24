@@ -186,15 +186,11 @@ export function downloadCSVBlob(blob: Blob, filename: string): void {
 }
 
 /**
- * selectClassName returns the shared native select style.
- */
-
-/**
  * exportActionCardClassName returns a style for one export action card.
  */
 export function exportActionCardClassName(active: boolean): string {
 	return cn(
-		'cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:p-5 cf:transition',
+		'campfire-csv-action-card cf:grid cf:gap-5 cf:rounded-2xl cf:border cf:px-5 cf:py-6 cf:transition',
 		active
 			? 'cf:border-amber-300/35 cf:bg-amber-300/[0.08]'
 			: 'cf:border-white/10 cf:bg-white/[0.035] hover:cf:border-amber-300/25',

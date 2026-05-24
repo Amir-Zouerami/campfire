@@ -17,7 +17,7 @@ type MyDaySectionNavigationProps = {
  */
 export function MyDaySectionNavigation(props: MyDaySectionNavigationProps): ReactElement {
 	return (
-		<nav className="cf:grid cf:grid-cols-3 cf:gap-4" aria-label="My Day workflow">
+		<nav className="campfire-my-day-nav" aria-label="My Day workflow">
 			{myDaySections.map(section => {
 				const active = section.id === props.activeSectionID;
 				const Icon = iconForMyDaySection(section.id);

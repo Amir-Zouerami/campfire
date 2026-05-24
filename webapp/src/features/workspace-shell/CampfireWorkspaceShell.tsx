@@ -2,20 +2,13 @@ import { useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 import { BarChart3, CalendarCheck, Flame, Settings2 } from 'lucide-react';
 
-import {
-	CampfireCardBody,
-	CampfireCardHeader,
-	CampfireMetric,
-	CampfirePanel,
-	CampfireStatusPill,
-} from '@/app/campfire-ui';
+import { CampfireCardHeader, CampfirePanel, CampfireStatusPill } from '@/app/campfire-ui';
 import { cn } from '@/lib/utils';
 
 import { MyDayPage } from '@/features/my-day/MyDayPage';
 import { ReportsPage } from '@/features/reports/ReportsPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { TeamReviewPage } from '@/features/team-review/TeamReviewPage';
-import { CampfireExternalLinkMetric } from '@/components/campfire/CampfireExternalLinkMetric';
 
 import type { WorkspacePageDefinition, WorkspacePageID, WorkspaceShellProps } from './workspace-shell.types';
 
@@ -27,16 +20,16 @@ const workspacePages: readonly WorkspacePageDefinition[] = [
 		id: 'my-day',
 		label: 'My Day',
 		eyebrow: 'Personal workflow',
-		title: 'Your day around the fire',
-		description: 'Submit today’s standup, manage your own tasks, log time, and handle your own leave requests.',
+		title: 'My Day',
+		description: 'Standup, tasks, time, and personal leave.',
 		managerOnly: false,
 	},
 	{
 		id: 'team-review',
 		label: 'Team Review',
 		eyebrow: 'Lead workspace',
-		title: 'Team review',
-		description: 'Review submissions, missing updates, on-leave users, blockers, approvals, and runtime decisions.',
+		title: 'Team Review',
+		description: 'Submissions, availability, approvals, and runtime decisions.',
 		managerOnly: true,
 	},
 	{
@@ -44,17 +37,15 @@ const workspacePages: readonly WorkspacePageDefinition[] = [
 		label: 'Reports',
 		eyebrow: 'Markdown and CSV',
 		title: 'Reports',
-		description:
-			'Preview daily and weekly reports, review time summaries, manage saved filters, and export CSV data.',
+		description: 'Preview reports, export CSV, and reuse saved filters.',
 		managerOnly: true,
 	},
 	{
 		id: 'settings',
 		label: 'Settings',
 		eyebrow: 'Configuration',
-		title: 'Workspace settings',
-		description:
-			'Configure roles, calendar rules, standup forms, schedules, reminders, report rules, and audit history.',
+		title: 'Settings',
+		description: 'Roles, calendar, standup forms, reminders, report rules, and audit history.',
 		managerOnly: true,
 	},
 ];
@@ -85,11 +76,11 @@ export function CampfireWorkspaceShell(props: WorkspaceShellProps): ReactElement
 }
 
 /**
- * WorkspaceHeader renders the workspace context once, instead of repeating it on every page.
+ * WorkspaceHeader renders compact workspace context without a second metric row.
  */
 function WorkspaceHeader(props: WorkspaceShellProps & { readonly activePage: WorkspacePageDefinition }): ReactElement {
 	return (
-		<CampfirePanel>
+		<CampfirePanel className="campfire-workspace-header-panel">
 			<CampfireCardHeader
 				eyebrow={props.activePage.eyebrow}
 				title={props.activePage.title}
@@ -105,24 +96,12 @@ function WorkspaceHeader(props: WorkspaceShellProps & { readonly activePage: Wor
 					</div>
 				}
 			/>
-
-			<CampfireCardBody className="campfire-context-grid">
-				<CampfireMetric label="Workspace" value={props.workspace.name} helper="Current channel" />
-				<CampfireMetric label="Timezone" value={props.workspace.timezone} helper="Schedule basis" />
-				<CampfireExternalLinkMetric
-					label="Board"
-					value={props.workspace.boardUrl}
-					emptyValue="Not set"
-					helper="Open external link"
-				/>
-				<CampfireMetric label="Access" value={accessLabel(props)} helper="Current user" />
-			</CampfireCardBody>
 		</CampfirePanel>
 	);
 }
 
 /**
- * WorkspaceNavigation renders the new simple page navigation.
+ * WorkspaceNavigation renders the main workspace page navigation.
  */
 function WorkspaceNavigation(props: {
 	readonly activePage: WorkspacePageID;

@@ -17,50 +17,49 @@ type CSVExportActionsPanelProps = {
 };
 
 /**
- * CSVExportActionsPanel renders downloadable CSV action cards.
+ * CSVExportActionsPanel renders downloadable CSV actions with clear vertical separation.
  */
 export function CSVExportActionsPanel(props: CSVExportActionsPanelProps): ReactElement {
 	return (
-		<section className="cf:grid cf:gap-4 cf:xl:grid-cols-2">
+		<section className="campfire-csv-action-list">
 			{csvExportActions.map(action => {
 				const active = props.activeExportKind === action.kind;
 
 				return (
 					<article key={action.kind} className={exportActionCardClassName(active)}>
-						<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
-							<div className="cf:min-w-0">
-								<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+						<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-4">
+							<div className="cf:min-w-0 cf:flex-1">
+								<p className="cf:m-0 cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 									{action.includesSortMode ? 'Standup export' : 'Data export'}
 								</p>
-								<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
+								<h3 className="cf:m-0 cf:mt-2 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
 									{action.title}
 								</h3>
+								<p className="cf:m-0 cf:mt-2 cf:text-sm cf:font-semibold cf:leading-7 cf:text-muted-foreground">
+									{action.description}
+								</p>
 							</div>
 
-							<CampfireStatusPill tone={action.includesSortMode ? 'ember' : 'green'}>
-								{action.includesSortMode ? 'Uses sort' : 'Date range'}
-							</CampfireStatusPill>
-						</div>
+							<div className="cf:flex cf:shrink-0 cf:flex-col cf:items-end cf:gap-3">
+								<CampfireStatusPill tone={action.includesSortMode ? 'ember' : 'green'}>
+									{action.includesSortMode ? 'Uses sort' : 'Date range'}
+								</CampfireStatusPill>
 
-						<p className="cf:text-sm cf:font-semibold cf:leading-7 cf:text-muted-foreground">
-							{action.description}
-						</p>
-
-						<div className="cf:flex cf:justify-end">
-							<Button
-								type="button"
-								disabled={props.disabled}
-								onClick={() => void props.onExport(action.kind)}
-							>
-								{active ? (
-									<Loader2 className="cf:size-4 cf:animate-spin" />
-								) : action.includesSortMode ? (
-									<FileDown className="cf:size-4" />
-								) : (
-									<Download className="cf:size-4" />
-								)}
-								Export CSV
-							</Button>
+								<Button
+									type="button"
+									disabled={props.disabled}
+									onClick={() => void props.onExport(action.kind)}
+								>
+									{active ? (
+										<Loader2 className="cf:size-4 cf:animate-spin" />
+									) : action.includesSortMode ? (
+										<FileDown className="cf:size-4" />
+									) : (
+										<Download className="cf:size-4" />
+									)}
+									Export CSV
+								</Button>
+							</div>
 						</div>
 					</article>
 				);

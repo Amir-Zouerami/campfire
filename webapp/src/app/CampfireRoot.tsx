@@ -5,7 +5,7 @@ import { AlertTriangle, Flame, Loader2, RefreshCw, X } from 'lucide-react';
 
 import campfireLogoURL from '../../../assets/campfire-logo.svg';
 
-import { CampfireCardBody, CampfireEmpty, CampfireMetric, CampfirePanel } from './campfire-ui';
+import { CampfireCardBody, CampfireEmpty, CampfirePanel } from './campfire-ui';
 import { CampfireWorkspaceTabs } from './CampfireWorkspaceTabs';
 import { CAMPFIRE_CLOSE_EVENT, CAMPFIRE_OPEN_EVENT, CAMPFIRE_TOGGLE_EVENT, isCampfireOpenEvent } from './events';
 import type { BootstrapStatus } from './useCampfireBootstrap';
@@ -175,81 +175,106 @@ function CampfireTopbar(props: {
 }
 
 /**
- * CampfireHero renders the top overview section.
+ * CampfireHero renders the compact top overview section.
  */
 function CampfireHero(props: { readonly bootstrap: BootstrapStatus }): ReactElement {
 	return (
-		<section className="campfire-hero">
-			<div className="campfire-hero-layout">
+		<section className="campfire-hero campfire-hero--compact">
+			<div className="campfire-hero-layout campfire-hero-layout--compact">
 				<div className="campfire-hero-copy">
 					<div className="campfire-kicker">
-						<Flame className="cf:size-5" />
+						<Flame className="cf:size-4" />
 						Team operations
 					</div>
 
-					<h2 className="campfire-hero-title">Gather the team around one operational rhythm.</h2>
+					<h2 className="campfire-hero-title">Team rhythm</h2>
 
 					<p className="campfire-hero-description">
-						Standups, tasks, time, leave planning, reminders, Markdown reports, CSV exports, and global
-						dashboards inside Mattermost.
+						Standups, tasks, time, leave, reminders, reports, and exports in this workspace.
 					</p>
 				</div>
 
-				<BootstrapSummary bootstrap={props.bootstrap} />
+				<CompactBootstrapSummary bootstrap={props.bootstrap} />
 			</div>
 		</section>
 	);
 }
 
 /**
- * BootstrapSummary renders compact startup status metrics.
+ * CompactBootstrapSummary renders one small status strip instead of large metric cards.
  */
-function BootstrapSummary(props: { readonly bootstrap: BootstrapStatus }): ReactElement {
+function CompactBootstrapSummary(props: { readonly bootstrap: BootstrapStatus }): ReactElement {
 	switch (props.bootstrap.state) {
 		case 'idle':
-			return (
-				<div className="campfire-metric-grid">
-					<CampfireMetric label="Status" value="Idle" helper="Not loaded" />
-				</div>
-			);
+			return <div className="campfire-bootstrap-strip">Idle</div>;
 
 		case 'loading':
-			return (
-				<div className="campfire-metric-grid">
-					<CampfireMetric label="Status" value="Loading" helper="Backend checks" icon={Loader2} />
-				</div>
-			);
+			return <div className="campfire-bootstrap-strip">Loading backend…</div>;
 
 		case 'error':
-			return (
-				<div className="campfire-metric-grid">
-					<CampfireMetric label="Status" value="Error" helper="Startup failed" icon={AlertTriangle} />
-				</div>
-			);
+			return <div className="campfire-bootstrap-strip campfire-bootstrap-strip--error">Startup failed</div>;
 
 		case 'ready':
 			return (
-				<div className="campfire-metric-grid campfire-metric-grid--ready">
-					<CampfireMetric
-						label="API"
-						value={props.bootstrap.health.version}
-						helper={props.bootstrap.health.product}
-					/>
-					<CampfireMetric label="User" value={userLabel(props.bootstrap.me)} helper="Signed in" />
-					<CampfireMetric
-						label="Admin"
-						value={props.bootstrap.me.isSystemAdmin ? 'Yes' : 'No'}
-						helper="System access"
-					/>
-					<CampfireMetric
-						label="Workspace"
-						value={props.bootstrap.workspace?.name ?? 'Not configured'}
-						helper="Current channel"
-					/>
+				<div className="campfire-bootstrap-strip">
+					<span>API {props.bootstrap.health.version}</span>
+					<span>{userLabel(props.bootstrap.me)}</span>
+					<span>{props.bootstrap.me.isSystemAdmin ? 'Admin' : 'Member'}</span>
+					<span>{props.bootstrap.workspace?.name ?? 'No workspace'}</span>
 				</div>
 			);
 	}
 }
+
+/**
+ * BootstrapSummary renders compact startup status metrics.
+ */
+// function BootstrapSummary(props: { readonly bootstrap: BootstrapStatus }): ReactElement {
+// 	switch (props.bootstrap.state) {
+// 		case 'idle':
+// 			return (
+// 				<div className="campfire-metric-grid">
+// 					<CampfireMetric label="Status" value="Idle" helper="Not loaded" />
+// 				</div>
+// 			);
+
+// 		case 'loading':
+// 			return (
+// 				<div className="campfire-metric-grid">
+// 					<CampfireMetric label="Status" value="Loading" helper="Backend checks" icon={Loader2} />
+// 				</div>
+// 			);
+
+// 		case 'error':
+// 			return (
+// 				<div className="campfire-metric-grid">
+// 					<CampfireMetric label="Status" value="Error" helper="Startup failed" icon={AlertTriangle} />
+// 				</div>
+// 			);
+
+// 		case 'ready':
+// 			return (
+// 				<div className="campfire-metric-grid campfire-metric-grid--ready">
+// 					<CampfireMetric
+// 						label="API"
+// 						value={props.bootstrap.health.version}
+// 						helper={props.bootstrap.health.product}
+// 					/>
+// 					<CampfireMetric label="User" value={userLabel(props.bootstrap.me)} helper="Signed in" />
+// 					<CampfireMetric
+// 						label="Admin"
+// 						value={props.bootstrap.me.isSystemAdmin ? 'Yes' : 'No'}
+// 						helper="System access"
+// 					/>
+// 					<CampfireMetric
+// 						label="Workspace"
+// 						value={props.bootstrap.workspace?.name ?? 'Not configured'}
+// 						helper="Current channel"
+// 					/>
+// 				</div>
+// 			);
+// 	}
+// }
 
 /**
  * BootstrapContent renders the main loaded/empty/error state.

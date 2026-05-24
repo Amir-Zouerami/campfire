@@ -1,6 +1,7 @@
 import type { FormEvent, ReactElement } from 'react';
 import { ClipboardList, Loader2, Send } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
 import {
 	CampfireCardBody,
 	CampfireCardHeader,
@@ -8,7 +9,6 @@ import {
 	CampfirePanel,
 	CampfireStatusPill,
 } from '@/app/campfire-ui';
-import { Button } from '@/components/ui/button';
 import type { Workspace } from '@/types/domain';
 
 import { formatLabel } from './my-standup.helpers';
@@ -45,7 +45,7 @@ export function MyStandupPage(props: MyStandupPageProps): ReactElement {
 			<CampfireCardHeader
 				eyebrow="Check-in"
 				title="My standup"
-				description="A focused daily form. Team review, report previews, and configuration live elsewhere."
+				description="A focused daily form. Break work into real items, then continue tracking time against those tasks in Time Log."
 				icon={ClipboardList}
 				action={
 					<CampfireStatusPill tone={standup.selectedSchedule?.kind === 'weekly' ? 'ember' : 'green'}>
@@ -89,9 +89,9 @@ export function MyStandupPage(props: MyStandupPageProps): ReactElement {
 						<MyStandupTaskContext activeTasks={standup.activeTasks} />
 
 						<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-4">
-							<p className="cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
-								Submitting again keeps the original first-submitted time and records a new last-updated
-								time.
+							<p className="cf:max-w-3xl cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
+								Re-submitting preserves the original first-submitted time, updates the last-updated
+								time, and syncs itemized work lines into tasks when needed.
 							</p>
 
 							<Button type="submit" disabled={standup.isBusy}>

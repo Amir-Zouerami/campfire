@@ -239,9 +239,9 @@ func (p *NotificationPublisher) sendChannelMessageWithPostID(channelID string, m
 /*
 formatStandupDMReminderMessage formats a direct standup reminder.
 
-A DM cannot submit a channel-scoped Campfire standup by itself. The reminder
-therefore links the actual workspace channel and tells the user to open Campfire
-there, instead of saying "this channel" inside a DM.
+DM reminders stay enabled, but the copy must not say "this channel" because the
+DM itself is not the workspace channel. The message points the user to the real
+workspace channel so Campfire opens in the correct context.
 */
 func formatStandupDMReminderMessage(api plugin.API, reminder service.StandupDMReminder) string {
 	targetLabel := userMentionOrID(api, reminder.TargetUserID)
@@ -251,9 +251,9 @@ func formatStandupDMReminderMessage(api plugin.API, reminder service.StandupDMRe
 		"🔥 **Campfire standup reminder**",
 		"",
 		fmt.Sprintf("%s, your standup for **%s** is still missing.", targetLabel, reminder.OccurrenceDate),
-		fmt.Sprintf("Open %s, then open Campfire in that channel to submit your update.", channelReference),
+		fmt.Sprintf("Please open %s and submit your Campfire update from that channel.", channelReference),
 		"",
-		"_Campfire submissions are tied to the workspace channel, not this DM._",
+		"_Campfire standups are tied to the workspace channel, so this DM is only a reminder._",
 	}
 
 	if reminder.SequenceNumber > 0 {
@@ -491,8 +491,8 @@ func formatLeaveRequestDetails(durationMode string, halfDayPart string, startTim
 /*
 channelReferenceOrWorkspaceName returns a Mattermost channel reference when possible.
 
-Mattermost renders "~channel-name" as a channel link. If the channel cannot be
-loaded, Campfire falls back to the readable workspace name.
+Mattermost renders "~channel-name" as a channel reference. If the channel cannot
+be loaded, Campfire falls back to the readable workspace name.
 */
 func channelReferenceOrWorkspaceName(api plugin.API, channelID string, workspaceName string) string {
 	cleanChannelID := strings.TrimSpace(channelID)

@@ -1,15 +1,8 @@
 import type { ReactElement } from 'react';
-import { CalendarDays } from 'lucide-react';
 
-import {
-	CampfireCardBody,
-	CampfireCardHeader,
-	CampfireMetric,
-	CampfirePanel,
-	CampfireStatusPill,
-} from '@/app/campfire-ui';
+import { CampfireCardHeader, CampfirePanel, CampfireStatusPill } from '@/app/campfire-ui';
 
-import { formatTodayLabel, iconForMyDaySection } from './my-day.helpers';
+import { iconForMyDaySection } from './my-day.helpers';
 import type { MyDaySection } from './my-day.types';
 
 /**
@@ -21,35 +14,20 @@ type MyDayHeroProps = {
 };
 
 /**
- * MyDayHero renders the simple personal page header.
+ * MyDayHero renders a compact personal page header.
  */
 export function MyDayHero(props: MyDayHeroProps): ReactElement {
 	const Icon = iconForMyDaySection(props.activeSection.id);
 
 	return (
-		<CampfirePanel className="cf:overflow-hidden">
+		<CampfirePanel className="campfire-compact-section-intro">
 			<CampfireCardHeader
 				eyebrow={props.activeSection.eyebrow}
 				title={props.activeSection.title}
-				description={props.activeSection.description}
+				description={`${props.activeSection.description} · ${props.workspaceName}`}
 				icon={Icon}
 				action={<CampfireStatusPill tone="ember">My Day</CampfireStatusPill>}
 			/>
-
-			<CampfireCardBody className="campfire-context-grid">
-				<CampfireMetric label="Workspace" value={props.workspaceName} helper="Current channel" />
-				<CampfireMetric
-					label="Today"
-					value={formatTodayLabel()}
-					helper="Local browser date"
-					icon={CalendarDays}
-				/>
-				<CampfireMetric
-					label="Current flow"
-					value={props.activeSection.label}
-					helper={props.activeSection.helper}
-				/>
-			</CampfireCardBody>
 		</CampfirePanel>
 	);
 }
