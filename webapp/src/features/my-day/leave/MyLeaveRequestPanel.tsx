@@ -4,6 +4,7 @@ import { CalendarPlus } from 'lucide-react';
 import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
 import { CampfireField } from '@/components/campfire/CampfireField';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
+import { CampfireTimeInput } from '@/components/campfire/CampfireTimeInput';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -122,22 +123,20 @@ export function MyLeaveRequestPanel(props: MyLeaveRequestPanelProps): ReactEleme
 				{props.draft.durationMode === 'hourly' && (
 					<div className="cf:grid cf:gap-4 cf:md:grid-cols-2">
 						<CampfireField id="campfire-my-leave-start-time" label="Start time">
-							<Input
+							<CampfireTimeInput
 								id="campfire-my-leave-start-time"
-								type="time"
 								disabled={props.disabled}
 								value={props.draft.startTime}
-								onChange={event => props.onChange({ startTime: event.currentTarget.value })}
+								onValueChange={value => props.onChange({ startTime: value })}
 							/>
 						</CampfireField>
 
 						<CampfireField id="campfire-my-leave-end-time" label="End time">
-							<Input
+							<CampfireTimeInput
 								id="campfire-my-leave-end-time"
-								type="time"
 								disabled={props.disabled}
 								value={props.draft.endTime}
-								onChange={event => props.onChange({ endTime: event.currentTarget.value })}
+								onValueChange={value => props.onChange({ endTime: value })}
 							/>
 						</CampfireField>
 					</div>

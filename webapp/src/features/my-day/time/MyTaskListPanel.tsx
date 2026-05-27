@@ -1,12 +1,10 @@
 import type { ReactElement } from 'react';
 
 import { CampfireEmpty, CampfireStatusPill } from '@/app/campfire-ui';
-
-import type { Task, TaskStatus } from '@/types/domain';
-
-import { CampfireField } from '@/components/campfire/CampfireField';
-import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
+import { CampfireSelect } from '@/components/campfire/CampfireSelect';
+import { CampfireField } from '@/components/campfire/CampfireField';
+import type { Task, TaskStatus } from '@/types/domain';
 
 import { formatTaskStatus, statusTone, taskStatusOptions } from './my-time.helpers';
 
@@ -37,13 +35,14 @@ export function MyTaskListPanel(props: MyTaskListPanelProps): ReactElement {
 					</h3>
 				</div>
 
-				<CampfireCheckboxField
-					checked={props.includeArchived}
-					label="Include archived"
-					disabled={props.disabled}
-					className="cf:px-4 cf:py-3"
-					onCheckedChange={props.onIncludeArchivedChange}
-				/>
+				<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:px-4 cf:py-3">
+					<CampfireCheckboxField
+						checked={props.includeArchived}
+						label="Include archived"
+						disabled={props.disabled}
+						onCheckedChange={props.onIncludeArchivedChange}
+					/>
+				</div>
 			</div>
 
 			{props.tasks.length === 0 ? (

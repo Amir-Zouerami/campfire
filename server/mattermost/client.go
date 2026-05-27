@@ -30,6 +30,7 @@ raw Mattermost plugin API.
 type Client interface {
 	GetUser(userID string) (*User, error)
 	GetUserFromSessionToken(sessionToken string) (*User, error)
+	GetChannelType(channelID string) (string, error)
 	IsChannelAdmin(channelID string, userID string) (bool, error)
 }
 
@@ -95,6 +96,35 @@ func (c *PluginClient) GetUserFromSessionToken(sessionToken string) (*User, erro
 	}
 
 	return c.GetUser(session.UserId)
+}
+
+/*
+GetChannelType returns the Mattermost channel type.
+
+Mattermost uses:
+  - O for public channels
+  - P for private channels
+  - G for group messages
+  - D for direct messages
+
+Campfire workspace setup must reject direct messages.
+*/
+func (c *PluginClient) GetChannelType(channelID string) (string, error) {
+	cleanChannelID := strings.TrimSpace(channelID)
+	if cleanChannelID == "" {
+		return "", errors.New("channel ID is required")
+	}
+
+	channel, appErr := c.api.GetChannel(cleanChannelID)
+	if appErr != nil {
+		return "", appErr
+	}
+
+	if channel == nil {
+		return "", errors.New("channel was not found")
+	}
+
+	return strings.TrimSpace(string(channel.Type)), nil
 }
 
 /*

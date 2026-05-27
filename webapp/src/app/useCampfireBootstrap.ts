@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 
-import { ApiClientError, getHealth, getMe, getWorkspaceByChannel } from '@/api';
 import type { HealthResponse, MeResponse } from '@/types/api';
 import type { Workspace, WorkspaceCapabilities } from '@/types/domain';
+import { ApiClientError, getHealth, getMe, getWorkspaceByChannel } from '@/api';
 
-import { getMattermostHostContext } from './mattermostHost';
+import { getMattermostHostContext, isWorkspaceEligibleChannelType } from './mattermostHost';
 
 /**
  * BootstrapIdleStatus means Campfire has not started loading startup data yet.
@@ -76,6 +76,27 @@ export function useCampfireBootstrap(isOpen: boolean, refreshToken: number): Boo
 				const [health, me] = await Promise.all([getHealth(), getMe()]);
 				const hostContext = getMattermostHostContext();
 				const teamID = hostContext.teamID ?? '';
+
+				if (hostContext.channelID !== null && !isWorkspaceEligibleChannelType(hostContext.channelType)) {
+					if (!isActive) {
+						return;
+					}
+
+					setStatus({
+						state: 'ready',
+						health,
+						me,
+						channelID: null,
+						channelName: hostContext.channelName,
+						teamID,
+						workspace: null,
+						capabilities: null,
+						workspaceNotice:
+							'⚠️ Campfire workspaces can only be set up from channels or group conversations. Direct messages cannot become Campfire workspaces.',
+					});
+
+					return;
+				}
 
 				if (hostContext.channelID === null) {
 					if (!isActive) {

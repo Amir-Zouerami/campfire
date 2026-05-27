@@ -166,10 +166,6 @@ export function statusTone(status: TaskStatus): 'green' | 'ember' | 'red' | 'sla
 }
 
 /**
- * selectClassName returns the shared native select style for this feature.
- */
-
-/**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
 export function errorToMessage(error: unknown): string {

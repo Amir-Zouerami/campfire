@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 
-import { Input } from '@/components/ui/input';
+import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
 import { Label } from '@/components/ui/label';
 
 import { rangeInputClassName } from './team-availability.helpers';
@@ -23,23 +23,21 @@ export function TeamAvailabilityRangeControls(props: TeamAvailabilityRangeContro
 		<div className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5 cf:md:grid-cols-2">
 			<div className={rangeInputClassName()}>
 				<Label htmlFor="campfire-availability-start">Start date</Label>
-				<Input
+				<CampfireDateInput
 					id="campfire-availability-start"
-					type="date"
 					disabled={props.disabled}
 					value={props.range.startDate}
-					onChange={event => props.onChange({ startDate: event.currentTarget.value })}
+					onValueChange={value => props.onChange({ startDate: value })}
 				/>
 			</div>
 
 			<div className={rangeInputClassName()}>
 				<Label htmlFor="campfire-availability-end">End date</Label>
-				<Input
+				<CampfireDateInput
 					id="campfire-availability-end"
-					type="date"
 					disabled={props.disabled}
 					value={props.range.endDate}
-					onChange={event => props.onChange({ endDate: event.currentTarget.value })}
+					onValueChange={value => props.onChange({ endDate: value })}
 				/>
 			</div>
 		</div>

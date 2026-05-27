@@ -1,28 +1,27 @@
 import type { ReactElement } from 'react';
-import { Save, Timer } from 'lucide-react';
+import { BellRing, Save, Timer } from 'lucide-react';
 
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { CampfireStatusPill } from '@/app/campfire-ui';
+import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
+import { reminderRuleTitle, type StandupScheduleLabel } from '@/features/settings/standup-schedule-labels';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import type { ReminderRule } from '@/types/domain';
 
 import {
 	formatDateTime,
 	parseReminderOffsets,
 	reminderRuleCardClassName,
 	reminderRuleHasChanges,
-	shortID,
 } from './reminders.helpers';
-
-import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
-
-import type { ReminderRule } from '@/types/domain';
 import type { ReminderRuleDraft, ReminderRuleDraftPatch } from './reminders.types';
 
 /**
  * ReminderRuleCardProps contains one reminder rule and its editable draft.
  */
 type ReminderRuleCardProps = {
+	readonly scheduleLabel: StandupScheduleLabel;
 	readonly rule: ReminderRule;
 	readonly draft: ReminderRuleDraft;
 	readonly disabled: boolean;
@@ -44,13 +43,22 @@ export function ReminderRuleCard(props: ReminderRuleCardProps): ReactElement {
 		<article className={reminderRuleCardClassName(props.draft.enabled)}>
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
 				<div className="cf:min-w-0">
-					<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
-						Schedule {shortID(props.rule.scheduleId)}
+					<p className="cf:flex cf:items-center cf:gap-2 cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+						<BellRing className="cf:size-5" />
+						{reminderDeliveryLabel(props.draft)}
 					</p>
+
 					<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
-						Reminder rule {shortID(props.rule.id)}
+						{reminderRuleTitle(props.scheduleLabel)}
 					</h3>
-					<p className="cf:mt-2 cf:text-xs cf:font-bold cf:text-muted-foreground">
+
+					<p className="cf:mt-2 cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
+						{props.scheduleLabel.subtitle}
+					</p>
+
+					<ScheduleContextChips label={props.scheduleLabel} />
+
+					<p className="cf:mt-3 cf:text-xs cf:font-bold cf:text-muted-foreground">
 						Updated {formatDateTime(props.rule.updatedAt)}
 					</p>
 				</div>
@@ -62,6 +70,9 @@ export function ReminderRuleCard(props: ReminderRuleCardProps): ReactElement {
 					<CampfireStatusPill tone={changed ? 'ember' : 'green'}>
 						{changed ? 'Unsaved' : 'Saved'}
 					</CampfireStatusPill>
+					{props.scheduleLabel.unavailable && (
+						<CampfireStatusPill tone="red">Missing schedule</CampfireStatusPill>
+					)}
 				</div>
 			</div>
 
@@ -69,7 +80,7 @@ export function ReminderRuleCard(props: ReminderRuleCardProps): ReactElement {
 				<CampfireCheckboxField
 					checked={props.draft.enabled}
 					disabled={formDisabled}
-					label="Enable this rule"
+					label="Enable reminders"
 					description="Allow this schedule to send reminders."
 					onCheckedChange={checked => props.onDraftChange(props.rule.id, { enabled: checked })}
 				/>
@@ -113,7 +124,7 @@ export function ReminderRuleCard(props: ReminderRuleCardProps): ReactElement {
 					}
 				/>
 				<p className="cf:flex cf:flex-wrap cf:items-center cf:gap-2 cf:text-xs cf:font-semibold cf:leading-5 cf:text-muted-foreground">
-					<Timer className="cf:size-3.5 cf:text-amber-200" />
+					<Timer className="cf:size-4 cf:text-amber-200" />
 					Minute offsets from schedule time. Parsed as:{' '}
 					<span className="cf:font-black cf:text-amber-100">
 						{parsedOffsets.length === 0 ? 'none' : parsedOffsets.join(', ')}
@@ -122,15 +133,52 @@ export function ReminderRuleCard(props: ReminderRuleCardProps): ReactElement {
 			</div>
 
 			<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4">
-				<p className="cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
+				<p className="cf:m-0 cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
 					Users on approved leave and users who already submitted should be skipped by the scheduler.
 				</p>
 
 				<Button type="button" disabled={formDisabled || !changed} onClick={() => void props.onSave(props.rule)}>
 					<Save className="cf:size-4" />
-					{props.saving ? 'Saving…' : 'Save rule'}
+					{props.saving ? 'Saving…' : 'Save reminders'}
 				</Button>
 			</div>
 		</article>
 	);
+}
+
+/**
+ * ScheduleContextChips renders readable schedule context.
+ */
+function ScheduleContextChips(props: { readonly label: StandupScheduleLabel }): ReactElement {
+	return (
+		<div className="cf:mt-3 cf:flex cf:flex-wrap cf:gap-2">
+			{props.label.chips.map(chip => (
+				<span
+					key={chip}
+					className="cf:rounded-full cf:border cf:border-white/10 cf:bg-black/20 cf:px-2.5 cf:py-1 cf:text-xs cf:font-black cf:text-amber-100"
+				>
+					{chip}
+				</span>
+			))}
+		</div>
+	);
+}
+
+/**
+ * reminderDeliveryLabel returns a readable delivery summary.
+ */
+function reminderDeliveryLabel(draft: ReminderRuleDraft): string {
+	if (draft.dmReminderEnabled && draft.channelReminderEnabled) {
+		return 'DM and channel reminders';
+	}
+
+	if (draft.dmReminderEnabled) {
+		return 'DM reminders';
+	}
+
+	if (draft.channelReminderEnabled) {
+		return 'Channel reminders';
+	}
+
+	return 'Reminders disabled';
 }

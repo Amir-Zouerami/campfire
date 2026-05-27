@@ -1,12 +1,13 @@
 import type { ReactElement } from 'react';
 import { FileText, Save } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import type { ReportRule } from '@/types/domain';
 import { CampfireStatusPill } from '@/app/campfire-ui';
-
+import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
 import { CampfireField } from '@/components/campfire/CampfireField';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
+import { reportRuleTitle, type StandupScheduleLabel } from '@/features/settings/standup-schedule-labels';
+import { Button } from '@/components/ui/button';
+import type { ReportRule } from '@/types/domain';
 
 import {
 	formatDateTime,
@@ -15,17 +16,15 @@ import {
 	reportRuleCardClassName,
 	reportRuleHasChanges,
 	reportSortOptions,
-	shortID,
 	toReportSortMode,
 } from './report-rules.helpers';
-
 import type { ReportRuleDraft, ReportRuleDraftPatch } from './report-rules.types';
-import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
 
 /**
  * ReportRuleCardProps contains one report rule and its editable draft.
  */
 type ReportRuleCardProps = {
+	readonly scheduleLabel: StandupScheduleLabel;
 	readonly rule: ReportRule;
 	readonly draft: ReportRuleDraft;
 	readonly disabled: boolean;
@@ -41,20 +40,29 @@ type ReportRuleCardProps = {
 export function ReportRuleCard(props: ReportRuleCardProps): ReactElement {
 	const changed = reportRuleHasChanges(props.rule, props.draft);
 	const formDisabled = props.disabled || !props.canManageReportRules;
+	const reportKindLabel = formatReportKind(props.rule.reportKind);
 
 	return (
 		<article className={reportRuleCardClassName(props.draft.enabled)}>
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
 				<div className="cf:min-w-0">
 					<p className="cf:flex cf:flex-wrap cf:items-center cf:gap-2 cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
-						<FileText className="cf:size-4" />
-						{formatReportKind(props.rule.reportKind)}
+						<FileText className="cf:size-5" />
+						{reportKindLabel}
 					</p>
+
 					<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
-						Report rule {shortID(props.rule.id)}
+						{reportRuleTitle(props.scheduleLabel, props.rule.reportKind)}
 					</h3>
-					<p className="cf:mt-2 cf:text-xs cf:font-bold cf:text-muted-foreground">
-						Schedule {shortID(props.rule.scheduleId)} · Updated {formatDateTime(props.rule.updatedAt)}
+
+					<p className="cf:mt-2 cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
+						{props.scheduleLabel.subtitle}
+					</p>
+
+					<ScheduleContextChips label={props.scheduleLabel} />
+
+					<p className="cf:mt-3 cf:text-xs cf:font-bold cf:text-muted-foreground">
+						Updated {formatDateTime(props.rule.updatedAt)}
 					</p>
 				</div>
 
@@ -65,6 +73,9 @@ export function ReportRuleCard(props: ReportRuleCardProps): ReactElement {
 					<CampfireStatusPill tone={changed ? 'ember' : 'green'}>
 						{changed ? 'Unsaved' : 'Saved'}
 					</CampfireStatusPill>
+					{props.scheduleLabel.unavailable && (
+						<CampfireStatusPill tone="red">Missing schedule</CampfireStatusPill>
+					)}
 				</div>
 			</div>
 
@@ -72,7 +83,7 @@ export function ReportRuleCard(props: ReportRuleCardProps): ReactElement {
 				<CampfireCheckboxField
 					checked={props.draft.enabled}
 					disabled={formDisabled}
-					label="Enable this report rule"
+					label="Enable this report"
 					description="Allow Campfire to generate this scheduled report."
 					onCheckedChange={checked => props.onDraftChange(props.rule.id, { enabled: checked })}
 				/>
@@ -126,9 +137,9 @@ export function ReportRuleCard(props: ReportRuleCardProps): ReactElement {
 				/>
 			</div>
 
-			<CampfireField id={`campfire-report-sort-${props.rule.id}`} label="Sort mode">
+			<CampfireField id={`campfire-report-rule-sort-${props.rule.id}`} label="Sort mode">
 				<CampfireSelect
-					id={`campfire-report-sort-${props.rule.id}`}
+					id={`campfire-report-rule-sort-${props.rule.id}`}
 					disabled={formDisabled}
 					value={props.draft.sortMode}
 					onValueChange={value => props.onDraftChange(props.rule.id, { sortMode: toReportSortMode(value) })}
@@ -142,15 +153,33 @@ export function ReportRuleCard(props: ReportRuleCardProps): ReactElement {
 			</CampfireField>
 
 			<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4">
-				<p className="cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
-					Report rules control scheduled generation. Manual report preview and posting stays in Reports.
+				<p className="cf:m-0 cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
+					Report rules control scheduled generation. Manual report review and posting stays in Reports.
 				</p>
 
 				<Button type="button" disabled={formDisabled || !changed} onClick={() => void props.onSave(props.rule)}>
 					<Save className="cf:size-4" />
-					{props.saving ? 'Saving…' : 'Save rule'}
+					{props.saving ? 'Saving…' : 'Save report'}
 				</Button>
 			</div>
 		</article>
+	);
+}
+
+/**
+ * ScheduleContextChips renders readable schedule context.
+ */
+function ScheduleContextChips(props: { readonly label: StandupScheduleLabel }): ReactElement {
+	return (
+		<div className="cf:mt-3 cf:flex cf:flex-wrap cf:gap-2">
+			{props.label.chips.map(chip => (
+				<span
+					key={chip}
+					className="cf:rounded-full cf:border cf:border-white/10 cf:bg-black/20 cf:px-2.5 cf:py-1 cf:text-xs cf:font-black cf:text-amber-100"
+				>
+					{chip}
+				</span>
+			))}
+		</div>
 	);
 }

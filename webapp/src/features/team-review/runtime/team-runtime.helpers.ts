@@ -151,7 +151,8 @@ export function formatDateTime(value: string): string {
  */
 export function runtimeSignalCardClassName(active: boolean): string {
 	return cn(
-		'cf:rounded-2xl cf:border cf:p-5 cf:transition',
+		'cf:min-h-[8.5rem] cf:rounded-2xl cf:border cf:p-5 cf:transition',
+		'cf:shadow-inner cf:shadow-black/10',
 		active ? 'cf:border-amber-300/30 cf:bg-amber-300/[0.08]' : 'cf:border-white/10 cf:bg-white/[0.035]',
 	);
 }

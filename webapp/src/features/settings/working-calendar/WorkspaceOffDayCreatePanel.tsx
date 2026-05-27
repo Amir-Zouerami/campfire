@@ -1,6 +1,7 @@
 import type { FormEvent, ReactElement } from 'react';
 import { Plus } from 'lucide-react';
 
+import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -47,12 +48,11 @@ export function WorkspaceOffDayCreatePanel(props: WorkspaceOffDayCreatePanelProp
 			<div className="cf:grid cf:gap-4 cf:md:grid-cols-[14rem_1fr]">
 				<div className="cf:grid cf:gap-2">
 					<Label htmlFor="campfire-workspace-off-day-date">Date</Label>
-					<Input
+					<CampfireDateInput
 						id="campfire-workspace-off-day-date"
-						type="date"
 						disabled={props.disabled || !props.canManageCalendar}
 						value={props.draft.date}
-						onChange={event => props.onChange({ date: event.currentTarget.value })}
+						onValueChange={value => props.onChange({ date: value })}
 					/>
 				</div>
 

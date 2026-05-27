@@ -159,3 +159,206 @@
 		grid-template-columns: 1fr !important;
 	}
 }
+
+/* Campfire global report nav repair: global report tabs stay side-by-side. */
+.campfire-global-report-nav {
+	display: grid !important;
+	width: 100% !important;
+	grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+	gap: 1rem !important;
+	align-items: stretch !important;
+}
+
+.campfire-global-report-nav > button {
+	width: 100% !important;
+	min-width: 0 !important;
+}
+
+@media (max-width: 640px) {
+	.campfire-global-report-nav {
+		grid-template-columns: 1fr !important;
+	}
+}
+
+/* Campfire Standup settings repair: split the crowded standup page into focused local sections. */
+.campfire-standup-settings-nav {
+	display: grid !important;
+	width: 100% !important;
+	grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+	gap: 1rem !important;
+	align-items: stretch !important;
+}
+
+.campfire-standup-settings-nav-button {
+	display: flex;
+	min-height: 5.25rem;
+	width: 100%;
+	min-width: 0;
+	align-items: center;
+	gap: 1rem;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 1rem;
+	background: rgba(255, 255, 255, 0.04);
+	padding: 1rem 1.15rem;
+	text-align: left;
+	transition:
+		border-color 160ms ease,
+		background 160ms ease,
+		box-shadow 160ms ease,
+		transform 160ms ease;
+}
+
+.campfire-standup-settings-nav-button:hover {
+	border-color: rgba(253, 186, 116, 0.35);
+	background: rgba(251, 146, 60, 0.06);
+}
+
+.campfire-standup-settings-nav-button--active {
+	border-color: rgba(253, 186, 116, 0.45);
+	background: rgba(251, 146, 60, 0.1);
+	box-shadow:
+		0 14px 34px rgba(0, 0, 0, 0.24),
+		inset 0 1px 0 rgba(255, 255, 255, 0.065);
+}
+
+.campfire-standup-settings-nav-icon {
+	display: inline-grid;
+	width: 2.5rem;
+	height: 2.5rem;
+	flex: 0 0 auto;
+	place-items: center;
+	border: 1px solid rgba(253, 186, 116, 0.2);
+	border-radius: 0.85rem;
+	background: rgba(251, 146, 60, 0.1);
+	color: #fed7aa;
+}
+
+.campfire-standup-settings-nav-icon svg {
+	width: 1.2rem !important;
+	height: 1.2rem !important;
+	stroke-width: 2.3 !important;
+}
+
+@media (max-width: 760px) {
+	.campfire-standup-settings-nav {
+		grid-template-columns: 1fr !important;
+	}
+}
+
+/* Campfire form-builder repair: split Create and Existing templates inside Standup Forms. */
+.campfire-standup-forms-nav {
+	display: grid !important;
+	width: 100% !important;
+	grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+	gap: 1rem !important;
+	align-items: stretch !important;
+}
+
+.campfire-standup-forms-nav-button {
+	display: flex;
+	min-height: 5rem;
+	width: 100%;
+	min-width: 0;
+	align-items: center;
+	gap: 1rem;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 1rem;
+	background: rgba(255, 255, 255, 0.04);
+	padding: 1rem 1.15rem;
+	text-align: left;
+	transition:
+		border-color 160ms ease,
+		background 160ms ease,
+		box-shadow 160ms ease,
+		transform 160ms ease;
+}
+
+.campfire-standup-forms-nav-button:hover {
+	border-color: rgba(253, 186, 116, 0.35);
+	background: rgba(251, 146, 60, 0.06);
+}
+
+.campfire-standup-forms-nav-button--active {
+	border-color: rgba(253, 186, 116, 0.45);
+	background: rgba(251, 146, 60, 0.1);
+	box-shadow:
+		0 14px 34px rgba(0, 0, 0, 0.24),
+		inset 0 1px 0 rgba(255, 255, 255, 0.065);
+}
+
+.campfire-standup-forms-nav-icon {
+	display: inline-grid;
+	width: 2.5rem;
+	height: 2.5rem;
+	flex: 0 0 auto;
+	place-items: center;
+	border: 1px solid rgba(253, 186, 116, 0.2);
+	border-radius: 0.85rem;
+	background: rgba(251, 146, 60, 0.1);
+	color: #fed7aa;
+}
+
+.campfire-standup-forms-nav-icon svg {
+	width: 1.2rem !important;
+	height: 1.2rem !important;
+	stroke-width: 2.3 !important;
+}
+
+@media (max-width: 760px) {
+	.campfire-standup-forms-nav {
+		grid-template-columns: 1fr !important;
+	}
+}
+
+/* Campfire global report nav final repair: global report tabs stay side-by-side on normal widths. */
+.campfire-theme .campfire-global-report-nav {
+	display: grid !important;
+	width: 100% !important;
+	grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+	gap: 1rem !important;
+	align-items: stretch !important;
+}
+
+.campfire-theme .campfire-global-report-nav > button {
+	width: 100% !important;
+	min-width: 0 !important;
+}
+
+@media (max-width: 640px) {
+	.campfire-theme .campfire-global-report-nav {
+		grid-template-columns: 1fr !important;
+	}
+}
+
+/* Campfire section nav final repair: intro panels are deleted, nav owns the first row. */
+.campfire-theme .campfire-section-nav {
+	display: grid !important;
+	width: 100% !important;
+	grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+	gap: 1rem !important;
+	align-items: stretch !important;
+}
+
+.campfire-theme .campfire-section-nav--settings {
+	grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+.campfire-theme .campfire-section-nav > button {
+	width: 100% !important;
+	min-width: 0 !important;
+	min-height: 5rem !important;
+}
+
+@media (max-width: 1180px) {
+	.campfire-theme .campfire-section-nav,
+	.campfire-theme .campfire-section-nav--settings {
+		grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+	}
+}
+
+@media (max-width: 760px) {
+	.campfire-theme .campfire-section-nav,
+	.campfire-theme .campfire-section-nav--settings {
+		grid-template-columns: 1fr !important;
+	}
+}

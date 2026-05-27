@@ -7,6 +7,7 @@ import type {
 	TimeReportRow,
 } from '@/types/domain';
 
+import { isISODateInputValue, normalizeISODateInputValue } from '@/lib/dates';
 import type { GlobalDateRange, GlobalTimeReportFilter } from './global-reports.types';
 
 /**
@@ -82,19 +83,39 @@ export function defaultGlobalTimeFilter(): GlobalTimeReportFilter {
  * validateGlobalDateRange returns a user-facing validation message.
  */
 export function validateGlobalDateRange(range: GlobalDateRange): string | null {
-	if (range.startDate.trim() === '') {
+	const normalizedRange = normalizeGlobalDateRange(range);
+
+	if (normalizedRange.startDate.trim() === '') {
 		return 'Start date is required.';
 	}
 
-	if (range.endDate.trim() === '') {
+	if (normalizedRange.endDate.trim() === '') {
 		return 'End date is required.';
 	}
 
-	if (range.endDate < range.startDate) {
+	if (!isISODateInputValue(normalizedRange.startDate)) {
+		return 'Start date must be a real YYYY-MM-DD calendar date.';
+	}
+
+	if (!isISODateInputValue(normalizedRange.endDate)) {
+		return 'End date must be a real YYYY-MM-DD calendar date.';
+	}
+
+	if (normalizedRange.endDate < normalizedRange.startDate) {
 		return 'End date cannot be before start date.';
 	}
 
 	return null;
+}
+
+/**
+ * normalizeGlobalDateRange normalizes date text before report API calls.
+ */
+export function normalizeGlobalDateRange(range: GlobalDateRange): GlobalDateRange {
+	return {
+		startDate: normalizeISODateInputValue(range.startDate),
+		endDate: normalizeISODateInputValue(range.endDate),
+	};
 }
 
 /**
@@ -288,15 +309,11 @@ export function downloadGlobalCSVBlob(blob: Blob, filename: string): void {
 }
 
 /**
- * selectClassName returns the shared native select style.
- */
-
-/**
  * globalReportTabClassName returns the global report tab button style.
  */
 export function globalReportTabClassName(active: boolean): string {
 	return cn(
-		'cf:flex cf:min-w-[220px] cf:flex-1 cf:flex-col cf:items-start cf:gap-1 cf:rounded-2xl cf:border cf:px-5 cf:py-4 cf:text-left cf:transition',
+		'cf:flex cf:min-h-[78px] cf:w-full cf:min-w-0 cf:flex-col cf:items-start cf:justify-center cf:gap-1 cf:rounded-2xl cf:border cf:px-5 cf:py-4 cf:text-left cf:transition',
 		'cf:cursor-pointer cf:border-white/10 cf:bg-white/[0.04] hover:cf:border-amber-300/35 hover:cf:bg-amber-300/[0.06]',
 		active && 'cf:border-amber-300/45 cf:bg-amber-300/[0.10] cf:shadow-lg',
 	);

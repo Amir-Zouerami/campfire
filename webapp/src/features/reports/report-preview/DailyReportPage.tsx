@@ -43,7 +43,7 @@ export function DailyReportPage(props: DailyReportPageProps): ReactElement {
 					action={<CampfireStatusPill tone="ember">Daily</CampfireStatusPill>}
 				/>
 
-				<CampfireCardBody className="campfire-context-grid cf:md:grid-cols-3">
+				<CampfireCardBody className="campfire-context-grid">
 					<CampfireMetric
 						label="Submitted"
 						value={String(report.submittedCount)}
@@ -97,13 +97,11 @@ export function DailyReportPage(props: DailyReportPageProps): ReactElement {
 
 					{report.loadState === 'loading' && <ReportPreviewLoading />}
 
-					{report.loadState !== 'loading' && (
-						<ReportMarkdownPreview
-							markdown={report.preview?.markdown ?? ''}
-							disabled={report.isBusy}
-							onPost={report.postReport}
-						/>
-					)}
+					<ReportMarkdownPreview
+						markdown={report.preview?.markdown ?? ''}
+						disabled={report.isBusy || report.preview === null}
+						onPost={report.postReport}
+					/>
 				</CampfireCardBody>
 			</CampfirePanel>
 		</div>

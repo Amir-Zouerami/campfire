@@ -46,7 +46,7 @@ export type UseDailyReportPreviewResult = {
  */
 export function useDailyReportPreview(input: UseDailyReportPreviewInput): UseDailyReportPreviewResult {
 	const [loadState, setLoadState] = useState<ReportPreviewLoadState>('idle');
-	const [occurrenceDate, setOccurrenceDate] = useState(getTodayLocalDateString());
+	const [occurrenceDate, setOccurrenceDateState] = useState(getTodayLocalDateString());
 	const [sortMode, setSortMode] = useState<StandupSubmissionSortMode>('first_submitted');
 	const [preview, setPreview] = useState<DailyReportPreview | null>(null);
 	const [message, setMessage] = useState('');
@@ -76,7 +76,7 @@ export function useDailyReportPreview(input: UseDailyReportPreviewInput): UseDai
 				const record = parsed as Record<string, unknown>;
 
 				if (typeof record.occurrenceDate === 'string' && record.occurrenceDate.trim() !== '') {
-					setOccurrenceDate(normalizeISODateInputValue(record.occurrenceDate));
+					setOccurrenceDateState(normalizeISODateInputValue(record.occurrenceDate));
 				}
 
 				if (typeof record.sortMode === 'string') {
@@ -105,24 +105,17 @@ export function useDailyReportPreview(input: UseDailyReportPreviewInput): UseDai
 		 * loadPreview loads the daily Markdown report preview.
 		 */
 		async function loadPreview(): Promise<void> {
-			if (occurrenceDate.trim() === '') {
+			const normalizedOccurrenceDate = normalizeISODateInputValue(occurrenceDate);
+
+			if (!isISODateInputValue(normalizedOccurrenceDate)) {
 				setPreview(null);
-				setMessage('Choose a report date.');
+				setMessage('Choose a real report date in YYYY-MM-DD format.');
 				setLoadState('error');
 				return;
 			}
 
-			const cleanOccurrenceDate = normalizeISODateInputValue(occurrenceDate);
-
-			if (!isISODateInputValue(cleanOccurrenceDate)) {
-				setPreview(null);
-				setMessage('Choose a real report date using YYYY-MM-DD.');
-				setLoadState('error');
-				return;
-			}
-
-			if (cleanOccurrenceDate !== occurrenceDate) {
-				setOccurrenceDate(cleanOccurrenceDate);
+			if (normalizedOccurrenceDate !== occurrenceDate) {
+				setOccurrenceDateState(normalizedOccurrenceDate);
 				return;
 			}
 
@@ -130,7 +123,7 @@ export function useDailyReportPreview(input: UseDailyReportPreviewInput): UseDai
 			setMessage('');
 
 			try {
-				const response = await getDailyReportPreview(input.workspace.id, cleanOccurrenceDate, sortMode);
+				const response = await getDailyReportPreview(input.workspace.id, normalizedOccurrenceDate, sortMode);
 
 				if (!isActive) {
 					return;
@@ -161,25 +154,28 @@ export function useDailyReportPreview(input: UseDailyReportPreviewInput): UseDai
 	}, [preview]);
 
 	/**
+	 * setOccurrenceDate updates the report date after normalizing common input formats.
+	 */
+	function setOccurrenceDate(date: string): void {
+		setOccurrenceDateState(normalizeISODateInputValue(date));
+	}
+
+	/**
 	 * postReport posts the current daily report preview to the workspace channel.
 	 */
 	async function postReport(): Promise<void> {
+		const normalizedOccurrenceDate = normalizeISODateInputValue(occurrenceDate);
+
+		if (!isISODateInputValue(normalizedOccurrenceDate)) {
+			setMessage('Choose a real report date in YYYY-MM-DD format before posting.');
+			setLoadState('error');
+			return;
+		}
+
 		if (preview === null) {
 			setMessage('Load a report preview before posting.');
 			setLoadState('error');
 			return;
-		}
-
-		const cleanOccurrenceDate = normalizeISODateInputValue(occurrenceDate);
-
-		if (!isISODateInputValue(cleanOccurrenceDate)) {
-			setMessage('Choose a real report date using YYYY-MM-DD.');
-			setLoadState('error');
-			return;
-		}
-
-		if (cleanOccurrenceDate !== occurrenceDate) {
-			setOccurrenceDate(cleanOccurrenceDate);
 		}
 
 		setLoadState('posting');
@@ -187,10 +183,11 @@ export function useDailyReportPreview(input: UseDailyReportPreviewInput): UseDai
 
 		try {
 			await postDailyReportPreview(input.workspace.id, {
-				occurrenceDate: cleanOccurrenceDate,
+				occurrenceDate: normalizedOccurrenceDate,
 				sortMode,
 			});
 
+			setOccurrenceDateState(normalizedOccurrenceDate);
 			setLoadState('ready');
 			setMessage('Daily report posted.');
 			toast.success('Daily report posted');

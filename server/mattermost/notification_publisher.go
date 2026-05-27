@@ -295,15 +295,17 @@ func formatChannelMissingReminderMessage(api plugin.API, reminder service.Standu
 }
 
 /*
-formatLeaveRequestedMessage formats the leave request approval notification.
+formatLeaveRequestedMessage formats the approver-facing leave request DM.
 */
 func formatLeaveRequestedMessage(api plugin.API, notification service.LeaveRequestNotification) string {
 	requesterLabel := userMentionOrID(api, notification.RequesterUserID)
+	workspaceLabel := channelReferenceOrWorkspaceName(api, notification.ChannelID, notification.WorkspaceName)
 
 	lines := []string{
 		"🔥 **Campfire leave request**",
 		"",
 		fmt.Sprintf("%s requested **%s** leave.", requesterLabel, notification.LeaveTypeName),
+		fmt.Sprintf("**Workspace:** %s", workspaceLabel),
 		fmt.Sprintf("**Dates:** %s → %s", notification.StartDate, notification.EndDate),
 		fmt.Sprintf("**Status:** %s", notification.Status),
 	}
@@ -318,15 +320,13 @@ func formatLeaveRequestedMessage(api plugin.API, notification service.LeaveReque
 		lines = append(lines, details)
 	}
 
-	if strings.TrimSpace(notification.Reason) != "" {
-		lines = append(lines, fmt.Sprintf("**Reason:** %s", notification.Reason))
-	}
+	lines = appendLabeledMultilineValue(lines, "Reason", notification.Reason)
 
 	if strings.TrimSpace(notification.BackupUserID) != "" {
 		lines = append(lines, fmt.Sprintf("**Backup:** %s", userMentionOrID(api, notification.BackupUserID)))
 	}
 
-	lines = append(lines, "", "Open Campfire to approve or reject this request.")
+	lines = append(lines, "", "Open Campfire in the workspace channel to approve or reject this request.")
 
 	return strings.Join(lines, "\n")
 }
@@ -337,10 +337,36 @@ formatLeaveDecidedMessage formats the leave approval/rejection notification.
 func formatLeaveDecidedMessage(api plugin.API, notification service.LeaveDecisionNotification) string {
 	deciderLabel := userMentionOrID(api, notification.DeciderUserID)
 
+	header := "🔥 **Campfire leave update**"
+	summary := fmt.Sprintf(
+		"Your **%s** leave request was **%s** by %s.",
+		notification.LeaveTypeName,
+		notification.Decision,
+		deciderLabel,
+	)
+
+	switch domain.LeaveStatus(notification.Decision) {
+	case domain.LeaveStatusApproved:
+		header = "✅ **Campfire leave approved**"
+		summary = fmt.Sprintf(
+			"✅ Your **%s** leave request was **approved** by %s.",
+			notification.LeaveTypeName,
+			deciderLabel,
+		)
+
+	case domain.LeaveStatusRejected:
+		header = "❌ **Campfire leave rejected**"
+		summary = fmt.Sprintf(
+			"❌ Your **%s** leave request was **rejected** by %s.",
+			notification.LeaveTypeName,
+			deciderLabel,
+		)
+	}
+
 	lines := []string{
-		"🔥 **Campfire leave update**",
+		header,
 		"",
-		fmt.Sprintf("Your **%s** leave request was **%s** by %s.", notification.LeaveTypeName, notification.Decision, deciderLabel),
+		summary,
 		fmt.Sprintf("**Dates:** %s → %s", notification.StartDate, notification.EndDate),
 	}
 
@@ -359,6 +385,53 @@ func formatLeaveDecidedMessage(api plugin.API, notification service.LeaveDecisio
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+/*
+formatApprovedLeaveChannelMessage formats the team-facing approved leave post.
+*/
+func formatApprovedLeaveChannelMessage(api plugin.API, notification service.LeaveDecisionNotification) string {
+	requesterLabel := userMentionOrID(api, notification.RequesterUserID)
+	deciderLabel := userMentionOrID(api, notification.DeciderUserID)
+	workspaceLabel := channelReferenceOrWorkspaceName(api, notification.ChannelID, notification.WorkspaceName)
+
+	lines := []string{
+		"🔥 **Campfire availability update**",
+		"",
+		fmt.Sprintf("%s will be away on approved **%s** leave.", requesterLabel, notification.LeaveTypeName),
+		fmt.Sprintf("**Workspace:** %s", workspaceLabel),
+		fmt.Sprintf("**Dates:** %s → %s", notification.StartDate, notification.EndDate),
+		fmt.Sprintf("**Approved by:** %s", deciderLabel),
+	}
+
+	details := formatLeaveRequestDetails(
+		notification.DurationMode,
+		notification.HalfDayPart,
+		notification.StartTime,
+		notification.EndTime,
+	)
+	if details != "" {
+		lines = append(lines, details)
+	}
+
+	lines = appendLabeledMultilineValue(lines, "Approval note", notification.Comment)
+
+	return strings.Join(lines, "\n")
+}
+
+/*
+appendLabeledMultilineValue appends a markdown label and puts the value on its own line.
+
+This keeps multiline Persian/RTL and normal multiline text readable instead of
+putting the first line beside the label and the remaining lines below it.
+*/
+func appendLabeledMultilineValue(lines []string, label string, value string) []string {
+	cleanValue := strings.TrimSpace(value)
+	if cleanValue == "" {
+		return lines
+	}
+
+	return append(lines, fmt.Sprintf("**%s:**", label), cleanValue)
 }
 
 /*
@@ -427,38 +500,6 @@ func formatApprovedLeaveCancelledChannelMessage(
 	)
 	if details != "" {
 		lines = append(lines, details)
-	}
-
-	return strings.Join(lines, "\n")
-}
-
-/*
-formatApprovedLeaveChannelMessage formats the team-facing approved leave announcement.
-*/
-func formatApprovedLeaveChannelMessage(api plugin.API, notification service.LeaveDecisionNotification) string {
-	requesterLabel := userMentionOrID(api, notification.RequesterUserID)
-	deciderLabel := userMentionOrID(api, notification.DeciderUserID)
-
-	lines := []string{
-		"🔥 **Campfire availability update**",
-		"",
-		fmt.Sprintf("%s will be away on approved **%s** leave.", requesterLabel, notification.LeaveTypeName),
-		fmt.Sprintf("**Dates:** %s → %s", notification.StartDate, notification.EndDate),
-		fmt.Sprintf("**Approved by:** %s", deciderLabel),
-	}
-
-	details := formatLeaveRequestDetails(
-		notification.DurationMode,
-		notification.HalfDayPart,
-		notification.StartTime,
-		notification.EndTime,
-	)
-	if details != "" {
-		lines = append(lines, details)
-	}
-
-	if strings.TrimSpace(notification.Comment) != "" {
-		lines = append(lines, fmt.Sprintf("**Approval note:** %s", notification.Comment))
 	}
 
 	return strings.Join(lines, "\n")

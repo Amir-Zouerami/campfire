@@ -1,17 +1,15 @@
-import { toast } from 'sonner';
 import { useState } from 'react';
 import type { ReactElement } from 'react';
+import { toast } from 'sonner';
 import { AlertTriangle, FileCog, Loader2, Trash2 } from 'lucide-react';
 
+import { ApiClientError, deleteWorkspace } from '@/api';
+import { CampfireCardBody, CampfireCardHeader, CampfireMetric, CampfirePanel } from '@/app/campfire-ui';
+import { useUserProfiles } from '@/app/useUserProfiles';
+import { CampfireExternalLinkMetric } from '@/components/campfire/CampfireExternalLinkMetric';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-
-import { ApiClientError, deleteWorkspace } from '@/api';
-
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
-
-import { CampfireCardBody, CampfireCardHeader, CampfireMetric, CampfirePanel } from '@/app/campfire-ui';
-import { CampfireExternalLinkMetric } from '@/components/campfire/CampfireExternalLinkMetric';
 
 /**
  * WorkspaceOverviewPanel renders static workspace identity and lifecycle controls.
@@ -21,9 +19,13 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 	const [message, setMessage] = useState('');
 	const [isDeleting, setIsDeleting] = useState(false);
 
+	const creatorProfiles = useUserProfiles([props.workspace.createdBy]);
+
 	const expectedConfirmation = props.workspace.name;
 	const canDelete = props.canManageWorkspace || props.isSystemAdmin;
 	const confirmationMatches = confirmation.trim() === expectedConfirmation;
+	const createdByLabel =
+		props.workspace.createdBy.trim() === '' ? 'Unknown' : creatorProfiles.labelForUserID(props.workspace.createdBy);
 
 	/**
 	 * handleDeleteWorkspace archives the workspace setup for this channel.
@@ -77,7 +79,7 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 						emptyValue="Not set"
 						helper="Open external link"
 					/>
-					<CampfireMetric label="Created by" value={props.workspace.createdBy} helper="Mattermost user ID" />
+					<CampfireMetric label="Created by" value={createdByLabel} helper="Workspace creator" />
 					<CampfireMetric
 						label="Status"
 						value={props.workspace.isArchived ? 'Archived' : 'Active'}
@@ -95,13 +97,17 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 				/>
 
 				<CampfireCardBody className="cf:grid cf:gap-4">
-					<div className="cf:rounded-2xl cf:border cf:border-red-300/20 cf:bg-red-950/25 cf:p-4">
-						<p className="cf:m-0 cf:text-sm cf:font-bold cf:leading-6 cf:text-red-100">
-							This archives the workspace setup instead of hard-deleting historical data. Campfire will
-							stop treating this channel as configured, active schedules will stop being discovered, and
-							the channel can be set up again later.
-						</p>
+					<div className="cf:rounded-2xl cf:border cf:border-red-300/25 cf:bg-red-950/25 cf:px-4 cf:py-3 cf:text-sm cf:font-black cf:leading-6 cf:text-red-100">
+						This archives the workspace setup instead of hard-deleting historical data. Campfire will stop
+						treating this channel as configured, active schedules will stop being discovered, and the
+						channel can be set up again later.
 					</div>
+
+					{message !== '' && (
+						<div className="cf:rounded-2xl cf:border cf:border-red-300/25 cf:bg-red-950/25 cf:px-4 cf:py-3 cf:text-sm cf:font-black cf:text-red-100">
+							{message}
+						</div>
+					)}
 
 					<div className="cf:grid cf:gap-2">
 						<label
@@ -110,21 +116,14 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 						>
 							Type <span className="cf:text-amber-100">{expectedConfirmation}</span> to confirm.
 						</label>
-
 						<Input
 							id="campfire-delete-workspace-confirmation"
 							disabled={!canDelete || isDeleting}
-							value={confirmation}
 							placeholder={expectedConfirmation}
+							value={confirmation}
 							onChange={event => setConfirmation(event.currentTarget.value)}
 						/>
 					</div>
-
-					{message.trim() !== '' && (
-						<p className="cf:m-0 cf:rounded-2xl cf:border cf:border-red-300/20 cf:bg-red-950/25 cf:p-3 cf:text-sm cf:font-bold cf:text-red-100">
-							{message}
-						</p>
-					)}
 
 					<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3">
 						<p className="cf:m-0 cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
@@ -152,7 +151,7 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 }
 
 /**
- * errorToMessage converts unknown failures into safe UI text.
+ * errorToMessage converts unknown thrown values into a safe UI message.
  */
 function errorToMessage(error: unknown): string {
 	if (error instanceof ApiClientError) {

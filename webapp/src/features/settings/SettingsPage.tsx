@@ -4,7 +4,6 @@ import type { ReactElement } from 'react';
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
 
 import { RestrictedSettingsState } from './RestrictedSettingsState';
-import { SettingsIntro } from './SettingsIntro';
 import { SettingsSectionNavigation } from './SettingsSectionNavigation';
 import { SettingsSectionPanel } from './SettingsSectionPanel';
 import { resolveSettingsSection, visibleSettingsSections } from './settings.helpers';
@@ -31,9 +30,7 @@ export function SettingsPage(props: WorkspaceShellProps): ReactElement {
 	}
 
 	return (
-		<div className="cf:grid cf:gap-6">
-			<SettingsIntro />
-
+		<div className="cf:grid cf:gap-4">
 			<SettingsSectionNavigation
 				activeSection={resolvedSection.id}
 				sections={visibleSections}

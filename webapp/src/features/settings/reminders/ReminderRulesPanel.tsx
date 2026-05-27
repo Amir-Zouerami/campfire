@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { BellRing } from 'lucide-react';
 
 import { CampfireEmpty } from '@/app/campfire-ui';
+import { scheduleLabelForRule, type StandupScheduleLabelLookup } from '@/features/settings/standup-schedule-labels';
 import type { ReminderRule } from '@/types/domain';
 
 import { ReminderRuleCard } from './ReminderRuleCard';
@@ -12,6 +13,7 @@ import type { ReminderRuleDraftPatch, ReminderRuleWithDraft } from './reminders.
  */
 type ReminderRulesPanelProps = {
 	readonly rulesWithDrafts: readonly ReminderRuleWithDraft[];
+	readonly scheduleLabels: StandupScheduleLabelLookup;
 	readonly disabled: boolean;
 	readonly canManageReminders: boolean;
 	readonly savingRuleID: string;
@@ -24,7 +26,7 @@ type ReminderRulesPanelProps = {
  */
 export function ReminderRulesPanel(props: ReminderRulesPanelProps): ReactElement {
 	return (
-		<section className="cf:grid cf:gap-4">
+		<section className="campfire-settings-rule-list">
 			{props.rulesWithDrafts.length === 0 ? (
 				<CampfireEmpty
 					icon={BellRing}
@@ -35,6 +37,7 @@ export function ReminderRulesPanel(props: ReminderRulesPanelProps): ReactElement
 				props.rulesWithDrafts.map(pair => (
 					<ReminderRuleCard
 						key={pair.rule.id}
+						scheduleLabel={scheduleLabelForRule(props.scheduleLabels, pair.rule.scheduleId)}
 						rule={pair.rule}
 						draft={pair.draft}
 						disabled={props.disabled}

@@ -1,22 +1,16 @@
 import type { ReactElement } from 'react';
 
-import { Input } from '@/components/ui/input';
+import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
+import { CampfireSelect } from '@/components/campfire/CampfireSelect';
+import { CampfireTimeInput } from '@/components/campfire/CampfireTimeInput';
 import type { StandupTemplate } from '@/types/domain';
 
-import {
-	formatLabel,
-	nativeSelectClassName,
-	STANDUP_KINDS,
-	toStandupKind,
-	toWeeklyMode,
-	WEEKLY_MODES,
-} from './standup-settings.helpers';
+import { formatLabel, STANDUP_KINDS, toStandupKind, toWeeklyMode, WEEKLY_MODES } from './standup-settings.helpers';
 import type { StandupScheduleDraft, StandupScheduleDraftPatch } from './standup-settings.types';
-import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
 import { StandupField } from './StandupField';
 
 /**
- * StandupScheduleFieldsProps contains shared schedule form fields.
+ * StandupScheduleFieldsProps contains shared schedule fields.
  */
 type StandupScheduleFieldsProps = {
 	readonly idPrefix: string;
@@ -27,21 +21,21 @@ type StandupScheduleFieldsProps = {
 };
 
 /**
- * StandupScheduleFields renders schedule inputs shared by create and edit forms.
+ * StandupScheduleFields renders shared schedule form fields.
  */
 export function StandupScheduleFields(props: StandupScheduleFieldsProps): ReactElement {
 	const isWeekly = props.draft.kind === 'weekly';
+	const weeklyModeValue = props.draft.weeklyMode === '' ? 'none' : props.draft.weeklyMode;
 
 	return (
 		<div className="cf:grid cf:gap-4">
-			<div className="cf:grid cf:gap-4 cf:xl:grid-cols-[1fr_14rem_12rem]">
+			<div className="cf:grid cf:gap-4 cf:xl:grid-cols-[1fr_12rem_12rem]">
 				<StandupField htmlFor={`${props.idPrefix}-template`} label="Template">
-					<select
+					<CampfireSelect
 						id={`${props.idPrefix}-template`}
-						className={nativeSelectClassName()}
-						disabled={props.disabled}
+						disabled={props.disabled || props.templates.length === 0}
 						value={props.draft.templateId}
-						onChange={event => props.onChange({ templateId: event.currentTarget.value })}
+						onValueChange={value => props.onChange({ templateId: value })}
 					>
 						<option value="">Choose template</option>
 						{props.templates.map(template => (
@@ -49,55 +43,52 @@ export function StandupScheduleFields(props: StandupScheduleFieldsProps): ReactE
 								{template.name}
 							</option>
 						))}
-					</select>
+					</CampfireSelect>
 				</StandupField>
 
 				<StandupField htmlFor={`${props.idPrefix}-kind`} label="Kind">
-					<select
+					<CampfireSelect
 						id={`${props.idPrefix}-kind`}
-						className={nativeSelectClassName()}
 						disabled={props.disabled}
 						value={props.draft.kind}
-						onChange={event => props.onChange({ kind: toStandupKind(event.currentTarget.value) })}
+						onValueChange={value => props.onChange({ kind: toStandupKind(value) })}
 					>
 						{STANDUP_KINDS.map(kind => (
 							<option key={kind} value={kind}>
 								{formatLabel(kind)}
 							</option>
 						))}
-					</select>
+					</CampfireSelect>
 				</StandupField>
 
 				<StandupField htmlFor={`${props.idPrefix}-time`} label="Time">
-					<Input
+					<CampfireTimeInput
 						id={`${props.idPrefix}-time`}
-						type="time"
 						disabled={props.disabled}
 						value={props.draft.timeOfDay}
-						onChange={event => props.onChange({ timeOfDay: event.currentTarget.value })}
+						onValueChange={value => props.onChange({ timeOfDay: value })}
 					/>
 				</StandupField>
 			</div>
 
-			<div className="cf:grid cf:gap-4 cf:xl:grid-cols-[18rem_1fr]">
+			<div className="cf:grid cf:gap-4 cf:xl:grid-cols-[14rem_1fr]">
 				<StandupField
 					htmlFor={`${props.idPrefix}-weekly-mode`}
 					label="Weekly mode"
 					description="Only applies when kind is Weekly."
 				>
-					<select
+					<CampfireSelect
 						id={`${props.idPrefix}-weekly-mode`}
-						className={nativeSelectClassName()}
 						disabled={props.disabled || !isWeekly}
-						value={isWeekly ? props.draft.weeklyMode || 'none' : 'none'}
-						onChange={event => props.onChange({ weeklyMode: toWeeklyMode(event.currentTarget.value) })}
+						value={weeklyModeValue}
+						onValueChange={value => props.onChange({ weeklyMode: toWeeklyMode(value) })}
 					>
 						{WEEKLY_MODES.map(mode => (
 							<option key={mode} value={mode}>
-								{formatLabel(mode)}
+								{mode === 'none' ? 'None' : formatLabel(mode)}
 							</option>
 						))}
-					</select>
+					</CampfireSelect>
 				</StandupField>
 
 				<div className="cf:grid cf:gap-3 cf:xl:grid-cols-3">
@@ -108,6 +99,7 @@ export function StandupScheduleFields(props: StandupScheduleFieldsProps): ReactE
 						description="Allow this schedule to run."
 						onCheckedChange={checked => props.onChange({ enabled: checked })}
 					/>
+
 					<CampfireCheckboxField
 						checked={props.draft.skipNonWorkingDays}
 						disabled={props.disabled}
@@ -115,6 +107,7 @@ export function StandupScheduleFields(props: StandupScheduleFieldsProps): ReactE
 						description="Do not run on disabled weekdays."
 						onCheckedChange={checked => props.onChange({ skipNonWorkingDays: checked })}
 					/>
+
 					<CampfireCheckboxField
 						checked={props.draft.skipDailyWhenWeeklyRuns}
 						disabled={props.disabled}

@@ -5,7 +5,6 @@ import {
 	useMemo,
 	useRef,
 	useState,
-	type CSSProperties,
 	type KeyboardEvent,
 	type ReactElement,
 	type ReactNode,
@@ -37,23 +36,15 @@ type CampfireSelectOption = {
 };
 
 /**
- * MenuRect stores the fixed dropdown geometry.
- */
-type MenuRect = {
-	readonly top: number;
-	readonly left: number;
-	readonly width: number;
-	readonly maxHeight: number;
-};
-
-/**
- * CampfireSelect renders a Campfire-styled dropdown without portaling to document.body.
+ * CampfireSelect renders a Mattermost-safe dropdown anchored to its own field.
+ *
+ * The menu is absolute inside this component instead of fixed-positioned or
+ * portaled. Fixed menus drift inside Mattermost's modal scroll container.
  */
 export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 	const rootRef = useRef<HTMLDivElement | null>(null);
 	const buttonRef = useRef<HTMLButtonElement | null>(null);
 	const [open, setOpen] = useState(false);
-	const [menuRect, setMenuRect] = useState<MenuRect | null>(null);
 
 	const options = useMemo(() => extractOptions(props.children), [props.children]);
 	const selectedOption = options.find(option => option.value === props.value) ?? null;
@@ -65,7 +56,7 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 		}
 
 		/**
-		 * handlePointerDown closes the menu when the user clicks outside the control.
+		 * handlePointerDown closes the menu when clicking outside this select.
 		 */
 		function handlePointerDown(event: MouseEvent): void {
 			if (!(event.target instanceof Node)) {
@@ -80,53 +71,32 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 		}
 
 		/**
-		 * handleGeometryChange keeps the fixed menu attached while the modal scrolls/resizes.
+		 * handleEscape closes the menu with Escape.
 		 */
-		function handleGeometryChange(): void {
-			updateMenuRect();
+		function handleEscape(event: globalThis.KeyboardEvent): void {
+			if (event.key === 'Escape') {
+				setOpen(false);
+				buttonRef.current?.focus();
+			}
 		}
 
 		document.addEventListener('mousedown', handlePointerDown, true);
-		window.addEventListener('resize', handleGeometryChange);
-		window.addEventListener('scroll', handleGeometryChange, true);
+		document.addEventListener('keydown', handleEscape, true);
 
 		return () => {
 			document.removeEventListener('mousedown', handlePointerDown, true);
-			window.removeEventListener('resize', handleGeometryChange);
-			window.removeEventListener('scroll', handleGeometryChange, true);
+			document.removeEventListener('keydown', handleEscape, true);
 		};
 	}, [open]);
 
 	/**
-	 * updateMenuRect updates dropdown placement from the trigger button.
-	 */
-	function updateMenuRect(): void {
-		const button = buttonRef.current;
-
-		if (button === null) {
-			setMenuRect(null);
-			return;
-		}
-
-		const rect = button.getBoundingClientRect();
-
-		setMenuRect({
-			top: rect.bottom + 6,
-			left: rect.left,
-			width: rect.width,
-			maxHeight: Math.max(180, window.innerHeight - rect.bottom - 18),
-		});
-	}
-
-	/**
-	 * toggleOpen toggles the menu and calculates geometry first.
+	 * toggleOpen toggles the menu.
 	 */
 	function toggleOpen(): void {
 		if (props.disabled === true) {
 			return;
 		}
 
-		updateMenuRect();
 		setOpen(current => !current);
 	}
 
@@ -171,14 +141,12 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 		switch (event.key) {
 			case 'ArrowDown':
 				event.preventDefault();
-				updateMenuRect();
 				setOpen(true);
 				moveSelection(1);
 				break;
 
 			case 'ArrowUp':
 				event.preventDefault();
-				updateMenuRect();
 				setOpen(true);
 				moveSelection(-1);
 				break;
@@ -197,7 +165,7 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 	}
 
 	return (
-		<div ref={rootRef} className="cf:relative">
+		<div ref={rootRef} className={cn('cf:relative', open && 'cf:z-120')}>
 			<button
 				ref={buttonRef}
 				id={props.id}
@@ -207,8 +175,9 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 				aria-controls={open ? menuID : undefined}
 				disabled={props.disabled}
 				className={cn(
-					'cf:flex cf:h-11 cf:w-full cf:items-center cf:justify-between cf:gap-3 cf:rounded-xl cf:border cf:border-white/10 cf:bg-black/25 cf:px-3 cf:py-2 cf:text-left cf:text-base cf:font-semibold cf:text-foreground cf:outline-none cf:transition',
-					'hover:cf:border-amber-300/30 hover:cf:bg-black/35',
+					'cf:flex cf:h-11 cf:w-full cf:items-center cf:justify-between cf:gap-3 cf:rounded-xl cf:border cf:border-white/10 cf:bg-black/30 cf:px-3 cf:py-2 cf:text-left cf:text-base cf:font-semibold cf:text-foreground cf:outline-none cf:transition',
+					'cf:shadow-inner cf:shadow-black/20',
+					'hover:cf:border-amber-300/30 hover:cf:bg-black/40',
 					'focus-visible:cf:border-amber-300/45 focus-visible:cf:ring-2 focus-visible:cf:ring-amber-300/20',
 					'disabled:cf:cursor-not-allowed disabled:cf:opacity-60',
 					props.className,
@@ -225,25 +194,24 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 				/>
 			</button>
 
-			{open && menuRect !== null && (
+			{open && (
 				<div
 					id={menuID}
 					role="listbox"
 					aria-labelledby={props.id}
-					className="cf:fixed cf:z-[2147483647] cf:overflow-auto cf:rounded-xl cf:border cf:border-amber-200/20 cf:bg-[#12100d] cf:p-1.5 cf:shadow-2xl cf:shadow-black/70 cf:ring-1 cf:ring-white/10"
-					style={menuStyle(menuRect)}
+					className="cf:absolute cf:left-0 cf:right-0 cf:top-[calc(100%+0.4rem)] cf:z-121 cf:max-h-64 cf:overflow-auto cf:rounded-xl cf:border cf:border-amber-200/20 cf:bg-[#12100d] cf:p-1.5 cf:shadow-2xl cf:shadow-black/70 cf:ring-1 cf:ring-white/10"
 				>
 					{options.length === 0 ? (
 						<div className="cf:px-3 cf:py-2 cf:text-sm cf:font-semibold cf:text-muted-foreground">
 							No options
 						</div>
 					) : (
-						options.map(option => {
+						options.map((option, index) => {
 							const selected = option.value === props.value;
 
 							return (
 								<button
-									key={option.value}
+									key={`${option.value}-${index}`}
 									type="button"
 									role="option"
 									aria-selected={selected}
@@ -269,30 +237,18 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 }
 
 /**
- * menuStyle returns fixed dropdown placement.
- */
-function menuStyle(rect: MenuRect): CSSProperties {
-	return {
-		top: rect.top,
-		left: rect.left,
-		width: rect.width,
-		maxHeight: rect.maxHeight,
-	};
-}
-
-/**
  * extractOptions converts option children into renderable menu options.
  */
 function extractOptions(children: ReactNode): readonly CampfireSelectOption[] {
 	return Children.toArray(children)
-		.map((child, index) => optionFromChild(child, index))
+		.map(optionFromChild)
 		.filter((option): option is CampfireSelectOption => option !== null);
 }
 
 /**
  * optionFromChild converts a single option element into a Campfire option.
  */
-function optionFromChild(child: ReactNode, _index: number): CampfireSelectOption | null {
+function optionFromChild(child: ReactNode): CampfireSelectOption | null {
 	if (!isValidElement<React.OptionHTMLAttributes<HTMLOptionElement>>(child) || child.type !== 'option') {
 		return null;
 	}

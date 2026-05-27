@@ -3,7 +3,6 @@ import type { ReactElement } from 'react';
 
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
 
-import { ReportsIntro } from './ReportsIntro';
 import { ReportsSectionNavigation } from './ReportsSectionNavigation';
 import { ReportsSectionPanel } from './ReportsSectionPanel';
 import { RestrictedReportsState } from './RestrictedReportsState';
@@ -29,9 +28,7 @@ export function ReportsPage(props: WorkspaceShellProps): ReactElement {
 	}
 
 	return (
-		<div className="cf:grid cf:gap-6">
-			<ReportsIntro />
-
+		<div className="cf:grid cf:gap-4">
 			<ReportsSectionNavigation
 				activeSection={resolvedSection.id}
 				sections={visibleSections}

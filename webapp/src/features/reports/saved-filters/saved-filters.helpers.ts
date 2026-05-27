@@ -128,10 +128,6 @@ export function formatDateTime(value: string): string {
 }
 
 /**
- * selectClassName returns the shared native select style.
- */
-
-/**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
 export function errorToMessage(error: unknown): string {

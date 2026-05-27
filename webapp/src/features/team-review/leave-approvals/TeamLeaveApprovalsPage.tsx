@@ -50,6 +50,7 @@ export function TeamLeaveApprovalsPage(props: TeamLeaveApprovalsPageProps): Reac
 							disabled={approvals.isBusy}
 							labelForUserID={profiles.labelForUserID}
 							onCommentChange={approvals.updateComment}
+							timezone={props.workspace.timezone}
 							onDecision={approvals.decide}
 						/>
 					)}

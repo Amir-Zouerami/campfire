@@ -10,6 +10,7 @@ import {
 	defaultGlobalDateRange,
 	downloadGlobalCSVBlob,
 	errorToMessage,
+	normalizeGlobalDateRange,
 	validateGlobalDateRange,
 } from './global-reports.helpers';
 import type { GlobalDateRange, GlobalDateRangePatch, GlobalReportLoadState } from './global-reports.types';
@@ -61,31 +62,37 @@ export function useGlobalLeaveReport(isSystemAdmin: boolean): UseGlobalLeaveRepo
 			return;
 		}
 
-		const validationMessage = validateGlobalDateRange(range);
+		const normalizedRange = normalizeGlobalDateRange(range);
+		const validationMessage = validateGlobalDateRange(normalizedRange);
+
 		if (validationMessage !== null) {
 			setLoadState('error');
 			setMessage(validationMessage);
 			return;
 		}
 
+		setRange(normalizedRange);
 		setLoadState('loading');
 		setMessage('');
 
 		try {
-			const response = await getGlobalLeaveReportSummary(range.startDate, range.endDate);
+			const response = await getGlobalLeaveReportSummary(normalizedRange.startDate, normalizedRange.endDate);
 
 			setSummary(response.summary);
 			setLoadState('ready');
 			setMessage('Global leave report loaded.');
 		} catch (error: unknown) {
+			const errorMessage = errorToMessage(error);
+
 			setSummary(null);
 			setLoadState('error');
-			setMessage(errorToMessage(error));
+			setMessage(errorMessage);
+			toast.error(errorMessage);
 		}
 	}
 
 	/**
-	 * exportCSV exports the global leave report as CSV.
+	 * exportCSV downloads the current global leave report CSV.
 	 */
 	async function exportCSV(): Promise<void> {
 		if (!isSystemAdmin) {
@@ -94,20 +101,23 @@ export function useGlobalLeaveReport(isSystemAdmin: boolean): UseGlobalLeaveRepo
 			return;
 		}
 
-		const validationMessage = validateGlobalDateRange(range);
+		const normalizedRange = normalizeGlobalDateRange(range);
+		const validationMessage = validateGlobalDateRange(normalizedRange);
+
 		if (validationMessage !== null) {
 			setLoadState('error');
 			setMessage(validationMessage);
 			return;
 		}
 
+		setRange(normalizedRange);
 		setLoadState('exporting');
 		setMessage('');
 
 		try {
-			const blob = await exportGlobalLeaveReportCSV(range.startDate, range.endDate);
+			const blob = await exportGlobalLeaveReportCSV(normalizedRange.startDate, normalizedRange.endDate);
 
-			downloadGlobalCSVBlob(blob, buildGlobalExportFilename('campfire-global-leaves', range));
+			downloadGlobalCSVBlob(blob, buildGlobalExportFilename('campfire-global-leaves', normalizedRange));
 			setLoadState('ready');
 			setMessage('Global leave CSV downloaded.');
 			toast.success('Global leave CSV downloaded');

@@ -91,11 +91,14 @@ func New(config Config) (*App, error) {
 	}
 
 	pluginClient := pluginapi.NewClient(config.API, config.Driver)
-	botUserID, err := pluginClient.Bot.EnsureBot(&model.Bot{
-		Username:    campfireBotUsername,
-		DisplayName: campfireBotDisplayName,
-		Description: campfireBotDescription,
-	})
+	botUserID, err := pluginClient.Bot.EnsureBot(
+		&model.Bot{
+			Username:    campfireBotUsername,
+			DisplayName: campfireBotDisplayName,
+			Description: campfireBotDescription,
+		},
+		pluginapi.ProfileImagePath("assets/campfire-logo-1024.png"),
+	)
 	if err != nil {
 		closeErr := database.Close()
 		if closeErr != nil {

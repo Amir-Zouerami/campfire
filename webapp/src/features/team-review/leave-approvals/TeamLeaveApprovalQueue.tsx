@@ -23,6 +23,7 @@ type TeamLeaveApprovalQueueProps = {
 	readonly leaveRequests: readonly PendingLeaveRequest[];
 	readonly comments: Readonly<Record<string, string>>;
 	readonly disabled: boolean;
+	readonly timezone: string;
 	readonly labelForUserID: (userID: string) => string;
 	readonly onCommentChange: (leaveRequestID: string, comment: string) => void;
 	readonly onDecision: (leaveRequestID: string, decision: LeaveDecision) => Promise<void>;
@@ -50,6 +51,7 @@ export function TeamLeaveApprovalQueue(props: TeamLeaveApprovalQueueProps): Reac
 					item={item}
 					comment={props.comments[item.leaveRequest.id] ?? ''}
 					disabled={props.disabled}
+					timezone={props.timezone}
 					labelForUserID={props.labelForUserID}
 					onCommentChange={comment => props.onCommentChange(item.leaveRequest.id, comment)}
 					onDecision={decision => props.onDecision(item.leaveRequest.id, decision)}
@@ -66,6 +68,7 @@ function TeamLeaveApprovalCard(props: {
 	readonly item: PendingLeaveRequest;
 	readonly comment: string;
 	readonly disabled: boolean;
+	readonly timezone: string;
 	readonly labelForUserID: (userID: string) => string;
 	readonly onCommentChange: (comment: string) => void;
 	readonly onDecision: (decision: LeaveDecision) => Promise<void>;
@@ -78,10 +81,10 @@ function TeamLeaveApprovalCard(props: {
 		<article className={approvalCardClassName()}>
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-4">
 				<div className="cf:min-w-0">
-					<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+					<p className="cf:text-base cf:font-black cf:uppercase cf:tracking-[0.22em] cf:text-amber-100">
 						{requesterLabel}
 					</p>
-					<h3 className="cf:mt-1 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-foreground">
+					<h3 className="cf:mt-2 cf:text-[2.1rem] cf:font-black cf:tracking-[-0.04em] cf:text-foreground">
 						{props.item.leaveTypeName}
 					</h3>
 				</div>
@@ -99,26 +102,29 @@ function TeamLeaveApprovalCard(props: {
 
 			<div className="cf:grid cf:gap-3 cf:md:grid-cols-2">
 				<ApprovalDetail label="Backup" value={backupLabel || 'Not set'} />
-				<ApprovalDetail label="Requested" value={request.createdAt} />
+				<ApprovalDetail label="Requested" value={formatWorkspaceDateTime(request.createdAt, props.timezone)} />
 			</div>
 
 			{request.reason.trim() !== '' && (
 				<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4">
-					<p className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200">Reason</p>
-					<p className="cf:mt-2 cf:text-sm cf:font-semibold cf:leading-6 cf:text-slate-200">
+					<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.22em] cf:text-amber-200">
+						Reason
+					</p>
+					<p className="cf:mt-2 cf:whitespace-pre-wrap cf:text-base cf:font-semibold cf:leading-7 cf:text-slate-200">
 						{request.reason}
 					</p>
 				</div>
 			)}
 
-			<div className="cf:grid cf:gap-2">
+			<div className="cf:grid cf:gap-3">
 				<label
 					htmlFor={`campfire-approval-comment-${request.id}`}
-					className="cf:flex cf:items-center cf:gap-2 cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200"
+					className="cf:flex cf:items-center cf:gap-2 cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.22em] cf:text-amber-200"
 				>
-					<MessageSquareText className="cf:size-4" />
+					<MessageSquareText className="cf:size-5 cf:shrink-0" />
 					Approver comment
 				</label>
+
 				<Textarea
 					id={`campfire-approval-comment-${request.id}`}
 					disabled={props.disabled}
@@ -128,7 +134,7 @@ function TeamLeaveApprovalCard(props: {
 				/>
 			</div>
 
-			<div className="cf:flex cf:flex-wrap cf:justify-end cf:gap-3">
+			<div className="cf:flex cf:flex-wrap cf:justify-end cf:gap-3 cf:pt-2">
 				<Button
 					type="button"
 					variant="secondary"
@@ -154,10 +160,42 @@ function TeamLeaveApprovalCard(props: {
 function ApprovalDetail(props: { readonly label: string; readonly value: string }): ReactElement {
 	return (
 		<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4">
-			<p className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200">{props.label}</p>
-			<p className="cf:mt-1 cf:truncate cf:text-base cf:font-black cf:text-foreground" title={props.value}>
+			<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.22em] cf:text-amber-200">
+				{props.label}
+			</p>
+			<p className="cf:mt-2 cf:truncate cf:text-xl cf:font-black cf:text-foreground" title={props.value}>
 				{props.value}
 			</p>
 		</div>
 	);
+}
+
+/**
+ * formatWorkspaceDateTime renders an API UTC timestamp in the workspace timezone.
+ */
+function formatWorkspaceDateTime(value: string, timezone: string): string {
+	const cleanValue = value.trim();
+	if (cleanValue === '') {
+		return 'Unknown';
+	}
+
+	const date = new Date(cleanValue);
+	if (Number.isNaN(date.getTime())) {
+		return cleanValue;
+	}
+
+	const cleanTimezone = timezone.trim();
+
+	try {
+		return new Intl.DateTimeFormat(undefined, {
+			dateStyle: 'medium',
+			timeStyle: 'short',
+			timeZone: cleanTimezone === '' ? undefined : cleanTimezone,
+		}).format(date);
+	} catch {
+		return new Intl.DateTimeFormat(undefined, {
+			dateStyle: 'medium',
+			timeStyle: 'short',
+		}).format(date);
+	}
 }

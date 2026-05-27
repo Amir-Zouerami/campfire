@@ -23,7 +23,7 @@ type WorkingDaysPanelProps = {
  */
 export function WorkingDaysPanel(props: WorkingDaysPanelProps): ReactElement {
 	return (
-		<section className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
+		<section className="cf:grid cf:gap-5 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
 				<div>
 					<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
@@ -63,8 +63,8 @@ export function WorkingDaysPanel(props: WorkingDaysPanelProps): ReactElement {
 				})}
 			</div>
 
-			<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4">
-				<p className="cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
+			<div className="cf:mt-1 cf:flex cf:min-h-16 cf:flex-wrap cf:items-center cf:justify-between cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:px-4 cf:py-3">
+				<p className="cf:m-0 cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
 					Weekly reports and standup runtime decisions depend on these days.
 				</p>
 

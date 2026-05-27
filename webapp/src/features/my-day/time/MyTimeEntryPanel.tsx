@@ -1,6 +1,8 @@
 import type { FormEvent, ReactElement } from 'react';
 import { Clock3 } from 'lucide-react';
 
+import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
+import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,8 +10,6 @@ import { Textarea } from '@/components/ui/textarea';
 import type { Task } from '@/types/domain';
 
 import type { TimeEntryDraft, TimeEntryDraftPatch } from './my-time.types';
-
-import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 
 /**
  * MyTimeEntryPanelProps contains log-time form state and actions.
@@ -48,7 +48,7 @@ export function MyTimeEntryPanel(props: MyTimeEntryPanelProps): ReactElement {
 			</div>
 
 			<div className="cf:grid cf:gap-4">
-				<FormField label="Task" htmlFor="campfire-my-time-task">
+				<FormField label="Task" htmlFor="campfire-time-entry-task">
 					<CampfireSelect
 						id="campfire-time-entry-task"
 						disabled={props.disabled}
@@ -66,12 +66,11 @@ export function MyTimeEntryPanel(props: MyTimeEntryPanelProps): ReactElement {
 
 				<div className="cf:grid cf:gap-4 cf:md:grid-cols-2">
 					<FormField label="Date" htmlFor="campfire-my-time-date">
-						<Input
+						<CampfireDateInput
 							id="campfire-my-time-date"
-							type="date"
 							disabled={props.disabled}
 							value={props.draft.entryDate}
-							onChange={event => props.onChange({ entryDate: event.currentTarget.value })}
+							onValueChange={value => props.onChange({ entryDate: value })}
 						/>
 					</FormField>
 

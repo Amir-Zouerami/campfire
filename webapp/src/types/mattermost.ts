@@ -10,6 +10,7 @@ export type MattermostChannel = {
 	readonly display_name?: string;
 	readonly displayName?: string;
 	readonly name?: string;
+	readonly type?: string;
 };
 
 /**

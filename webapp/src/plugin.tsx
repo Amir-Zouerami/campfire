@@ -54,6 +54,7 @@ export class CampfirePlugin implements MattermostWebappPlugin {
 			(channel?: MattermostChannel) => {
 				openCampfire({
 					channelID: channel?.id,
+					channelType: channel?.type,
 				});
 			},
 			'Open Campfire',

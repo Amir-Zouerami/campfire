@@ -2,16 +2,12 @@ import type { ReactElement } from 'react';
 import { Loader2, UserPlus } from 'lucide-react';
 
 import { CampfireStatusPill } from '@/app/campfire-ui';
+import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-import {
-	ASSIGNABLE_WORKSPACE_ROLES,
-	nativeRoleSelectClassName,
-	roleLabel,
-	toAssignableWorkspaceRole,
-} from './roles-access.helpers';
+import { ASSIGNABLE_WORKSPACE_ROLES, roleLabel, toAssignableWorkspaceRole } from './roles-access.helpers';
 import type { RoleAssignmentDraft } from './roles-access.types';
 
 /**
@@ -37,7 +33,7 @@ export function RoleAssignmentPanel(props: RoleAssignmentPanelProps): ReactEleme
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
 				<div>
 					<p className="cf:flex cf:items-center cf:gap-2 cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
-						<UserPlus className="cf:size-4" />
+						<UserPlus className="cf:size-5" />
 						Assign role
 					</p>
 					<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
@@ -74,21 +70,18 @@ export function RoleAssignmentPanel(props: RoleAssignmentPanelProps): ReactEleme
 
 				<div className="cf:grid cf:gap-2">
 					<Label htmlFor="campfire-role-select">Role</Label>
-					<select
+					<CampfireSelect
 						id="campfire-role-select"
-						className={nativeRoleSelectClassName()}
 						disabled={formDisabled}
 						value={props.draft.role}
-						onChange={event =>
-							props.onDraftChange({ role: toAssignableWorkspaceRole(event.currentTarget.value) })
-						}
+						onValueChange={value => props.onDraftChange({ role: toAssignableWorkspaceRole(value) })}
 					>
 						{ASSIGNABLE_WORKSPACE_ROLES.map(role => (
 							<option key={role} value={role}>
 								{roleLabel(role)}
 							</option>
 						))}
-					</select>
+					</CampfireSelect>
 				</div>
 
 				<div className="cf:flex cf:items-end">

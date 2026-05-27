@@ -1,11 +1,12 @@
 import type { ReactElement } from 'react';
 
+import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
+import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 
-import { formatLabel, nativeSelectClassName, STANDUP_KINDS, toStandupKind } from './standup-settings.helpers';
+import { formatLabel, STANDUP_KINDS, toStandupKind } from './standup-settings.helpers';
 import type { StandupTemplateDraft, StandupTemplateDraftPatch } from './standup-settings.types';
-import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
 import { StandupField } from './StandupField';
 
 /**
@@ -37,19 +38,18 @@ export function StandupTemplateFields(props: StandupTemplateFieldsProps): ReactE
 				</StandupField>
 
 				<StandupField htmlFor={`${props.idPrefix}-kind`} label="Kind">
-					<select
+					<CampfireSelect
 						id={`${props.idPrefix}-kind`}
-						className={nativeSelectClassName()}
 						disabled={props.disabled}
 						value={props.draft.kind}
-						onChange={event => props.onChange({ kind: toStandupKind(event.currentTarget.value) })}
+						onValueChange={value => props.onChange({ kind: toStandupKind(value) })}
 					>
 						{STANDUP_KINDS.map(kind => (
 							<option key={kind} value={kind}>
 								{formatLabel(kind)}
 							</option>
 						))}
-					</select>
+					</CampfireSelect>
 				</StandupField>
 			</div>
 

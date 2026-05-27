@@ -583,3 +583,749 @@
 	opacity: 0.58;
 	transform: none;
 }
+
+/* Campfire native date/time repair: keep native pickers but make the controls match the theme better. */
+.campfire-theme input[type='date'],
+.campfire-theme input[type='time'] {
+	border-radius: 0.85rem !important;
+	color-scheme: dark;
+}
+
+.campfire-theme input[type='date']::-webkit-calendar-picker-indicator,
+.campfire-theme input[type='time']::-webkit-calendar-picker-indicator {
+	cursor: pointer;
+	opacity: 0.95;
+	filter: brightness(0) invert(1);
+}
+
+.campfire-theme input[type='date']:focus-visible,
+.campfire-theme input[type='time']:focus-visible {
+	border-color: rgba(253, 186, 116, 0.45) !important;
+	box-shadow: 0 0 0 2px rgba(253, 186, 116, 0.18) !important;
+}
+
+/* Campfire control height normalization. */
+.campfire-theme input,
+.campfire-theme select,
+.campfire-theme .cf\:h-11 {
+	min-height: 2.75rem;
+}
+
+.campfire-theme input[type='date'],
+.campfire-theme input[type='time'] {
+	border-radius: 0.85rem !important;
+	color-scheme: dark;
+}
+
+.campfire-theme input[type='date']::-webkit-calendar-picker-indicator,
+.campfire-theme input[type='time']::-webkit-calendar-picker-indicator {
+	cursor: pointer;
+	opacity: 0.95;
+	filter: brightness(0) invert(1);
+}
+
+/* Campfire raw-control safety net: any remaining native selects/date/time fields should still match the theme. */
+.campfire-theme select,
+.campfire-theme input[type='date'],
+.campfire-theme input[type='time'] {
+	min-height: 2.75rem !important;
+	border: 1px solid rgba(255, 255, 255, 0.1) !important;
+	border-radius: 0.85rem !important;
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)), rgba(0, 0, 0, 0.3) !important;
+	color: hsl(var(--foreground)) !important;
+	font-size: 1rem !important;
+	font-weight: 650 !important;
+	outline: none !important;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.04),
+		inset 0 -12px 24px rgba(0, 0, 0, 0.12) !important;
+	color-scheme: dark;
+	transition:
+		border-color 160ms ease,
+		background 160ms ease,
+		box-shadow 160ms ease;
+}
+
+.campfire-theme select {
+	padding: 0.5rem 2.25rem 0.5rem 0.75rem !important;
+	cursor: pointer;
+}
+
+.campfire-theme input[type='date'],
+.campfire-theme input[type='time'] {
+	padding-inline: 0.75rem !important;
+}
+
+.campfire-theme select:hover,
+.campfire-theme input[type='date']:hover,
+.campfire-theme input[type='time']:hover {
+	border-color: rgba(253, 186, 116, 0.3) !important;
+	background:
+		linear-gradient(180deg, rgba(251, 146, 60, 0.07), rgba(255, 255, 255, 0.02)), rgba(0, 0, 0, 0.36) !important;
+}
+
+.campfire-theme select:focus-visible,
+.campfire-theme input[type='date']:focus-visible,
+.campfire-theme input[type='time']:focus-visible {
+	border-color: rgba(253, 186, 116, 0.48) !important;
+	box-shadow:
+		0 0 0 2px rgba(253, 186, 116, 0.18),
+		inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+.campfire-theme select:disabled,
+.campfire-theme input[type='date']:disabled,
+.campfire-theme input[type='time']:disabled {
+	cursor: not-allowed !important;
+	opacity: 0.6 !important;
+}
+
+.campfire-theme select option {
+	background: #12100d;
+	color: #fff7ed;
+}
+
+.campfire-theme input[type='date']::-webkit-calendar-picker-indicator,
+.campfire-theme input[type='time']::-webkit-calendar-picker-indicator {
+	cursor: pointer;
+	opacity: 0.95;
+	filter: brightness(0) invert(1);
+}
+
+/* Campfire native date/time final repair: keep browser pickers functional. */
+.campfire-theme .campfire-native-date-input,
+.campfire-theme .campfire-native-time-input {
+	display: block !important;
+	width: 100% !important;
+	min-height: 2.75rem !important;
+	border: 1px solid rgba(255, 255, 255, 0.1) !important;
+	border-radius: 0.85rem !important;
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)), rgba(0, 0, 0, 0.3) !important;
+	color: hsl(var(--foreground)) !important;
+	padding: 0.5rem 0.75rem !important;
+	font-size: 1rem !important;
+	font-weight: 650 !important;
+	line-height: 1.25 !important;
+	color-scheme: dark;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.04),
+		inset 0 -12px 24px rgba(0, 0, 0, 0.12) !important;
+}
+
+.campfire-theme .campfire-native-date-input:hover,
+.campfire-theme .campfire-native-time-input:hover {
+	border-color: rgba(253, 186, 116, 0.3) !important;
+	background:
+		linear-gradient(180deg, rgba(251, 146, 60, 0.07), rgba(255, 255, 255, 0.02)), rgba(0, 0, 0, 0.36) !important;
+}
+
+.campfire-theme .campfire-native-date-input:focus-visible,
+.campfire-theme .campfire-native-time-input:focus-visible {
+	border-color: rgba(253, 186, 116, 0.48) !important;
+	box-shadow:
+		0 0 0 2px rgba(253, 186, 116, 0.18),
+		inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+	outline: none !important;
+}
+
+.campfire-theme .campfire-native-date-input::-webkit-calendar-picker-indicator,
+.campfire-theme .campfire-native-time-input::-webkit-calendar-picker-indicator {
+	width: 1.25rem;
+	height: 1.25rem;
+	cursor: pointer;
+	opacity: 1;
+	filter: brightness(0) invert(1);
+}
+
+/* Campfire custom date picker: polished glass calendar. */
+.campfire-date-picker {
+	position: relative;
+	width: 100%;
+}
+
+.campfire-date-picker-trigger {
+	display: flex;
+	width: 100%;
+	min-height: 2.75rem;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 0.95rem;
+	background:
+		radial-gradient(circle at 12% 0%, rgba(251, 146, 60, 0.16), transparent 38%),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.025)), rgba(8, 7, 6, 0.58);
+	padding: 0.5rem 0.65rem 0.5rem 0.85rem;
+	color: hsl(var(--foreground));
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.07),
+		inset 0 -14px 26px rgba(0, 0, 0, 0.22),
+		0 12px 28px rgba(0, 0, 0, 0.12);
+	transition:
+		border-color 160ms ease,
+		background 160ms ease,
+		box-shadow 160ms ease,
+		transform 160ms ease;
+}
+
+.campfire-date-picker-trigger:hover {
+	border-color: rgba(253, 186, 116, 0.34);
+	background:
+		radial-gradient(circle at 12% 0%, rgba(251, 146, 60, 0.22), transparent 40%),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)), rgba(8, 7, 6, 0.66);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.085),
+		inset 0 -14px 26px rgba(0, 0, 0, 0.22),
+		0 14px 32px rgba(0, 0, 0, 0.16);
+}
+
+.campfire-date-picker-trigger:focus-visible,
+.campfire-date-picker-trigger--open {
+	border-color: rgba(253, 186, 116, 0.52);
+	outline: none;
+	box-shadow:
+		0 0 0 2px rgba(253, 186, 116, 0.18),
+		0 16px 38px rgba(0, 0, 0, 0.2),
+		inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+
+.campfire-date-picker-trigger:disabled {
+	cursor: not-allowed;
+	opacity: 0.62;
+}
+
+.campfire-date-picker-value {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 0.98rem;
+	font-weight: 800;
+	letter-spacing: -0.015em;
+}
+
+.campfire-date-picker-value--empty {
+	color: rgba(255, 237, 213, 0.45);
+}
+
+.campfire-date-picker-trigger-icon {
+	display: inline-grid;
+	width: 2rem;
+	height: 2rem;
+	flex: 0 0 auto;
+	place-items: center;
+	border: 1px solid rgba(253, 186, 116, 0.22);
+	border-radius: 0.75rem;
+	background: linear-gradient(180deg, rgba(251, 146, 60, 0.18), rgba(251, 146, 60, 0.07)), rgba(0, 0, 0, 0.18);
+	color: #fed7aa;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.08),
+		0 8px 18px rgba(0, 0, 0, 0.16);
+}
+
+.campfire-date-picker-popover {
+	position: absolute;
+	left: 0;
+	top: calc(100% + 0.7rem);
+	z-index: 1000;
+	width: min(22rem, calc(100vw - 2rem));
+	overflow: hidden;
+	border: 1px solid rgba(255, 255, 255, 0.13);
+	border-radius: 1.35rem;
+	background:
+		radial-gradient(circle at 15% 0%, rgba(251, 146, 60, 0.22), transparent 34%),
+		radial-gradient(circle at 85% 12%, rgba(253, 186, 116, 0.12), transparent 32%),
+		linear-gradient(180deg, rgba(36, 25, 18, 0.96), rgba(14, 11, 9, 0.98));
+	padding: 1rem;
+	box-shadow:
+		0 28px 70px rgba(0, 0, 0, 0.58),
+		0 0 0 1px rgba(253, 186, 116, 0.04),
+		inset 0 1px 0 rgba(255, 255, 255, 0.08);
+	backdrop-filter: blur(18px);
+}
+
+.campfire-date-picker-glow {
+	pointer-events: none;
+	position: absolute;
+	inset: 0;
+	background:
+		linear-gradient(135deg, rgba(255, 255, 255, 0.09), transparent 24%),
+		radial-gradient(circle at 50% 110%, rgba(251, 146, 60, 0.13), transparent 40%);
+}
+
+.campfire-date-picker-header,
+.campfire-date-picker-weekdays,
+.campfire-date-picker-grid,
+.campfire-date-picker-footer {
+	position: relative;
+	z-index: 1;
+}
+
+.campfire-date-picker-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 1.05rem;
+	background: rgba(0, 0, 0, 0.18);
+	padding: 0.55rem;
+}
+
+.campfire-date-picker-heading {
+	min-width: 0;
+	text-align: center;
+}
+
+.campfire-date-picker-month {
+	margin: 0;
+	color: #fed7aa;
+	font-size: 0.78rem;
+	font-weight: 950;
+	letter-spacing: 0.16em;
+	line-height: 1;
+	text-transform: uppercase;
+}
+
+.campfire-date-picker-year {
+	margin: 0.35rem 0 0;
+	color: #fff7ed;
+	font-size: 1.25rem;
+	font-weight: 950;
+	letter-spacing: -0.04em;
+	line-height: 1;
+}
+
+.campfire-date-picker-nav-button {
+	display: grid;
+	width: 2.45rem;
+	height: 2.45rem;
+	place-items: center;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 0.9rem;
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018)), rgba(0, 0, 0, 0.2);
+	color: #fed7aa;
+	transition:
+		border-color 150ms ease,
+		background 150ms ease,
+		transform 150ms ease;
+}
+
+.campfire-date-picker-nav-button:hover {
+	border-color: rgba(253, 186, 116, 0.35);
+	background: rgba(251, 146, 60, 0.13);
+	transform: translateY(-1px);
+}
+
+.campfire-date-picker-weekdays {
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	gap: 0.35rem;
+	margin-top: 0.9rem;
+}
+
+.campfire-date-picker-weekday {
+	padding-block: 0.35rem;
+	color: rgba(255, 237, 213, 0.48);
+	text-align: center;
+	font-size: 0.68rem;
+	font-weight: 950;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+}
+
+.campfire-date-picker-grid {
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	gap: 0.35rem;
+	margin-top: 0.3rem;
+}
+
+.campfire-date-picker-day {
+	position: relative;
+	display: grid;
+	aspect-ratio: 1;
+	place-items: center;
+	border: 1px solid transparent;
+	border-radius: 0.85rem;
+	background: transparent;
+	color: #fff7ed;
+	font-size: 0.88rem;
+	font-weight: 900;
+	transition:
+		border-color 150ms ease,
+		background 150ms ease,
+		color 150ms ease,
+		box-shadow 150ms ease,
+		transform 150ms ease;
+}
+
+.campfire-date-picker-day:hover {
+	border-color: rgba(253, 186, 116, 0.35);
+	background: rgba(251, 146, 60, 0.13);
+	color: #fffbeb;
+	transform: translateY(-1px);
+}
+
+.campfire-date-picker-day--muted {
+	color: rgba(255, 237, 213, 0.34);
+}
+
+.campfire-date-picker-day--today {
+	border-color: rgba(253, 186, 116, 0.3);
+	color: #fed7aa;
+}
+
+.campfire-date-picker-day--today::after {
+	content: '';
+	position: absolute;
+	bottom: 0.32rem;
+	left: 50%;
+	width: 0.28rem;
+	height: 0.28rem;
+	border-radius: 999px;
+	background: #fb923c;
+	transform: translateX(-50%);
+	box-shadow: 0 0 12px rgba(251, 146, 60, 0.7);
+}
+
+.campfire-date-picker-day--selected {
+	border-color: rgba(253, 186, 116, 0.72);
+	background: linear-gradient(180deg, rgba(251, 146, 60, 0.38), rgba(251, 146, 60, 0.22)), rgba(253, 186, 116, 0.08);
+	color: #fff7ed;
+	box-shadow:
+		0 10px 24px rgba(251, 146, 60, 0.16),
+		inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.campfire-date-picker-day--selected:hover {
+	background: linear-gradient(180deg, rgba(251, 146, 60, 0.44), rgba(251, 146, 60, 0.26)), rgba(253, 186, 116, 0.1);
+}
+
+.campfire-date-picker-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	margin-top: 1rem;
+	border-top: 1px solid rgba(255, 255, 255, 0.08);
+	padding-top: 0.85rem;
+}
+
+.campfire-date-picker-footer-button {
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 0.85rem;
+	background: rgba(255, 255, 255, 0.04);
+	padding: 0.58rem 0.85rem;
+	color: rgba(255, 237, 213, 0.72);
+	font-size: 0.82rem;
+	font-weight: 950;
+	transition:
+		border-color 150ms ease,
+		background 150ms ease,
+		color 150ms ease,
+		transform 150ms ease;
+}
+
+.campfire-date-picker-footer-button:hover {
+	border-color: rgba(253, 186, 116, 0.32);
+	background: rgba(251, 146, 60, 0.11);
+	color: #fff7ed;
+	transform: translateY(-1px);
+}
+
+.campfire-date-picker-footer-button--primary {
+	border-color: rgba(253, 186, 116, 0.34);
+	background: rgba(251, 146, 60, 0.14);
+	color: #fed7aa;
+}
+
+/* Campfire custom time picker: matches the custom date picker instead of native browser controls. */
+.campfire-time-picker {
+	position: relative;
+	width: 100%;
+}
+
+.campfire-time-picker-trigger {
+	display: flex;
+	width: 100%;
+	min-height: 2.75rem;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 0.95rem;
+	background:
+		radial-gradient(circle at 12% 0%, rgba(251, 146, 60, 0.16), transparent 38%),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.025)), rgba(8, 7, 6, 0.58);
+	padding: 0.5rem 0.65rem 0.5rem 0.85rem;
+	color: hsl(var(--foreground));
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.07),
+		inset 0 -14px 26px rgba(0, 0, 0, 0.22),
+		0 12px 28px rgba(0, 0, 0, 0.12);
+	transition:
+		border-color 160ms ease,
+		background 160ms ease,
+		box-shadow 160ms ease,
+		transform 160ms ease;
+}
+
+.campfire-time-picker-trigger:hover {
+	border-color: rgba(253, 186, 116, 0.34);
+	background:
+		radial-gradient(circle at 12% 0%, rgba(251, 146, 60, 0.22), transparent 40%),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)), rgba(8, 7, 6, 0.66);
+}
+
+.campfire-time-picker-trigger:focus-visible,
+.campfire-time-picker-trigger--open {
+	border-color: rgba(253, 186, 116, 0.52);
+	outline: none;
+	box-shadow:
+		0 0 0 2px rgba(253, 186, 116, 0.18),
+		0 16px 38px rgba(0, 0, 0, 0.2),
+		inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+
+.campfire-time-picker-trigger:disabled {
+	cursor: not-allowed;
+	opacity: 0.62;
+}
+
+.campfire-time-picker-value {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 0.98rem;
+	font-weight: 850;
+	letter-spacing: -0.015em;
+}
+
+.campfire-time-picker-value--empty {
+	color: rgba(255, 237, 213, 0.45);
+}
+
+.campfire-time-picker-trigger-icons {
+	display: inline-flex;
+	height: 2rem;
+	flex: 0 0 auto;
+	align-items: center;
+	gap: 0.25rem;
+	border: 1px solid rgba(253, 186, 116, 0.22);
+	border-radius: 0.75rem;
+	background: linear-gradient(180deg, rgba(251, 146, 60, 0.18), rgba(251, 146, 60, 0.07)), rgba(0, 0, 0, 0.18);
+	padding-inline: 0.45rem;
+	color: #fed7aa;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.08),
+		0 8px 18px rgba(0, 0, 0, 0.16);
+}
+
+.campfire-time-picker-popover {
+	position: absolute;
+	left: 0;
+	top: calc(100% + 0.7rem);
+	z-index: 1000;
+	width: min(22rem, calc(100vw - 2rem));
+	overflow: hidden;
+	border: 1px solid rgba(255, 255, 255, 0.13);
+	border-radius: 1.35rem;
+	background:
+		radial-gradient(circle at 15% 0%, rgba(251, 146, 60, 0.22), transparent 34%),
+		radial-gradient(circle at 85% 12%, rgba(253, 186, 116, 0.12), transparent 32%),
+		linear-gradient(180deg, rgba(36, 25, 18, 0.96), rgba(14, 11, 9, 0.98));
+	padding: 1rem;
+	box-shadow:
+		0 28px 70px rgba(0, 0, 0, 0.58),
+		0 0 0 1px rgba(253, 186, 116, 0.04),
+		inset 0 1px 0 rgba(255, 255, 255, 0.08);
+	backdrop-filter: blur(18px);
+}
+
+.campfire-time-picker-glow {
+	pointer-events: none;
+	position: absolute;
+	inset: 0;
+	background:
+		linear-gradient(135deg, rgba(255, 255, 255, 0.09), transparent 24%),
+		radial-gradient(circle at 50% 110%, rgba(251, 146, 60, 0.13), transparent 40%);
+}
+
+.campfire-time-picker-header,
+.campfire-time-picker-columns,
+.campfire-time-picker-footer {
+	position: relative;
+	z-index: 1;
+}
+
+.campfire-time-picker-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 1.05rem;
+	background: rgba(0, 0, 0, 0.18);
+	padding: 0.75rem 0.85rem;
+}
+
+.campfire-time-picker-eyebrow {
+	margin: 0;
+	color: #fed7aa;
+	font-size: 0.72rem;
+	font-weight: 950;
+	letter-spacing: 0.16em;
+	line-height: 1;
+	text-transform: uppercase;
+}
+
+.campfire-time-picker-title {
+	margin: 0.35rem 0 0;
+	color: #fff7ed;
+	font-size: 1.35rem;
+	font-weight: 950;
+	letter-spacing: -0.04em;
+	line-height: 1;
+}
+
+.campfire-time-picker-columns {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0.75rem;
+	margin-top: 0.9rem;
+}
+
+.campfire-time-picker-column {
+	min-width: 0;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 1.05rem;
+	background: rgba(0, 0, 0, 0.16);
+	padding: 0.6rem;
+}
+
+.campfire-time-picker-column-label {
+	margin: 0 0 0.5rem;
+	color: rgba(255, 237, 213, 0.48);
+	font-size: 0.68rem;
+	font-weight: 950;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+}
+
+.campfire-time-picker-option-list {
+	display: grid;
+	max-height: 13.5rem;
+	gap: 0.35rem;
+	overflow: auto;
+	padding-right: 0.15rem;
+}
+
+.campfire-time-picker-option {
+	display: flex;
+	min-height: 2.2rem;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+	border: 1px solid transparent;
+	border-radius: 0.8rem;
+	background: transparent;
+	padding: 0.45rem 0.6rem;
+	color: #fff7ed;
+	font-size: 0.92rem;
+	font-weight: 900;
+	transition:
+		border-color 150ms ease,
+		background 150ms ease,
+		color 150ms ease,
+		transform 150ms ease;
+}
+
+.campfire-time-picker-option:hover {
+	border-color: rgba(253, 186, 116, 0.35);
+	background: rgba(251, 146, 60, 0.13);
+	color: #fffbeb;
+	transform: translateY(-1px);
+}
+
+.campfire-time-picker-option--selected {
+	border-color: rgba(253, 186, 116, 0.72);
+	background: linear-gradient(180deg, rgba(251, 146, 60, 0.38), rgba(251, 146, 60, 0.22)), rgba(253, 186, 116, 0.08);
+	color: #fff7ed;
+	box-shadow:
+		0 10px 24px rgba(251, 146, 60, 0.16),
+		inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.campfire-time-picker-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	margin-top: 1rem;
+	border-top: 1px solid rgba(255, 255, 255, 0.08);
+	padding-top: 0.85rem;
+}
+
+.campfire-time-picker-footer-button {
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 0.85rem;
+	background: rgba(255, 255, 255, 0.04);
+	padding: 0.58rem 0.85rem;
+	color: rgba(255, 237, 213, 0.72);
+	font-size: 0.82rem;
+	font-weight: 950;
+	transition:
+		border-color 150ms ease,
+		background 150ms ease,
+		color 150ms ease,
+		transform 150ms ease;
+}
+
+.campfire-time-picker-footer-button:hover {
+	border-color: rgba(253, 186, 116, 0.32);
+	background: rgba(251, 146, 60, 0.11);
+	color: #fff7ed;
+	transform: translateY(-1px);
+}
+
+.campfire-time-picker-footer-button--primary {
+	border-color: rgba(253, 186, 116, 0.34);
+	background: rgba(251, 146, 60, 0.14);
+	color: #fed7aa;
+}
+
+/* Final picker guardrails: keep custom date/time popovers above nested cards without body portals. */
+.campfire-theme .campfire-date-picker,
+.campfire-theme .campfire-time-picker {
+	position: relative;
+	z-index: 30;
+}
+
+.campfire-theme .campfire-date-picker-popover,
+.campfire-theme .campfire-time-picker-popover {
+	isolation: isolate;
+	animation: campfire-picker-in 140ms ease-out;
+}
+
+@keyframes campfire-picker-in {
+	from {
+		opacity: 0;
+		transform: translateY(-0.25rem) scale(0.985);
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.campfire-theme .campfire-date-picker-popover,
+	.campfire-theme .campfire-time-picker-popover {
+		animation: none;
+	}
+}

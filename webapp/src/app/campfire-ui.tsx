@@ -82,10 +82,10 @@ export function CampfireCardHeader(props: CampfireCardHeaderProps): ReactElement
 
 	return (
 		<header className={cn('campfire-card-header', props.className)}>
-			<div className="cf:flex cf:min-w-0 cf:gap-4">
+			<div className="cf:flex cf:min-w-0 cf:items-start cf:gap-4">
 				{Icon !== undefined && (
-					<div className="campfire-icon-tile">
-						<Icon className="cf:size-5" />
+					<div className="campfire-icon-tile campfire-icon-tile--header">
+						<Icon className="cf:size-6" />
 					</div>
 				)}
 
@@ -128,8 +128,8 @@ export function CampfireMetric(props: CampfireMetricProps): ReactElement {
 				</div>
 
 				{Icon !== undefined && (
-					<div className="campfire-icon-tile cf:size-9 cf:rounded-xl">
-						<Icon className="cf:size-4" />
+					<div className="campfire-icon-tile campfire-icon-tile--metric cf:size-11 cf:rounded-xl">
+						<Icon className="cf:size-5" />
 					</div>
 				)}
 			</div>
@@ -151,8 +151,8 @@ export function CampfireEmpty(props: CampfireEmptyProps): ReactElement {
 		<div className={cn('campfire-empty', props.className)}>
 			<div className="cf:max-w-md">
 				{Icon !== undefined && (
-					<div className="campfire-icon-tile cf:mx-auto cf:size-14">
-						<Icon className="cf:size-6" />
+					<div className="campfire-icon-tile campfire-icon-tile--empty cf:mx-auto cf:size-16">
+						<Icon className="cf:size-7" />
 					</div>
 				)}
 

@@ -100,7 +100,8 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 			try {
 				const [configurationResponse, tasksResponse] = await Promise.all([
 					listStandupConfiguration(input.workspace.id),
-					listMyTasks(input.workspace.id, false),
+					// Load archived tasks too so standup item sync does not recreate old tasks with the same title.
+					listMyTasks(input.workspace.id, true),
 				]);
 
 				if (!isActive) {

@@ -155,7 +155,7 @@ export function formatDateTime(value: string): string {
 export function reminderRuleCardClassName(active: boolean): string {
 	return cn(
 		'cf:grid cf:gap-5 cf:rounded-2xl cf:border cf:p-5 cf:transition',
-		active ? 'cf:border-amber-300/35 cf:bg-amber-300/[0.08]' : 'cf:border-white/10 cf:bg-white/[0.035]',
+		active ? 'cf:border-white/10 cf:bg-white/[0.045]' : 'cf:border-white/10 cf:bg-white/[0.025] cf:opacity-80',
 	);
 }
 

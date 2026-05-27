@@ -41,7 +41,7 @@ export function MyStandupPage(props: MyStandupPageProps): ReactElement {
 	}
 
 	return (
-		<CampfirePanel className="cf:overflow-hidden">
+		<CampfirePanel>
 			<CampfireCardHeader
 				eyebrow="Check-in"
 				title="My standup"
@@ -53,7 +53,6 @@ export function MyStandupPage(props: MyStandupPageProps): ReactElement {
 					</CampfireStatusPill>
 				}
 			/>
-
 			<CampfireCardBody className="cf:grid cf:gap-5">
 				<MyStandupFeedback state={standup.loadState} message={standup.message} />
 

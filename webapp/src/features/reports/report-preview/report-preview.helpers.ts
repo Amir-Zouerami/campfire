@@ -1,5 +1,6 @@
 import { ApiClientError } from '@/api';
 import type { ReportSortMode, StandupSubmissionSortMode } from '@/types/domain';
+import { isISODateInputValue, normalizeISODateInputValue } from '@/lib/dates';
 
 /**
  * dailyReportSortOptions lists supported daily report sort modes.
@@ -88,7 +89,14 @@ export function getCurrentWeekRange(): { readonly startDate: string; readonly en
  * reportDateRangeIsValid returns whether a report date range can be loaded.
  */
 export function reportDateRangeIsValid(startDate: string, endDate: string): boolean {
-	return startDate.trim() !== '' && endDate.trim() !== '' && endDate >= startDate;
+	const normalizedStartDate = normalizeISODateInputValue(startDate);
+	const normalizedEndDate = normalizeISODateInputValue(endDate);
+
+	return (
+		isISODateInputValue(normalizedStartDate) &&
+		isISODateInputValue(normalizedEndDate) &&
+		normalizedEndDate >= normalizedStartDate
+	);
 }
 
 /**
@@ -133,10 +141,6 @@ export function markdownLineCount(markdown: string): number {
 
 	return markdown.split('\n').length;
 }
-
-/**
- * selectClassName returns the shared native select style.
- */
 
 /**
  * errorToMessage converts unknown thrown values into a safe UI message.

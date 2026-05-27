@@ -27,6 +27,9 @@ func handleGetWorkspaceByChannel(
 		}
 
 		channelID := strings.TrimSpace(chi.URLParam(r, "channelID"))
+		if !requireWorkspaceEligibleChannel(w, log, mm, channelID) {
+			return
+		}
 
 		result, err := workspaceService.GetByChannel(r.Context(), user.ID, channelID)
 		if err != nil {
@@ -66,6 +69,10 @@ func handleCreateWorkspace(
 		var request CreateWorkspaceRequest
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			WriteError(w, http.StatusBadRequest, "invalid_request", "Request body must be valid JSON.")
+			return
+		}
+
+		if !requireWorkspaceEligibleChannel(w, log, mm, request.ChannelID) {
 			return
 		}
 
@@ -113,6 +120,54 @@ func logServiceError(log logger.Logger, err error) {
 	}
 
 	log.Warn("unexpected service error", logger.String("message", err.Error()))
+}
+
+/*
+requireWorkspaceEligibleChannel ensures Campfire only operates in workspace-safe Mattermost channels.
+
+Direct messages cannot be Campfire workspaces because the plugin UI and
+workflow context belong to team channels or group conversations.
+*/
+func requireWorkspaceEligibleChannel(
+	w http.ResponseWriter,
+	log logger.Logger,
+	mm mattermost.Client,
+	channelID string,
+) bool {
+	channelType, err := mm.GetChannelType(channelID)
+	if err != nil {
+		log.Warn(
+			"failed to load Mattermost channel type",
+			logger.String("channel_id", channelID),
+			logger.String("error", err.Error()),
+		)
+		WriteError(w, http.StatusBadRequest, "invalid_channel", "Could not verify the Mattermost channel type.")
+		return false
+	}
+
+	if workspaceEligibleChannelType(channelType) {
+		return true
+	}
+
+	WriteError(
+		w,
+		http.StatusForbidden,
+		"invalid_channel_type",
+		"Campfire workspaces can only be used from channels or group conversations. Direct messages cannot become Campfire workspaces.",
+	)
+	return false
+}
+
+/*
+workspaceEligibleChannelType returns whether a Mattermost channel type may host Campfire.
+*/
+func workspaceEligibleChannelType(channelType string) bool {
+	switch strings.TrimSpace(channelType) {
+	case "O", "P", "G":
+		return true
+	default:
+		return false
+	}
 }
 
 /*

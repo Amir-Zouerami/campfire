@@ -344,3 +344,256 @@
 .campfire-csv-action-card + .campfire-csv-action-card {
 	margin-top: 0.15rem;
 }
+
+/* Campfire dropdown repair: panels must not clip anchored select menus. */
+.campfire-panel,
+.campfire-card-body,
+.campfire-compact-section-intro {
+	overflow: visible;
+}
+
+/* Campfire icon visibility repair: shared icons must be readable and clickable controls must not disappear. */
+.campfire-icon-tile {
+	display: inline-grid;
+	place-items: center;
+	flex: 0 0 auto;
+	min-width: 2.35rem;
+	min-height: 2.35rem;
+}
+
+.campfire-icon-tile svg {
+	width: 1.15rem !important;
+	height: 1.15rem !important;
+	stroke-width: 2.15;
+}
+
+.campfire-icon-tile--header {
+	width: 2.65rem;
+	height: 2.65rem;
+}
+
+.campfire-icon-tile--header svg {
+	width: 1.35rem !important;
+	height: 1.35rem !important;
+}
+
+.campfire-icon-tile--metric {
+	min-width: 2.65rem;
+	min-height: 2.65rem;
+}
+
+.campfire-icon-tile--metric svg {
+	width: 1.25rem !important;
+	height: 1.25rem !important;
+}
+
+.campfire-icon-tile--empty svg {
+	width: 1.75rem !important;
+	height: 1.75rem !important;
+}
+
+.campfire-theme button svg,
+.campfire-theme [role='button'] svg {
+	min-width: 1rem;
+	min-height: 1rem;
+}
+
+/* Campfire runtime spacing repair: keep signal grids and reason panels visually separated. */
+.campfire-theme .campfire-card-body > .cf\:grid.cf\:gap-6 {
+	gap: 1.6rem !important;
+}
+
+/* Campfire icon readability repair. */
+.campfire-theme button svg,
+.campfire-theme [role='button'] svg {
+	width: 1.15rem !important;
+	height: 1.15rem !important;
+	min-width: 1.15rem !important;
+	min-height: 1.15rem !important;
+	stroke-width: 2.25 !important;
+}
+
+.campfire-theme button.campfire-tab-button svg {
+	width: 1.75rem !important;
+	height: 1.75rem !important;
+	min-width: 1.75rem !important;
+	min-height: 1.75rem !important;
+}
+
+.campfire-theme p[class*='uppercase'] svg,
+.campfire-theme span[class*='uppercase'] svg,
+.campfire-theme h2 svg,
+.campfire-theme h3 svg {
+	width: 1.1rem !important;
+	height: 1.1rem !important;
+	min-width: 1.1rem !important;
+	min-height: 1.1rem !important;
+	stroke-width: 2.35 !important;
+}
+
+.campfire-theme .campfire-status-pill svg {
+	width: 1rem !important;
+	height: 1rem !important;
+	min-width: 1rem !important;
+	min-height: 1rem !important;
+}
+
+.campfire-theme .campfire-icon-tile {
+	display: inline-grid;
+	place-items: center;
+	flex: 0 0 auto;
+	min-width: 2.65rem;
+	min-height: 2.65rem;
+}
+
+.campfire-theme .campfire-icon-tile svg {
+	width: 1.35rem !important;
+	height: 1.35rem !important;
+	min-width: 1.35rem !important;
+	min-height: 1.35rem !important;
+	stroke-width: 2.25 !important;
+}
+
+/* Campfire roles repair: role group cards must not touch vertically. */
+.campfire-role-group-list {
+	display: flex !important;
+	flex-direction: column !important;
+	gap: 1.35rem !important;
+}
+
+.campfire-role-group-card {
+	display: grid;
+	gap: 1rem;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 1rem;
+	background: rgba(255, 255, 255, 0.035);
+	padding: 1.25rem;
+	box-shadow:
+		0 12px 32px rgba(0, 0, 0, 0.18),
+		inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.campfire-role-group-card + .campfire-role-group-card {
+	margin-top: 0.15rem;
+}
+
+/* Campfire role chip remove button repair. */
+.campfire-role-group-card button[aria-label^='Remove'] {
+	width: 2rem !important;
+	height: 2rem !important;
+	min-width: 2rem !important;
+	min-height: 2rem !important;
+}
+
+.campfire-role-group-card button[aria-label^='Remove'] svg {
+	width: 1rem !important;
+	height: 1rem !important;
+	min-width: 1rem !important;
+	min-height: 1rem !important;
+}
+
+/* Campfire settings rule list repair: reminder/report rules should read as separate neutral surfaces. */
+.campfire-settings-rule-list {
+	display: flex !important;
+	flex-direction: column !important;
+	gap: 1.35rem !important;
+}
+
+.campfire-settings-rule-list > article {
+	box-shadow:
+		0 12px 32px rgba(0, 0, 0, 0.18),
+		inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.campfire-settings-rule-list > article + article {
+	margin-top: 0.15rem;
+}
+
+/* Campfire task row repair: task cards should not create accidental scroll jumps through nested labels. */
+.campfire-theme [aria-label='My Day workflow'] + section label label,
+.campfire-theme [aria-label='My Day workflow'] + section label .campfire-checkbox-field {
+	cursor: pointer;
+}
+
+/* Team Review runtime spacing repair */
+.campfire-theme .campfire-runtime-decision-flow {
+	display: grid !important;
+	gap: 1.4rem !important;
+}
+
+.campfire-theme .campfire-runtime-message-panel,
+.campfire-theme .campfire-runtime-reason-panel {
+	border: 1px solid rgba(255, 255, 255, 0.1) !important;
+	border-radius: 1.15rem !important;
+	background:
+		radial-gradient(circle at 10% 0%, rgba(249, 115, 22, 0.08), transparent 18rem),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.024)), rgba(0, 0, 0, 0.22) !important;
+	padding: 1.35rem !important;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055) !important;
+}
+
+.campfire-theme .campfire-runtime-signal-grid {
+	display: grid !important;
+	grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+	gap: 1.15rem !important;
+	align-items: stretch !important;
+}
+
+.campfire-theme .campfire-runtime-signal-grid > article {
+	min-width: 0 !important;
+	height: 100% !important;
+	border-radius: 1.15rem !important;
+}
+
+.campfire-theme .campfire-runtime-reason-panel {
+	display: grid !important;
+	grid-template-columns: auto minmax(0, 1fr) !important;
+	align-items: start !important;
+	gap: 1.15rem !important;
+}
+
+.campfire-theme .campfire-runtime-reason-icon {
+	width: 3.6rem !important;
+	height: 3.6rem !important;
+	border-radius: 1rem !important;
+}
+
+@media (max-width: 1180px) {
+	.campfire-theme .campfire-runtime-signal-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+	}
+}
+
+@media (max-width: 720px) {
+	.campfire-theme .campfire-runtime-signal-grid,
+	.campfire-theme .campfire-runtime-reason-panel {
+		grid-template-columns: 1fr !important;
+	}
+}
+
+/* Standup Forms schedule card repair: readable schedule labels and less cramped footer. */
+.campfire-theme .campfire-standup-schedule-card {
+	display: grid !important;
+	gap: 1.25rem !important;
+	border: 1px solid rgba(255, 255, 255, 0.1) !important;
+	border-radius: 1.15rem !important;
+	background:
+		radial-gradient(circle at 10% 0%, rgba(249, 115, 22, 0.08), transparent 18rem),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.048), rgba(255, 255, 255, 0.022)), rgba(255, 255, 255, 0.026) !important;
+	padding: 1.25rem !important;
+	box-shadow:
+		0 12px 32px rgba(0, 0, 0, 0.18),
+		inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+.campfire-theme .campfire-standup-schedule-footer {
+	display: flex !important;
+	flex-wrap: wrap !important;
+	align-items: center !important;
+	justify-content: space-between !important;
+	gap: 0.85rem !important;
+	border: 1px solid rgba(255, 255, 255, 0.09) !important;
+	border-radius: 1rem !important;
+	background: rgba(0, 0, 0, 0.18) !important;
+	padding: 0.9rem 1rem !important;
+}

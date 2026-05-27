@@ -32,14 +32,19 @@ export function MyLeaveHero(props: MyLeaveHeroProps): ReactElement {
 				action={<CampfireStatusPill tone="ember">Personal</CampfireStatusPill>}
 			/>
 
-			<CampfireCardBody className="campfire-context-grid">
+			<CampfireCardBody className="cf:grid cf:gap-4 cf:md:grid-cols-3">
 				<CampfireMetric
 					label="Active requests"
 					value={String(props.activeLeaveCount)}
 					helper="Pending and approved"
 					icon={ClipboardList}
 				/>
-				<CampfireMetric label="Pending" value={String(props.pendingLeaveCount)} helper="Awaiting decision" />
+				<CampfireMetric
+					label="Pending"
+					value={String(props.pendingLeaveCount)}
+					helper="Awaiting decision"
+					icon={Umbrella}
+				/>
 				<CampfireMetric
 					label="Approved"
 					value={String(props.approvedLeaveCount)}

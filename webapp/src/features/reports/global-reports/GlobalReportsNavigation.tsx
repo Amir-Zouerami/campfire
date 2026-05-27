@@ -17,7 +17,7 @@ type GlobalReportsNavigationProps = {
  */
 export function GlobalReportsNavigation(props: GlobalReportsNavigationProps): ReactElement {
 	return (
-		<nav className="cf:flex cf:flex-wrap cf:gap-3" aria-label="Global report type">
+		<nav className="campfire-global-report-nav" aria-label="Global report type">
 			<GlobalReportTabButton
 				active={props.activeTab === 'time'}
 				icon={Clock3}

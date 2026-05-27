@@ -10,7 +10,6 @@ import type { MyDaySection } from './my-day.types';
  */
 type MyDayHeroProps = {
 	readonly activeSection: MyDaySection;
-	readonly workspaceName: string;
 };
 
 /**
@@ -24,7 +23,7 @@ export function MyDayHero(props: MyDayHeroProps): ReactElement {
 			<CampfireCardHeader
 				eyebrow={props.activeSection.eyebrow}
 				title={props.activeSection.title}
-				description={`${props.activeSection.description} · ${props.workspaceName}`}
+				description={props.activeSection.description}
 				icon={Icon}
 				action={<CampfireStatusPill tone="ember">My Day</CampfireStatusPill>}
 			/>

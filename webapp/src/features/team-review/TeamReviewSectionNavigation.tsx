@@ -17,18 +17,19 @@ type TeamReviewSectionNavigationProps = {
  */
 export function TeamReviewSectionNavigation(props: TeamReviewSectionNavigationProps): ReactElement {
 	return (
-		<div className="cf:flex cf:flex-wrap cf:gap-3">
+		<nav className="campfire-section-nav" aria-label="Team Review sections">
 			{props.sections.map(section => (
 				<button
 					key={section.id}
 					type="button"
 					className={teamReviewSectionButtonClassName(section.id === props.activeSection)}
+					aria-current={section.id === props.activeSection ? 'page' : undefined}
 					onClick={() => props.onSelectSection(section.id)}
 				>
 					<span className="cf:text-base cf:font-black">{section.label}</span>
 					<span className="cf:text-sm cf:font-semibold cf:text-muted-foreground">{section.description}</span>
 				</button>
 			))}
-		</div>
+		</nav>
 	);
 }

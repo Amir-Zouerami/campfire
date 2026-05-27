@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import type { ReactElement } from 'react';
+import type { MouseEvent, ReactElement } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, Flame, Loader2, RefreshCw, X } from 'lucide-react';
+import { AlertTriangle, Loader2, RefreshCw, X } from 'lucide-react';
 
 import campfireLogoURL from '../../../assets/campfire-logo.svg';
 
@@ -24,6 +24,9 @@ export function CampfireRoot(): ReactElement | null {
 	const bootstrap = useCampfireBootstrap(isOpen, bootstrapRefreshToken);
 
 	useEffect(() => {
+		/**
+		 * handleOpen opens the Campfire modal.
+		 */
 		function handleOpen(event: Event): void {
 			if (!isCampfireOpenEvent(event)) {
 				return;
@@ -32,10 +35,16 @@ export function CampfireRoot(): ReactElement | null {
 			setIsOpen(true);
 		}
 
+		/**
+		 * handleClose closes the Campfire modal.
+		 */
 		function handleClose(): void {
 			setIsOpen(false);
 		}
 
+		/**
+		 * handleToggle toggles the Campfire modal.
+		 */
 		function handleToggle(): void {
 			setIsOpen(current => !current);
 		}
@@ -56,6 +65,9 @@ export function CampfireRoot(): ReactElement | null {
 			return;
 		}
 
+		/**
+		 * handleKeyDown closes Campfire on Escape.
+		 */
 		function handleKeyDown(event: KeyboardEvent): void {
 			if (event.key === 'Escape') {
 				setIsOpen(false);
@@ -76,35 +88,63 @@ export function CampfireRoot(): ReactElement | null {
 		return null;
 	}
 
+	/**
+	 * refreshBootstrap reloads health, user, workspace, and capabilities.
+	 */
 	function refreshBootstrap(): void {
 		setBootstrapRefreshToken(current => current + 1);
 	}
 
+	/**
+	 * refreshLeaves reloads leave-dependent UI.
+	 */
 	function refreshLeaves(): void {
 		setLeaveRefreshToken(current => current + 1);
 	}
 
+	/**
+	 * refreshStandups reloads standup-dependent UI.
+	 */
 	function refreshStandups(): void {
 		setStandupRefreshToken(current => current + 1);
 	}
 
+	/**
+	 * refreshWorkspaceCalendar reloads workspace calendar dependent UI.
+	 */
 	function refreshWorkspaceCalendar(): void {
 		setWorkspaceCalendarRefreshToken(current => current + 1);
 	}
 
+	/**
+	 * handleWorkspaceArchived reloads bootstrap state after archive/disconnect.
+	 */
 	function handleWorkspaceArchived(): void {
 		refreshBootstrap();
 	}
 
+	/**
+	 * handleOverlayMouseDown closes only when the blurred backdrop itself is clicked.
+	 */
+	function handleOverlayMouseDown(event: MouseEvent<HTMLDivElement>): void {
+		if (event.target === event.currentTarget) {
+			setIsOpen(false);
+		}
+	}
+
 	return createPortal(
-		<div className="campfire-overlay campfire-theme dark" role="dialog" aria-modal="true" aria-label="Campfire">
+		<div
+			className="campfire-overlay campfire-theme dark"
+			role="dialog"
+			aria-modal="true"
+			aria-label="Campfire"
+			onMouseDown={handleOverlayMouseDown}
+		>
 			<div className="campfire-modal">
 				<CampfireTopbar bootstrap={bootstrap} onClose={() => setIsOpen(false)} onRefresh={refreshBootstrap} />
 
 				<main className="campfire-scroll">
 					<div className="campfire-container">
-						<CampfireHero bootstrap={bootstrap} />
-
 						<BootstrapContent
 							bootstrap={bootstrap}
 							onWorkspaceCreated={refreshBootstrap}
@@ -175,109 +215,7 @@ function CampfireTopbar(props: {
 }
 
 /**
- * CampfireHero renders the compact top overview section.
- */
-function CampfireHero(props: { readonly bootstrap: BootstrapStatus }): ReactElement {
-	return (
-		<section className="campfire-hero campfire-hero--compact">
-			<div className="campfire-hero-layout campfire-hero-layout--compact">
-				<div className="campfire-hero-copy">
-					<div className="campfire-kicker">
-						<Flame className="cf:size-4" />
-						Team operations
-					</div>
-
-					<h2 className="campfire-hero-title">Team rhythm</h2>
-
-					<p className="campfire-hero-description">
-						Standups, tasks, time, leave, reminders, reports, and exports in this workspace.
-					</p>
-				</div>
-
-				<CompactBootstrapSummary bootstrap={props.bootstrap} />
-			</div>
-		</section>
-	);
-}
-
-/**
- * CompactBootstrapSummary renders one small status strip instead of large metric cards.
- */
-function CompactBootstrapSummary(props: { readonly bootstrap: BootstrapStatus }): ReactElement {
-	switch (props.bootstrap.state) {
-		case 'idle':
-			return <div className="campfire-bootstrap-strip">Idle</div>;
-
-		case 'loading':
-			return <div className="campfire-bootstrap-strip">Loading backend…</div>;
-
-		case 'error':
-			return <div className="campfire-bootstrap-strip campfire-bootstrap-strip--error">Startup failed</div>;
-
-		case 'ready':
-			return (
-				<div className="campfire-bootstrap-strip">
-					<span>API {props.bootstrap.health.version}</span>
-					<span>{userLabel(props.bootstrap.me)}</span>
-					<span>{props.bootstrap.me.isSystemAdmin ? 'Admin' : 'Member'}</span>
-					<span>{props.bootstrap.workspace?.name ?? 'No workspace'}</span>
-				</div>
-			);
-	}
-}
-
-/**
- * BootstrapSummary renders compact startup status metrics.
- */
-// function BootstrapSummary(props: { readonly bootstrap: BootstrapStatus }): ReactElement {
-// 	switch (props.bootstrap.state) {
-// 		case 'idle':
-// 			return (
-// 				<div className="campfire-metric-grid">
-// 					<CampfireMetric label="Status" value="Idle" helper="Not loaded" />
-// 				</div>
-// 			);
-
-// 		case 'loading':
-// 			return (
-// 				<div className="campfire-metric-grid">
-// 					<CampfireMetric label="Status" value="Loading" helper="Backend checks" icon={Loader2} />
-// 				</div>
-// 			);
-
-// 		case 'error':
-// 			return (
-// 				<div className="campfire-metric-grid">
-// 					<CampfireMetric label="Status" value="Error" helper="Startup failed" icon={AlertTriangle} />
-// 				</div>
-// 			);
-
-// 		case 'ready':
-// 			return (
-// 				<div className="campfire-metric-grid campfire-metric-grid--ready">
-// 					<CampfireMetric
-// 						label="API"
-// 						value={props.bootstrap.health.version}
-// 						helper={props.bootstrap.health.product}
-// 					/>
-// 					<CampfireMetric label="User" value={userLabel(props.bootstrap.me)} helper="Signed in" />
-// 					<CampfireMetric
-// 						label="Admin"
-// 						value={props.bootstrap.me.isSystemAdmin ? 'Yes' : 'No'}
-// 						helper="System access"
-// 					/>
-// 					<CampfireMetric
-// 						label="Workspace"
-// 						value={props.bootstrap.workspace?.name ?? 'Not configured'}
-// 						helper="Current channel"
-// 					/>
-// 				</div>
-// 			);
-// 	}
-// }
-
-/**
- * BootstrapContent renders the main loaded/empty/error state.
+ * BootstrapContent renders the correct body for startup state.
  */
 function BootstrapContent(props: {
 	readonly bootstrap: BootstrapStatus;
@@ -295,14 +233,26 @@ function BootstrapContent(props: {
 }): ReactElement {
 	switch (props.bootstrap.state) {
 		case 'idle':
+			return (
+				<CampfirePanel>
+					<CampfireCardBody>
+						<CampfireEmpty
+							icon={Loader2}
+							title="Campfire is waiting"
+							description="Open Campfire from a Mattermost channel to load workspace data."
+						/>
+					</CampfireCardBody>
+				</CampfirePanel>
+			);
+
 		case 'loading':
 			return (
 				<CampfirePanel>
 					<CampfireCardBody>
 						<CampfireEmpty
 							icon={Loader2}
-							title="Lighting Campfire…"
-							description="Loading health, current user, Mattermost channel, and workspace configuration."
+							title="Loading Campfire"
+							description="Checking Mattermost, workspace setup, permissions, and schedules."
 						/>
 					</CampfireCardBody>
 				</CampfirePanel>
@@ -314,7 +264,7 @@ function BootstrapContent(props: {
 					<CampfireCardBody>
 						<CampfireEmpty
 							icon={AlertTriangle}
-							title="Campfire could not start"
+							title="Campfire could not load"
 							description={props.bootstrap.errorMessage}
 						/>
 					</CampfireCardBody>
@@ -322,14 +272,14 @@ function BootstrapContent(props: {
 			);
 
 		case 'ready':
-			return <ReadyContent {...props} bootstrap={props.bootstrap} />;
+			return <BootstrapReadyContent {...props} bootstrap={props.bootstrap} />;
 	}
 }
 
 /**
- * ReadyContent renders configured workspace tabs or setup state.
+ * BootstrapReadyContent renders configured workspace or setup state.
  */
-function ReadyContent(props: {
+function BootstrapReadyContent(props: {
 	readonly bootstrap: Extract<BootstrapStatus, { readonly state: 'ready' }>;
 	readonly onWorkspaceCreated: () => void;
 	readonly onWorkspaceArchived: () => void;
@@ -428,19 +378,4 @@ function topbarSubtitle(bootstrap: BootstrapStatus): string {
 	}
 
 	return 'Workspace setup';
-}
-
-/**
- * userLabel returns a readable current-user label.
- */
-function userLabel(me: Extract<BootstrapStatus, { readonly state: 'ready' }>['me']): string {
-	if (me.user.displayName.trim() !== '') {
-		return me.user.displayName;
-	}
-
-	if (me.user.username.trim() !== '') {
-		return `@${me.user.username}`;
-	}
-
-	return me.user.id;
 }

@@ -29,18 +29,21 @@ type StandupScheduleCardProps = {
 export function StandupScheduleCard(props: StandupScheduleCardProps): ReactElement {
 	const changed = scheduleHasChanges(props.schedule, props.draft);
 	const formDisabled = props.disabled || !props.canManageStandups;
+	const templateName = scheduleTemplateName(props.schedule.templateId, props.templates);
 
 	return (
-		<article className="cf:grid cf:gap-5 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
+		<article className="campfire-standup-schedule-card">
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
 				<div className="cf:min-w-0">
-					<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+					<p className="cf:m-0 cf:text-sm cf:font-black cf:uppercase cf:leading-none cf:tracking-[0.18em] cf:text-amber-100">
 						{formatLabel(props.schedule.kind)} schedule
 					</p>
-					<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
-						{props.schedule.timeOfDay} · Template {shortID(props.schedule.templateId)}
+
+					<h3 className="cf:m-0 cf:mt-3 cf:text-xl cf:font-black cf:leading-tight cf:tracking-[-0.03em] cf:text-foreground">
+						{props.schedule.timeOfDay} · {templateName}
 					</h3>
-					<p className="cf:mt-2 cf:text-xs cf:font-bold cf:text-muted-foreground">
+
+					<p className="cf:m-0 cf:mt-2 cf:text-xs cf:font-bold cf:text-muted-foreground">
 						Updated {formatDateTime(props.schedule.updatedAt)}
 					</p>
 				</div>
@@ -63,8 +66,8 @@ export function StandupScheduleCard(props: StandupScheduleCardProps): ReactEleme
 				onChange={patch => props.onDraftChange(props.schedule.id, patch)}
 			/>
 
-			<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4">
-				<p className="cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
+			<div className="campfire-standup-schedule-footer">
+				<p className="cf:m-0 cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
 					Daily and weekly schedules stay independent. Skipping daily on weekly days is explicit.
 				</p>
 
@@ -79,4 +82,19 @@ export function StandupScheduleCard(props: StandupScheduleCardProps): ReactEleme
 			</div>
 		</article>
 	);
+}
+
+/**
+ * scheduleTemplateName returns a readable template label for a schedule.
+ */
+function scheduleTemplateName(templateID: string, templates: readonly StandupTemplate[]): string {
+	const template = templates.find(item => item.id === templateID);
+
+	if (template === undefined) {
+		return `Missing template ${shortID(templateID)}`;
+	}
+
+	const kindLabel = formatLabel(template.kind);
+
+	return `${template.name} (${kindLabel})`;
 }

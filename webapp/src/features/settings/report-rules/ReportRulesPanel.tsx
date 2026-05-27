@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { FileText } from 'lucide-react';
 
 import { CampfireEmpty } from '@/app/campfire-ui';
+import { scheduleLabelForRule, type StandupScheduleLabelLookup } from '@/features/settings/standup-schedule-labels';
 import type { ReportRule } from '@/types/domain';
 
 import { ReportRuleCard } from './ReportRuleCard';
@@ -12,6 +13,7 @@ import type { ReportRuleDraftPatch, ReportRuleWithDraft } from './report-rules.t
  */
 type ReportRulesPanelProps = {
 	readonly rulesWithDrafts: readonly ReportRuleWithDraft[];
+	readonly scheduleLabels: StandupScheduleLabelLookup;
 	readonly disabled: boolean;
 	readonly canManageReportRules: boolean;
 	readonly savingRuleID: string;
@@ -24,7 +26,7 @@ type ReportRulesPanelProps = {
  */
 export function ReportRulesPanel(props: ReportRulesPanelProps): ReactElement {
 	return (
-		<section className="cf:grid cf:gap-4">
+		<section className="campfire-settings-rule-list">
 			{props.rulesWithDrafts.length === 0 ? (
 				<CampfireEmpty
 					icon={FileText}
@@ -35,6 +37,7 @@ export function ReportRulesPanel(props: ReportRulesPanelProps): ReactElement {
 				props.rulesWithDrafts.map(pair => (
 					<ReportRuleCard
 						key={pair.rule.id}
+						scheduleLabel={scheduleLabelForRule(props.scheduleLabels, pair.rule.scheduleId)}
 						rule={pair.rule}
 						draft={pair.draft}
 						disabled={props.disabled}

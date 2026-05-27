@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 
 import { getWeeklyReportPreview, postWeeklyReportPreview } from '@/api';
 import { CAMPFIRE_APPLY_REPORT_FILTER_EVENT, isReportFilterApplyEvent } from '@/app/events';
+import { normalizeISODateInputValue } from '@/lib/dates';
 import type { ReportSortMode, WeeklyReportPreview, Workspace } from '@/types/domain';
 
 import {
@@ -49,8 +50,8 @@ export function useWeeklyReportPreview(input: UseWeeklyReportPreviewInput): UseW
 	const currentWeek = getCurrentWeekRange();
 
 	const [loadState, setLoadState] = useState<ReportPreviewLoadState>('idle');
-	const [periodStart, setPeriodStart] = useState(currentWeek.startDate);
-	const [periodEnd, setPeriodEnd] = useState(currentWeek.endDate);
+	const [periodStart, setPeriodStartState] = useState(currentWeek.startDate);
+	const [periodEnd, setPeriodEndState] = useState(currentWeek.endDate);
 	const [sortMode, setSortMode] = useState<ReportSortMode>('blockers_first');
 	const [preview, setPreview] = useState<WeeklyReportPreview | null>(null);
 	const [message, setMessage] = useState('');
@@ -80,11 +81,11 @@ export function useWeeklyReportPreview(input: UseWeeklyReportPreviewInput): UseW
 				const record = parsed as Record<string, unknown>;
 
 				if (typeof record.periodStart === 'string' && record.periodStart.trim() !== '') {
-					setPeriodStart(record.periodStart);
+					setPeriodStartState(normalizeISODateInputValue(record.periodStart));
 				}
 
 				if (typeof record.periodEnd === 'string' && record.periodEnd.trim() !== '') {
-					setPeriodEnd(record.periodEnd);
+					setPeriodEndState(normalizeISODateInputValue(record.periodEnd));
 				}
 
 				if (typeof record.sortMode === 'string') {
@@ -113,9 +114,18 @@ export function useWeeklyReportPreview(input: UseWeeklyReportPreviewInput): UseW
 		 * loadPreview loads the weekly Markdown report preview.
 		 */
 		async function loadPreview(): Promise<void> {
-			if (!reportDateRangeIsValid(periodStart, periodEnd)) {
+			const normalizedStartDate = normalizeISODateInputValue(periodStart);
+			const normalizedEndDate = normalizeISODateInputValue(periodEnd);
+
+			if (normalizedStartDate !== periodStart || normalizedEndDate !== periodEnd) {
+				setPeriodStartState(normalizedStartDate);
+				setPeriodEndState(normalizedEndDate);
+				return;
+			}
+
+			if (!reportDateRangeIsValid(normalizedStartDate, normalizedEndDate)) {
 				setPreview(null);
-				setMessage('Choose a valid report date range.');
+				setMessage('Choose a real weekly report date range in YYYY-MM-DD format.');
 				setLoadState('error');
 				return;
 			}
@@ -124,7 +134,12 @@ export function useWeeklyReportPreview(input: UseWeeklyReportPreviewInput): UseW
 			setMessage('');
 
 			try {
-				const response = await getWeeklyReportPreview(input.workspace.id, periodStart, periodEnd, sortMode);
+				const response = await getWeeklyReportPreview(
+					input.workspace.id,
+					normalizedStartDate,
+					normalizedEndDate,
+					sortMode,
+				);
 
 				if (!isActive) {
 					return;
@@ -155,19 +170,42 @@ export function useWeeklyReportPreview(input: UseWeeklyReportPreviewInput): UseW
 	}, [preview]);
 
 	/**
+	 * setPeriodStart updates the weekly report start date.
+	 */
+	function setPeriodStart(date: string): void {
+		setPeriodStartState(normalizeISODateInputValue(date));
+	}
+
+	/**
+	 * setPeriodEnd updates the weekly report end date.
+	 */
+	function setPeriodEnd(date: string): void {
+		setPeriodEndState(normalizeISODateInputValue(date));
+	}
+
+	/**
 	 * resetToCurrentWeek resets the report range to this local week.
 	 */
 	function resetToCurrentWeek(): void {
 		const nextWeek = getCurrentWeekRange();
 
-		setPeriodStart(nextWeek.startDate);
-		setPeriodEnd(nextWeek.endDate);
+		setPeriodStartState(nextWeek.startDate);
+		setPeriodEndState(nextWeek.endDate);
 	}
 
 	/**
 	 * postReport posts the current weekly report preview to the workspace channel.
 	 */
 	async function postReport(): Promise<void> {
+		const normalizedStartDate = normalizeISODateInputValue(periodStart);
+		const normalizedEndDate = normalizeISODateInputValue(periodEnd);
+
+		if (!reportDateRangeIsValid(normalizedStartDate, normalizedEndDate)) {
+			setMessage('Choose a real weekly report date range in YYYY-MM-DD format before posting.');
+			setLoadState('error');
+			return;
+		}
+
 		if (preview === null) {
 			setMessage('Load a report preview before posting.');
 			setLoadState('error');
@@ -179,11 +217,13 @@ export function useWeeklyReportPreview(input: UseWeeklyReportPreviewInput): UseW
 
 		try {
 			await postWeeklyReportPreview(input.workspace.id, {
-				periodStart,
-				periodEnd,
+				periodStart: normalizedStartDate,
+				periodEnd: normalizedEndDate,
 				sortMode,
 			});
 
+			setPeriodStartState(normalizedStartDate);
+			setPeriodEndState(normalizedEndDate);
 			setLoadState('ready');
 			setMessage('Weekly report posted.');
 			toast.success('Weekly report posted');

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { listReminderRules, updateReminderRule } from '@/api';
+import { listReminderRules, listStandupConfiguration, updateReminderRule } from '@/api';
 import type { ReminderRule, Workspace } from '@/types/domain';
+
+import { buildStandupScheduleLabelLookup, type StandupScheduleLabelLookup } from '../standup-schedule-labels';
 
 import {
 	buildReminderDrafts,
@@ -41,6 +43,7 @@ export type UseReminderSettingsResult = {
 	readonly sortedRules: readonly ReminderRule[];
 	readonly drafts: ReminderDraftsByID;
 	readonly rulesWithDrafts: readonly ReminderRuleWithDraft[];
+	readonly scheduleLabels: StandupScheduleLabelLookup;
 	readonly savingRuleID: string;
 	readonly message: string;
 	readonly isBusy: boolean;
@@ -53,12 +56,13 @@ export type UseReminderSettingsResult = {
 };
 
 /**
- * useReminderSettings owns reminder rule loading, draft editing, and saving.
+ * useReminderSettings owns reminder rule loading, schedule labeling, draft editing, and saving.
  */
 export function useReminderSettings(input: UseReminderSettingsInput): UseReminderSettingsResult {
 	const [loadState, setLoadState] = useState<ReminderSettingsLoadState>('idle');
 	const [rules, setRules] = useState<readonly ReminderRule[]>([]);
 	const [drafts, setDrafts] = useState<ReminderDraftsByID>({});
+	const [scheduleLabels, setScheduleLabels] = useState<StandupScheduleLabelLookup>({});
 	const [savingRuleID, setSavingRuleID] = useState('');
 	const [message, setMessage] = useState('');
 
@@ -66,26 +70,27 @@ export function useReminderSettings(input: UseReminderSettingsInput): UseReminde
 		let isActive = true;
 
 		/**
-		 * loadReminderRules loads workspace reminder rules.
+		 * loadReminderRules loads workspace reminder rules and their readable schedule context.
 		 */
 		async function loadReminderRules(): Promise<void> {
 			setLoadState('loading');
 			setMessage('');
 
 			try {
-				const response = await listReminderRules(input.workspace.id);
+				const [rulesResponse, configurationResponse] = await Promise.all([
+					listReminderRules(input.workspace.id),
+					listStandupConfiguration(input.workspace.id),
+				]);
 
 				if (!isActive) {
 					return;
 				}
 
-				const channelOnlyRules = response.reminderRules.map(rule => ({
-					...rule,
-					dmReminderEnabled: false,
-				}));
-
-				setRules(channelOnlyRules);
-				setDrafts(buildReminderDrafts(channelOnlyRules));
+				setRules(rulesResponse.reminderRules);
+				setDrafts(buildReminderDrafts(rulesResponse.reminderRules));
+				setScheduleLabels(
+					buildStandupScheduleLabelLookup(configurationResponse.templates, configurationResponse.schedules),
+				);
 				setLoadState('ready');
 			} catch (error: unknown) {
 				if (!isActive) {
@@ -145,20 +150,13 @@ export function useReminderSettings(input: UseReminderSettingsInput): UseReminde
 		}
 
 		const draft = drafts[rule.id];
-
 		if (draft === undefined) {
 			setLoadState('error');
-			setMessage('Could not find reminder settings to save.');
+			setMessage('Reminder draft was not found.');
 			return;
 		}
 
-		const offsets = parseReminderOffsets(draft.reminderOffsetsText);
-
-		if (offsets.length === 0) {
-			setLoadState('error');
-			setMessage('Enter at least one reminder offset, such as 0, 30, 45, 55.');
-			return;
-		}
+		const parsedOffsets = parseReminderOffsets(draft.reminderOffsetsText);
 
 		setLoadState('saving');
 		setSavingRuleID(rule.id);
@@ -168,8 +166,8 @@ export function useReminderSettings(input: UseReminderSettingsInput): UseReminde
 			const response = await updateReminderRule(input.workspace.id, rule.id, {
 				enabled: draft.enabled,
 				channelReminderEnabled: draft.channelReminderEnabled,
-				dmReminderEnabled: false,
-				reminderOffsets: [...offsets],
+				dmReminderEnabled: draft.dmReminderEnabled,
+				reminderOffsets: parsedOffsets,
 				mentionMissingInChannel: draft.mentionMissingInChannel,
 			});
 
@@ -178,17 +176,17 @@ export function useReminderSettings(input: UseReminderSettingsInput): UseReminde
 				...current,
 				[response.reminderRule.id]: reminderRuleToDraft(response.reminderRule),
 			}));
-			setSavingRuleID('');
 			setLoadState('ready');
-			setMessage('Reminder settings updated.');
-			toast.success('Reminder settings updated');
+			setMessage('Reminder rule updated.');
+			toast.success('Reminder rule updated');
 		} catch (error: unknown) {
 			const errorMessage = errorToMessage(error);
 
-			setSavingRuleID('');
 			setLoadState('error');
 			setMessage(errorMessage);
 			toast.error(errorMessage);
+		} finally {
+			setSavingRuleID('');
 		}
 	}
 
@@ -198,6 +196,7 @@ export function useReminderSettings(input: UseReminderSettingsInput): UseReminde
 		sortedRules,
 		drafts,
 		rulesWithDrafts,
+		scheduleLabels,
 		savingRuleID,
 		message,
 		isBusy,

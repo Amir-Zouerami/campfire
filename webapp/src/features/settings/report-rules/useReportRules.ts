@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { listReportRules, updateReportRule } from '@/api';
+import { listReportRules, listStandupConfiguration, updateReportRule } from '@/api';
 import type { ReportRule, Workspace } from '@/types/domain';
+
+import { buildStandupScheduleLabelLookup, type StandupScheduleLabelLookup } from '../standup-schedule-labels';
 
 import {
 	autoPostReportRuleCount,
@@ -40,6 +42,7 @@ export type UseReportRulesResult = {
 	readonly sortedRules: readonly ReportRule[];
 	readonly drafts: ReportRuleDraftsByID;
 	readonly rulesWithDrafts: readonly ReportRuleWithDraft[];
+	readonly scheduleLabels: StandupScheduleLabelLookup;
 	readonly savingRuleID: string;
 	readonly message: string;
 	readonly isBusy: boolean;
@@ -52,12 +55,13 @@ export type UseReportRulesResult = {
 };
 
 /**
- * useReportRules owns report-rule loading, draft editing, and saving.
+ * useReportRules owns report-rule loading, schedule labeling, draft editing, and saving.
  */
 export function useReportRules(input: UseReportRulesInput): UseReportRulesResult {
 	const [loadState, setLoadState] = useState<ReportRulesLoadState>('idle');
 	const [rules, setRules] = useState<readonly ReportRule[]>([]);
 	const [drafts, setDrafts] = useState<ReportRuleDraftsByID>({});
+	const [scheduleLabels, setScheduleLabels] = useState<StandupScheduleLabelLookup>({});
 	const [savingRuleID, setSavingRuleID] = useState('');
 	const [message, setMessage] = useState('');
 
@@ -65,21 +69,27 @@ export function useReportRules(input: UseReportRulesInput): UseReportRulesResult
 		let isActive = true;
 
 		/**
-		 * loadReportRules loads workspace report automation rules.
+		 * loadReportRules loads workspace report rules and readable standup schedule labels.
 		 */
 		async function loadReportRules(): Promise<void> {
 			setLoadState('loading');
 			setMessage('');
 
 			try {
-				const response = await listReportRules(input.workspace.id);
+				const [rulesResponse, configurationResponse] = await Promise.all([
+					listReportRules(input.workspace.id),
+					listStandupConfiguration(input.workspace.id),
+				]);
 
 				if (!isActive) {
 					return;
 				}
 
-				setRules(response.reportRules);
-				setDrafts(buildReportRuleDrafts(response.reportRules));
+				setRules(rulesResponse.reportRules);
+				setDrafts(buildReportRuleDrafts(rulesResponse.reportRules));
+				setScheduleLabels(
+					buildStandupScheduleLabelLookup(configurationResponse.templates, configurationResponse.schedules),
+				);
 				setLoadState('ready');
 			} catch (error: unknown) {
 				if (!isActive) {
@@ -142,7 +152,7 @@ export function useReportRules(input: UseReportRulesInput): UseReportRulesResult
 
 		if (draft === undefined) {
 			setLoadState('error');
-			setMessage('Could not find report settings to save.');
+			setMessage('Report rule draft was not found.');
 			return;
 		}
 
@@ -187,6 +197,7 @@ export function useReportRules(input: UseReportRulesInput): UseReportRulesResult
 		sortedRules,
 		drafts,
 		rulesWithDrafts,
+		scheduleLabels,
 		savingRuleID,
 		message,
 		isBusy,

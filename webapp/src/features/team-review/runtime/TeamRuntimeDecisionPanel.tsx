@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { CalendarCheck2, CalendarX2, Globe2, Users, Umbrella } from 'lucide-react';
+import { CalendarCheck2, CalendarX2, Globe2, Umbrella, Users } from 'lucide-react';
 
 import { CampfireStatusPill } from '@/app/campfire-ui';
 import type { StandupRunDecision } from '@/types/domain';
@@ -20,14 +20,14 @@ export function TeamRuntimeDecisionPanel(props: TeamRuntimeDecisionPanelProps): 
 	const decisionTone = props.decision.shouldRun ? 'green' : 'red';
 
 	return (
-		<section className="cf:grid cf:gap-5">
-			<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-5">
+		<section className="campfire-runtime-decision-flow">
+			<article className="campfire-runtime-message-panel">
 				<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
-					<div>
-						<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+					<div className="cf:min-w-0">
+						<p className="cf:m-0 cf:text-sm cf:font-black cf:uppercase cf:leading-none cf:tracking-[0.18em] cf:text-amber-100">
 							Runtime message
 						</p>
-						<h3 className="cf:mt-1 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-foreground">
+						<h3 className="cf:m-0 cf:mt-3 cf:text-2xl cf:font-black cf:leading-tight cf:tracking-[-0.04em] cf:text-foreground">
 							{props.decision.shouldRun ? 'Standup should run' : 'Standup should be skipped'}
 						</h3>
 					</div>
@@ -37,13 +37,13 @@ export function TeamRuntimeDecisionPanel(props: TeamRuntimeDecisionPanelProps): 
 					</CampfireStatusPill>
 				</div>
 
-				<p className="cf:mt-4 cf:text-sm cf:font-semibold cf:leading-7 cf:text-slate-300">
+				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-semibold cf:leading-7 cf:text-slate-300">
 					{props.decision.message ||
 						(props.decision.shouldRun ? 'Standup should run for this date.' : 'Standup should be skipped.')}
 				</p>
-			</div>
+			</article>
 
-			<div className="cf:grid cf:gap-4 cf:md:grid-cols-2 cf:xl:grid-cols-4">
+			<div className="campfire-runtime-signal-grid">
 				<RuntimeSignalCard
 					title="Working day"
 					value={props.decision.isWorkingDay ? 'Yes' : 'No'}
@@ -73,21 +73,25 @@ export function TeamRuntimeDecisionPanel(props: TeamRuntimeDecisionPanelProps): 
 				/>
 			</div>
 
-			<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
-				<div className="cf:flex cf:items-center cf:gap-2">
-					<Umbrella className="cf:size-4 cf:text-amber-200" />
-					<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
-						Reason
-					</p>
+			<article className="campfire-runtime-reason-panel">
+				<div className="campfire-icon-tile campfire-runtime-reason-icon">
+					<Umbrella className="cf:size-6" />
 				</div>
 
-				<h3 className="cf:mt-2 cf:text-xl cf:font-black cf:text-foreground">
-					{runtimeReasonLabel(props.decision.reason)}
-				</h3>
-				<p className="cf:mt-2 cf:text-sm cf:font-semibold cf:leading-7 cf:text-slate-300">
-					{runtimeReasonDescription(props.decision.reason)}
-				</p>
-			</div>
+				<div className="cf:min-w-0">
+					<p className="cf:m-0 cf:text-sm cf:font-black cf:uppercase cf:leading-none cf:tracking-[0.18em] cf:text-amber-100">
+						Reason
+					</p>
+
+					<h3 className="cf:m-0 cf:mt-3 cf:text-2xl cf:font-black cf:leading-tight cf:tracking-[-0.04em] cf:text-foreground">
+						{runtimeReasonLabel(props.decision.reason)}
+					</h3>
+
+					<p className="cf:m-0 cf:mt-3 cf:text-sm cf:font-semibold cf:leading-7 cf:text-slate-300">
+						{runtimeReasonDescription(props.decision.reason)}
+					</p>
+				</div>
+			</article>
 		</section>
 	);
 }
@@ -105,15 +109,17 @@ function RuntimeSignalCard(props: {
 
 	return (
 		<article className={runtimeSignalCardClassName(props.active)}>
-			<div className="cf:flex cf:items-center cf:justify-between cf:gap-3">
-				<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.16em] cf:text-amber-100">
+			<div className="cf:flex cf:items-start cf:justify-between cf:gap-3">
+				<p className="cf:m-0 cf:text-sm cf:font-black cf:uppercase cf:leading-none cf:tracking-[0.16em] cf:text-amber-100">
 					{props.title}
 				</p>
-				<Icon className="cf:size-5 cf:text-amber-200" />
+				<Icon className="cf:size-6 cf:shrink-0 cf:text-amber-200" />
 			</div>
 
-			<p className="cf:mt-4 cf:text-3xl cf:font-black cf:tracking-[-0.05em] cf:text-foreground">{props.value}</p>
-			<p className="cf:mt-1 cf:text-xs cf:font-bold cf:text-muted-foreground">
+			<p className="cf:m-0 cf:mt-4 cf:text-3xl cf:font-black cf:tracking-tighter cf:text-foreground">
+				{props.value}
+			</p>
+			<p className="cf:m-0 cf:mt-1 cf:text-xs cf:font-bold cf:text-muted-foreground">
 				{props.active ? 'Affects decision' : 'Clear'}
 			</p>
 		</article>

@@ -47,6 +47,7 @@ export function ReminderSettingsPage(props: WorkspaceShellProps): ReactElement {
 					{reminders.loadState !== 'loading' && (
 						<ReminderRulesPanel
 							rulesWithDrafts={reminders.rulesWithDrafts}
+							scheduleLabels={reminders.scheduleLabels}
 							disabled={reminders.isBusy}
 							canManageReminders={canManageReminders}
 							savingRuleID={reminders.savingRuleID}

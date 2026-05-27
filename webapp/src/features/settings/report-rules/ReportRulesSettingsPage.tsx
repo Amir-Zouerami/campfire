@@ -1,7 +1,6 @@
 import type { ReactElement } from 'react';
 
 import { CampfireCardBody, CampfirePanel } from '@/app/campfire-ui';
-
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
 
 import { ReportRulesFeedback, ReportRulesLoading } from './ReportRulesFeedback';
@@ -10,7 +9,7 @@ import { ReportRulesPanel } from './ReportRulesPanel';
 import { useReportRules } from './useReportRules';
 
 /**
- * ReportRulesSettingsPage renders workspace scheduled-report settings.
+ * ReportRulesSettingsPage renders scheduled report-rule configuration.
  */
 export function ReportRulesSettingsPage(props: WorkspaceShellProps): ReactElement {
 	const canManageReportRules = props.canManageWorkspace || props.isSystemAdmin;
@@ -47,6 +46,7 @@ export function ReportRulesSettingsPage(props: WorkspaceShellProps): ReactElemen
 					{reportRules.loadState !== 'loading' && (
 						<ReportRulesPanel
 							rulesWithDrafts={reportRules.rulesWithDrafts}
+							scheduleLabels={reportRules.scheduleLabels}
 							disabled={reportRules.isBusy}
 							canManageReportRules={canManageReportRules}
 							savingRuleID={reportRules.savingRuleID}

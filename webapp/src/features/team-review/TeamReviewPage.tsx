@@ -4,7 +4,6 @@ import type { ReactElement } from 'react';
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
 
 import { RestrictedTeamReviewState } from './RestrictedTeamReviewState';
-import { TeamReviewIntro } from './TeamReviewIntro';
 import { TeamReviewSectionNavigation } from './TeamReviewSectionNavigation';
 import { TeamReviewSectionPanel } from './TeamReviewSectionPanel';
 import { resolveTeamReviewSection, visibleTeamReviewSections } from './team-review.helpers';
@@ -29,9 +28,7 @@ export function TeamReviewPage(props: WorkspaceShellProps): ReactElement {
 	}
 
 	return (
-		<div className="cf:grid cf:gap-6">
-			<TeamReviewIntro />
-
+		<div className="cf:grid cf:gap-4">
 			<TeamReviewSectionNavigation
 				activeSection={resolvedSection.id}
 				sections={visibleSections}

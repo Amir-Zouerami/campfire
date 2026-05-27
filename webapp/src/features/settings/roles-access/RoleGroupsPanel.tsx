@@ -23,7 +23,7 @@ type RoleGroupsPanelProps = {
  */
 export function RoleGroupsPanel(props: RoleGroupsPanelProps): ReactElement {
 	return (
-		<section className="cf:grid cf:gap-4">
+		<section className="campfire-role-group-list">
 			{props.groups.map(group => (
 				<RoleGroupCard
 					key={group.id}
@@ -54,7 +54,7 @@ function RoleGroupCard(props: {
 			: null;
 
 	return (
-		<article className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
+		<article className="campfire-role-group-card">
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
 				<div>
 					<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
@@ -95,15 +95,15 @@ function RoleGroupCard(props: {
 										type="button"
 										variant="ghost"
 										size="icon-xs"
-										className="cf:-mr-2 cf:size-6 cf:rounded-full cf:text-emerald-100 hover:cf:bg-red-400/15 hover:cf:text-red-100"
+										className="cf:-mr-1 cf:size-8 cf:rounded-full cf:text-emerald-100 hover:cf:bg-red-400/15 hover:cf:text-red-100"
 										disabled={saving}
 										aria-label={`Remove ${props.labelForUserID(userID)} from ${props.group.title}`}
 										onClick={() => void props.onRemoveRole(removableRole, userID)}
 									>
 										{saving ? (
-											<Loader2 className="cf:size-3 cf:animate-spin" />
+											<Loader2 className="cf:size-4 cf:animate-spin" />
 										) : (
-											<Trash2 className="cf:size-3" />
+											<Trash2 className="cf:size-4" />
 										)}
 									</Button>
 								)}

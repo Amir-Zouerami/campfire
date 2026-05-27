@@ -10,6 +10,7 @@ import {
 	defaultGlobalTimeFilter,
 	downloadGlobalCSVBlob,
 	errorToMessage,
+	normalizeGlobalDateRange,
 	validateGlobalDateRange,
 } from './global-reports.helpers';
 import type {
@@ -65,31 +66,45 @@ export function useGlobalTimeReport(isSystemAdmin: boolean): UseGlobalTimeReport
 			return;
 		}
 
-		const validationMessage = validateGlobalDateRange(filter);
+		const normalizedRange = normalizeGlobalDateRange(filter);
+		const normalizedFilter: GlobalTimeReportFilter = {
+			...filter,
+			...normalizedRange,
+		};
+
+		const validationMessage = validateGlobalDateRange(normalizedFilter);
 		if (validationMessage !== null) {
 			setLoadState('error');
 			setMessage(validationMessage);
 			return;
 		}
 
+		setFilter(normalizedFilter);
 		setLoadState('loading');
 		setMessage('');
 
 		try {
-			const response = await getGlobalTimeReportSummary(filter.startDate, filter.endDate, filter.groupBy);
+			const response = await getGlobalTimeReportSummary(
+				normalizedFilter.startDate,
+				normalizedFilter.endDate,
+				normalizedFilter.groupBy,
+			);
 
 			setSummary(response.summary);
 			setLoadState('ready');
 			setMessage('Global time report loaded.');
 		} catch (error: unknown) {
+			const errorMessage = errorToMessage(error);
+
 			setSummary(null);
 			setLoadState('error');
-			setMessage(errorToMessage(error));
+			setMessage(errorMessage);
+			toast.error(errorMessage);
 		}
 	}
 
 	/**
-	 * exportCSV exports the global time report as CSV.
+	 * exportCSV downloads the current global time report CSV.
 	 */
 	async function exportCSV(): Promise<void> {
 		if (!isSystemAdmin) {
@@ -98,20 +113,31 @@ export function useGlobalTimeReport(isSystemAdmin: boolean): UseGlobalTimeReport
 			return;
 		}
 
-		const validationMessage = validateGlobalDateRange(filter);
+		const normalizedRange = normalizeGlobalDateRange(filter);
+		const normalizedFilter: GlobalTimeReportFilter = {
+			...filter,
+			...normalizedRange,
+		};
+
+		const validationMessage = validateGlobalDateRange(normalizedFilter);
 		if (validationMessage !== null) {
 			setLoadState('error');
 			setMessage(validationMessage);
 			return;
 		}
 
+		setFilter(normalizedFilter);
 		setLoadState('exporting');
 		setMessage('');
 
 		try {
-			const blob = await exportGlobalTimeReportCSV(filter.startDate, filter.endDate, filter.groupBy);
+			const blob = await exportGlobalTimeReportCSV(
+				normalizedFilter.startDate,
+				normalizedFilter.endDate,
+				normalizedFilter.groupBy,
+			);
 
-			downloadGlobalCSVBlob(blob, buildGlobalExportFilename('campfire-global-time', filter));
+			downloadGlobalCSVBlob(blob, buildGlobalExportFilename('campfire-global-time', normalizedFilter));
 			setLoadState('ready');
 			setMessage('Global time CSV downloaded.');
 			toast.success('Global time CSV downloaded');

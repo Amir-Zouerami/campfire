@@ -164,34 +164,6 @@ export function formatDateTime(value: string): string {
 }
 
 /**
- * nativeRoleSelectClassName returns the shared warm native-select style.
- */
-export function nativeRoleSelectClassName(): string {
-	return [
-		'cf:h-12',
-		'cf:w-full',
-		'cf:rounded-2xl',
-		'cf:border',
-		'cf:border-input',
-		'cf:bg-background/75',
-		'cf:px-4',
-		'cf:py-2',
-		'cf:text-base',
-		'cf:font-semibold',
-		'cf:text-foreground',
-		'cf:outline-none',
-		'cf:transition-[color,box-shadow,background-color,border-color]',
-		'cf:hover:border-white/20',
-		'cf:hover:bg-background/90',
-		'cf:focus-visible:border-ring',
-		'cf:focus-visible:ring-3',
-		'cf:focus-visible:ring-ring/30',
-		'cf:disabled:cursor-not-allowed',
-		'cf:disabled:opacity-50',
-	].join(' ');
-}
-
-/**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
 export function errorToMessage(error: unknown): string {

@@ -1,18 +1,18 @@
 import type { ReactElement } from 'react';
 
+import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
+import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { StandupTemplate } from '@/types/domain';
 
 import {
 	formatLabel,
-	nativeSelectClassName,
 	questionTypeNeedsOptions,
 	SUPPORTED_QUESTION_TYPES,
 	toQuestionType,
 } from './standup-settings.helpers';
 import type { StandupQuestionDraft, StandupQuestionDraftPatch } from './standup-settings.types';
-import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
 import { StandupField } from './StandupField';
 
 /**
@@ -37,12 +37,11 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 		<div className="cf:grid cf:gap-4">
 			<div className="cf:grid cf:gap-4 cf:xl:grid-cols-[1fr_14rem_10rem]">
 				<StandupField htmlFor={`${props.idPrefix}-template`} label="Template">
-					<select
+					<CampfireSelect
 						id={`${props.idPrefix}-template`}
-						className={nativeSelectClassName()}
 						disabled={props.disabled || !props.allowTemplateChange}
 						value={props.draft.templateId}
-						onChange={event => props.onChange({ templateId: event.currentTarget.value })}
+						onValueChange={value => props.onChange({ templateId: value })}
 					>
 						<option value="">Choose template</option>
 						{props.templates.map(template => (
@@ -50,23 +49,22 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 								{template.name}
 							</option>
 						))}
-					</select>
+					</CampfireSelect>
 				</StandupField>
 
 				<StandupField htmlFor={`${props.idPrefix}-type`} label="Type">
-					<select
+					<CampfireSelect
 						id={`${props.idPrefix}-type`}
-						className={nativeSelectClassName()}
 						disabled={props.disabled}
 						value={props.draft.type}
-						onChange={event => props.onChange({ type: toQuestionType(event.currentTarget.value) })}
+						onValueChange={value => props.onChange({ type: toQuestionType(value) })}
 					>
 						{SUPPORTED_QUESTION_TYPES.map(type => (
 							<option key={type} value={type}>
 								{formatLabel(type)}
 							</option>
 						))}
-					</select>
+					</CampfireSelect>
 				</StandupField>
 
 				<StandupField htmlFor={`${props.idPrefix}-position`} label="Position">
@@ -99,7 +97,7 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 					<Input
 						id={`${props.idPrefix}-section`}
 						disabled={props.disabled}
-						placeholder="Yesterday / Today / Blockers"
+						placeholder="general"
 						value={props.draft.section}
 						onChange={event => props.onChange({ section: event.currentTarget.value })}
 					/>
@@ -111,7 +109,7 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 					<Input
 						id={`${props.idPrefix}-help`}
 						disabled={props.disabled}
-						placeholder="Short guidance for the submitter."
+						placeholder="Optional helper text for submitters."
 						value={props.draft.helpText}
 						onChange={event => props.onChange({ helpText: event.currentTarget.value })}
 					/>
@@ -121,7 +119,7 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 					<Input
 						id={`${props.idPrefix}-placeholder`}
 						disabled={props.disabled}
-						placeholder="Shown inside the answer control."
+						placeholder="Optional input placeholder."
 						value={props.draft.placeholder}
 						onChange={event => props.onChange({ placeholder: event.currentTarget.value })}
 					/>
@@ -132,13 +130,13 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 				<StandupField
 					htmlFor={`${props.idPrefix}-options`}
 					label="Options"
-					description="Enter one option per line or separate them with commas."
+					description="One option per line. Empty and duplicate rows are ignored."
 				>
 					<Textarea
 						id={`${props.idPrefix}-options`}
 						className="cf:min-h-28"
 						disabled={props.disabled}
-						placeholder="Design\nBackend\nReview"
+						placeholder="Option one&#10;Option two&#10;Option three"
 						value={props.draft.optionsText}
 						onChange={event => props.onChange({ optionsText: event.currentTarget.value })}
 					/>
@@ -153,6 +151,7 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 					description="Submitters must answer this question."
 					onCheckedChange={checked => props.onChange({ required: checked })}
 				/>
+
 				<CampfireCheckboxField
 					checked={props.draft.showInReport}
 					disabled={props.disabled}
@@ -160,6 +159,7 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 					description="Include answers in Markdown previews and reports."
 					onCheckedChange={checked => props.onChange({ showInReport: checked })}
 				/>
+
 				<CampfireCheckboxField
 					checked={props.draft.isPrivate}
 					disabled={props.disabled}

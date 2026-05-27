@@ -56,7 +56,7 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 	const [loadState, setLoadState] = useState<MyTimeLoadState>('idle');
 	const [tasks, setTasks] = useState<readonly Task[]>([]);
 	const [timeEntries, setTimeEntries] = useState<readonly TimeEntry[]>([]);
-	const [includeArchived, setIncludeArchived] = useState(false);
+	const [includeArchived, setIncludeArchivedState] = useState(false);
 	const [taskDraft, setTaskDraft] = useState<TaskDraft>(emptyTaskDraft);
 	const [timeDraft, setTimeDraft] = useState<TimeEntryDraft>(emptyTimeEntryDraft);
 	const [message, setMessage] = useState('');
@@ -72,12 +72,13 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 			setMessage('');
 
 			try {
-				const snapshot = await fetchTasksAndTime(input.workspace.id, includeArchived);
+				const snapshot = await fetchTasksAndTime(input.workspace.id, false);
 
 				if (!isActive) {
 					return;
 				}
 
+				setIncludeArchivedState(false);
 				setTasks(snapshot.tasks);
 				setTimeEntries(snapshot.timeEntries);
 				setTimeDraft(current => ensureSelectedTask(current, snapshot.tasks));
@@ -97,7 +98,7 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 		return () => {
 			isActive = false;
 		};
-	}, [input.workspace.id, includeArchived]);
+	}, [input.workspace.id]);
 
 	const loggableTasks = useMemo(() => {
 		return tasks.filter(taskCanReceiveTime);
@@ -112,6 +113,41 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 	}, [timeEntries]);
 
 	const isBusy = loadState === 'loading' || loadState === 'saving';
+
+	/**
+	 * handleIncludeArchivedChange refreshes tasks in-place without unmounting the page.
+	 */
+	function handleIncludeArchivedChange(nextIncludeArchived: boolean): void {
+		if (nextIncludeArchived === includeArchived || loadState === 'loading' || loadState === 'saving') {
+			return;
+		}
+
+		setIncludeArchivedState(nextIncludeArchived);
+		setLoadState('saving');
+		setMessage('');
+
+		void refreshTasksForArchivePreference(nextIncludeArchived);
+	}
+
+	/**
+	 * refreshTasksForArchivePreference reloads the task list without replacing the whole page with loading state.
+	 */
+	async function refreshTasksForArchivePreference(nextIncludeArchived: boolean): Promise<void> {
+		try {
+			const response = await listMyTasks(input.workspace.id, nextIncludeArchived);
+
+			setTasks(response.tasks);
+			setTimeDraft(current => ensureSelectedTask(current, response.tasks));
+			setLoadState('ready');
+		} catch (error: unknown) {
+			const errorMessage = errorToMessage(error);
+
+			setIncludeArchivedState(current => !current);
+			setLoadState('error');
+			setMessage(errorMessage);
+			toast.error(errorMessage);
+		}
+	}
 
 	/**
 	 * updateTaskDraft patches the create-task form.
@@ -286,7 +322,7 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 		isBusy,
 		activeTaskCount: activeTaskCount(tasks),
 		totalRecentMinutes,
-		setIncludeArchived,
+		setIncludeArchived: handleIncludeArchivedChange,
 		updateTaskDraft,
 		updateTimeDraft,
 		handleTimeTaskChange,

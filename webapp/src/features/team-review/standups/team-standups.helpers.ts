@@ -162,10 +162,6 @@ export function formatDateTime(value: string): string {
 }
 
 /**
- * selectClassName returns the shared native select style.
- */
-
-/**
  * userChipClassName returns a user chip style.
  */
 export function userChipClassName(tone: 'green' | 'red' | 'slate'): string {

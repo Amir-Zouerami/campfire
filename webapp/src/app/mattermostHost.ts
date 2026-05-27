@@ -11,6 +11,7 @@ let mattermostStore: MattermostStore | null = null;
 export type MattermostHostContext = {
 	readonly channelID: string | null;
 	readonly channelName: string | null;
+	readonly channelType: string | null;
 	readonly teamID: string | null;
 };
 
@@ -26,6 +27,22 @@ export function setMattermostHostStore(store: MattermostStore): void {
  */
 export function getCurrentChannelID(): string | null {
 	return getMattermostHostContext().channelID;
+}
+
+/**
+ * isWorkspaceEligibleChannelType returns whether Campfire may create/load a workspace here.
+ *
+ * Mattermost channel type D is a direct message and must never become a Campfire workspace.
+ * Public channels, private channels, and group conversations are allowed.
+ */
+export function isWorkspaceEligibleChannelType(channelType: string | null): boolean {
+	const cleanChannelType = channelType?.trim() ?? '';
+
+	if (cleanChannelType === '') {
+		return true;
+	}
+
+	return cleanChannelType === 'O' || cleanChannelType === 'P' || cleanChannelType === 'G';
 }
 
 /**
@@ -55,6 +72,8 @@ export function getMattermostHostContext(): MattermostHostContext {
 		getStringProperty(channel, 'name'),
 	]);
 
+	const channelType = getStringProperty(channel, 'type');
+
 	const teamID = firstNonEmptyString([
 		getStringProperty(channel, 'team_id'),
 		getStringProperty(channel, 'teamId'),
@@ -64,23 +83,25 @@ export function getMattermostHostContext(): MattermostHostContext {
 	return {
 		channelID,
 		channelName,
+		channelType,
 		teamID,
 	};
 }
 
 /**
- * emptyHostContext returns a host context with no loaded Mattermost location.
+ * emptyHostContext returns an empty Mattermost context.
  */
 function emptyHostContext(): MattermostHostContext {
 	return {
 		channelID: null,
 		channelName: null,
+		channelType: null,
 		teamID: null,
 	};
 }
 
 /**
- * getRecordProperty reads an object property as a record.
+ * getRecordProperty safely reads a record property.
  */
 function getRecordProperty(value: unknown, key: string): Record<string, unknown> | null {
 	if (!isRecord(value)) {
@@ -93,7 +114,7 @@ function getRecordProperty(value: unknown, key: string): Record<string, unknown>
 }
 
 /**
- * getStringProperty reads an object property as a non-empty string.
+ * getStringProperty safely reads a string property.
  */
 function getStringProperty(value: unknown, key: string): string | null {
 	if (!isRecord(value)) {
@@ -102,7 +123,13 @@ function getStringProperty(value: unknown, key: string): string | null {
 
 	const property = value[key];
 
-	return typeof property === 'string' && property.trim() !== '' ? property : null;
+	if (typeof property !== 'string') {
+		return null;
+	}
+
+	const cleanProperty = property.trim();
+
+	return cleanProperty === '' ? null : cleanProperty;
 }
 
 /**
@@ -111,7 +138,7 @@ function getStringProperty(value: unknown, key: string): string | null {
 function firstNonEmptyString(values: readonly (string | null)[]): string | null {
 	for (const value of values) {
 		if (value !== null && value.trim() !== '') {
-			return value;
+			return value.trim();
 		}
 	}
 
