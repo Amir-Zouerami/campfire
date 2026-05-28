@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { createTask, listMyTasks, listStandupConfiguration, submitStandup } from '@/api';
-import type { StandupQuestion, StandupSchedule, StandupTemplate, Task, Workspace } from '@/types/domain';
+import { createTask, evaluateStandupDay, listMyTasks, listStandupConfiguration, submitStandup } from '@/api';
+import type {
+	StandupQuestion,
+	StandupRunDecision,
+	StandupSchedule,
+	StandupTemplate,
+	Task,
+	Workspace,
+} from '@/types/domain';
 
 import {
 	activeTasksForStandup,
@@ -36,6 +43,8 @@ export type UseMyStandupResult = {
 	readonly schedules: readonly StandupSchedule[];
 	readonly tasks: readonly Task[];
 	readonly activeTasks: readonly Task[];
+	readonly runtimeDecision: StandupRunDecision | null;
+	readonly canSubmitToday: boolean;
 	readonly selectedSchedule: StandupSchedule | null;
 	readonly selectedTemplate: StandupTemplate | null;
 	readonly visibleQuestions: readonly StandupQuestion[];
@@ -44,46 +53,23 @@ export type UseMyStandupResult = {
 	readonly answers: AnswerDrafts;
 	readonly message: string;
 	readonly isBusy: boolean;
-	readonly setOccurrenceDate: (date: string) => void;
 	readonly handleScheduleChange: (scheduleID: string) => void;
 	readonly updateAnswer: (questionID: string, value: AnswerDraftValue) => void;
 	readonly submitCurrentStandup: () => Promise<void>;
 };
 
 /**
- * normalizeTaskTitleKey returns a stable comparison key for task titles.
- */
-function normalizeTaskTitleKey(value: string): string {
-	return value.trim().replace(/\s+/g, ' ').toLowerCase();
-}
-
-/**
- * formatUpdatedAtLabel returns a readable last-updated timestamp.
- */
-function formatUpdatedAtLabel(value: string): string {
-	const parsed = new Date(value);
-
-	if (Number.isNaN(parsed.getTime())) {
-		return 'just now';
-	}
-
-	return new Intl.DateTimeFormat(undefined, {
-		dateStyle: 'medium',
-		timeStyle: 'short',
-	}).format(parsed);
-}
-
-/**
- * useMyStandup owns loading, draft state, validation, and submission for My Day check-in.
+ * useMyStandup owns loading, draft state, validation, runtime checks, and submission for My Day check-in.
  */
 export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
+	const today = useMemo(() => todayForWorkspace(input.workspace.timezone), [input.workspace.timezone]);
 	const [loadState, setLoadState] = useState<MyStandupLoadState>('idle');
 	const [templates, setTemplates] = useState<readonly StandupTemplate[]>([]);
 	const [questions, setQuestions] = useState<readonly StandupQuestion[]>([]);
 	const [schedules, setSchedules] = useState<readonly StandupSchedule[]>([]);
 	const [tasks, setTasks] = useState<readonly Task[]>([]);
+	const [runtimeDecision, setRuntimeDecision] = useState<StandupRunDecision | null>(null);
 	const [selectedScheduleID, setSelectedScheduleID] = useState('');
-	const [occurrenceDate, setOccurrenceDate] = useState(getTodayLocalDateString());
 	const [answers, setAnswers] = useState<AnswerDrafts>({});
 	const [message, setMessage] = useState('');
 
@@ -91,17 +77,18 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 		let isActive = true;
 
 		/**
-		 * loadInitialData loads the standup form and current-user task context.
+		 * loadInitialData loads the standup form, today's runtime decision, and current-user tasks.
 		 */
 		async function loadInitialData(): Promise<void> {
 			setLoadState('loading');
 			setMessage('');
+			setRuntimeDecision(null);
 
 			try {
-				const [configurationResponse, tasksResponse] = await Promise.all([
+				const [configurationResponse, tasksResponse, runtimeResponse] = await Promise.all([
 					listStandupConfiguration(input.workspace.id),
-					// Load archived tasks too so standup item sync does not recreate old tasks with the same title.
-					listMyTasks(input.workspace.id, true),
+					listMyTasks(input.workspace.id, false),
+					evaluateStandupDay(input.workspace.id, today),
 				]);
 
 				if (!isActive) {
@@ -114,6 +101,7 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 				setQuestions(configurationResponse.questions);
 				setSchedules(configurationResponse.schedules);
 				setTasks(tasksResponse.tasks);
+				setRuntimeDecision(runtimeResponse.decision);
 				setSelectedScheduleID(firstSchedule?.id ?? '');
 				setAnswers(
 					firstSchedule === null
@@ -136,7 +124,7 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 		return () => {
 			isActive = false;
 		};
-	}, [input.workspace.id]);
+	}, [input.workspace.id, today]);
 
 	const selectedSchedule = useMemo(() => {
 		return schedules.find(schedule => schedule.id === selectedScheduleID) ?? null;
@@ -155,6 +143,7 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 	}, [tasks]);
 
 	const isBusy = loadState === 'loading' || loadState === 'saving';
+	const canSubmitToday = runtimeDecision?.shouldRun === true;
 
 	/**
 	 * handleScheduleChange changes selected schedule and rebuilds answer drafts.
@@ -177,48 +166,17 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 	}
 
 	/**
-	 * syncStandupTasks creates any missing tasks from itemized standup answers.
-	 */
-	async function syncStandupTasks(): Promise<number> {
-		const titles = taskTitlesFromStandupAnswers(visibleQuestions, answers);
-
-		if (titles.length === 0) {
-			return 0;
-		}
-
-		const existingKeys = new Set(tasks.map(task => normalizeTaskTitleKey(task.title)));
-		const createdTasks: Task[] = [];
-
-		for (const title of titles) {
-			const normalizedTitle = normalizeTaskTitleKey(title);
-
-			if (normalizedTitle === '' || existingKeys.has(normalizedTitle)) {
-				continue;
-			}
-
-			const response = await createTask(input.workspace.id, {
-				title,
-				description: `Auto-created from standup on ${occurrenceDate}.`,
-				projectId: '',
-				categoryId: '',
-				boardUrl: '',
-			});
-
-			createdTasks.push(response.task);
-			existingKeys.add(normalizedTitle);
-		}
-
-		if (createdTasks.length > 0) {
-			setTasks(current => [...createdTasks, ...current]);
-		}
-
-		return createdTasks.length;
-	}
-
-	/**
 	 * submitCurrentStandup validates and submits the current answer draft.
 	 */
 	async function submitCurrentStandup(): Promise<void> {
+		if (!canSubmitToday) {
+			const runtimeMessage = runtimeDecision?.message ?? 'Standup cannot be submitted today.';
+			setMessage(runtimeMessage);
+			setLoadState('error');
+			toast.error(runtimeMessage);
+			return;
+		}
+
 		if (selectedSchedule === null || selectedTemplate === null) {
 			setMessage('Choose a standup schedule before submitting.');
 			setLoadState('error');
@@ -236,49 +194,25 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 		setMessage('');
 
 		try {
-			const response = await submitStandup({
+			await submitStandup({
 				workspaceId: input.workspace.id,
 				templateId: selectedTemplate.id,
 				scheduleId: selectedSchedule.id,
-				occurrenceDate,
+				occurrenceDate: today,
 				answers: visibleQuestions.map(question => ({
 					questionId: question.id,
 					valueJson: JSON.stringify(normalizeAnswerValue(question, answers[question.id])),
 				})),
 			});
 
-			let createdTaskCount = 0;
-			let taskSyncFailed = false;
-
-			try {
-				createdTaskCount = await syncStandupTasks();
-			} catch (_error: unknown) {
-				taskSyncFailed = true;
-			}
-
-			const updatedAt = formatUpdatedAtLabel(response.submission.lastUpdatedAt);
-
-			let successMessage = `Standup submitted. Last updated ${updatedAt}.`;
-
-			if (createdTaskCount > 0) {
-				successMessage += ` ${createdTaskCount} task${createdTaskCount === 1 ? '' : 's'} added to Time Log.`;
-			}
-
-			if (taskSyncFailed) {
-				successMessage += ' Standup was saved, but task sync failed.';
-			}
+			const createdTaskCount = await syncStandupTasks();
+			const successMessage = createdTaskCount > 0
+				? `Standup submitted. ${createdTaskCount} ${createdTaskCount === 1 ? 'task' : 'tasks'} added to Time Log.`
+				: 'Standup submitted.';
 
 			setLoadState('ready');
 			setMessage(successMessage);
-
-			if (taskSyncFailed) {
-				toast.warning('Standup submitted, but tasks could not be synced');
-			} else if (createdTaskCount > 0) {
-				toast.success(`Standup submitted · ${createdTaskCount} tasks synced`);
-			} else {
-				toast.success('Standup submitted');
-			}
-
+			toast.success(successMessage);
 			input.onStandupSubmitted();
 		} catch (error: unknown) {
 			const errorMessage = errorToMessage(error);
@@ -288,6 +222,45 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 		}
 	}
 
+	/**
+	 * syncStandupTasks creates missing active tasks from itemized standup answers.
+	 */
+	async function syncStandupTasks(): Promise<number> {
+		const titles = taskTitlesFromStandupAnswers(visibleQuestions, answers);
+		if (titles.length === 0) {
+			return 0;
+		}
+
+		const existingTitleKeys = new Set(tasks.map(task => normalizeTaskTitleKey(task.title)));
+		const createdTasks: Task[] = [];
+
+		for (const title of titles) {
+			const cleanTitle = title.trim();
+			const key = normalizeTaskTitleKey(cleanTitle);
+
+			if (key === '' || existingTitleKeys.has(key)) {
+				continue;
+			}
+
+			const response = await createTask(input.workspace.id, {
+				title: cleanTitle,
+				description: '',
+				projectId: '',
+				categoryId: '',
+				boardUrl: '',
+			});
+
+			createdTasks.push(response.task);
+			existingTitleKeys.add(key);
+		}
+
+		if (createdTasks.length > 0) {
+			setTasks(current => [...createdTasks, ...current]);
+		}
+
+		return createdTasks.length;
+	}
+
 	return {
 		loadState,
 		templates,
@@ -295,17 +268,56 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 		schedules,
 		tasks,
 		activeTasks,
+		runtimeDecision,
+		canSubmitToday,
 		selectedSchedule,
 		selectedTemplate,
 		visibleQuestions,
 		selectedScheduleID,
-		occurrenceDate,
+		occurrenceDate: today,
 		answers,
 		message,
 		isBusy,
-		setOccurrenceDate,
 		handleScheduleChange,
 		updateAnswer,
 		submitCurrentStandup,
 	};
+}
+
+/**
+ * todayForWorkspace returns today's YYYY-MM-DD date for the workspace timezone.
+ */
+function todayForWorkspace(timezone: string): string {
+	const cleanTimezone = timezone.trim();
+	if (cleanTimezone === '') {
+		return getTodayLocalDateString();
+	}
+
+	try {
+		const parts = new Intl.DateTimeFormat('en-US', {
+			timeZone: cleanTimezone,
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit',
+		}).formatToParts(new Date());
+
+		const year = parts.find(part => part.type === 'year')?.value ?? '';
+		const month = parts.find(part => part.type === 'month')?.value ?? '';
+		const day = parts.find(part => part.type === 'day')?.value ?? '';
+
+		if (year !== '' && month !== '' && day !== '') {
+			return `${year}-${month}-${day}`;
+		}
+	} catch {
+		return getTodayLocalDateString();
+	}
+
+	return getTodayLocalDateString();
+}
+
+/**
+ * normalizeTaskTitleKey creates a stable comparison key for task titles.
+ */
+function normalizeTaskTitleKey(value: string): string {
+	return value.trim().replace(/\s+/g, ' ').toLowerCase();
 }

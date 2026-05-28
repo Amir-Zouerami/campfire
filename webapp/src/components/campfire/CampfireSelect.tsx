@@ -36,10 +36,7 @@ type CampfireSelectOption = {
 };
 
 /**
- * CampfireSelect renders a Mattermost-safe dropdown anchored to its own field.
- *
- * The menu is absolute inside this component instead of fixed-positioned or
- * portaled. Fixed menus drift inside Mattermost's modal scroll container.
+ * CampfireSelect renders a Mattermost-safe dropdown anchored directly to its trigger.
  */
 export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 	const rootRef = useRef<HTMLDivElement | null>(null);
@@ -55,9 +52,6 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 			return;
 		}
 
-		/**
-		 * handlePointerDown closes the menu when clicking outside this select.
-		 */
 		function handlePointerDown(event: MouseEvent): void {
 			if (!(event.target instanceof Node)) {
 				return;
@@ -70,9 +64,6 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 			setOpen(false);
 		}
 
-		/**
-		 * handleEscape closes the menu with Escape.
-		 */
 		function handleEscape(event: globalThis.KeyboardEvent): void {
 			if (event.key === 'Escape') {
 				setOpen(false);
@@ -89,9 +80,6 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 		};
 	}, [open]);
 
-	/**
-	 * toggleOpen toggles the menu.
-	 */
 	function toggleOpen(): void {
 		if (props.disabled === true) {
 			return;
@@ -100,9 +88,6 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 		setOpen(current => !current);
 	}
 
-	/**
-	 * selectOption commits an option selection.
-	 */
 	function selectOption(option: CampfireSelectOption): void {
 		if (option.disabled) {
 			return;
@@ -113,12 +98,8 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 		buttonRef.current?.focus();
 	}
 
-	/**
-	 * moveSelection moves selection with keyboard arrows.
-	 */
-	function moveSelection(direction: 1 | -1): void {
+	function selectRelativeOption(direction: 1 | -1): void {
 		const enabledOptions = options.filter(option => !option.disabled);
-
 		if (enabledOptions.length === 0) {
 			return;
 		}
@@ -131,24 +112,26 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 					: enabledOptions.length - 1
 				: (currentIndex + direction + enabledOptions.length) % enabledOptions.length;
 
-		props.onValueChange(enabledOptions[nextIndex]?.value ?? props.value);
+		const nextOption = enabledOptions[nextIndex];
+		if (nextOption === undefined) {
+			return;
+		}
+
+		props.onValueChange(nextOption.value);
 	}
 
-	/**
-	 * handleButtonKeyDown handles select keyboard behavior.
-	 */
 	function handleButtonKeyDown(event: KeyboardEvent<HTMLButtonElement>): void {
 		switch (event.key) {
 			case 'ArrowDown':
 				event.preventDefault();
 				setOpen(true);
-				moveSelection(1);
+				selectRelativeOption(1);
 				break;
 
 			case 'ArrowUp':
 				event.preventDefault();
 				setOpen(true);
-				moveSelection(-1);
+				selectRelativeOption(-1);
 				break;
 
 			case 'Enter':
@@ -165,32 +148,34 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 	}
 
 	return (
-		<div ref={rootRef} className={cn('cf:relative', open && 'cf:z-120')}>
+		<div ref={rootRef} className={cn('cf:relative cf:w-full', open ? 'cf:z-9999' : 'cf:z-0', props.className)}>
 			<button
 				ref={buttonRef}
 				id={props.id}
 				type="button"
+				disabled={props.disabled}
 				aria-haspopup="listbox"
 				aria-expanded={open}
-				aria-controls={open ? menuID : undefined}
-				disabled={props.disabled}
+				aria-controls={menuID}
 				className={cn(
-					'cf:flex cf:h-11 cf:w-full cf:items-center cf:justify-between cf:gap-3 cf:rounded-xl cf:border cf:border-white/10 cf:bg-black/30 cf:px-3 cf:py-2 cf:text-left cf:text-base cf:font-semibold cf:text-foreground cf:outline-none cf:transition',
-					'cf:shadow-inner cf:shadow-black/20',
-					'hover:cf:border-amber-300/30 hover:cf:bg-black/40',
-					'focus-visible:cf:border-amber-300/45 focus-visible:cf:ring-2 focus-visible:cf:ring-amber-300/20',
-					'disabled:cf:cursor-not-allowed disabled:cf:opacity-60',
-					props.className,
+					'cf:flex cf:h-10 cf:w-full cf:items-center cf:justify-between cf:gap-3 cf:rounded-xl cf:border cf:px-3',
+					'cf:bg-black/55 cf:text-left cf:text-sm cf:font-bold cf:text-foreground cf:shadow-inner cf:outline-none',
+					'cf:border-amber-300/20 cf:transition-[background-color,border-color,box-shadow,transform]',
+					'hover:cf:border-amber-300/70 hover:cf:bg-amber-950/35 hover:cf:shadow-[0_0_0_1px_rgba(251,191,36,0.18),0_0_22px_rgba(245,158,11,0.10)]',
+					'focus-visible:cf:border-amber-300/80 focus-visible:cf:ring-2 focus-visible:cf:ring-amber-300/25',
+					'disabled:cf:cursor-not-allowed disabled:cf:opacity-50',
+					open && 'cf:border-amber-300/80 cf:bg-amber-950/35 cf:ring-2 cf:ring-amber-300/20',
 				)}
 				onClick={toggleOpen}
 				onKeyDown={handleButtonKeyDown}
 			>
-				<span className="cf:min-w-0 cf:truncate">
-					{selectedOption === null ? 'Choose…' : selectedOption.content}
-				</span>
-
+				<span className="cf:min-w-0 cf:truncate">{selectedOption?.label ?? 'Choose option'}</span>
 				<ChevronDown
-					className={cn('cf:size-4 cf:shrink-0 cf:text-amber-100/80 cf:transition', open && 'cf:rotate-180')}
+					className={cn(
+						'cf:size-4 cf:flex-none cf:text-amber-200 cf:transition-transform',
+						open && 'cf:rotate-180',
+					)}
+					aria-hidden="true"
 				/>
 			</button>
 
@@ -199,37 +184,40 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 					id={menuID}
 					role="listbox"
 					aria-labelledby={props.id}
-					className="cf:absolute cf:left-0 cf:right-0 cf:top-[calc(100%+0.4rem)] cf:z-121 cf:max-h-64 cf:overflow-auto cf:rounded-xl cf:border cf:border-amber-200/20 cf:bg-[#12100d] cf:p-1.5 cf:shadow-2xl cf:shadow-black/70 cf:ring-1 cf:ring-white/10"
-				>
-					{options.length === 0 ? (
-						<div className="cf:px-3 cf:py-2 cf:text-sm cf:font-semibold cf:text-muted-foreground">
-							No options
-						</div>
-					) : (
-						options.map((option, index) => {
-							const selected = option.value === props.value;
-
-							return (
-								<button
-									key={`${option.value}-${index}`}
-									type="button"
-									role="option"
-									aria-selected={selected}
-									disabled={option.disabled}
-									className={cn(
-										'cf:flex cf:w-full cf:items-center cf:justify-between cf:gap-3 cf:rounded-lg cf:px-3 cf:py-2.5 cf:text-left cf:text-sm cf:font-bold cf:text-slate-100 cf:outline-none cf:transition',
-										'hover:cf:bg-amber-300/10 focus-visible:cf:bg-amber-300/10',
-										selected && 'cf:bg-amber-300/15 cf:text-amber-50',
-										option.disabled && 'cf:cursor-not-allowed cf:opacity-50',
-									)}
-									onClick={() => selectOption(option)}
-								>
-									<span className="cf:min-w-0 cf:truncate">{option.content}</span>
-									{selected && <Check className="cf:size-4 cf:shrink-0 cf:text-amber-200" />}
-								</button>
-							);
-						})
+					className={cn(
+						'cf:absolute cf:left-0 cf:right-0 cf:top-[calc(100%+0.35rem)] cf:z-10000',
+						'cf:max-h-72 cf:overflow-y-auto cf:rounded-xl cf:border cf:border-amber-300/30',
+						'cf:bg-[#050505] cf:p-1.5 cf:shadow-[0_24px_80px_rgba(0,0,0,0.80)] cf:ring-1 cf:ring-white/10',
 					)}
+				>
+					{options.map(option => {
+						const selected = option.value === props.value;
+
+						return (
+							<button
+								key={option.value}
+								type="button"
+								role="option"
+								aria-selected={selected}
+								disabled={option.disabled}
+								className={cn(
+									'cf:flex cf:w-full cf:items-center cf:justify-between cf:gap-3 cf:rounded-lg cf:px-3 cf:py-2.5',
+									'cf:text-left cf:text-sm cf:font-bold cf:text-slate-200 cf:outline-none',
+									'cf:transition-[background-color,color,box-shadow,transform]',
+									'hover:cf:bg-amber-300/18 hover:cf:text-amber-50 hover:cf:shadow-[inset_0_0_0_1px_rgba(251,191,36,0.12)]',
+									'focus:cf:bg-amber-300/18 focus:cf:text-amber-50 focus:cf:shadow-[inset_0_0_0_1px_rgba(251,191,36,0.12)]',
+									selected && 'cf:bg-amber-300/22 cf:text-amber-50',
+									option.disabled && 'cf:pointer-events-none cf:opacity-45',
+								)}
+								onClick={() => selectOption(option)}
+							>
+								<span className="cf:min-w-0 cf:truncate">{option.content}</span>
+								{selected && (
+									<Check className="cf:size-4 cf:flex-none cf:text-amber-200" aria-hidden="true" />
+								)}
+							</button>
+						);
+					})}
 				</div>
 			)}
 		</div>
@@ -237,43 +225,47 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 }
 
 /**
- * extractOptions converts option children into renderable menu options.
+ * extractOptions converts option children into CampfireSelectOption rows.
  */
 function extractOptions(children: ReactNode): readonly CampfireSelectOption[] {
-	return Children.toArray(children)
-		.map(optionFromChild)
-		.filter((option): option is CampfireSelectOption => option !== null);
+	const options: CampfireSelectOption[] = [];
+
+	Children.forEach(children, child => {
+		if (!isValidElement(child)) {
+			return;
+		}
+
+		const childProps = child.props as {
+			readonly value?: unknown;
+			readonly disabled?: unknown;
+			readonly children?: ReactNode;
+		};
+
+		if (typeof childProps.value !== 'string') {
+			return;
+		}
+
+		options.push({
+			value: childProps.value,
+			label: textFromNode(childProps.children) || childProps.value,
+			content: childProps.children ?? childProps.value,
+			disabled: childProps.disabled === true,
+		});
+	});
+
+	return options;
 }
 
 /**
- * optionFromChild converts a single option element into a Campfire option.
+ * textFromNode extracts readable text from option children.
  */
-function optionFromChild(child: ReactNode): CampfireSelectOption | null {
-	if (!isValidElement<React.OptionHTMLAttributes<HTMLOptionElement>>(child) || child.type !== 'option') {
-		return null;
-	}
-
-	const label = textFromReactNode(child.props.children).trim();
-	const value = child.props.value === undefined ? label : String(child.props.value);
-
-	return {
-		value,
-		label,
-		content: child.props.children ?? label,
-		disabled: child.props.disabled === true,
-	};
-}
-
-/**
- * textFromReactNode extracts readable text from React option content.
- */
-function textFromReactNode(node: ReactNode): string {
+function textFromNode(node: ReactNode): string {
 	if (typeof node === 'string' || typeof node === 'number') {
 		return String(node);
 	}
 
 	if (Array.isArray(node)) {
-		return node.map(textFromReactNode).join('');
+		return node.map(textFromNode).join('').trim();
 	}
 
 	return '';

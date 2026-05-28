@@ -65,6 +65,15 @@ type CreateWorkspaceInput struct {
 }
 
 /*
+UpdateWorkspaceNotificationSettingsInput contains workspace notification routing changes.
+*/
+type UpdateWorkspaceNotificationSettingsInput struct {
+	ActorUserID                        string
+	WorkspaceID                        string
+	ApprovedLeaveNotificationChannelID string
+}
+
+/*
 WorkspaceService owns workspace business rules.
 */
 type WorkspaceService struct {
@@ -252,6 +261,49 @@ func (s *WorkspaceService) Create(ctx context.Context, input CreateWorkspaceInpu
 		}
 
 		return nil, NewError(ErrorCodeInternal, "Could not create the workspace.")
+	}
+
+	return workspace, nil
+}
+
+/*
+UpdateApprovedLeaveNotificationChannelID updates the fixed channel for approved-leave announcements.
+
+An empty channel ID clears the override and makes Campfire post approved-leave
+announcements back to the workspace channel.
+*/
+func (s *WorkspaceService) UpdateApprovedLeaveNotificationChannelID(
+	ctx context.Context,
+	input UpdateWorkspaceNotificationSettingsInput,
+) (*domain.Workspace, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to update workspace settings.")
+	}
+
+	cleanWorkspaceID := strings.TrimSpace(input.WorkspaceID)
+	if cleanWorkspaceID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
+	}
+
+	cleanChannelID := strings.TrimSpace(input.ApprovedLeaveNotificationChannelID)
+
+	workspace, err := s.workspaceStore.UpdateApprovedLeaveNotificationChannelID(
+		ctx,
+		domain.ID(cleanWorkspaceID),
+		cleanChannelID,
+		time.Now().UTC(),
+	)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Workspace was not found.")
+		}
+
+		if errors.Is(err, store.ErrUnavailable) {
+			return nil, NewError(ErrorCodeInternal, "Workspace persistence is not connected yet.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not update workspace notification settings.")
 	}
 
 	return workspace, nil

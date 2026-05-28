@@ -138,6 +138,19 @@ func WriteCreateWorkspace(w http.ResponseWriter, statusCode int, payload CreateW
 }
 
 /*
+WriteUpdateWorkspaceNotificationSettings writes the updated workspace notification settings response.
+*/
+func WriteUpdateWorkspaceNotificationSettings(
+	w http.ResponseWriter,
+	statusCode int,
+	payload UpdateWorkspaceNotificationSettingsResponse,
+) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode updated workspace notification settings response")
+}
+
+/*
 WriteListWorkspaceWorkingDays writes the workspace working-day list response.
 */
 func WriteListWorkspaceWorkingDays(

@@ -156,6 +156,7 @@ export function CampfireRoot(): ReactElement | null {
 							onLeaveDecided={refreshLeaves}
 							onLeaveCancelled={refreshLeaves}
 							onStandupSubmitted={refreshStandups}
+							onWorkspaceSettingsChanged={refreshBootstrap}
 							onStandupConfigurationChanged={refreshStandups}
 							onWorkspaceCalendarChanged={refreshWorkspaceCalendar}
 						/>
@@ -228,6 +229,7 @@ function BootstrapContent(props: {
 	readonly onLeaveDecided: () => void;
 	readonly onLeaveCancelled: () => void;
 	readonly onStandupSubmitted: () => void;
+	readonly onWorkspaceSettingsChanged: () => void;
 	readonly onStandupConfigurationChanged: () => void;
 	readonly onWorkspaceCalendarChanged: () => void;
 }): ReactElement {
@@ -291,6 +293,7 @@ function BootstrapReadyContent(props: {
 	readonly onLeaveCancelled: () => void;
 	readonly onStandupSubmitted: () => void;
 	readonly onStandupConfigurationChanged: () => void;
+	readonly onWorkspaceSettingsChanged: () => void;
 	readonly onWorkspaceCalendarChanged: () => void;
 }): ReactElement {
 	if (props.bootstrap.workspace !== null && props.bootstrap.capabilities !== null) {
@@ -309,6 +312,7 @@ function BootstrapReadyContent(props: {
 				onStandupSubmitted={props.onStandupSubmitted}
 				onStandupConfigurationChanged={props.onStandupConfigurationChanged}
 				onWorkspaceCalendarChanged={props.onWorkspaceCalendarChanged}
+				onWorkspaceSettingsChanged={props.onWorkspaceSettingsChanged}
 				onWorkspaceArchived={props.onWorkspaceArchived}
 			/>
 		);

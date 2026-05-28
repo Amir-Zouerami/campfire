@@ -44,7 +44,7 @@ export function TeamLeaveApprovalQueue(props: TeamLeaveApprovalQueueProps): Reac
 	}
 
 	return (
-		<div className="cf:grid cf:gap-4">
+		<div className="campfire-approval-queue">
 			{props.leaveRequests.map(item => (
 				<TeamLeaveApprovalCard
 					key={item.leaveRequest.id}
@@ -75,16 +75,16 @@ function TeamLeaveApprovalCard(props: {
 }): ReactElement {
 	const request = props.item.leaveRequest;
 	const requesterLabel = props.labelForUserID(request.userId);
-	const backupLabel = request.backupUserId.trim() === '' ? '' : props.labelForUserID(request.backupUserId);
+	const backupLabel = request.backupUserId.trim() === '' ? 'Not set' : props.labelForUserID(request.backupUserId);
 
 	return (
 		<article className={approvalCardClassName()}>
-			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-4">
+			<header className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-4">
 				<div className="cf:min-w-0">
-					<p className="cf:text-base cf:font-black cf:uppercase cf:tracking-[0.22em] cf:text-amber-100">
+					<p className="cf:m-0 cf:text-[0.78rem] cf:font-black cf:uppercase cf:leading-none cf:tracking-[0.18em] cf:text-amber-100/90">
 						{requesterLabel}
 					</p>
-					<h3 className="cf:mt-2 cf:text-[2.1rem] cf:font-black cf:tracking-[-0.04em] cf:text-foreground">
+					<h3 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:leading-tight cf:tracking-[-0.035em] cf:text-foreground">
 						{props.item.leaveTypeName}
 					</h3>
 				</div>
@@ -92,37 +92,29 @@ function TeamLeaveApprovalCard(props: {
 				<CampfireStatusPill tone={leaveStatusTone(request.status)}>
 					{formatLeaveStatus(request.status)}
 				</CampfireStatusPill>
-			</div>
+			</header>
 
-			<div className="cf:grid cf:gap-3 cf:md:grid-cols-3">
+			<div className="campfire-approval-detail-grid">
 				<ApprovalDetail label="Date range" value={approvalRangeLabel(request)} />
 				<ApprovalDetail label="Duration" value={approvalDurationLabel(request)} />
 				<ApprovalDetail label="Mode" value={formatDurationMode(request.durationMode)} />
-			</div>
-
-			<div className="cf:grid cf:gap-3 cf:md:grid-cols-2">
-				<ApprovalDetail label="Backup" value={backupLabel || 'Not set'} />
+				<ApprovalDetail label="Backup" value={backupLabel} />
 				<ApprovalDetail label="Requested" value={formatWorkspaceDateTime(request.createdAt, props.timezone)} />
 			</div>
 
 			{request.reason.trim() !== '' && (
-				<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4">
-					<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.22em] cf:text-amber-200">
-						Reason
-					</p>
-					<p className="cf:mt-2 cf:whitespace-pre-wrap cf:text-base cf:font-semibold cf:leading-7 cf:text-slate-200">
+				<section className="campfire-approval-note-panel">
+					<p className="campfire-approval-field-label">Reason</p>
+					<p className="cf:m-0 cf:mt-2 cf:whitespace-pre-wrap cf:text-sm cf:font-semibold cf:leading-7 cf:text-slate-200">
 						{request.reason}
 					</p>
-				</div>
+				</section>
 			)}
 
-			<div className="cf:grid cf:gap-3">
-				<label
-					htmlFor={`campfire-approval-comment-${request.id}`}
-					className="cf:flex cf:items-center cf:gap-2 cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.22em] cf:text-amber-200"
-				>
-					<MessageSquareText className="cf:size-5 cf:shrink-0" />
-					Approver comment
+			<section className="campfire-approval-comment-block">
+				<label htmlFor={`campfire-approval-comment-${request.id}`} className="campfire-approval-comment-label">
+					<MessageSquareText className="campfire-approval-comment-icon" aria-hidden="true" />
+					<span>Approver comment</span>
 				</label>
 
 				<Textarea
@@ -132,9 +124,9 @@ function TeamLeaveApprovalCard(props: {
 					value={props.comment}
 					onChange={event => props.onCommentChange(event.currentTarget.value)}
 				/>
-			</div>
+			</section>
 
-			<div className="cf:flex cf:flex-wrap cf:justify-end cf:gap-3 cf:pt-2">
+			<footer className="cf:flex cf:flex-wrap cf:justify-end cf:gap-3 cf:pt-1">
 				<Button
 					type="button"
 					variant="secondary"
@@ -149,21 +141,19 @@ function TeamLeaveApprovalCard(props: {
 					<ThumbsUp className="cf:size-4" />
 					Approve
 				</Button>
-			</div>
+			</footer>
 		</article>
 	);
 }
 
 /**
- * ApprovalDetail renders one compact approval fact.
+ * ApprovalDetail renders one approval metadata tile.
  */
 function ApprovalDetail(props: { readonly label: string; readonly value: string }): ReactElement {
 	return (
-		<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4">
-			<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.22em] cf:text-amber-200">
-				{props.label}
-			</p>
-			<p className="cf:mt-2 cf:truncate cf:text-xl cf:font-black cf:text-foreground" title={props.value}>
+		<div className="campfire-approval-detail-tile">
+			<p className="campfire-approval-field-label">{props.label}</p>
+			<p className="campfire-approval-detail-value" title={props.value}>
 				{props.value}
 			</p>
 		</div>

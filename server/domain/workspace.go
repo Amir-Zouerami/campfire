@@ -17,6 +17,14 @@ type Workspace struct {
 	Description string
 	BoardURL    string
 
+	/*
+		ApprovedLeaveNotificationChannelID optionally routes approved-leave and
+		approved-leave-cancelled announcements to a fixed Mattermost channel.
+
+		When empty, Campfire posts those announcements to the workspace channel.
+	*/
+	ApprovedLeaveNotificationChannelID string
+
 	Timezone string
 
 	CreatedBy string

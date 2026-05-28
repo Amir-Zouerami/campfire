@@ -188,11 +188,13 @@ type SubmitStandupResult struct {
 StandupService owns standup template, schedule, and submission behavior.
 */
 type StandupService struct {
-	workspaceStore     store.WorkspaceStore
-	workspaceRoleStore store.WorkspaceRoleStore
-	standupStore       store.StandupStore
-	leaveStore         store.LeaveStore
-	memberProvider     WorkspaceMemberProvider
+	workspaceStore         store.WorkspaceStore
+	workspaceRoleStore     store.WorkspaceRoleStore
+	workspaceCalendarStore store.WorkspaceCalendarStore
+	globalSkipDateStore    store.GlobalSkipDateStore
+	standupStore           store.StandupStore
+	leaveStore             store.LeaveStore
+	memberProvider         WorkspaceMemberProvider
 }
 
 /*
@@ -201,16 +203,20 @@ NewStandupService creates a standup service.
 func NewStandupService(
 	workspaceStore store.WorkspaceStore,
 	workspaceRoleStore store.WorkspaceRoleStore,
+	workspaceCalendarStore store.WorkspaceCalendarStore,
+	globalSkipDateStore store.GlobalSkipDateStore,
 	standupStore store.StandupStore,
 	leaveStore store.LeaveStore,
 	memberProvider WorkspaceMemberProvider,
 ) *StandupService {
 	return &StandupService{
-		workspaceStore:     workspaceStore,
-		workspaceRoleStore: workspaceRoleStore,
-		standupStore:       standupStore,
-		leaveStore:         leaveStore,
-		memberProvider:     memberProvider,
+		workspaceStore:         workspaceStore,
+		workspaceRoleStore:     workspaceRoleStore,
+		workspaceCalendarStore: workspaceCalendarStore,
+		globalSkipDateStore:    globalSkipDateStore,
+		standupStore:           standupStore,
+		leaveStore:             leaveStore,
+		memberProvider:         memberProvider,
 	}
 }
 
@@ -755,7 +761,8 @@ func (s *StandupService) Submit(ctx context.Context, input SubmitStandupInput) (
 	}
 
 	workspaceID := domain.ID(cleanWorkspaceID)
-	if _, err := s.workspaceStore.GetByID(ctx, workspaceID); err != nil {
+	workspace, err := s.workspaceStore.GetByID(ctx, workspaceID)
+	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return nil, NewError(ErrorCodeNotFound, "Workspace was not found.")
 		}
@@ -784,6 +791,14 @@ func (s *StandupService) Submit(ctx context.Context, input SubmitStandupInput) (
 
 	if !schedule.Enabled {
 		return nil, NewError(ErrorCodeValidationFailed, "Standup schedule is disabled.")
+	}
+
+	if err := requireSubmissionDateIsWorkspaceToday(occurrenceDate, workspace.Timezone); err != nil {
+		return nil, err
+	}
+
+	if err := s.requireStandupRunsForSubmission(ctx, *workspace, occurrenceDate); err != nil {
+		return nil, err
 	}
 
 	templateQuestions := questionsForTemplate(configuration.Questions, template.ID)
@@ -831,6 +846,84 @@ func (s *StandupService) Submit(ctx context.Context, input SubmitStandupInput) (
 		Submission: result.Submission,
 		Answers:    result.Answers,
 	}, nil
+}
+
+/*
+requireSubmissionDateIsWorkspaceToday prevents editing past or future standups through the submission endpoint.
+*/
+func requireSubmissionDateIsWorkspaceToday(occurrenceDate domain.LocalDate, timezone string) error {
+	location := time.UTC
+	cleanTimezone := strings.TrimSpace(timezone)
+	if cleanTimezone != "" {
+		loadedLocation, err := time.LoadLocation(cleanTimezone)
+		if err == nil {
+			location = loadedLocation
+		}
+	}
+
+	today := domain.LocalDate(time.Now().In(location).Format("2006-01-02"))
+	if occurrenceDate != today {
+		return NewError(
+			ErrorCodeValidationFailed,
+			"Standups can only be submitted for today. Past or future standups cannot be edited from My Day.",
+		)
+	}
+
+	return nil
+}
+
+/*
+requireStandupRunsForSubmission prevents manual submissions on workspace/global off-days and full-team leave days.
+*/
+func (s *StandupService) requireStandupRunsForSubmission(
+	ctx context.Context,
+	workspace domain.Workspace,
+	occurrenceDate domain.LocalDate,
+) error {
+	date, err := parseLocalDate(occurrenceDate)
+	if err != nil {
+		return NewError(ErrorCodeValidationFailed, "Occurrence date must be a real YYYY-MM-DD calendar date.")
+	}
+
+	isWorkingDay, err := s.workspaceCalendarStore.IsWorkingDay(ctx, workspace.ID, int(date.Weekday()))
+	if err != nil {
+		return NewError(ErrorCodeInternal, "Could not evaluate workspace working day.")
+	}
+
+	globalOffDays, err := s.globalSkipDateStore.ListBetween(ctx, occurrenceDate, occurrenceDate)
+	if err != nil {
+		return NewError(ErrorCodeInternal, "Could not evaluate global off-days.")
+	}
+
+	workspaceOffDays, err := s.workspaceCalendarStore.ListOffDaysBetween(ctx, workspace.ID, occurrenceDate, occurrenceDate)
+	if err != nil {
+		return NewError(ErrorCodeInternal, "Could not evaluate workspace off-days.")
+	}
+
+	approvedLeaves, err := s.leaveStore.ListApprovedByWorkspaceIDBetween(ctx, workspace.ID, occurrenceDate, occurrenceDate)
+	if err != nil {
+		return NewError(ErrorCodeInternal, "Could not evaluate approved leave.")
+	}
+
+	memberUserIDs, err := s.memberProvider.ListWorkspaceMemberUserIDs(ctx, workspace)
+	if err != nil {
+		return NewError(ErrorCodeInternal, "Could not evaluate workspace members.")
+	}
+
+	decision := buildStandupRunDecision(
+		workspace.ID,
+		occurrenceDate,
+		isWorkingDay,
+		globalOffDays,
+		workspaceOffDays,
+		approvedLeaves,
+		memberUserIDs,
+	)
+	if !decision.ShouldRun {
+		return NewError(ErrorCodeValidationFailed, decision.Message)
+	}
+
+	return nil
 }
 
 /*

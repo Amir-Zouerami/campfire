@@ -9,6 +9,8 @@ import type {
 	UpsertWorkspaceRoleRequest,
 	UpsertWorkspaceRoleResponse,
 	WorkspaceByChannelResponse,
+	UpdateWorkspaceNotificationSettingsRequest,
+	UpdateWorkspaceNotificationSettingsResponse,
 } from '@/types/api';
 import type { Role } from '@/types/domain';
 
@@ -29,6 +31,22 @@ export function createWorkspace(request: CreateWorkspaceRequest): Promise<Create
 		method: 'POST',
 		body: request,
 	});
+}
+
+/**
+ * updateWorkspaceNotificationSettings calls PUT /workspaces/{workspaceID}/notification-settings.
+ */
+export function updateWorkspaceNotificationSettings(
+	workspaceID: string,
+	request: UpdateWorkspaceNotificationSettingsRequest,
+): Promise<UpdateWorkspaceNotificationSettingsResponse> {
+	return requestJson<UpdateWorkspaceNotificationSettingsResponse>(
+		`/workspaces/${encodePath(workspaceID)}/notification-settings`,
+		{
+			method: 'PUT',
+			body: request,
+		},
+	);
 }
 
 /**

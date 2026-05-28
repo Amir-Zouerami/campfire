@@ -111,8 +111,8 @@ func New(config Config) (*App, error) {
 	workspaceStore := store.NewSQLWorkspaceStore(database)
 	workspaceRoleStore := store.NewSQLWorkspaceRoleStore(database)
 	workspaceCalendarStore := store.NewSQLWorkspaceCalendarStore(database)
-	workspaceService := service.NewWorkspaceService(workspaceStore)
 
+	workspaceService := service.NewWorkspaceService(workspaceStore)
 	permissionService := service.NewPermissionService(
 		workspaceStore,
 		workspaceRoleStore,
@@ -174,6 +174,8 @@ func New(config Config) (*App, error) {
 	standupService := service.NewStandupService(
 		workspaceStore,
 		workspaceRoleStore,
+		workspaceCalendarStore,
+		globalSkipDateStore,
 		standupStore,
 		leaveStore,
 		workspaceMemberProvider,

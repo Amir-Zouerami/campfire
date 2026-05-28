@@ -73,7 +73,10 @@ func (p *NotificationPublisher) NotifyLeaveDecided(
 		return nil
 	}
 
-	return p.sendChannelMessage(notification.ChannelID, formatApprovedLeaveChannelMessage(p.api, notification))
+	return p.sendChannelMessage(
+		notificationTargetChannelID(notification.AnnouncementChannelID, notification.ChannelID),
+		formatApprovedLeaveChannelMessage(p.api, notification),
+	)
 }
 
 /*
@@ -102,7 +105,7 @@ func (p *NotificationPublisher) NotifyLeaveCancelled(
 	}
 
 	return p.sendChannelMessage(
-		notification.ChannelID,
+		notificationTargetChannelID(notification.AnnouncementChannelID, notification.ChannelID),
 		formatApprovedLeaveCancelledChannelMessage(p.api, notification),
 	)
 }
@@ -234,6 +237,20 @@ func (p *NotificationPublisher) sendChannelMessageWithPostID(channelID string, m
 	}
 
 	return post.Id, nil
+}
+
+/*
+notificationTargetChannelID returns the configured announcement channel when set.
+
+When the override is empty, Campfire falls back to the workspace channel.
+*/
+func notificationTargetChannelID(overrideChannelID string, workspaceChannelID string) string {
+	cleanOverride := strings.TrimSpace(overrideChannelID)
+	if cleanOverride != "" {
+		return cleanOverride
+	}
+
+	return strings.TrimSpace(workspaceChannelID)
 }
 
 /*
@@ -380,9 +397,7 @@ func formatLeaveDecidedMessage(api plugin.API, notification service.LeaveDecisio
 		lines = append(lines, details)
 	}
 
-	if strings.TrimSpace(notification.Comment) != "" {
-		lines = append(lines, fmt.Sprintf("**Comment:** %s", notification.Comment))
-	}
+	lines = appendLabeledMultilineValue(lines, "Comment", notification.Comment)
 
 	return strings.Join(lines, "\n")
 }

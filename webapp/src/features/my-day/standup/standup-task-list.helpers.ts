@@ -10,7 +10,7 @@ const workItemHintTokens = ['today', 'plan', 'progress', 'yesterday', 'task', 'w
 /**
  * excludedHintTokens identify standup questions that should not create tasks.
  */
-const excludedHintTokens = ['blocker', 'blocked', 'impediment'];
+const excludedHintTokens = ['blocker', 'blocked', 'impediment', 'risk'];
 
 /**
  * normalizeTaskTitleKey creates a stable comparison key for task titles.

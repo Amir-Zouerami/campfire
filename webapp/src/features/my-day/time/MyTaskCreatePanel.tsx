@@ -1,4 +1,4 @@
-import type { FormEvent, ReactElement } from 'react';
+import type { FormEvent, ReactElement, ReactNode } from 'react';
 import { PlusCircle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -24,9 +24,6 @@ type MyTaskCreatePanelProps = {
 export function MyTaskCreatePanel(props: MyTaskCreatePanelProps): ReactElement {
 	const submitDisabled = props.disabled || props.draft.title.trim() === '';
 
-	/**
-	 * handleSubmit submits the create-task form.
-	 */
 	function handleSubmit(event: FormEvent<HTMLFormElement>): void {
 		event.preventDefault();
 
@@ -39,10 +36,10 @@ export function MyTaskCreatePanel(props: MyTaskCreatePanelProps): ReactElement {
 
 	return (
 		<form
-			className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-4"
+			className="cf:grid cf:self-start cf:content-start cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-4"
 			onSubmit={handleSubmit}
 		>
-			<div className="cf:flex cf:flex-wrap cf:items-end cf:justify-between cf:gap-3">
+			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
 				<div className="cf:min-w-0">
 					<p className="cf:m-0 cf:text-xs cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 						New task
@@ -105,7 +102,7 @@ export function MyTaskCreatePanel(props: MyTaskCreatePanelProps): ReactElement {
 						<Input
 							id="campfire-my-task-board"
 							disabled={props.disabled}
-							placeholder="https://..."
+							placeholder="https://…"
 							value={props.draft.boardUrl}
 							onChange={event => props.onChange({ boardUrl: event.currentTarget.value })}
 						/>
@@ -117,18 +114,18 @@ export function MyTaskCreatePanel(props: MyTaskCreatePanelProps): ReactElement {
 }
 
 /**
- * FormField renders a consistent labeled form field.
+ * FormField renders a compact label/control pair.
  */
 function FormField(props: {
 	readonly label: string;
 	readonly htmlFor: string;
-	readonly children: ReactElement;
+	readonly children: ReactNode;
 }): ReactElement {
 	return (
 		<div className="cf:grid cf:gap-2">
 			<Label
 				htmlFor={props.htmlFor}
-				className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200"
+				className="cf:text-xs cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100"
 			>
 				{props.label}
 			</Label>

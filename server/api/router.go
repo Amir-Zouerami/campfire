@@ -72,6 +72,15 @@ func NewRouter(config RouterConfig) http.Handler {
 				config.PermissionService,
 			),
 		)
+		api.Put(
+			"/workspaces/{workspaceID}/notification-settings",
+			handleUpdateWorkspaceNotificationSettings(
+				config.Logger,
+				config.Mattermost,
+				config.WorkspaceService,
+				config.PermissionService,
+			),
+		)
 		api.Delete(
 			"/workspaces/{workspaceID}",
 			handleDeleteWorkspace(

@@ -36,6 +36,12 @@ type LeaveDecisionNotification struct {
 	WorkspaceName  string
 	ChannelID      string
 
+	/*
+		AnnouncementChannelID optionally overrides the workspace channel for
+		team-facing approved-leave announcements.
+	*/
+	AnnouncementChannelID string
+
 	RequesterUserID string
 	DeciderUserID   string
 
@@ -59,6 +65,12 @@ type LeaveCancellationNotification struct {
 	WorkspaceID    string
 	WorkspaceName  string
 	ChannelID      string
+
+	/*
+		AnnouncementChannelID optionally overrides the workspace channel for
+		team-facing approved-leave cancellation announcements.
+	*/
+	AnnouncementChannelID string
 
 	RequesterUserID string
 	ApproverUserIDs []string

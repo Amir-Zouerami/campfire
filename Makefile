@@ -16,11 +16,12 @@ GOARCH ?= amd64
 help:
 	@echo "Campfire build commands"
 	@echo ""
-	@echo "  make check          Run Go and TypeScript checks"
-	@echo "  make build-server   Build server executable for GOOS/GOARCH"
-	@echo "  make build-webapp   Build Vite React webapp bundle"
-	@echo "  make bundle         Build plugin bundle tar.gz"
-	@echo "  make clean          Remove build outputs"
+	@echo "  make check           Run Go tests and TypeScript checks"
+	@echo "  make build-server    Build server executable for GOOS/GOARCH"
+	@echo "  make build-webapp    Build Vite React webapp bundle without re-running tsc"
+	@echo "  make bundle          Build plugin bundle tar.gz without tests/checks"
+	@echo "  make bundle-check    Run checks once, then build plugin bundle"
+	@echo "  make clean           Remove build outputs"
 
 .PHONY: check
 check:
@@ -34,10 +35,13 @@ build-server:
 
 .PHONY: build-webapp
 build-webapp:
-	cd $(WEBAPP_DIR) && npm run build
+	cd $(WEBAPP_DIR) && npx vite build
+
+.PHONY: bundle-check
+bundle-check: check bundle
 
 .PHONY: bundle
-bundle: check build-server build-webapp
+bundle: build-server build-webapp
 	rm -rf $(BUNDLE_ROOT)
 	mkdir -p $(BUNDLE_ROOT)/server/dist
 	mkdir -p $(BUNDLE_ROOT)/webapp/dist

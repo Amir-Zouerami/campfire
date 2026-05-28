@@ -91,6 +91,7 @@ export type Workspace = {
 	readonly name: string;
 	readonly description: string;
 	readonly boardUrl: string;
+	readonly approvedLeaveNotificationChannelId: string;
 	readonly timezone: string;
 	readonly createdBy: string;
 	readonly createdAt: string;

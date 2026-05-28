@@ -354,6 +354,24 @@ func (s *LeaveService) Create(ctx context.Context, input CreateLeaveInput) (*dom
 	endDate := domain.LocalDate(strings.TrimSpace(input.EndDate))
 	durationMode := domain.LeaveDurationMode(strings.TrimSpace(input.DurationMode))
 
+	activeLeaveRequests, err := s.leaveStore.ListActiveByWorkspaceIDAndUserID(
+		ctx,
+		domain.ID(cleanWorkspaceID),
+		cleanActorUserID,
+	)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not check existing leave requests.")
+	}
+
+	for _, activeLeaveRequest := range activeLeaveRequests {
+		if leaveDateRangesOverlap(startDate, endDate, activeLeaveRequest.LeaveRequest) {
+			return nil, NewError(
+				ErrorCodeConflict,
+				"You already have a pending or approved leave request overlapping this date range. Cancel the existing request first.",
+			)
+		}
+	}
+
 	now := time.Now().UTC()
 
 	leaveRequest := domain.LeaveRequest{
@@ -496,6 +514,8 @@ func (s *LeaveService) Decide(ctx context.Context, input DecideLeaveInput) (*dom
 		WorkspaceName:  workspace.Name,
 		ChannelID:      workspace.ChannelID,
 
+		AnnouncementChannelID: workspace.ApprovedLeaveNotificationChannelID,
+
 		RequesterUserID: decidedRequest.UserID,
 		DeciderUserID:   cleanActorUserID,
 
@@ -596,6 +616,8 @@ func (s *LeaveService) Cancel(ctx context.Context, input CancelLeaveInput) (*dom
 			WorkspaceName:  workspace.Name,
 			ChannelID:      workspace.ChannelID,
 
+			AnnouncementChannelID: workspace.ApprovedLeaveNotificationChannelID,
+
 			RequesterUserID: cleanActorUserID,
 			ApproverUserIDs: filterNotificationRecipients(approverUserIDs, cleanActorUserID),
 
@@ -666,6 +688,17 @@ func filterNotificationRecipients(userIDs []string, requesterUserID string) []st
 	}
 
 	return recipients
+}
+
+/*
+leaveDateRangesOverlap returns whether a new request date range overlaps an existing request.
+
+Leave overlap is intentionally date-level for now. A user cannot create multiple
+pending/approved leave requests on the same date, even if one is half-day or hourly.
+This keeps availability, reminders, and reporting unambiguous.
+*/
+func leaveDateRangesOverlap(startDate domain.LocalDate, endDate domain.LocalDate, existing domain.LeaveRequest) bool {
+	return startDate.String() <= existing.EndDate.String() && endDate.String() >= existing.StartDate.String()
 }
 
 /*

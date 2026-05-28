@@ -119,6 +119,20 @@ export type WorkspaceByChannelResponse = {
 };
 
 /**
+ * UpdateWorkspaceNotificationSettingsRequest is sent to PUT /workspaces/{workspaceID}/notification-settings.
+ */
+export type UpdateWorkspaceNotificationSettingsRequest = {
+	readonly approvedLeaveNotificationChannelId: string;
+};
+
+/**
+ * UpdateWorkspaceNotificationSettingsResponse is returned after workspace notification settings update.
+ */
+export type UpdateWorkspaceNotificationSettingsResponse = {
+	readonly workspace: Workspace;
+};
+
+/**
  * CreateWorkspaceRequest is sent to POST /workspaces.
  */
 export type CreateWorkspaceRequest = {

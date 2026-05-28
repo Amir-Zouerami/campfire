@@ -34,5 +34,6 @@ export type WorkspaceShellProps = {
 	readonly onStandupSubmitted: () => void;
 	readonly onStandupConfigurationChanged: () => void;
 	readonly onWorkspaceCalendarChanged: () => void;
+	readonly onWorkspaceSettingsChanged: () => void;
 	readonly onWorkspaceArchived: () => void;
 };

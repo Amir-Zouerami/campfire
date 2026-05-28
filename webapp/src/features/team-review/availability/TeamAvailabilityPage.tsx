@@ -80,6 +80,7 @@ export function TeamAvailabilityPage(props: TeamAvailabilityPageProps): ReactEle
 
 							<TeamAvailabilityTablePanel
 								rows={availability.leaveRequests}
+								timezone={props.workspace.timezone}
 								labelForUserID={profiles.labelForUserID}
 							/>
 						</>

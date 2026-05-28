@@ -597,3 +597,167 @@
 	background: rgba(0, 0, 0, 0.18) !important;
 	padding: 0.9rem 1rem !important;
 }
+
+/* Team Review approval card spacing repair */
+.campfire-theme .campfire-approval-queue {
+	display: grid !important;
+	gap: 1.25rem !important;
+}
+
+.campfire-theme .campfire-approval-detail-grid {
+	display: grid !important;
+	grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+	gap: 1rem !important;
+	align-items: stretch !important;
+}
+
+.campfire-theme .campfire-approval-detail-tile,
+.campfire-theme .campfire-approval-reason {
+	border: 1px solid rgba(255, 255, 255, 0.1) !important;
+	border-radius: 1rem !important;
+	background: rgba(0, 0, 0, 0.22) !important;
+	padding: 1rem !important;
+	min-width: 0 !important;
+}
+
+.campfire-theme .campfire-approval-field-label {
+	margin: 0 !important;
+	font-size: 0.82rem !important;
+	line-height: 1 !important;
+	font-weight: 900 !important;
+	text-transform: uppercase !important;
+	letter-spacing: 0.18em !important;
+	color: rgb(253 230 138) !important;
+}
+
+.campfire-theme .campfire-approval-detail-value {
+	margin: 0.55rem 0 0 !important;
+	overflow: hidden !important;
+	text-overflow: ellipsis !important;
+	white-space: nowrap !important;
+	font-size: 1.05rem !important;
+	line-height: 1.25 !important;
+	font-weight: 900 !important;
+	color: hsl(var(--foreground)) !important;
+}
+
+.campfire-theme .campfire-approval-comment-block {
+	display: grid !important;
+	gap: 0.8rem !important;
+	padding-top: 0.35rem !important;
+}
+
+.campfire-theme .campfire-approval-comment-label {
+	display: inline-grid !important;
+	grid-template-columns: 1.15rem auto !important;
+	align-items: center !important;
+	gap: 0.55rem !important;
+	width: max-content !important;
+	margin: 0 !important;
+	font-size: 0.82rem !important;
+	line-height: 1 !important;
+	font-weight: 900 !important;
+	text-transform: uppercase !important;
+	letter-spacing: 0.18em !important;
+	color: rgb(253 230 138) !important;
+}
+
+.campfire-theme .campfire-approval-comment-icon {
+	width: 1rem !important;
+	height: 1rem !important;
+	display: block !important;
+	transform: translateY(0) !important;
+	color: rgb(253 230 138) !important;
+}
+
+@media (max-width: 920px) {
+	.campfire-theme .campfire-approval-detail-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+	}
+}
+
+@media (max-width: 640px) {
+	.campfire-theme .campfire-approval-detail-grid {
+		grid-template-columns: 1fr !important;
+	}
+}
+
+/* Team Review approval queue final repair */
+.campfire-theme .campfire-approval-queue {
+	display: grid !important;
+	gap: 1.35rem !important;
+}
+
+.campfire-theme .campfire-approval-detail-grid {
+	display: flex !important;
+	flex-wrap: wrap !important;
+	gap: 1rem !important;
+	align-items: stretch !important;
+}
+
+.campfire-theme .campfire-approval-detail-tile {
+	flex: 1 1 15rem !important;
+	min-width: 0 !important;
+	border: 1px solid rgba(255, 255, 255, 0.1) !important;
+	border-radius: 1rem !important;
+	background:
+		radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.055), transparent 13rem), rgba(0, 0, 0, 0.2) !important;
+	padding: 1rem !important;
+}
+
+.campfire-theme .campfire-approval-note-panel {
+	border: 1px solid rgba(255, 255, 255, 0.1) !important;
+	border-radius: 1rem !important;
+	background: rgba(0, 0, 0, 0.18) !important;
+	padding: 1rem !important;
+}
+
+.campfire-theme .campfire-approval-field-label {
+	margin: 0 !important;
+	font-size: 0.78rem !important;
+	line-height: 1 !important;
+	font-weight: 900 !important;
+	text-transform: uppercase !important;
+	letter-spacing: 0.18em !important;
+	color: rgb(253 230 138) !important;
+}
+
+.campfire-theme .campfire-approval-detail-value {
+	margin: 0.55rem 0 0 !important;
+	overflow: hidden !important;
+	text-overflow: ellipsis !important;
+	white-space: nowrap !important;
+	font-size: 1rem !important;
+	line-height: 1.25 !important;
+	font-weight: 850 !important;
+	color: hsl(var(--foreground)) !important;
+}
+
+.campfire-theme .campfire-approval-comment-block {
+	display: grid !important;
+	gap: 0.85rem !important;
+	padding-top: 0.25rem !important;
+}
+
+.campfire-theme .campfire-approval-comment-label {
+	display: inline-flex !important;
+	align-items: center !important;
+	gap: 0.55rem !important;
+	width: max-content !important;
+	margin: 0 !important;
+	font-size: 0.78rem !important;
+	line-height: 1 !important;
+	font-weight: 900 !important;
+	text-transform: uppercase !important;
+	letter-spacing: 0.18em !important;
+	color: rgb(253 230 138) !important;
+}
+
+.campfire-theme .campfire-approval-comment-icon {
+	width: 1rem !important;
+	height: 1rem !important;
+	display: block !important;
+	flex: 0 0 auto !important;
+	transform: translateY(-0.02rem) !important;
+	color: rgb(253 230 138) !important;
+}

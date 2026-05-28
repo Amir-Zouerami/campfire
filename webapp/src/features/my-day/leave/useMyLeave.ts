@@ -15,8 +15,10 @@ import {
 	draftHasDateRange,
 	emptyLeaveDraft,
 	errorToMessage,
+	formatLeaveRange,
 	localLeaveWarnings,
 	normalizeLeaveDraftForMode,
+	rangesOverlap,
 	validateLeaveDraft,
 } from './my-leave.helpers';
 import type { MyLeaveDraft, MyLeaveDraftPatch, MyLeaveLoadState, MyLeaveWarning } from './my-leave.types';
@@ -170,6 +172,18 @@ export function useMyLeave(input: UseMyLeaveInput): UseMyLeaveResult {
 		if (validationMessage !== null) {
 			setLoadState('error');
 			setMessage(validationMessage);
+			return;
+		}
+
+		const overlappingActiveLeave = myActiveLeaves.find(item =>
+			rangesOverlap(draft.startDate, draft.endDate, item.leaveRequest),
+		);
+		if (overlappingActiveLeave !== undefined) {
+			const errorMessage = `You already have a ${overlappingActiveLeave.leaveRequest.status} leave request overlapping ${formatLeaveRange(overlappingActiveLeave.leaveRequest)}. Cancel the existing request first.`;
+
+			setLoadState('error');
+			setMessage(errorMessage);
+			toast.error(errorMessage);
 			return;
 		}
 

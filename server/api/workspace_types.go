@@ -11,17 +11,18 @@ import (
 WorkspacePayload is the API representation of a Campfire workspace.
 */
 type WorkspacePayload struct {
-	ID          string `json:"id"`
-	TeamID      string `json:"teamId"`
-	ChannelID   string `json:"channelId"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	BoardURL    string `json:"boardUrl"`
-	Timezone    string `json:"timezone"`
-	CreatedBy   string `json:"createdBy"`
-	CreatedAt   string `json:"createdAt"`
-	UpdatedAt   string `json:"updatedAt"`
-	IsArchived  bool   `json:"isArchived"`
+	ID                                 string `json:"id"`
+	TeamID                             string `json:"teamId"`
+	ChannelID                          string `json:"channelId"`
+	Name                               string `json:"name"`
+	Description                        string `json:"description"`
+	BoardURL                           string `json:"boardUrl"`
+	ApprovedLeaveNotificationChannelID string `json:"approvedLeaveNotificationChannelId"`
+	Timezone                           string `json:"timezone"`
+	CreatedBy                          string `json:"createdBy"`
+	CreatedAt                          string `json:"createdAt"`
+	UpdatedAt                          string `json:"updatedAt"`
+	IsArchived                         bool   `json:"isArchived"`
 }
 
 /*
@@ -64,9 +65,23 @@ type CreateWorkspaceRequest struct {
 }
 
 /*
+UpdateWorkspaceNotificationSettingsRequest updates workspace notification routing.
+*/
+type UpdateWorkspaceNotificationSettingsRequest struct {
+	ApprovedLeaveNotificationChannelID string `json:"approvedLeaveNotificationChannelId"`
+}
+
+/*
 CreateWorkspaceResponse is returned by POST /workspaces.
 */
 type CreateWorkspaceResponse struct {
+	Workspace WorkspacePayload `json:"workspace"`
+}
+
+/*
+UpdateWorkspaceNotificationSettingsResponse is returned after workspace notification settings are updated.
+*/
+type UpdateWorkspaceNotificationSettingsResponse struct {
 	Workspace WorkspacePayload `json:"workspace"`
 }
 
@@ -92,17 +107,18 @@ WorkspaceToPayload maps a domain workspace to its API representation.
 */
 func WorkspaceToPayload(workspace domain.Workspace) WorkspacePayload {
 	return WorkspacePayload{
-		ID:          workspace.ID.String(),
-		TeamID:      workspace.TeamID,
-		ChannelID:   workspace.ChannelID,
-		Name:        workspace.Name,
-		Description: workspace.Description,
-		BoardURL:    workspace.BoardURL,
-		Timezone:    workspace.Timezone,
-		CreatedBy:   workspace.CreatedBy,
-		CreatedAt:   formatAPITime(workspace.CreatedAt),
-		UpdatedAt:   formatAPITime(workspace.UpdatedAt),
-		IsArchived:  workspace.IsArchived,
+		ID:                                 workspace.ID.String(),
+		TeamID:                             workspace.TeamID,
+		ChannelID:                          workspace.ChannelID,
+		Name:                               workspace.Name,
+		Description:                        workspace.Description,
+		BoardURL:                           workspace.BoardURL,
+		ApprovedLeaveNotificationChannelID: workspace.ApprovedLeaveNotificationChannelID,
+		Timezone:                           workspace.Timezone,
+		CreatedBy:                          workspace.CreatedBy,
+		CreatedAt:                          formatAPITime(workspace.CreatedAt),
+		UpdatedAt:                          formatAPITime(workspace.UpdatedAt),
+		IsArchived:                         workspace.IsArchived,
 	}
 }
 
@@ -138,6 +154,20 @@ func (r CreateWorkspaceRequest) ToServiceInput(actorUserID string) service.Creat
 		NamedLeadUserIDs:       r.NamedLeadUserIDs,
 		NamedApproverUserIDs:   r.NamedApproverUserIDs,
 		CreateDefaultTemplates: r.CreateDefaultTemplates,
+	}
+}
+
+/*
+ToServiceInput maps workspace notification settings to service input.
+*/
+func (r UpdateWorkspaceNotificationSettingsRequest) ToServiceInput(
+	actorUserID string,
+	workspaceID string,
+) service.UpdateWorkspaceNotificationSettingsInput {
+	return service.UpdateWorkspaceNotificationSettingsInput{
+		ActorUserID:                        actorUserID,
+		WorkspaceID:                        workspaceID,
+		ApprovedLeaveNotificationChannelID: r.ApprovedLeaveNotificationChannelID,
 	}
 }
 

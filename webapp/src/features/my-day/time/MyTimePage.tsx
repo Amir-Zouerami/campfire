@@ -42,14 +42,13 @@ export function MyTimePage(props: MyTimePageProps): ReactElement {
 
 					{timeLog.loadState !== 'loading' && (
 						<>
-							<div className="cf:grid cf:gap-5 cf:xl:grid-cols-2">
+							<div className="cf:grid cf:items-start cf:gap-5 cf:xl:grid-cols-2">
 								<MyTaskCreatePanel
 									draft={timeLog.taskDraft}
 									disabled={timeLog.isBusy}
 									onChange={timeLog.updateTaskDraft}
 									onSubmit={timeLog.submitTask}
 								/>
-
 								<MyTimeEntryPanel
 									draft={timeLog.timeDraft}
 									tasks={timeLog.loggableTasks}
