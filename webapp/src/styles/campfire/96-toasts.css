@@ -1,0 +1,145 @@
+.campfire-theme [data-sonner-toaster] {
+	bottom: 1.35rem !important;
+	right: 1.35rem !important;
+	z-index: 2147483647 !important;
+}
+
+.campfire-theme [data-sonner-toaster][data-x-position='right'] {
+	right: 1.35rem !important;
+}
+
+.campfire-theme [data-sonner-toast].campfire-toast,
+.campfire-theme .campfire-toast {
+	background: rgba(17, 18, 18, 0.94) !important;
+	border: 1px solid rgba(255, 255, 255, 0.105) !important;
+	border-radius: 1.05rem !important;
+	box-shadow:
+		0 1.4rem 3.2rem rgba(0, 0, 0, 0.42),
+		inset 0 1px 0 rgba(255, 255, 255, 0.055) !important;
+	color: #f7f5f2 !important;
+	font-family: InterVariable, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+	padding: 0.9rem 1rem !important;
+}
+
+.campfire-theme [data-sonner-toast].campfire-toast::before,
+.campfire-theme .campfire-toast::before {
+	background: radial-gradient(circle at 30% 20%, rgba(251, 146, 60, 0.24), transparent 58%);
+	border-radius: inherit;
+	content: '';
+	inset: 0;
+	opacity: 0.8;
+	pointer-events: none;
+	position: absolute;
+}
+
+.campfire-theme [data-sonner-toast].campfire-toast--error,
+.campfire-theme .campfire-toast--error {
+	border-color: rgba(248, 113, 113, 0.34) !important;
+}
+
+.campfire-theme [data-sonner-toast].campfire-toast--success,
+.campfire-theme .campfire-toast--success {
+	border-color: rgba(134, 239, 172, 0.24) !important;
+}
+
+.campfire-theme [data-sonner-toast].campfire-toast--warning,
+.campfire-theme .campfire-toast--warning {
+	border-color: rgba(253, 186, 116, 0.36) !important;
+}
+
+.campfire-theme .campfire-toast-title {
+	color: #fffaf4 !important;
+	font-size: 0.9rem !important;
+	font-weight: 660 !important;
+	letter-spacing: -0.01em !important;
+	line-height: 1.35 !important;
+}
+
+.campfire-theme .campfire-toast-description {
+	color: rgba(226, 221, 214, 0.76) !important;
+	font-size: 0.8rem !important;
+	font-weight: 450 !important;
+	line-height: 1.45 !important;
+	margin-top: 0.22rem !important;
+}
+
+.campfire-theme .campfire-toast-icon-slot {
+	align-items: center !important;
+	background: rgba(251, 146, 60, 0.12) !important;
+	border: 1px solid rgba(251, 146, 60, 0.18) !important;
+	border-radius: 0.8rem !important;
+	display: inline-flex !important;
+	height: 2rem !important;
+	justify-content: center !important;
+	margin-right: 0.55rem !important;
+	width: 2rem !important;
+}
+
+.campfire-theme .campfire-toast-icon {
+	height: 1rem;
+	width: 1rem;
+}
+
+.campfire-theme .campfire-toast--error .campfire-toast-icon-slot,
+.campfire-theme .campfire-toast--error .campfire-toast-icon {
+	color: #fca5a5 !important;
+}
+
+.campfire-theme .campfire-toast--success .campfire-toast-icon-slot,
+.campfire-theme .campfire-toast--success .campfire-toast-icon {
+	color: #86efac !important;
+}
+
+.campfire-theme .campfire-toast--warning .campfire-toast-icon-slot,
+.campfire-theme .campfire-toast--warning .campfire-toast-icon {
+	color: #fdba74 !important;
+}
+
+.campfire-theme .campfire-toast--info .campfire-toast-icon-slot,
+.campfire-theme .campfire-toast--info .campfire-toast-icon {
+	color: #bae6fd !important;
+}
+
+.campfire-theme .campfire-toast-icon--spin {
+	animation: campfire-toast-spin 1s linear infinite;
+}
+
+.campfire-theme .campfire-toast-close {
+	background: rgba(255, 255, 255, 0.06) !important;
+	border: 1px solid rgba(255, 255, 255, 0.12) !important;
+	color: rgba(247, 245, 242, 0.72) !important;
+}
+
+.campfire-theme .campfire-toast-action,
+.campfire-theme .campfire-toast-cancel {
+	border-radius: 0.75rem !important;
+	box-shadow: none !important;
+	font-size: 0.78rem !important;
+	font-weight: 620 !important;
+}
+
+.campfire-theme .campfire-toast-action {
+	background: rgba(251, 146, 60, 0.14) !important;
+	border: 1px solid rgba(251, 146, 60, 0.28) !important;
+	color: #fed7aa !important;
+}
+
+.campfire-theme .campfire-toast-cancel {
+	background: rgba(255, 255, 255, 0.06) !important;
+	border: 1px solid rgba(255, 255, 255, 0.1) !important;
+	color: rgba(247, 245, 242, 0.74) !important;
+}
+
+@keyframes campfire-toast-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@media (max-width: 680px) {
+	.campfire-theme [data-sonner-toaster] {
+		bottom: 0.85rem !important;
+		left: 0.85rem !important;
+		right: 0.85rem !important;
+	}
+}

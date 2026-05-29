@@ -1,7 +1,6 @@
 import type { ReactElement } from 'react';
 import { MessageSquareText, ThumbsDown, ThumbsUp, Umbrella } from 'lucide-react';
 
-import { CampfireEmpty, CampfireStatusPill } from '@/app/campfire-ui';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import type { PendingLeaveRequest } from '@/types/domain';
@@ -15,6 +14,7 @@ import {
 	leaveStatusTone,
 } from './team-leave-approvals.helpers';
 import type { LeaveDecision } from './team-leave-approvals.types';
+import { CampfireEmpty, CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * TeamLeaveApprovalQueueProps contains pending leave requests and decision actions.
@@ -81,10 +81,10 @@ function TeamLeaveApprovalCard(props: {
 		<article className={approvalCardClassName()}>
 			<header className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-4">
 				<div className="cf:min-w-0">
-					<p className="cf:m-0 cf:text-[0.78rem] cf:font-black cf:uppercase cf:leading-none cf:tracking-[0.18em] cf:text-amber-100/90">
+					<p className="cf:m-0 cf:text-[0.78rem] cf:font-semibold cf:uppercase cf:leading-none cf:tracking-[0.18em] cf:text-amber-100/90">
 						{requesterLabel}
 					</p>
-					<h3 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-black cf:leading-tight cf:tracking-[-0.035em] cf:text-foreground">
+					<h3 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-semibold cf:leading-tight cf:tracking-[-0.035em] cf:text-foreground">
 						{props.item.leaveTypeName}
 					</h3>
 				</div>

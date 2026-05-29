@@ -1,3 +1,4 @@
+import type { MeUserResponse } from '@/types/api';
 import type { Workspace, WorkspaceCapabilities } from '@/types/domain';
 
 /**
@@ -25,9 +26,12 @@ export type WorkspaceShellProps = {
 	readonly capabilities: WorkspaceCapabilities;
 	readonly canManageWorkspace: boolean;
 	readonly isSystemAdmin: boolean;
+	readonly currentUser: MeUserResponse;
 	readonly leaveRefreshToken: number;
 	readonly standupRefreshToken: number;
 	readonly workspaceCalendarRefreshToken: number;
+	readonly onClose: () => void;
+	readonly onRefresh: () => void;
 	readonly onLeaveCreated: () => void;
 	readonly onLeaveDecided: () => void;
 	readonly onLeaveCancelled: () => void;

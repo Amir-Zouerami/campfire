@@ -1,10 +1,10 @@
 import type { ReactElement } from 'react';
 import { CalendarCheck2, CalendarX2, Globe2, Umbrella, Users } from 'lucide-react';
 
-import { CampfireStatusPill } from '@/app/campfire-ui';
 import type { StandupRunDecision } from '@/types/domain';
 
 import { runtimeReasonDescription, runtimeReasonLabel, runtimeSignalCardClassName } from './team-runtime.helpers';
+import { CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * TeamRuntimeDecisionPanelProps contains one evaluated runtime decision.
@@ -24,10 +24,10 @@ export function TeamRuntimeDecisionPanel(props: TeamRuntimeDecisionPanelProps): 
 			<article className="campfire-runtime-message-panel">
 				<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
 					<div className="cf:min-w-0">
-						<p className="cf:m-0 cf:text-sm cf:font-black cf:uppercase cf:leading-none cf:tracking-[0.18em] cf:text-amber-100">
+						<p className="cf:m-0 cf:text-sm cf:font-semibold cf:uppercase cf:leading-none cf:tracking-[0.18em] cf:text-amber-100">
 							Runtime message
 						</p>
-						<h3 className="cf:m-0 cf:mt-3 cf:text-2xl cf:font-black cf:leading-tight cf:tracking-[-0.04em] cf:text-foreground">
+						<h3 className="cf:m-0 cf:mt-3 cf:text-2xl cf:font-semibold cf:leading-tight cf:tracking-[-0.04em] cf:text-foreground">
 							{props.decision.shouldRun ? 'Standup should run' : 'Standup should be skipped'}
 						</h3>
 					</div>
@@ -79,11 +79,11 @@ export function TeamRuntimeDecisionPanel(props: TeamRuntimeDecisionPanelProps): 
 				</div>
 
 				<div className="cf:min-w-0">
-					<p className="cf:m-0 cf:text-sm cf:font-black cf:uppercase cf:leading-none cf:tracking-[0.18em] cf:text-amber-100">
+					<p className="cf:m-0 cf:text-sm cf:font-semibold cf:uppercase cf:leading-none cf:tracking-[0.18em] cf:text-amber-100">
 						Reason
 					</p>
 
-					<h3 className="cf:m-0 cf:mt-3 cf:text-2xl cf:font-black cf:leading-tight cf:tracking-[-0.04em] cf:text-foreground">
+					<h3 className="cf:m-0 cf:mt-3 cf:text-2xl cf:font-semibold cf:leading-tight cf:tracking-[-0.04em] cf:text-foreground">
 						{runtimeReasonLabel(props.decision.reason)}
 					</h3>
 
@@ -110,13 +110,13 @@ function RuntimeSignalCard(props: {
 	return (
 		<article className={runtimeSignalCardClassName(props.active)}>
 			<div className="cf:flex cf:items-start cf:justify-between cf:gap-3">
-				<p className="cf:m-0 cf:text-sm cf:font-black cf:uppercase cf:leading-none cf:tracking-[0.16em] cf:text-amber-100">
+				<p className="cf:m-0 cf:text-sm cf:font-semibold cf:uppercase cf:leading-none cf:tracking-[0.16em] cf:text-amber-100">
 					{props.title}
 				</p>
 				<Icon className="cf:size-6 cf:shrink-0 cf:text-amber-200" />
 			</div>
 
-			<p className="cf:m-0 cf:mt-4 cf:text-3xl cf:font-black cf:tracking-tighter cf:text-foreground">
+			<p className="cf:m-0 cf:mt-4 cf:text-3xl cf:font-semibold cf:tracking-tighter cf:text-foreground">
 				{props.value}
 			</p>
 			<p className="cf:m-0 cf:mt-1 cf:text-xs cf:font-bold cf:text-muted-foreground">

@@ -1,15 +1,8 @@
 import type { ReactElement } from 'react';
 import { CalendarCheck2, Globe2, Hourglass, Umbrella } from 'lucide-react';
 
-import {
-	CampfireCardBody,
-	CampfireCardHeader,
-	CampfireEmpty,
-	CampfireMetric,
-	CampfirePanel,
-	CampfireStatusPill,
-} from '@/app/campfire-ui';
 import { useUserProfiles } from '@/app/useUserProfiles';
+import { CampfireEmpty, CampfireStatCard, CampfireSurface } from '@/components/campfire/CampfireLayoutPrimitives';
 
 import { GlobalLeaveBreakdownPanel } from './GlobalLeaveBreakdownPanel';
 import { GlobalLeaveControls } from './GlobalLeaveControls';
@@ -32,88 +25,78 @@ export function GlobalLeaveReportPanel(props: GlobalLeaveReportPanelProps): Reac
 	const profiles = useUserProfiles(report.userIDsForProfiles);
 
 	return (
-		<div className="cf:grid cf:gap-5">
-			<CampfirePanel>
-				<CampfireCardHeader
-					eyebrow="Global reports"
-					title="Global leave report"
-					description="System-wide leave visibility across active workspaces."
+		<div className="campfire-page-stack">
+			<div className="campfire-stat-grid campfire-stat-grid--four">
+				<CampfireStatCard
+					icon={CalendarCheck2}
+					label="Approved"
+					value={String(report.summary?.approvedCount ?? 0)}
+					helper="Accepted leave"
+					tone="green"
+				/>
+				<CampfireStatCard
+					icon={Hourglass}
+					label="Pending"
+					value={String(report.summary?.pendingCount ?? 0)}
+					helper="Awaiting decisions"
+				/>
+				<CampfireStatCard
+					icon={Globe2}
+					label="Workspaces"
+					value={String(report.summary?.workspaceCount ?? 0)}
+					helper="With leave rows"
+					tone="blue"
+				/>
+				<CampfireStatCard
 					icon={Umbrella}
-					action={
-						<CampfireStatusPill tone={props.isSystemAdmin ? 'green' : 'slate'}>
-							{props.isSystemAdmin ? 'System admin' : 'No global access'}
-						</CampfireStatusPill>
-					}
+					label="Profiles"
+					value={profiles.loading ? 'Loading' : 'Ready'}
+					helper="User labels"
+					tone="green"
+				/>
+			</div>
+
+			<CampfireSurface className="campfire-control-surface">
+				<header className="campfire-flat-section-header">
+					<div>
+						<p className="campfire-page-eyebrow">Global leave</p>
+						<h3 className="campfire-surface-title">System-wide leave controls</h3>
+						<p className="campfire-surface-description">Load and export approved and pending leave across workspaces.</p>
+					</div>
+				</header>
+
+				<GlobalReportsFeedback
+					state={report.loadState}
+					message={report.message}
+					profileErrorMessage={profiles.errorMessage}
 				/>
 
-				<CampfireCardBody className="campfire-context-grid">
-					<CampfireMetric
-						label="Approved"
-						value={String(report.summary?.approvedCount ?? 0)}
-						helper="Accepted leave"
-						icon={CalendarCheck2}
-					/>
-					<CampfireMetric
-						label="Pending"
-						value={String(report.summary?.pendingCount ?? 0)}
-						helper="Awaiting decisions"
-						icon={Hourglass}
-					/>
-					<CampfireMetric
-						label="Workspaces"
-						value={String(report.summary?.workspaceCount ?? 0)}
-						helper="With leave rows"
-						icon={Globe2}
-					/>
-					<CampfireMetric
-						label="Profiles"
-						value={profiles.loading ? 'Loading' : 'Ready'}
-						helper="User labels"
-						icon={Umbrella}
-					/>
-				</CampfireCardBody>
-			</CampfirePanel>
+				<GlobalLeaveControls
+					range={report.range}
+					disabled={report.isBusy}
+					onChange={report.updateRange}
+					onLoad={report.loadReport}
+					onExport={report.exportCSV}
+				/>
+			</CampfireSurface>
 
-			<CampfirePanel>
-				<CampfireCardBody className="cf:grid cf:gap-5">
-					<GlobalReportsFeedback
-						state={report.loadState}
-						message={report.message}
-						profileErrorMessage={profiles.errorMessage}
-					/>
+			{report.loadState === 'loading' || report.loadState === 'exporting' ? <GlobalReportsLoading /> : null}
 
-					<GlobalLeaveControls
-						range={report.range}
-						disabled={report.isBusy}
-						onChange={report.updateRange}
-						onLoad={report.loadReport}
-						onExport={report.exportCSV}
-					/>
+			{report.loadState !== 'loading' && report.summary === null && (
+				<CampfireEmpty
+					icon={Umbrella}
+					title="No global leave report loaded"
+					description="Choose a date range and load the global leave report."
+				/>
+			)}
 
-					{report.loadState === 'loading' || report.loadState === 'exporting' ? (
-						<GlobalReportsLoading />
-					) : null}
+			{report.loadState !== 'loading' && report.summary !== null && (
+				<div className="campfire-page-stack">
+					<GlobalLeaveBreakdownPanel workspaces={report.summary.workspaces} types={report.summary.types} />
 
-					{report.loadState !== 'loading' && report.summary === null && (
-						<CampfireEmpty
-							icon={Umbrella}
-							title="No global leave report loaded"
-							description="Choose a date range and load the global leave report."
-						/>
-					)}
-
-					{report.loadState !== 'loading' && report.summary !== null && (
-						<div className="cf:grid cf:gap-5">
-							<GlobalLeaveBreakdownPanel
-								workspaces={report.summary.workspaces}
-								types={report.summary.types}
-							/>
-
-							<GlobalLeaveRowsPanel rows={report.summary.rows} labelForUserID={profiles.labelForUserID} />
-						</div>
-					)}
-				</CampfireCardBody>
-			</CampfirePanel>
+					<GlobalLeaveRowsPanel rows={report.summary.rows} labelForUserID={profiles.labelForUserID} />
+				</div>
+			)}
 		</div>
 	);
 }

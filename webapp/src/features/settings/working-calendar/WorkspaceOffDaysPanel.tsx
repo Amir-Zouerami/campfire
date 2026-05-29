@@ -1,11 +1,11 @@
 import type { ReactElement } from 'react';
 import { CalendarX2, Trash2 } from 'lucide-react';
 
-import { CampfireEmpty, CampfireStatusPill } from '@/app/campfire-ui';
 import { Button } from '@/components/ui/button';
 import type { WorkspaceOffDay } from '@/types/domain';
 
 import { formatDateTime, workspaceOffDayIsPast } from './working-calendar.helpers';
+import { CampfireEmpty, CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * WorkspaceOffDaysPanelProps contains workspace off-day list state.
@@ -25,10 +25,10 @@ export function WorkspaceOffDaysPanel(props: WorkspaceOffDaysPanelProps): ReactE
 	return (
 		<section className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
 			<div>
-				<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+				<p className="cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 					Workspace off-days
 				</p>
-				<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
+				<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
 					Holidays and skip dates
 				</h3>
 			</div>
@@ -71,7 +71,7 @@ function WorkspaceOffDayRow(props: {
 		<article className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4 cf:sm:grid-cols-[1fr_auto]">
 			<div className="cf:min-w-0">
 				<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
-					<h4 className="cf:min-w-0 cf:truncate cf:text-base cf:font-black cf:text-foreground">
+					<h4 className="cf:min-w-0 cf:truncate cf:text-base cf:font-semibold cf:text-foreground">
 						{props.offDay.label}
 					</h4>
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/components/campfire/campfire-toast';
 
 import { getWeeklyReportPreview, postWeeklyReportPreview } from '@/api';
 import { CAMPFIRE_APPLY_REPORT_FILTER_EVENT, isReportFilterApplyEvent } from '@/app/events';

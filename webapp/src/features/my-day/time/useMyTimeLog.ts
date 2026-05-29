@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/components/campfire/campfire-toast';
 
 import { createTask, createTimeEntry, listMyTasks, listMyTimeEntries, updateTask } from '@/api';
 import type { Task, TaskStatus, TimeEntry, Workspace } from '@/types/domain';
@@ -15,7 +15,15 @@ import {
 	taskCanReceiveTime,
 	taskMapByID,
 } from './my-time.helpers';
-import type { MyTimeLoadState, TaskDraft, TaskDraftPatch, TimeEntryDraft, TimeEntryDraftPatch } from './my-time.types';
+import type {
+	MyTimeLoadState,
+	TaskDraft,
+	TaskDraftPatch,
+	TaskDraftValidationErrors,
+	TimeEntryDraft,
+	TimeEntryDraftPatch,
+	TimeEntryDraftValidationErrors,
+} from './my-time.types';
 
 /**
  * UseMyTimeLogInput contains workspace context for the hook.
@@ -35,7 +43,9 @@ export type UseMyTimeLogResult = {
 	readonly tasksByID: Readonly<Record<string, Task>>;
 	readonly includeArchived: boolean;
 	readonly taskDraft: TaskDraft;
+	readonly taskDraftErrors: TaskDraftValidationErrors;
 	readonly timeDraft: TimeEntryDraft;
+	readonly timeDraftErrors: TimeEntryDraftValidationErrors;
 	readonly message: string;
 	readonly isBusy: boolean;
 	readonly activeTaskCount: number;
@@ -58,7 +68,9 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 	const [timeEntries, setTimeEntries] = useState<readonly TimeEntry[]>([]);
 	const [includeArchived, setIncludeArchivedState] = useState(false);
 	const [taskDraft, setTaskDraft] = useState<TaskDraft>(emptyTaskDraft);
+	const [taskDraftErrors, setTaskDraftErrors] = useState<TaskDraftValidationErrors>({});
 	const [timeDraft, setTimeDraft] = useState<TimeEntryDraft>(emptyTimeEntryDraft);
+	const [timeDraftErrors, setTimeDraftErrors] = useState<TimeEntryDraftValidationErrors>({});
 	const [message, setMessage] = useState('');
 
 	useEffect(() => {
@@ -157,6 +169,13 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 			...current,
 			...patch,
 		}));
+
+		if (patch.title !== undefined) {
+			setTaskDraftErrors(current => ({
+				...current,
+				title: undefined,
+			}));
+		}
 	}
 
 	/**
@@ -166,6 +185,12 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 		setTimeDraft(current => ({
 			...current,
 			...patch,
+		}));
+
+		setTimeDraftErrors(current => ({
+			...current,
+			taskId: patch.taskId !== undefined ? undefined : current.taskId,
+			minutes: patch.minutes !== undefined ? undefined : current.minutes,
 		}));
 	}
 
@@ -181,6 +206,10 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 			projectId: task?.projectId ?? current.projectId,
 			categoryId: task?.categoryId ?? current.categoryId,
 		}));
+		setTimeDraftErrors(current => ({
+			...current,
+			taskId: undefined,
+		}));
 	}
 
 	/**
@@ -190,11 +219,11 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 		const title = taskDraft.title.trim();
 
 		if (title === '') {
-			setLoadState('error');
-			setMessage('Task title is required.');
+			setTaskDraftErrors({ title: 'Task title is required.' });
 			return;
 		}
 
+		setTaskDraftErrors({});
 		setLoadState('saving');
 		setMessage('');
 
@@ -230,19 +259,26 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 	 * submitTimeEntry logs time against the selected task.
 	 */
 	async function submitTimeEntry(): Promise<void> {
+		const nextErrors: {
+			taskId?: string;
+			minutes?: string;
+		} = {};
+
 		if (timeDraft.taskId.trim() === '') {
-			setLoadState('error');
-			setMessage('Choose a task before logging time.');
-			return;
+			nextErrors.taskId = 'Choose a task before logging time.';
 		}
 
 		const minutes = parseMinutes(timeDraft.minutes);
 		if (minutes === null) {
-			setLoadState('error');
-			setMessage('Minutes must be greater than zero.');
+			nextErrors.minutes = 'Minutes must be greater than zero.';
+		}
+
+		if (nextErrors.taskId !== undefined || nextErrors.minutes !== undefined || minutes === null) {
+			setTimeDraftErrors(nextErrors);
 			return;
 		}
 
+		setTimeDraftErrors({});
 		setLoadState('saving');
 		setMessage('');
 
@@ -317,7 +353,9 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 		tasksByID,
 		includeArchived,
 		taskDraft,
+		taskDraftErrors,
 		timeDraft,
+		timeDraftErrors,
 		message,
 		isBusy,
 		activeTaskCount: activeTaskCount(tasks),

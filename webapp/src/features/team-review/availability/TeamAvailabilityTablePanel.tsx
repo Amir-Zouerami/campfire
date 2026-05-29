@@ -1,10 +1,10 @@
 import type { ReactElement } from 'react';
 import { Umbrella } from 'lucide-react';
 
-import { CampfireEmpty, CampfireStatusPill } from '@/app/campfire-ui';
 import type { ApprovedLeaveRequest } from '@/types/domain';
 
 import { formatLeaveDuration, formatLeaveRange } from './team-availability.helpers';
+import { CampfireEmpty, CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * TeamAvailabilityTablePanelProps contains approved leave rows for the selected range.
@@ -22,10 +22,10 @@ export function TeamAvailabilityTablePanel(props: TeamAvailabilityTablePanelProp
 	return (
 		<section className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
 			<div>
-				<p className="cf:m-0 cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+				<p className="cf:m-0 cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 					Planning window
 				</p>
-				<h3 className="cf:m-0 cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
+				<h3 className="cf:m-0 cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
 					Approved leave rows
 				</h3>
 			</div>
@@ -67,7 +67,7 @@ function AvailabilityRow(props: {
 		<article className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4 cf:lg:grid-cols-[1fr_14rem]">
 			<div className="cf:min-w-0">
 				<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
-					<h4 className="cf:m-0 cf:min-w-0 cf:truncate cf:text-base cf:font-black cf:text-foreground">
+					<h4 className="cf:m-0 cf:min-w-0 cf:truncate cf:text-base cf:font-semibold cf:text-foreground">
 						{props.labelForUserID(request.userId)}
 					</h4>
 					<CampfireStatusPill tone="green">Approved</CampfireStatusPill>
@@ -84,7 +84,7 @@ function AvailabilityRow(props: {
 			</div>
 
 			<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-3">
-				<p className="cf:m-0 cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-200">
+				<p className="cf:m-0 cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-200">
 					Created
 				</p>
 				<p
@@ -103,7 +103,7 @@ function AvailabilityRow(props: {
  */
 function AvailabilityChip(props: { readonly label: string; readonly value: string }): ReactElement {
 	return (
-		<span className="cf:max-w-full cf:truncate cf:rounded-full cf:border cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:px-2.5 cf:py-1 cf:text-xs cf:font-black cf:text-emerald-100">
+		<span className="cf:max-w-full cf:truncate cf:rounded-full cf:border cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:px-2.5 cf:py-1 cf:text-xs cf:font-semibold cf:text-emerald-100">
 			{props.label}: {props.value}
 		</span>
 	);

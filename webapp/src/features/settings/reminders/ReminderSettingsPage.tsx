@@ -1,11 +1,11 @@
 import type { ReactElement } from 'react';
+import { BellRing, Hash, MessagesSquare, Send } from 'lucide-react';
 
-import { CampfireCardBody, CampfirePanel } from '@/app/campfire-ui';
+import { CampfireStatCard, CampfireSurface } from '@/components/campfire/CampfireLayoutPrimitives';
 
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
 
 import { ReminderSettingsFeedback, ReminderSettingsLoading } from './ReminderSettingsFeedback';
-import { ReminderSettingsHero } from './ReminderSettingsHero';
 import { ReminderRulesPanel } from './ReminderRulesPanel';
 import { useReminderSettings } from './useReminderSettings';
 
@@ -21,42 +21,55 @@ export function ReminderSettingsPage(props: WorkspaceShellProps): ReactElement {
 	});
 
 	return (
-		<div className="cf:grid cf:gap-5">
-			<ReminderSettingsHero
-				ruleCount={reminders.rules.length}
-				enabledCount={reminders.enabledCount}
-				dmEnabledCount={reminders.dmEnabledCount}
-				channelEnabledCount={reminders.channelEnabledCount}
-				offsetCount={reminders.offsetCount}
-				canManageReminders={canManageReminders}
-			/>
+		<div className="campfire-page-stack campfire-settings-workflow">
+			<div className="campfire-stat-grid campfire-stat-grid--four">
+				<CampfireStatCard icon={BellRing} label="Rules" value={String(reminders.rules.length)} helper="Configured schedules" />
+				<CampfireStatCard
+					icon={Send}
+					label="Enabled"
+					value={String(reminders.enabledCount)}
+					helper="Active reminders"
+					tone={reminders.enabledCount > 0 ? 'green' : 'slate'}
+				/>
+				<CampfireStatCard icon={MessagesSquare} label="DM reminders" value={String(reminders.dmEnabledCount)} helper="Private nudges" />
+				<CampfireStatCard icon={Hash} label="Channel reminders" value={String(reminders.channelEnabledCount)} helper="Shared nudges" />
+			</div>
 
-			<CampfirePanel>
-				<CampfireCardBody className="cf:grid cf:gap-5">
-					<ReminderSettingsFeedback state={reminders.loadState} message={reminders.message} />
+			<CampfireSurface className="campfire-control-surface campfire-settings-control-surface">
+				<header className="campfire-flat-section-header">
+					<div>
+						<p className="campfire-page-eyebrow">Reminders</p>
+						<h3 className="campfire-surface-title">Reminder delivery rules</h3>
+						<p className="campfire-surface-description">
+							Tune DM and channel reminders without stacking another settings dashboard inside this page.
+						</p>
+					</div>
+					<BellRing className="campfire-flat-header-icon" aria-hidden="true" />
+				</header>
 
-					{!canManageReminders && (
-						<ReminderSettingsFeedback
-							state="error"
-							message="You can view reminder settings, but only workspace Leads and system admins can edit them."
-						/>
-					)}
+				<ReminderSettingsFeedback state={reminders.loadState} message={reminders.message} />
 
-					{reminders.loadState === 'loading' && <ReminderSettingsLoading />}
+				{!canManageReminders && (
+					<ReminderSettingsFeedback
+						state="error"
+						message="You can view reminder settings, but only workspace Leads and system admins can edit them."
+					/>
+				)}
 
-					{reminders.loadState !== 'loading' && (
-						<ReminderRulesPanel
-							rulesWithDrafts={reminders.rulesWithDrafts}
-							scheduleLabels={reminders.scheduleLabels}
-							disabled={reminders.isBusy}
-							canManageReminders={canManageReminders}
-							savingRuleID={reminders.savingRuleID}
-							onDraftChange={reminders.updateDraft}
-							onSave={reminders.saveRule}
-						/>
-					)}
-				</CampfireCardBody>
-			</CampfirePanel>
+				{reminders.loadState === 'loading' && <ReminderSettingsLoading />}
+			</CampfireSurface>
+
+			{reminders.loadState !== 'loading' && (
+				<ReminderRulesPanel
+					rulesWithDrafts={reminders.rulesWithDrafts}
+					scheduleLabels={reminders.scheduleLabels}
+					disabled={reminders.isBusy}
+					canManageReminders={canManageReminders}
+					savingRuleID={reminders.savingRuleID}
+					onDraftChange={reminders.updateDraft}
+					onSave={reminders.saveRule}
+				/>
+			)}
 		</div>
 	);
 }

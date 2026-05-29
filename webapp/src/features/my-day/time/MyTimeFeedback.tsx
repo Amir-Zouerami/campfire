@@ -16,7 +16,11 @@ type MyTimeFeedbackProps = {
  * MyTimeFeedback renders status and error feedback for the time-log flow.
  */
 export function MyTimeFeedback(props: MyTimeFeedbackProps): ReactElement | null {
-	return <CampfireFeedback message={props.message} tone={props.state === 'error' ? 'error' : 'success'} />;
+	if (props.state === 'error') {
+		return null;
+	}
+
+	return <CampfireFeedback message={props.message} tone="success" />;
 }
 
 /**

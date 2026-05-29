@@ -1,12 +1,13 @@
 import type { ReactElement } from 'react';
+import { Bookmark, Filter, Save, SlidersHorizontal } from 'lucide-react';
 
-import { CampfireCardBody, CampfirePanel } from '@/app/campfire-ui';
+import { CampfireStatCard, CampfireSurface } from '@/components/campfire/CampfireLayoutPrimitives';
 import type { Workspace } from '@/types/domain';
 
 import { SavedFilterCreatePanel } from './SavedFilterCreatePanel';
 import { SavedFilterListPanel } from './SavedFilterListPanel';
 import { SavedFiltersFeedback, SavedFiltersLoading } from './SavedFiltersFeedback';
-import { SavedFiltersHero } from './SavedFiltersHero';
+import { formatReportKind } from './saved-filters.helpers';
 import { useSavedFilters } from './useSavedFilters';
 
 /**
@@ -17,7 +18,7 @@ type SavedFiltersPageProps = {
 };
 
 /**
- * SavedFiltersPage renders the rewritten report saved-filter workspace.
+ * SavedFiltersPage renders the report saved-filter workspace.
  */
 export function SavedFiltersPage(props: SavedFiltersPageProps): ReactElement {
 	const savedFilters = useSavedFilters({
@@ -25,38 +26,63 @@ export function SavedFiltersPage(props: SavedFiltersPageProps): ReactElement {
 	});
 
 	return (
-		<div className="cf:grid cf:gap-5">
-			<SavedFiltersHero
-				selectedReportType={savedFilters.selectedReportType}
-				filterCount={savedFilters.sortedFilters.length}
-				isBusy={savedFilters.isBusy}
-			/>
+		<div className="campfire-page-stack">
+			<div className="campfire-stat-grid campfire-stat-grid--three">
+				<CampfireStatCard
+					icon={Bookmark}
+					label="Saved filters"
+					value={String(savedFilters.sortedFilters.length)}
+					helper="Current report type"
+				/>
+				<CampfireStatCard
+					icon={Filter}
+					label="Report type"
+					value={formatReportKind(savedFilters.selectedReportType)}
+					helper="Visible library"
+					tone="blue"
+				/>
+				<CampfireStatCard
+					icon={SlidersHorizontal}
+					label="State"
+					value={savedFilters.isBusy ? 'Working' : 'Ready'}
+					helper="Filter actions"
+					tone={savedFilters.isBusy ? 'ember' : 'green'}
+				/>
+			</div>
 
-			<CampfirePanel>
-				<CampfireCardBody className="cf:grid cf:gap-5">
-					<SavedFiltersFeedback state={savedFilters.loadState} message={savedFilters.message} />
-
-					{savedFilters.loadState === 'loading' && <SavedFiltersLoading />}
-
-					<div className="cf:grid cf:gap-5 cf:xl:grid-cols-[0.9fr_1.1fr]">
-						<SavedFilterCreatePanel
-							draft={savedFilters.draft}
-							disabled={savedFilters.isBusy}
-							onChange={savedFilters.updateDraft}
-							onCreate={savedFilters.createFilter}
-						/>
-
-						<SavedFilterListPanel
-							selectedReportType={savedFilters.selectedReportType}
-							filters={savedFilters.sortedFilters}
-							disabled={savedFilters.isBusy}
-							onReportTypeChange={savedFilters.setSelectedReportType}
-							onApply={savedFilters.applyFilter}
-							onDelete={savedFilters.deleteFilter}
-						/>
+			<CampfireSurface className="campfire-control-surface">
+				<header className="campfire-flat-section-header">
+					<div>
+						<p className="campfire-page-eyebrow">Saved filters</p>
+						<h3 className="campfire-surface-title">Reusable report views</h3>
+						<p className="campfire-surface-description">
+							Create, apply, and delete saved filters without leaving the report workspace.
+						</p>
 					</div>
-				</CampfireCardBody>
-			</CampfirePanel>
+					<Save className="campfire-flat-header-icon" aria-hidden="true" />
+				</header>
+
+				<SavedFiltersFeedback state={savedFilters.loadState} message={savedFilters.message} />
+				{savedFilters.loadState === 'loading' && <SavedFiltersLoading />}
+			</CampfireSurface>
+
+			<div className="campfire-focused-split campfire-focused-split--saved-filters">
+				<SavedFilterCreatePanel
+					draft={savedFilters.draft}
+					disabled={savedFilters.isBusy}
+					onChange={savedFilters.updateDraft}
+					onCreate={savedFilters.createFilter}
+				/>
+
+				<SavedFilterListPanel
+					selectedReportType={savedFilters.selectedReportType}
+					filters={savedFilters.sortedFilters}
+					disabled={savedFilters.isBusy}
+					onReportTypeChange={savedFilters.setSelectedReportType}
+					onApply={savedFilters.applyFilter}
+					onDelete={savedFilters.deleteFilter}
+				/>
+			</div>
 		</div>
 	);
 }

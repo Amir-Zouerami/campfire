@@ -1,0 +1,1070 @@
+/*
+ * Campfire app redesign pass.
+ *
+ * This module intentionally sits last. It flattens the workspace app shell,
+ * restores matte buttons, keeps the warm Campfire look, and avoids card-in-card
+ * escalation without deleting older feature modules yet.
+ */
+
+.campfire-modal--workspace-app {
+	width: min(98vw, 1680px);
+	height: min(94vh, 1080px);
+	min-height: 720px;
+}
+
+.campfire-modal--workspace-app .campfire-workspace-shell {
+	position: relative;
+	z-index: 1;
+	display: grid;
+	height: 100%;
+	min-height: 0;
+	grid-template-columns: minmax(16rem, 18rem) minmax(0, 1fr);
+	gap: 0;
+}
+
+.campfire-app-sidebar {
+	display: flex;
+	min-height: 0;
+	flex-direction: column;
+	gap: 1.25rem;
+	border-right: 1px solid rgba(255, 255, 255, 0.09);
+	background:
+		radial-gradient(circle at 30% 4%, rgba(249, 115, 22, 0.12), transparent 13rem),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
+		rgba(10, 10, 10, 0.64);
+	padding: 1.35rem;
+}
+
+.campfire-sidebar-brand {
+	display: flex;
+	align-items: center;
+	gap: 0.85rem;
+}
+
+.campfire-sidebar-logo-tile {
+	position: relative;
+	isolation: isolate;
+	display: grid;
+	width: 3.4rem;
+	height: 3.4rem;
+	place-items: center;
+}
+
+.campfire-sidebar-logo-image {
+	position: relative;
+	z-index: 2;
+	display: block;
+	width: 3rem;
+	height: 3rem;
+	object-fit: contain;
+	filter: drop-shadow(0 0 18px rgba(249, 115, 22, 0.18));
+}
+
+.campfire-sidebar-logo-embers {
+	inset: -0.3rem;
+}
+
+.campfire-sidebar-brand-title {
+	background: linear-gradient(90deg, #fff7ed 0%, #f6f5f4 42%, #fdba74 74%, #fb923c 100%);
+	background-clip: text;
+	color: transparent;
+	font-size: 1.72rem;
+	font-weight: 820;
+	letter-spacing: -0.06em;
+	line-height: 1;
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+
+.campfire-sidebar-workspace,
+.campfire-sidebar-user {
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 1rem;
+	background: rgba(255, 255, 255, 0.035);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.campfire-sidebar-workspace {
+	display: grid;
+	gap: 0.25rem;
+	padding: 0.9rem 1rem;
+}
+
+.campfire-sidebar-workspace-name,
+.campfire-sidebar-user-name {
+	overflow: hidden;
+	color: #f6f5f4;
+	font-size: 0.98rem;
+	font-weight: 680;
+	line-height: 1.25;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.campfire-sidebar-workspace-helper,
+.campfire-sidebar-user-role {
+	overflow: hidden;
+	color: var(--muted-foreground);
+	font-size: 0.78rem;
+	font-weight: 590;
+	line-height: 1.35;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.campfire-sidebar-nav {
+	display: grid;
+	gap: 0.45rem;
+}
+
+.campfire-sidebar-nav-item {
+	display: flex;
+	width: 100%;
+	align-items: center;
+	gap: 0.75rem;
+	border: 1px solid transparent;
+	border-radius: 0.9rem;
+	background: transparent;
+	color: #d4d4d8;
+	padding: 0.72rem 0.85rem;
+	font: inherit;
+	font-size: 0.98rem;
+	font-weight: 620;
+	line-height: 1;
+	text-align: left;
+	cursor: pointer;
+	transition:
+		background-color 160ms ease,
+		border-color 160ms ease,
+		color 160ms ease;
+}
+
+.campfire-sidebar-nav-item:hover {
+	border-color: rgba(253, 186, 116, 0.18);
+	background: rgba(253, 186, 116, 0.055);
+	color: #fff7ed;
+}
+
+.campfire-sidebar-nav-item--active {
+	border-color: rgba(253, 186, 116, 0.32);
+	background:
+		linear-gradient(90deg, rgba(249, 115, 22, 0.16), rgba(249, 115, 22, 0.06)),
+		rgba(255, 255, 255, 0.035);
+	color: #fed7aa;
+}
+
+.campfire-sidebar-user {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	margin-top: auto;
+	padding: 0.8rem;
+}
+
+.campfire-sidebar-user-avatar {
+	display: grid;
+	width: 2.35rem;
+	height: 2.35rem;
+	flex: 0 0 auto;
+	place-items: center;
+	border: 1px solid rgba(253, 186, 116, 0.24);
+	border-radius: 0.85rem;
+	background: rgba(249, 115, 22, 0.1);
+	color: #fed7aa;
+	font-size: 0.78rem;
+	font-weight: 760;
+}
+
+.campfire-sidebar-user-copy {
+	display: grid;
+	min-width: 0;
+	gap: 0.15rem;
+}
+
+.campfire-workspace-main {
+	display: flex;
+	min-width: 0;
+	min-height: 0;
+	flex-direction: column;
+}
+
+.campfire-workspace-topline {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: 1.2rem 1.65rem 0.7rem;
+}
+
+.campfire-workspace-topline-label {
+	margin: 0;
+	overflow: hidden;
+	color: var(--muted-foreground);
+	font-size: 0.9rem;
+	font-weight: 570;
+	line-height: 1.45;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.campfire-workspace-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.45rem;
+}
+
+.campfire-workspace-content {
+	min-height: 0;
+	overflow: auto;
+	padding: 0.8rem 1.65rem 1.65rem;
+	scrollbar-color: rgba(253, 186, 116, 0.26) rgba(255, 255, 255, 0.035);
+}
+
+.campfire-workspace-content::-webkit-scrollbar {
+	width: 0.7rem;
+}
+
+.campfire-workspace-content::-webkit-scrollbar-track {
+	background: rgba(255, 255, 255, 0.035);
+}
+
+.campfire-workspace-content::-webkit-scrollbar-thumb {
+	border: 0.16rem solid rgba(255, 255, 255, 0.035);
+	border-radius: 9999px;
+	background: rgba(253, 186, 116, 0.26);
+}
+
+.campfire-page-stack {
+	display: grid;
+	gap: 1rem;
+}
+
+.campfire-page-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.campfire-page-actions {
+	display: flex;
+	align-items: center;
+	gap: 0.65rem;
+}
+
+.campfire-page-eyebrow {
+	margin: 0 0 0.45rem;
+	color: #fdba74;
+	font-size: 0.75rem;
+	font-weight: 760;
+	letter-spacing: 0.14em;
+	line-height: 1;
+	text-transform: uppercase;
+}
+
+.campfire-page-title {
+	margin: 0;
+	color: #f7f5f2;
+	font-size: clamp(2rem, 2.15vw, 2.85rem);
+	font-weight: 780;
+	letter-spacing: -0.06em;
+	line-height: 1.05;
+}
+
+.campfire-page-description {
+	margin: 0.55rem 0 0;
+	max-width: 48rem;
+	color: var(--muted-foreground);
+	font-size: 1rem;
+	font-weight: 540;
+	line-height: 1.55;
+}
+
+.campfire-surface {
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 1.25rem;
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.02)),
+		rgba(13, 13, 14, 0.72);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+	padding: 1.25rem;
+}
+
+.campfire-surface-header {
+	display: flex;
+	align-items: flex-start;
+	gap: 1rem;
+	justify-content: space-between;
+	margin-bottom: 1rem;
+}
+
+.campfire-surface-header--with-action {
+	align-items: center;
+}
+
+.campfire-surface-title {
+	margin: 0;
+	color: #f7f5f2;
+	font-size: 1.28rem;
+	font-weight: 720;
+	letter-spacing: -0.035em;
+	line-height: 1.15;
+}
+
+.campfire-surface-description,
+.campfire-muted-copy {
+	margin: 0.35rem 0 0;
+	color: var(--muted-foreground);
+	font-size: 0.95rem;
+	font-weight: 530;
+	line-height: 1.55;
+}
+
+.campfire-stat-grid {
+	display: grid;
+	gap: 0.85rem;
+}
+
+.campfire-stat-grid--three {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.campfire-stat-card {
+	display: flex;
+	min-width: 0;
+	align-items: center;
+	gap: 0.9rem;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 1.15rem;
+	background: rgba(255, 255, 255, 0.038);
+	padding: 1rem;
+}
+
+.campfire-stat-icon {
+	display: grid;
+	width: 2.7rem;
+	height: 2.7rem;
+	flex: 0 0 auto;
+	place-items: center;
+	border: 1px solid rgba(253, 186, 116, 0.2);
+	border-radius: 0.9rem;
+	background: rgba(249, 115, 22, 0.08);
+	color: #fdba74;
+}
+
+.campfire-stat-card--green .campfire-stat-icon {
+	border-color: rgba(74, 222, 128, 0.2);
+	background: rgba(22, 163, 74, 0.08);
+	color: #86efac;
+}
+
+.campfire-stat-card--red .campfire-stat-icon {
+	border-color: rgba(248, 113, 113, 0.22);
+	background: rgba(220, 38, 38, 0.08);
+	color: #fca5a5;
+}
+
+.campfire-stat-card--blue .campfire-stat-icon {
+	border-color: rgba(96, 165, 250, 0.2);
+	background: rgba(37, 99, 235, 0.08);
+	color: #93c5fd;
+}
+
+.campfire-stat-copy {
+	display: grid;
+	min-width: 0;
+	gap: 0.18rem;
+}
+
+.campfire-stat-label {
+	color: var(--muted-foreground);
+	font-size: 0.78rem;
+	font-weight: 680;
+	line-height: 1.2;
+}
+
+.campfire-stat-value {
+	overflow: hidden;
+	color: #f7f5f2;
+	font-size: 1.1rem;
+	font-weight: 720;
+	letter-spacing: -0.025em;
+	line-height: 1.18;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.campfire-stat-helper {
+	overflow: hidden;
+	color: var(--muted-foreground);
+	font-size: 0.78rem;
+	font-weight: 520;
+	line-height: 1.25;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.campfire-two-column-grid {
+	display: grid;
+	grid-template-columns: minmax(0, 1.1fr) minmax(18rem, 0.9fr);
+	gap: 1rem;
+	align-items: stretch;
+}
+
+.campfire-quick-link-list {
+	display: grid;
+	gap: 0.55rem;
+}
+
+.campfire-quick-link,
+.campfire-back-button {
+	appearance: none;
+	font: inherit;
+	cursor: pointer;
+}
+
+.campfire-quick-link {
+	display: grid;
+	width: 100%;
+	grid-template-columns: 2.55rem minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 0.8rem;
+	border: 1px solid rgba(255, 255, 255, 0.09);
+	border-radius: 0.95rem;
+	background: rgba(255, 255, 255, 0.032);
+	color: inherit;
+	padding: 0.85rem;
+	text-align: left;
+	transition:
+		background-color 160ms ease,
+		border-color 160ms ease;
+}
+
+.campfire-quick-link:hover {
+	border-color: rgba(253, 186, 116, 0.24);
+	background: rgba(253, 186, 116, 0.052);
+}
+
+.campfire-quick-link-icon {
+	display: grid;
+	width: 2.35rem;
+	height: 2.35rem;
+	place-items: center;
+	border-radius: 0.8rem;
+	background: rgba(249, 115, 22, 0.08);
+	color: #fdba74;
+}
+
+.campfire-quick-link-copy {
+	display: grid;
+	min-width: 0;
+	gap: 0.16rem;
+}
+
+.campfire-quick-link-label {
+	color: #f7f5f2;
+	font-size: 0.98rem;
+	font-weight: 680;
+	line-height: 1.2;
+}
+
+.campfire-quick-link-description {
+	overflow: hidden;
+	color: var(--muted-foreground);
+	font-size: 0.84rem;
+	font-weight: 520;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.campfire-quick-link-arrow {
+	color: #fdba74;
+	font-size: 1.1rem;
+}
+
+.campfire-back-button {
+	justify-self: start;
+	border: 0;
+	background: transparent;
+	color: #fed7aa;
+	font-size: 0.92rem;
+	font-weight: 620;
+	padding: 0;
+}
+
+.campfire-back-button:hover {
+	color: #fff7ed;
+}
+
+.campfire-pill-tabs,
+.campfire-theme .campfire-section-nav {
+	display: inline-grid !important;
+	width: min(100%, 48rem) !important;
+	grid-auto-flow: column !important;
+	grid-auto-columns: minmax(8.5rem, 1fr) !important;
+	grid-template-columns: none !important;
+	gap: 0 !important;
+	align-items: center !important;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 9999px;
+	background: rgba(255, 255, 255, 0.035);
+	padding: 0.25rem;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.campfire-pill-tab,
+.campfire-theme .campfire-section-nav > button {
+	min-height: 2.65rem !important;
+	border: 1px solid transparent !important;
+	border-radius: 9999px !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	color: #d4d4d8 !important;
+	font: inherit;
+	font-size: 0.92rem !important;
+	font-weight: 650 !important;
+	line-height: 1 !important;
+	padding: 0 1rem !important;
+	text-align: center !important;
+	cursor: pointer;
+}
+
+.campfire-theme .campfire-section-nav > button span + span {
+	display: none !important;
+}
+
+.campfire-pill-tab:hover,
+.campfire-theme .campfire-section-nav > button:hover {
+	background: rgba(253, 186, 116, 0.055) !important;
+	color: #fff7ed !important;
+}
+
+.campfire-pill-tab--active,
+.campfire-theme .campfire-section-nav > button[aria-current='page'] {
+	border-color: rgba(253, 186, 116, 0.34) !important;
+	background:
+		linear-gradient(90deg, rgba(249, 115, 22, 0.18), rgba(245, 158, 11, 0.1)),
+		rgba(249, 115, 22, 0.08) !important;
+	color: #fed7aa !important;
+}
+
+.campfire-standup-surface {
+	padding: 1.3rem;
+}
+
+.campfire-standup-body,
+.campfire-standup-form {
+	display: grid;
+	gap: 1rem;
+}
+
+.campfire-question-row {
+	display: grid;
+	grid-template-columns: minmax(11rem, 0.32fr) minmax(0, 1fr);
+	gap: 1rem;
+	align-items: start;
+	border-top: 1px solid rgba(255, 255, 255, 0.07);
+	padding-top: 1rem;
+}
+
+.campfire-question-copy {
+	display: grid;
+	gap: 0.32rem;
+}
+
+.campfire-question-label {
+	color: #f7f5f2 !important;
+	font-size: 0.98rem !important;
+	font-weight: 650 !important;
+	line-height: 1.35 !important;
+}
+
+.campfire-question-help {
+	margin: 0;
+	color: var(--muted-foreground);
+	font-size: 0.82rem;
+	font-weight: 520;
+	line-height: 1.45;
+}
+
+.campfire-task-answer-list {
+	display: grid;
+	gap: 0.65rem;
+}
+
+.campfire-task-answer-row {
+	display: grid;
+	grid-template-columns: 2.2rem minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 0.55rem;
+}
+
+.campfire-task-answer-index {
+	display: grid;
+	height: 2.4rem;
+	place-items: center;
+	border: 1px solid rgba(253, 186, 116, 0.18);
+	border-radius: 0.75rem;
+	background: rgba(249, 115, 22, 0.06);
+	color: #fed7aa;
+	font-size: 0.82rem;
+	font-weight: 720;
+}
+
+.campfire-task-answer-footer,
+.campfire-submit-strip,
+.campfire-form-actions {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.85rem;
+}
+
+.campfire-task-answer-footer p,
+.campfire-submit-strip p,
+.campfire-table-footer {
+	margin: 0;
+	color: var(--muted-foreground);
+	font-size: 0.86rem;
+	font-weight: 520;
+	line-height: 1.45;
+}
+
+.campfire-submit-strip {
+	border-top: 1px solid rgba(255, 255, 255, 0.07);
+	padding-top: 1rem;
+}
+
+.campfire-inline-loading,
+.campfire-inline-error {
+	display: flex;
+	align-items: center;
+	gap: 0.55rem;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 0.95rem;
+	background: rgba(255, 255, 255, 0.035);
+	color: #d4d4d8;
+	padding: 0.8rem 0.95rem;
+	font-size: 0.9rem;
+	font-weight: 560;
+}
+
+.campfire-inline-error {
+	border-color: rgba(248, 113, 113, 0.24);
+	background: rgba(127, 29, 29, 0.18);
+	color: #fecaca;
+}
+
+.campfire-list-toolbar {
+	display: grid;
+	grid-template-columns: minmax(16rem, 1fr) minmax(11rem, 14rem) auto;
+	gap: 0.75rem;
+	align-items: center;
+	margin-bottom: 0.9rem;
+}
+
+.campfire-search-field {
+	position: relative;
+	display: block;
+}
+
+.campfire-search-field svg {
+	position: absolute;
+	left: 0.9rem;
+	top: 50%;
+	z-index: 1;
+	color: var(--muted-foreground);
+	transform: translateY(-50%);
+}
+
+.campfire-search-field input {
+	padding-left: 2.55rem !important;
+}
+
+.campfire-checkbox-inline {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	color: var(--muted-foreground);
+	font-size: 0.88rem;
+	font-weight: 560;
+	white-space: nowrap;
+}
+
+.campfire-data-table {
+	display: grid;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 1rem;
+	overflow: hidden;
+}
+
+.campfire-data-table-row {
+	display: grid;
+	grid-template-columns: minmax(18rem, 1.5fr) minmax(8rem, 0.65fr) minmax(7rem, 0.55fr) minmax(8rem, 0.65fr) minmax(10rem, 0.75fr);
+	gap: 0.8rem;
+	align-items: center;
+	border-top: 1px solid rgba(255, 255, 255, 0.07);
+	background: rgba(255, 255, 255, 0.022);
+	padding: 0.8rem 0.9rem;
+}
+
+.campfire-data-table--time .campfire-data-table-row {
+	grid-template-columns: minmax(15rem, 1.4fr) minmax(7.5rem, 0.6fr) minmax(6rem, 0.45fr) minmax(14rem, 1fr);
+}
+
+.campfire-data-table-row:first-child {
+	border-top: 0;
+}
+
+.campfire-data-table-row--head {
+	background: rgba(255, 255, 255, 0.045);
+	color: var(--muted-foreground);
+	font-size: 0.78rem;
+	font-weight: 680;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+}
+
+.campfire-task-title-cell {
+	display: grid;
+	min-width: 0;
+	gap: 0.18rem;
+}
+
+.campfire-task-title-cell strong {
+	overflow: hidden;
+	color: #f7f5f2;
+	font-size: 0.95rem;
+	font-weight: 650;
+	line-height: 1.28;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.campfire-task-title-cell small,
+.campfire-muted-cell {
+	overflow: hidden;
+	color: var(--muted-foreground);
+	font-size: 0.82rem;
+	font-weight: 500;
+	line-height: 1.35;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.campfire-task-title-cell a {
+	color: #fdba74;
+	font-size: 0.78rem;
+	font-weight: 620;
+	text-decoration: none;
+}
+
+.campfire-task-title-cell a:hover {
+	text-decoration: underline;
+}
+
+.campfire-time-layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(21rem, 0.42fr);
+	gap: 1rem;
+	align-items: start;
+}
+
+.campfire-form-grid {
+	display: grid;
+	gap: 0.85rem;
+}
+
+.campfire-form-grid--task {
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.campfire-form-stack {
+	display: grid;
+	gap: 0.85rem;
+}
+
+.campfire-form-field {
+	display: grid;
+	gap: 0.4rem;
+	min-width: 0;
+}
+
+.campfire-form-field--wide {
+	grid-column: 1 / -1;
+}
+
+.campfire-form-field > span {
+	color: #f7f5f2;
+	font-size: 0.86rem;
+	font-weight: 630;
+}
+
+.campfire-theme [data-slot='button'] {
+	box-shadow: none !important;
+	font-weight: 620 !important;
+}
+
+.campfire-theme [data-slot='button'][data-variant='default'] {
+	background: rgba(249, 115, 22, 0.12) !important;
+	border-color: rgba(253, 186, 116, 0.28) !important;
+	color: #fed7aa !important;
+}
+
+.campfire-theme [data-slot='button'][data-variant='default']:hover {
+	background: rgba(249, 115, 22, 0.16) !important;
+	border-color: rgba(253, 186, 116, 0.38) !important;
+}
+
+.campfire-logo-ember {
+	width: 0.56rem;
+	height: 0.56rem;
+	animation-duration: 2.8s;
+	animation-timing-function: cubic-bezier(0.22, 0.84, 0.28, 1);
+}
+
+@keyframes campfire-visible-ember-rise {
+	0% {
+		opacity: 0;
+		transform: translate3d(0, 0, 0) scale(0.35);
+	}
+
+	16% {
+		opacity: 0.92;
+	}
+
+	58% {
+		opacity: 0.86;
+		transform: translate3d(0.1rem, -1.05rem, 0) scale(0.82);
+	}
+
+	100% {
+		opacity: 0;
+		transform: translate3d(-0.22rem, -2rem, 0) scale(0.12);
+	}
+}
+
+@media (max-width: 1100px) {
+	.campfire-stat-grid--three,
+	.campfire-two-column-grid,
+	.campfire-time-layout,
+	.campfire-form-grid--task {
+		grid-template-columns: 1fr;
+	}
+
+	.campfire-question-row {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (max-width: 860px) {
+	.campfire-modal--workspace-app .campfire-workspace-shell {
+		grid-template-columns: 1fr;
+	}
+
+	.campfire-app-sidebar {
+		display: none;
+	}
+
+	.campfire-workspace-topline {
+		padding: 1rem 1rem 0.35rem;
+	}
+
+	.campfire-workspace-content {
+		padding: 0.75rem 1rem 1rem;
+	}
+
+	.campfire-list-toolbar {
+		grid-template-columns: 1fr;
+	}
+
+	.campfire-data-table-row,
+	.campfire-data-table--time .campfire-data-table-row {
+		grid-template-columns: 1fr;
+		gap: 0.45rem;
+	}
+
+	.campfire-data-table-row--head {
+		display: none;
+	}
+
+	.campfire-page-header,
+	.campfire-task-answer-footer,
+	.campfire-submit-strip,
+	.campfire-form-actions {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.campfire-page-actions {
+		width: 100%;
+	}
+}
+
+/* Patch 05: reusable section tabs and flatter review rows. */
+.campfire-theme .campfire-section-tabs {
+	display: inline-grid;
+	width: min(100%, 58rem);
+	grid-auto-flow: column;
+	grid-auto-columns: minmax(7.5rem, 1fr);
+	gap: 0;
+	align-items: center;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 9999px;
+	background: rgba(255, 255, 255, 0.035);
+	padding: 0.25rem;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.campfire-theme .campfire-section-tab {
+	min-height: 2.65rem;
+	border: 1px solid transparent;
+	border-radius: 9999px;
+	background: transparent;
+	box-shadow: none;
+	color: #d4d4d8;
+	font: inherit;
+	font-size: 0.92rem;
+	font-weight: 600;
+	line-height: 1;
+	padding: 0 1rem;
+	text-align: center;
+	cursor: pointer;
+	transition:
+		background-color 160ms ease,
+		border-color 160ms ease,
+		color 160ms ease;
+}
+
+.campfire-theme .campfire-section-tab:hover {
+	background: rgba(253, 186, 116, 0.055);
+	color: #fff7ed;
+}
+
+.campfire-theme .campfire-section-tab--active {
+	border-color: rgba(253, 186, 116, 0.34);
+	background:
+		linear-gradient(90deg, rgba(249, 115, 22, 0.16), rgba(245, 158, 11, 0.09)),
+		rgba(249, 115, 22, 0.08);
+	color: #fed7aa;
+}
+
+.campfire-theme .campfire-attention-strip {
+	display: grid;
+	gap: 0.7rem;
+	border: 1px solid rgba(255, 255, 255, 0.09);
+	border-radius: 1.15rem;
+	background: rgba(255, 255, 255, 0.025);
+	padding: 0.75rem;
+}
+
+.campfire-theme .campfire-attention-group {
+	display: grid;
+	grid-template-columns: auto minmax(9rem, 0.28fr) minmax(0, 1fr);
+	gap: 0.75rem;
+	align-items: center;
+	min-width: 0;
+}
+
+.campfire-theme .campfire-attention-icon {
+	display: grid;
+	width: 2.15rem;
+	height: 2.15rem;
+	place-items: center;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 0.85rem;
+	background: rgba(255, 255, 255, 0.035);
+}
+
+.campfire-theme .campfire-attention-icon--red {
+	border-color: rgba(248, 113, 113, 0.24);
+	background: rgba(127, 29, 29, 0.18);
+	color: #fca5a5;
+}
+
+.campfire-theme .campfire-attention-icon--slate {
+	color: #cbd5e1;
+}
+
+.campfire-theme .campfire-attention-copy {
+	display: grid;
+	min-width: 0;
+	gap: 0.15rem;
+}
+
+.campfire-theme .campfire-attention-title {
+	color: #f8fafc;
+	font-size: 0.9rem;
+	font-weight: 650;
+	line-height: 1.15;
+}
+
+.campfire-theme .campfire-attention-description {
+	overflow: hidden;
+	color: var(--muted-foreground);
+	font-size: 0.78rem;
+	font-weight: 560;
+	line-height: 1.25;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.campfire-theme .campfire-attention-people {
+	display: flex;
+	min-width: 0;
+	flex-wrap: wrap;
+	gap: 0.45rem;
+	justify-content: flex-end;
+}
+
+.campfire-theme .campfire-attention-empty,
+.campfire-theme .campfire-attention-chip {
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 9999px;
+	background: rgba(255, 255, 255, 0.035);
+	color: #d4d4d8;
+	font-size: 0.78rem;
+	font-weight: 600;
+	line-height: 1;
+	padding: 0.42rem 0.65rem;
+}
+
+.campfire-theme .campfire-attention-chip--red {
+	border-color: rgba(248, 113, 113, 0.22);
+	background: rgba(127, 29, 29, 0.18);
+	color: #fecaca;
+}
+
+.campfire-theme .campfire-attention-chip--slate {
+	border-color: rgba(148, 163, 184, 0.18);
+	background: rgba(148, 163, 184, 0.08);
+	color: #cbd5e1;
+}
+
+@media (max-width: 900px) {
+	.campfire-theme .campfire-section-tabs {
+		display: flex;
+		overflow-x: auto;
+		width: 100%;
+		scrollbar-width: none;
+	}
+
+	.campfire-theme .campfire-section-tabs::-webkit-scrollbar {
+		display: none;
+	}
+
+	.campfire-theme .campfire-section-tab {
+		flex: 0 0 auto;
+		min-width: 8rem;
+	}
+
+	.campfire-theme .campfire-attention-group {
+		grid-template-columns: auto minmax(0, 1fr);
+	}
+
+	.campfire-theme .campfire-attention-people {
+		grid-column: 1 / -1;
+		justify-content: flex-start;
+	}
+}

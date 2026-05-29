@@ -1,16 +1,9 @@
 import { useState } from 'react';
 import type { ReactElement } from 'react';
-import { FileQuestion, Layers3, Loader2, Plus, ScrollText } from 'lucide-react';
+import { FileQuestion, Loader2, Plus, ScrollText, Sparkles } from 'lucide-react';
 
-import {
-	CampfireCardBody,
-	CampfireCardHeader,
-	CampfireEmpty,
-	CampfirePanel,
-	CampfireStatusPill,
-} from '@/app/campfire-ui';
+import { CampfireSectionTabs, CampfireStatusPill, CampfireSurface, CampfireWorkflowNote } from '@/components/campfire/CampfireLayoutPrimitives';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import type { StandupQuestion, StandupTemplate } from '@/types/domain';
 
 import type {
@@ -51,32 +44,24 @@ type StandupFormsPanelProps = {
 type StandupFormsViewID = 'create' | 'templates';
 
 /**
- * StandupFormsView describes one local form-builder tab.
- */
-type StandupFormsView = {
-	readonly id: StandupFormsViewID;
-	readonly label: string;
-	readonly description: string;
-	readonly icon: typeof FileQuestion;
-};
-
-/**
  * standupFormsViews lists focused form-builder views.
  */
-const standupFormsViews: readonly StandupFormsView[] = [
+const standupFormsViews = [
 	{
-		id: 'create',
+		value: 'create',
 		label: 'Create',
 		description: 'Add new templates and questions.',
-		icon: Plus,
 	},
 	{
-		id: 'templates',
+		value: 'templates',
 		label: 'Templates',
 		description: 'Edit saved templates and attached questions.',
-		icon: Layers3,
 	},
-];
+] satisfies ReadonlyArray<{
+	readonly value: StandupFormsViewID;
+	readonly label: string;
+	readonly description: string;
+}>;
 
 /**
  * StandupFormsPanel renders template and dynamic-question editing.
@@ -88,29 +73,38 @@ export function StandupFormsPanel(props: StandupFormsPanelProps): ReactElement {
 	const questionCreateDisabled = formDisabled || props.templates.length === 0;
 
 	return (
-		<div className="cf:grid cf:gap-5">
-			<CampfirePanel>
-				<CampfireCardHeader
-					eyebrow="Forms"
-					title="What Campfire asks"
-					description="Create templates, then attach only the questions your team actually needs."
-					icon={FileQuestion}
-					action={
-						<div className="cf:flex cf:flex-wrap cf:gap-2">
-							<CampfireStatusPill tone="ember">
-								{props.templatesWithDrafts.length} templates
-							</CampfireStatusPill>
-							<CampfireStatusPill tone={props.canManageStandups ? 'green' : 'slate'}>
-								{props.canManageStandups ? 'Editable' : 'Read only'}
-							</CampfireStatusPill>
-						</div>
-					}
+		<div className="campfire-standup-builder">
+			<CampfireSurface className="campfire-standup-builder-header">
+				<div className="campfire-surface-header campfire-surface-header--with-action">
+					<div>
+						<p className="campfire-surface-eyebrow">Forms</p>
+						<h3 className="campfire-surface-title">What Campfire asks</h3>
+						<p className="campfire-surface-description">
+							Create templates, then attach only the questions your team actually needs.
+						</p>
+					</div>
+
+					<div className="campfire-pill-row">
+						<CampfireStatusPill tone="ember">{props.templatesWithDrafts.length} templates</CampfireStatusPill>
+						<CampfireStatusPill tone={props.canManageStandups ? 'green' : 'slate'}>
+							{props.canManageStandups ? 'Editable' : 'Read only'}
+						</CampfireStatusPill>
+					</div>
+				</div>
+
+				<CampfireWorkflowNote
+					icon={Sparkles}
+					title="Task creation is explicit."
+					description="Only questions with Create tasks enabled produce task records from itemized answers."
 				/>
 
-				<CampfireCardBody className="cf:grid cf:gap-5">
-					<StandupFormsNavigation activeViewID={activeViewID} onSelectView={setActiveViewID} />
-				</CampfireCardBody>
-			</CampfirePanel>
+				<CampfireSectionTabs
+					label="Standup form builder sections"
+					activeValue={activeViewID}
+					tabs={standupFormsViews}
+					onChange={setActiveViewID}
+				/>
+			</CampfireSurface>
 
 			{activeViewID === 'create' && (
 				<CreateStandupFormsPanel
@@ -145,49 +139,6 @@ export function StandupFormsPanel(props: StandupFormsPanelProps): ReactElement {
 }
 
 /**
- * StandupFormsNavigation renders local form-builder navigation.
- */
-function StandupFormsNavigation(props: {
-	readonly activeViewID: StandupFormsViewID;
-	readonly onSelectView: (viewID: StandupFormsViewID) => void;
-}): ReactElement {
-	return (
-		<nav className="campfire-standup-forms-nav" aria-label="Standup form builder sections">
-			{standupFormsViews.map(view => {
-				const active = view.id === props.activeViewID;
-				const Icon = view.icon;
-
-				return (
-					<button
-						key={view.id}
-						type="button"
-						aria-current={active ? 'page' : undefined}
-						className={cn(
-							'campfire-standup-forms-nav-button',
-							active && 'campfire-standup-forms-nav-button--active',
-						)}
-						onClick={() => props.onSelectView(view.id)}
-					>
-						<span className="campfire-standup-forms-nav-icon">
-							<Icon className="cf:size-5" />
-						</span>
-
-						<span className="cf:min-w-0">
-							<span className="cf:block cf:text-base cf:font-black cf:tracking-[-0.02em] cf:text-foreground">
-								{view.label}
-							</span>
-							<span className="cf:mt-1 cf:block cf:text-sm cf:font-semibold cf:leading-5 cf:text-muted-foreground">
-								{view.description}
-							</span>
-						</span>
-					</button>
-				);
-			})}
-		</nav>
-	);
-}
-
-/**
  * CreateStandupFormsPanel renders the create-template and create-question workflow.
  */
 function CreateStandupFormsPanel(props: {
@@ -203,108 +154,104 @@ function CreateStandupFormsPanel(props: {
 	readonly onCreateQuestion: () => Promise<void>;
 }): ReactElement {
 	return (
-		<CampfirePanel>
-			<CampfireCardHeader
-				eyebrow="Create"
-				title="Add form pieces"
-				description="Create the template first, then add questions to it."
-				icon={Plus}
-				action={<CampfireStatusPill tone="ember">New</CampfireStatusPill>}
-			/>
+		<div className="campfire-standup-builder-create-grid">
+			<CampfireSurface className="campfire-standup-create-surface">
+				<form
+					className="campfire-standup-create-form"
+					onSubmit={event => {
+						event.preventDefault();
+						void props.onCreateTemplate();
+					}}
+				>
+					<div className="campfire-surface-header campfire-surface-header--with-action">
+						<div>
+							<p className="campfire-surface-eyebrow">Step 1</p>
+							<h3 className="campfire-surface-title">Create template</h3>
+							<p className="campfire-surface-description">
+								Give the form a clear PM-friendly name and cadence.
+							</p>
+						</div>
+						<CampfireStatusPill tone="ember">New</CampfireStatusPill>
+					</div>
 
-			<CampfireCardBody className="cf:grid cf:gap-5">
-				<div className="cf:grid cf:gap-5 cf:xl:grid-cols-2">
-					<form
-						className="cf:grid cf:content-start cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-5"
-						onSubmit={event => {
-							event.preventDefault();
-							void props.onCreateTemplate();
-						}}
-					>
-						<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
+					<StandupTemplateFields
+						idPrefix="campfire-new-standup-template"
+						draft={props.newTemplate}
+						disabled={props.formDisabled}
+						includeActiveToggle={false}
+						onChange={props.onNewTemplateChange}
+					/>
+
+					<div className="campfire-form-actions">
+						<Button type="submit" disabled={props.formDisabled}>
+							{props.savingID === 'new-template' ? (
+								<Loader2 className="cf:size-4 cf:animate-spin" />
+							) : (
+								<Plus className="cf:size-4" />
+							)}
+							Create template
+						</Button>
+					</div>
+				</form>
+			</CampfireSurface>
+
+			<CampfireSurface className="campfire-standup-create-surface">
+				<form
+					className="campfire-standup-create-form"
+					onSubmit={event => {
+						event.preventDefault();
+						void props.onCreateQuestion();
+					}}
+				>
+					<div className="campfire-surface-header campfire-surface-header--with-action">
+						<div>
+							<p className="campfire-surface-eyebrow">Step 2</p>
+							<h3 className="campfire-surface-title">Create question</h3>
+							<p className="campfire-surface-description">
+								Attach a concrete input to one existing template.
+							</p>
+						</div>
+						<CampfireStatusPill tone={props.templates.length === 0 ? 'slate' : 'ember'}>
+							Question
+						</CampfireStatusPill>
+					</div>
+
+					{props.templates.length === 0 ? (
+						<div className="campfire-flat-empty-state">
+							<span className="campfire-flat-empty-icon" aria-hidden="true">
+								<ScrollText className="cf:size-5" />
+							</span>
 							<div>
-								<h3 className="cf:m-0 cf:text-lg cf:font-black cf:text-foreground">Create template</h3>
-								<p className="cf:m-0 cf:mt-1 cf:text-sm cf:font-semibold cf:text-muted-foreground">
-									The template is the daily, weekly, or custom form container.
-								</p>
+								<h4>Create a template first</h4>
+								<p>Questions need a template before they can be attached.</p>
 							</div>
-
-							<CampfireStatusPill tone="ember">Step 1</CampfireStatusPill>
 						</div>
-
-						<StandupTemplateFields
-							idPrefix="campfire-new-standup-template"
-							draft={props.newTemplate}
-							disabled={props.formDisabled}
-							includeActiveToggle={false}
-							onChange={props.onNewTemplateChange}
-						/>
-
-						<div className="cf:flex cf:justify-end">
-							<Button type="submit" disabled={props.formDisabled}>
-								{props.savingID === 'new-template' ? (
-									<Loader2 className="cf:size-4 cf:animate-spin" />
-								) : (
-									<Plus className="cf:size-4" />
-								)}
-								Create template
-							</Button>
-						</div>
-					</form>
-
-					<form
-						className="cf:grid cf:content-start cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-5"
-						onSubmit={event => {
-							event.preventDefault();
-							void props.onCreateQuestion();
-						}}
-					>
-						<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
-							<div>
-								<h3 className="cf:m-0 cf:text-lg cf:font-black cf:text-foreground">Create question</h3>
-								<p className="cf:m-0 cf:mt-1 cf:text-sm cf:font-semibold cf:text-muted-foreground">
-									Attach one question to an existing template.
-								</p>
-							</div>
-
-							<CampfireStatusPill tone={props.templates.length === 0 ? 'slate' : 'ember'}>
-								Step 2
-							</CampfireStatusPill>
-						</div>
-
-						{props.templates.length === 0 ? (
-							<CampfireEmpty
-								icon={ScrollText}
-								title="Create a template first"
-								description="Questions need a template before they can be attached."
+					) : (
+						<>
+							<StandupQuestionFields
+								idPrefix="campfire-new-standup-question"
+								templates={props.templates}
+								draft={props.newQuestion}
+								disabled={props.questionCreateDisabled}
+								allowTemplateChange={true}
+								onChange={props.onNewQuestionChange}
 							/>
-						) : (
-							<>
-								<StandupQuestionFields
-									idPrefix="campfire-new-standup-question"
-									templates={props.templates}
-									draft={props.newQuestion}
-									disabled={props.questionCreateDisabled}
-									allowTemplateChange={true}
-									onChange={props.onNewQuestionChange}
-								/>
 
-								<div className="cf:flex cf:justify-end">
-									<Button type="submit" disabled={props.questionCreateDisabled}>
-										{props.savingID === 'new-question' ? (
-											<Loader2 className="cf:size-4 cf:animate-spin" />
-										) : (
-											<Plus className="cf:size-4" />
-										)}
-										Create question
-									</Button>
-								</div>
-							</>
-						)}
-					</form>
-				</div>
-			</CampfireCardBody>
-		</CampfirePanel>
+							<div className="campfire-form-actions">
+								<Button type="submit" disabled={props.questionCreateDisabled}>
+									{props.savingID === 'new-question' ? (
+										<Loader2 className="cf:size-4 cf:animate-spin" />
+									) : (
+										<Plus className="cf:size-4" />
+									)}
+									Create question
+								</Button>
+							</div>
+						</>
+					)}
+				</form>
+			</CampfireSurface>
+		</div>
 	);
 }
 
@@ -323,45 +270,50 @@ function ExistingStandupTemplatesPanel(props: {
 	readonly onSaveQuestion: (question: StandupQuestion) => Promise<void>;
 }): ReactElement {
 	return (
-		<CampfirePanel>
-			<CampfireCardHeader
-				eyebrow="Templates"
-				title="Edit existing forms"
-				description="Review saved templates and edit their attached questions."
-				icon={Layers3}
-				action={<CampfireStatusPill tone="ember">{props.templatesWithDrafts.length}</CampfireStatusPill>}
-			/>
+		<CampfireSurface className="campfire-standup-template-list-surface">
+			<div className="campfire-surface-header campfire-surface-header--with-action">
+				<div>
+					<p className="campfire-surface-eyebrow">Templates</p>
+					<h3 className="campfire-surface-title">Edit existing forms</h3>
+					<p className="campfire-surface-description">
+						Review saved templates and edit their attached questions.
+					</p>
+				</div>
+				<CampfireStatusPill tone="ember">{props.templatesWithDrafts.length}</CampfireStatusPill>
+			</div>
 
-			<CampfireCardBody className="cf:grid cf:gap-5">
-				{props.templatesWithDrafts.length === 0 && (
-					<CampfireEmpty
-						icon={FileQuestion}
-						title="No form templates yet"
-						description="Create a template first, then attach daily or weekly questions."
-					/>
-				)}
-
-				{props.templatesWithDrafts.length > 0 && (
-					<div className="cf:grid cf:gap-5">
-						{props.templatesWithDrafts.map(pair => (
-							<StandupTemplateCard
-								key={pair.template.id}
-								template={pair.template}
-								templates={props.templates}
-								draft={pair.draft}
-								questions={pair.questions}
-								disabled={props.disabled}
-								canManageStandups={props.canManageStandups}
-								savingID={props.savingID}
-								onTemplateDraftChange={props.onTemplateDraftChange}
-								onQuestionDraftChange={props.onQuestionDraftChange}
-								onSaveTemplate={props.onSaveTemplate}
-								onSaveQuestion={props.onSaveQuestion}
-							/>
-						))}
+			{props.templatesWithDrafts.length === 0 && (
+				<div className="campfire-flat-empty-state">
+					<span className="campfire-flat-empty-icon" aria-hidden="true">
+						<FileQuestion className="cf:size-5" />
+					</span>
+					<div>
+						<h4>No form templates yet</h4>
+						<p>Create a template first, then attach daily or weekly questions.</p>
 					</div>
-				)}
-			</CampfireCardBody>
-		</CampfirePanel>
+				</div>
+			)}
+
+			{props.templatesWithDrafts.length > 0 && (
+				<div className="campfire-standup-template-editor-list">
+					{props.templatesWithDrafts.map(pair => (
+						<StandupTemplateCard
+							key={pair.template.id}
+							template={pair.template}
+							templates={props.templates}
+							draft={pair.draft}
+							questions={pair.questions}
+							disabled={props.disabled}
+							canManageStandups={props.canManageStandups}
+							savingID={props.savingID}
+							onTemplateDraftChange={props.onTemplateDraftChange}
+							onQuestionDraftChange={props.onQuestionDraftChange}
+							onSaveTemplate={props.onSaveTemplate}
+							onSaveQuestion={props.onSaveQuestion}
+						/>
+					))}
+				</div>
+			)}
+		</CampfireSurface>
 	);
 }

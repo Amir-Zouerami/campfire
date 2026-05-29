@@ -1,10 +1,10 @@
 import type { ReactElement } from 'react';
 import { Globe2 } from 'lucide-react';
 
-import { CampfireEmpty, CampfireStatusPill } from '@/app/campfire-ui';
 import type { GlobalTimeReportWorkspaceSummary } from '@/types/domain';
 
 import { formatMinutes } from './global-reports.helpers';
+import { CampfireEmpty, CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * GlobalTimeWorkspacePanelProps contains workspace time totals.
@@ -20,10 +20,10 @@ export function GlobalTimeWorkspacePanel(props: GlobalTimeWorkspacePanelProps): 
 	return (
 		<section className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
 			<div>
-				<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+				<p className="cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 					Workspace totals
 				</p>
-				<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
+				<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
 					Time by workspace
 				</h3>
 			</div>
@@ -42,7 +42,7 @@ export function GlobalTimeWorkspacePanel(props: GlobalTimeWorkspacePanelProps): 
 							className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4"
 						>
 							<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-2">
-								<h4 className="cf:min-w-0 cf:truncate cf:text-base cf:font-black cf:text-foreground">
+								<h4 className="cf:min-w-0 cf:truncate cf:text-base cf:font-semibold cf:text-foreground">
 									{workspace.workspaceName}
 								</h4>
 								<CampfireStatusPill tone="green">

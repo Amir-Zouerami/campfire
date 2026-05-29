@@ -1,19 +1,20 @@
 import type { ReactElement } from 'react';
 import { Loader2, UserPlus } from 'lucide-react';
 
-import { CampfireStatusPill } from '@/app/campfire-ui';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
+import { CampfireUserPicker } from '@/components/campfire/CampfireUserPicker';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 import { ASSIGNABLE_WORKSPACE_ROLES, roleLabel, toAssignableWorkspaceRole } from './roles-access.helpers';
 import type { RoleAssignmentDraft } from './roles-access.types';
+import { CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * RoleAssignmentPanelProps contains the role assignment form state.
  */
 type RoleAssignmentPanelProps = {
+	readonly workspaceID: string;
 	readonly draft: RoleAssignmentDraft;
 	readonly disabled: boolean;
 	readonly canManageRoles: boolean;
@@ -29,19 +30,18 @@ export function RoleAssignmentPanel(props: RoleAssignmentPanelProps): ReactEleme
 	const formDisabled = props.disabled || !props.canManageRoles;
 
 	return (
-		<section className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
+		<section className="campfire-role-assignment-panel cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
 				<div>
-					<p className="cf:flex cf:items-center cf:gap-2 cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+					<p className="cf:flex cf:items-center cf:gap-2 cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 						<UserPlus className="cf:size-5" />
 						Assign role
 					</p>
-					<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
+					<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
 						Add named access
 					</h3>
 					<p className="cf:mt-2 cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
-						Enter a Mattermost user ID and choose the exact Campfire role. Members still come from channel
-						membership automatically.
+						Search a channel member by username, display name, or email, then choose the exact Campfire role.
 					</p>
 				</div>
 
@@ -58,13 +58,12 @@ export function RoleAssignmentPanel(props: RoleAssignmentPanelProps): ReactEleme
 				}}
 			>
 				<div className="cf:grid cf:gap-2">
-					<Label htmlFor="campfire-role-user-id">Mattermost user ID</Label>
-					<Input
-						id="campfire-role-user-id"
+					<Label>User</Label>
+					<CampfireUserPicker
+						workspaceID={props.workspaceID}
 						disabled={formDisabled}
-						placeholder="Paste user ID"
 						value={props.draft.userID}
-						onChange={event => props.onDraftChange({ userID: event.currentTarget.value })}
+						onChange={userID => props.onDraftChange({ userID })}
 					/>
 				</div>
 

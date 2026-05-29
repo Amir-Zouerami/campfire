@@ -1,5 +1,3 @@
-import { cn } from '@/lib/utils';
-
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
 
 import { reportSections } from './reports.sections';
@@ -52,16 +50,5 @@ export function resolveReportSection(
 		visibleSections.find(section => section.id === 'daily') ??
 		visibleSections.find(section => section.id === 'global') ??
 		null
-	);
-}
-
-/**
- * reportSectionButtonClassName returns report sub-page button classes.
- */
-export function reportSectionButtonClassName(active: boolean): string {
-	return cn(
-		'cf:flex cf:min-w-0 cf:w-full cf:flex-col cf:items-start cf:justify-center cf:gap-1 cf:rounded-2xl cf:border cf:px-5 cf:py-4 cf:text-left cf:transition',
-		'cf:cursor-pointer cf:border-white/10 cf:bg-white/[0.04] hover:cf:border-amber-300/35 hover:cf:bg-amber-300/[0.06]',
-		active && 'cf:border-amber-300/45 cf:bg-amber-300/[0.10] cf:shadow-lg',
 	);
 }

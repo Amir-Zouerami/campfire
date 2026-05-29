@@ -133,10 +133,7 @@ func (s *ReminderService) Update(
 	updatedRule := *existingRule
 	updatedRule.Enabled = input.Enabled
 	updatedRule.ChannelReminderEnabled = input.ChannelReminderEnabled
-	// Campfire opens from workspace channels. DM reminders are disabled so users
-	// are not sent into a DM-scoped workspace where Campfire cannot submit for
-	// the intended channel.
-	updatedRule.DMReminderEnabled = false
+	updatedRule.DMReminderEnabled = input.DMReminderEnabled
 	updatedRule.ReminderOffsetsJSON = offsetsJSON
 	updatedRule.MentionMissingInChannel = input.MentionMissingInChannel
 	updatedRule.UpdatedAt = time.Now().UTC()

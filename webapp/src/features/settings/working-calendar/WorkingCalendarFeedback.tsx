@@ -5,7 +5,7 @@ import { CampfireFeedback, CampfireLoadingFeedback } from '@/components/campfire
 import type { WorkingCalendarLoadState } from './working-calendar.types';
 
 /**
- * WorkingCalendarFeedbackProps contains user-facing calendar feedback state.
+ * WorkingCalendarFeedbackProps contains workflow feedback state.
  */
 type WorkingCalendarFeedbackProps = {
 	readonly state: WorkingCalendarLoadState;
@@ -13,7 +13,7 @@ type WorkingCalendarFeedbackProps = {
 };
 
 /**
- * WorkingCalendarFeedback renders success and error feedback for calendar settings.
+ * WorkingCalendarFeedback renders compact local workflow feedback.
  */
 export function WorkingCalendarFeedback(props: WorkingCalendarFeedbackProps): ReactElement | null {
 	return <CampfireFeedback message={props.message} tone={props.state === 'error' ? 'error' : 'success'} />;

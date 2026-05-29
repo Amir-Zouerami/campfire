@@ -37,10 +37,10 @@ export function GlobalOffDayCreatePanel(props: GlobalOffDayCreatePanelProps): Re
 			onSubmit={handleSubmit}
 		>
 			<div>
-				<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+				<p className="cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 					Add global off-day
 				</p>
-				<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
+				<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
 					Skip all workspaces
 				</h3>
 			</div>

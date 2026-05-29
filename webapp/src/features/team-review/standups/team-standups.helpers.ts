@@ -166,14 +166,14 @@ export function formatDateTime(value: string): string {
  */
 export function userChipClassName(tone: 'green' | 'red' | 'slate'): string {
 	if (tone === 'green') {
-		return 'cf:rounded-full cf:border cf:border-emerald-300/25 cf:bg-emerald-400/10 cf:px-3 cf:py-1 cf:text-xs cf:font-black cf:text-emerald-100';
+		return 'cf:rounded-full cf:border cf:border-emerald-300/25 cf:bg-emerald-400/10 cf:px-3 cf:py-1 cf:text-xs cf:font-semibold cf:text-emerald-100';
 	}
 
 	if (tone === 'red') {
-		return 'cf:rounded-full cf:border cf:border-red-300/25 cf:bg-red-400/10 cf:px-3 cf:py-1 cf:text-xs cf:font-black cf:text-red-100';
+		return 'cf:rounded-full cf:border cf:border-red-300/25 cf:bg-red-400/10 cf:px-3 cf:py-1 cf:text-xs cf:font-semibold cf:text-red-100';
 	}
 
-	return 'cf:rounded-full cf:border cf:border-white/10 cf:bg-white/10 cf:px-3 cf:py-1 cf:text-xs cf:font-black cf:text-slate-200';
+	return 'cf:rounded-full cf:border cf:border-white/10 cf:bg-white/10 cf:px-3 cf:py-1 cf:text-xs cf:font-semibold cf:text-slate-200';
 }
 
 /**

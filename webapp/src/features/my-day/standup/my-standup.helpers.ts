@@ -2,6 +2,7 @@ import { ApiClientError } from '@/api';
 import type { QuestionType, StandupQuestion, StandupSchedule, StandupTemplate, Task } from '@/types/domain';
 
 import type { AnswerDrafts, AnswerDraftValue, NormalizedAnswerValue } from './my-standup.types';
+import { isTaskListQuestion, parseTaskListItems } from './standup-task-list.helpers';
 
 /**
  * getTodayLocalDateString returns today's date as YYYY-MM-DD in the browser timezone.
@@ -154,7 +155,11 @@ export function validateRequiredAnswers(questions: readonly StandupQuestion[], a
 
 		const value = answers[question.id];
 
-		if (answerIsMissing(question.type, value)) {
+		if (isTaskListQuestion(question) && taskListAnswerIsMissing(value)) {
+			return `${question.label} needs at least one item.`;
+		}
+
+		if (!isTaskListQuestion(question) && answerIsMissing(question.type, value)) {
 			return `${question.label} is required.`;
 		}
 	}
@@ -288,4 +293,17 @@ function answerIsMissing(questionType: QuestionType, value: AnswerDraftValue | u
 		default:
 			return String(value).trim() === '';
 	}
+}
+
+
+/**
+ * taskListAnswerIsMissing returns true when a required task-creating answer
+ * only has the automatically appended empty draft row.
+ */
+function taskListAnswerIsMissing(value: AnswerDraftValue | undefined): boolean {
+	if (typeof value !== 'string') {
+		return true;
+	}
+
+	return parseTaskListItems(value).length === 0;
 }

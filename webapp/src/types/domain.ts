@@ -246,6 +246,7 @@ export type StandupRunDecision = {
 	readonly reason: StandupSkipReason;
 	readonly message: string;
 	readonly isWorkingDay: boolean;
+	readonly isLastWorkingDayOfWeek: boolean;
 	readonly memberCount: number;
 	readonly onLeaveMemberCount: number;
 	readonly globalOffDays: readonly GlobalSkipDate[];
@@ -286,6 +287,7 @@ export type StandupQuestion = {
 	readonly required: boolean;
 	readonly showInReport: boolean;
 	readonly isPrivate: boolean;
+	readonly createsTasks: boolean;
 	readonly position: number;
 	readonly sortOrder: number;
 	readonly options: readonly string[];

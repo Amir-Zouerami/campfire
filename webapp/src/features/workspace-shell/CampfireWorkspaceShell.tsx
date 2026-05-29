@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
-import { BarChart3, CalendarCheck, Flame, Settings2 } from 'lucide-react';
+import { BarChart3, CalendarCheck, Flame, HelpCircle, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
 
-import { CampfireCardHeader, CampfirePanel, CampfireStatusPill } from '@/app/campfire-ui';
+import campfireLogoURL from '../../../../assets/campfire-logo.svg';
+
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 import { MyDayPage } from '@/features/my-day/MyDayPage';
@@ -13,13 +15,13 @@ import { TeamReviewPage } from '@/features/team-review/TeamReviewPage';
 import type { WorkspacePageDefinition, WorkspacePageID, WorkspaceShellProps } from './workspace-shell.types';
 
 /**
- * workspacePages defines the redesigned Campfire workspace information architecture.
+ * workspacePages defines the flattened Campfire workspace information architecture.
  */
 const workspacePages: readonly WorkspacePageDefinition[] = [
 	{
 		id: 'my-day',
 		label: 'My Day',
-		eyebrow: 'Personal workflow',
+		eyebrow: 'Personal',
 		title: 'My Day',
 		description: 'Standup, tasks, time, and personal leave.',
 		managerOnly: false,
@@ -27,7 +29,7 @@ const workspacePages: readonly WorkspacePageDefinition[] = [
 	{
 		id: 'team-review',
 		label: 'Team Review',
-		eyebrow: 'Lead workspace',
+		eyebrow: 'Lead',
 		title: 'Team Review',
 		description: 'Submissions, availability, approvals, and runtime decisions.',
 		managerOnly: true,
@@ -35,7 +37,7 @@ const workspacePages: readonly WorkspacePageDefinition[] = [
 	{
 		id: 'reports',
 		label: 'Reports',
-		eyebrow: 'Markdown and CSV',
+		eyebrow: 'Insights',
 		title: 'Reports',
 		description: 'Preview reports, export CSV, and reuse saved filters.',
 		managerOnly: true,
@@ -43,7 +45,7 @@ const workspacePages: readonly WorkspacePageDefinition[] = [
 	{
 		id: 'settings',
 		label: 'Settings',
-		eyebrow: 'Configuration',
+		eyebrow: 'Config',
 		title: 'Settings',
 		description: 'Roles, calendar, standup forms, reminders, report rules, and audit history.',
 		managerOnly: true,
@@ -66,74 +68,103 @@ export function CampfireWorkspaceShell(props: WorkspaceShellProps): ReactElement
 
 	return (
 		<section className="campfire-workspace-shell">
-			<WorkspaceHeader {...props} activePage={activeDefinition} />
+			<WorkspaceSidebar
+				activePage={activeDefinition.id}
+				pages={visiblePages}
+				{...props}
+				onSelectPage={setActivePage}
+			/>
 
-			<WorkspaceNavigation activePage={activeDefinition.id} pages={visiblePages} onSelectPage={setActivePage} />
+			<div className="campfire-workspace-main">
+				<header className="campfire-workspace-topline">
+					<div className="campfire-workspace-topline-copy">
+						<span className="campfire-workspace-topline-eyebrow">{activeDefinition.eyebrow}</span>
+						<p className="campfire-workspace-topline-label">{activeDefinition.description}</p>
+					</div>
 
-			<WorkspacePage activePage={activeDefinition.id} {...props} />
+					<div className="campfire-workspace-actions">
+						<Button type="button" variant="secondary" size="sm" onClick={props.onRefresh}>
+							<RefreshCw className="cf:size-4" />
+							Refresh
+						</Button>
+
+						<Button type="button" variant="ghost" size="icon-sm" aria-label="Campfire help">
+							<HelpCircle className="cf:size-4" />
+						</Button>
+
+						<Button type="button" variant="ghost" size="icon-sm" aria-label="Close Campfire" onClick={props.onClose}>
+							<X className="cf:size-4" />
+						</Button>
+					</div>
+				</header>
+
+				<main className="campfire-workspace-content">
+					<WorkspacePage activePage={activeDefinition.id} {...props} />
+				</main>
+			</div>
 		</section>
 	);
 }
 
 /**
- * WorkspaceHeader renders compact workspace context without a second metric row.
+ * WorkspaceSidebar renders persistent app navigation and identity context.
  */
-function WorkspaceHeader(props: WorkspaceShellProps & { readonly activePage: WorkspacePageDefinition }): ReactElement {
+function WorkspaceSidebar(
+	props: WorkspaceShellProps & {
+		readonly activePage: WorkspacePageID;
+		readonly pages: readonly WorkspacePageDefinition[];
+		readonly onSelectPage: (page: WorkspacePageID) => void;
+	},
+): ReactElement {
 	return (
-		<CampfirePanel className="campfire-workspace-header-panel">
-			<CampfireCardHeader
-				eyebrow={props.activePage.eyebrow}
-				title={props.activePage.title}
-				description={props.activePage.description}
-				icon={iconForPage(props.activePage.id)}
-				action={
-					<div className="cf:flex cf:flex-wrap cf:gap-2">
-						<CampfireStatusPill tone={props.canManageWorkspace ? 'green' : 'slate'}>
-							{accessLabel(props)}
-						</CampfireStatusPill>
+		<aside className="campfire-app-sidebar">
+			<div className="campfire-sidebar-brand">
+				<div className="campfire-sidebar-logo-tile">
+					<img src={campfireLogoURL} alt="Campfire" className="campfire-sidebar-logo-image" />
+					<span className="campfire-logo-embers campfire-sidebar-logo-embers" aria-hidden="true">
+						<span className="campfire-logo-ember campfire-logo-ember--one" />
+						<span className="campfire-logo-ember campfire-logo-ember--two" />
+						<span className="campfire-logo-ember campfire-logo-ember--three" />
+						<span className="campfire-logo-ember campfire-logo-ember--four" />
+					</span>
+				</div>
+				<strong className="campfire-sidebar-brand-title">Campfire</strong>
+			</div>
 
-						{props.isSystemAdmin && <CampfireStatusPill tone="ember">System admin</CampfireStatusPill>}
-					</div>
-				}
-			/>
-		</CampfirePanel>
-	);
-}
+			<div className="campfire-sidebar-workspace">
+				<span className="campfire-sidebar-workspace-name">{props.workspace.name}</span>
+				<span className="campfire-sidebar-workspace-helper">Workspace · {props.workspace.timezone}</span>
+			</div>
 
-/**
- * WorkspaceNavigation renders the main workspace page navigation.
- */
-function WorkspaceNavigation(props: {
-	readonly activePage: WorkspacePageID;
-	readonly pages: readonly WorkspacePageDefinition[];
-	readonly onSelectPage: (page: WorkspacePageID) => void;
-}): ReactElement {
-	return (
-		<nav className="campfire-tab-grid" aria-label="Campfire workspace pages">
-			{props.pages.map(page => {
-				const isActive = page.id === props.activePage;
-				const Icon = iconForPage(page.id);
+			<nav className="campfire-sidebar-nav" aria-label="Campfire workspace pages">
+				{props.pages.map(page => {
+					const active = page.id === props.activePage;
+					const Icon = iconForPage(page.id);
 
-				return (
-					<button
-						key={page.id}
-						type="button"
-						aria-current={isActive ? 'page' : undefined}
-						className={cn('campfire-tab-button', isActive && 'campfire-tab-button--active')}
-						onClick={() => props.onSelectPage(page.id)}
-					>
-						<span className={cn('campfire-tab-icon', isActive && 'campfire-tab-icon--active')}>
-							<Icon className="cf:size-7" />
-						</span>
+					return (
+						<button
+							key={page.id}
+							type="button"
+							className={cn('campfire-sidebar-nav-item', active && 'campfire-sidebar-nav-item--active')}
+							aria-current={active ? 'page' : undefined}
+							title={page.description}
+							onClick={() => props.onSelectPage(page.id)}
+						>
+							<Icon className="cf:size-5" />
+							<span>{page.label}</span>
+						</button>
+					);
+				})}
+			</nav>
 
-						<span className="campfire-tab-copy">
-							<span className="campfire-tab-label">{page.label}</span>
-							<span className="campfire-tab-eyebrow">{page.eyebrow}</span>
-						</span>
-					</button>
-				);
-			})}
-		</nav>
+			<div className="campfire-sidebar-user">
+				<span className="campfire-sidebar-user-avatar">{userInitials(props.currentUser.displayName, props.currentUser.username)}</span>
+				<span className="campfire-sidebar-user-copy">
+					<span className="campfire-sidebar-user-name">{userDisplayName(props.currentUser.displayName, props.currentUser.username)}</span>
+					<span className="campfire-sidebar-user-role">{accessLabel(props)}</span>
+				</span>
+			</div>
+		</aside>
 	);
 }
 
@@ -216,7 +247,7 @@ function iconForPage(page: WorkspacePageID): typeof Flame {
 			return BarChart3;
 
 		case 'settings':
-			return Settings2;
+			return SlidersHorizontal;
 	}
 }
 
@@ -225,11 +256,11 @@ function iconForPage(page: WorkspacePageID): typeof Flame {
  */
 function accessLabel(props: WorkspaceShellProps): string {
 	if (props.isSystemAdmin) {
-		return 'Admin';
+		return 'System admin';
 	}
 
 	if (props.canManageWorkspace) {
-		return 'Lead';
+		return 'Workspace lead';
 	}
 
 	if (props.capabilities.canApproveLeaves) {
@@ -241,4 +272,31 @@ function accessLabel(props: WorkspaceShellProps): string {
 	}
 
 	return 'Member';
+}
+
+/**
+ * userDisplayName returns a safe current-user label.
+ */
+function userDisplayName(displayName: string, username: string): string {
+	const cleanDisplayName = displayName.trim();
+	if (cleanDisplayName !== '') {
+		return cleanDisplayName;
+	}
+
+	const cleanUsername = username.trim();
+	return cleanUsername === '' ? 'Campfire user' : cleanUsername;
+}
+
+/**
+ * userInitials returns two initials for the current-user badge.
+ */
+function userInitials(displayName: string, username: string): string {
+	const source = userDisplayName(displayName, username);
+	const words = source.split(/\s+/).filter(word => word !== '');
+
+	if (words.length >= 2) {
+		return `${words[0]?.charAt(0) ?? ''}${words[1]?.charAt(0) ?? ''}`.toUpperCase();
+	}
+
+	return source.slice(0, 2).toUpperCase();
 }

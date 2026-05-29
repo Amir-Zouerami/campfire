@@ -14,6 +14,7 @@ type TeamStandupsControlsProps = {
 	readonly occurrenceDate: string;
 	readonly sortMode: StandupSubmissionSortMode;
 	readonly disabled: boolean;
+	readonly timezone: string;
 	readonly onOccurrenceDateChange: (date: string) => void;
 	readonly onSortModeChange: (sortMode: StandupSubmissionSortMode) => void;
 };
@@ -23,11 +24,12 @@ type TeamStandupsControlsProps = {
  */
 export function TeamStandupsControls(props: TeamStandupsControlsProps): ReactElement {
 	return (
-		<div className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5 cf:md:grid-cols-[16rem_1fr]">
+		<div className="campfire-team-standups-controls">
 			<CampfireField id="campfire-team-standups-date" label="Occurrence date">
 				<CampfireDateInput
 					id="campfire-team-standups-date"
 					disabled={props.disabled}
+					timezone={props.timezone}
 					value={props.occurrenceDate}
 					onValueChange={props.onOccurrenceDateChange}
 				/>
@@ -42,7 +44,7 @@ export function TeamStandupsControls(props: TeamStandupsControlsProps): ReactEle
 				>
 					{teamStandupSortOptions.map(option => (
 						<option key={option.value} value={option.value}>
-							{option.label} · {option.helper}
+							{option.label}
 						</option>
 					))}
 				</CampfireSelect>

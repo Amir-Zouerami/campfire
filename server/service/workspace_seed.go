@@ -220,6 +220,7 @@ func buildDefaultDailyTemplate(
 				domain.QuestionLongText,
 				true,
 				true,
+				true,
 			),
 			buildStandupQuestion(
 				templateID,
@@ -231,6 +232,7 @@ func buildDefaultDailyTemplate(
 				"What are you focusing on next?",
 				"Continue dashboard work, pair on API contract...",
 				domain.QuestionLongText,
+				true,
 				true,
 				true,
 			),
@@ -246,6 +248,7 @@ func buildDefaultDailyTemplate(
 				domain.QuestionLongText,
 				false,
 				true,
+				false,
 			),
 		},
 	}
@@ -285,6 +288,7 @@ func buildDefaultWeeklyTemplate(
 				domain.QuestionLongText,
 				true,
 				true,
+				false,
 			),
 			buildStandupQuestion(
 				templateID,
@@ -298,6 +302,7 @@ func buildDefaultWeeklyTemplate(
 				domain.QuestionLongText,
 				true,
 				true,
+				false,
 			),
 			buildStandupQuestion(
 				templateID,
@@ -311,6 +316,7 @@ func buildDefaultWeeklyTemplate(
 				domain.QuestionLongText,
 				false,
 				true,
+				false,
 			),
 		},
 	}
@@ -331,6 +337,7 @@ func buildStandupQuestion(
 	questionType domain.QuestionType,
 	required bool,
 	showInReport bool,
+	createsTasks bool,
 ) domain.StandupQuestion {
 	return domain.StandupQuestion{
 		ID:           domain.ID(uuid.NewString()),
@@ -344,6 +351,7 @@ func buildStandupQuestion(
 		Required:     required,
 		ShowInReport: showInReport,
 		IsPrivate:    false,
+		CreatesTasks: createsTasks,
 		Position:     position,
 		OptionsJSON:  emptyQuestionOptionsJSON,
 		CreatedAt:    now,

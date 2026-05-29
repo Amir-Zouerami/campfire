@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/amir-zouerami/campfire/server/domain"
 	"github.com/amir-zouerami/campfire/server/store"
@@ -85,6 +86,11 @@ func (s *StandupRuntimeService) EvaluateDay(
 		return nil, NewError(ErrorCodeInternal, "Could not evaluate workspace working day.")
 	}
 
+	isLastWorkingDayOfWeek, err := s.isLastWorkingDayOfWeek(ctx, *workspace, date)
+	if err != nil {
+		return nil, err
+	}
+
 	globalOffDays, err := s.globalSkipDateStore.ListBetween(ctx, dateValue, dateValue)
 	if err != nil {
 		return nil, NewError(ErrorCodeInternal, "Could not evaluate global off-days.")
@@ -109,11 +115,32 @@ func (s *StandupRuntimeService) EvaluateDay(
 		workspace.ID,
 		dateValue,
 		isWorkingDay,
+		isLastWorkingDayOfWeek,
 		globalOffDays,
 		workspaceOffDays,
 		approvedLeaves,
 		memberUserIDs,
 	), nil
+}
+
+/*
+isLastWorkingDayOfWeek returns true when the selected date is the last enabled
+working day in that workspace's local week.
+
+Tehran uses a Saturday-start week, so a workspace that disables Friday treats
+Thursday as the last working day. Other workspaces use a Monday-start week.
+*/
+func (s *StandupRuntimeService) isLastWorkingDayOfWeek(
+	ctx context.Context,
+	workspace domain.Workspace,
+	date time.Time,
+) (bool, error) {
+	workingDays, err := s.workspaceCalendarStore.ListWorkingDaysByWorkspaceID(ctx, workspace.ID)
+	if err != nil {
+		return false, NewError(ErrorCodeInternal, "Could not evaluate workspace working days.")
+	}
+
+	return isLastWorkingDayInWeek(date, workspace.Timezone, workingDays), nil
 }
 
 /*
@@ -123,6 +150,7 @@ func buildStandupRunDecision(
 	workspaceID domain.ID,
 	date domain.LocalDate,
 	isWorkingDay bool,
+	isLastWorkingDayOfWeek bool,
 	globalOffDays []domain.GlobalSkipDate,
 	workspaceOffDays []domain.WorkspaceOffDay,
 	approvedLeaves []domain.LeaveRequestWithType,
@@ -140,9 +168,10 @@ func buildStandupRunDecision(
 		Reason:    domain.StandupSkipReasonNone,
 		Message:   "Standup should run for this date.",
 
-		IsWorkingDay:       isWorkingDay,
-		MemberCount:        len(memberIDs),
-		OnLeaveMemberCount: onLeaveMemberCount,
+		IsWorkingDay:           isWorkingDay,
+		IsLastWorkingDayOfWeek: isLastWorkingDayOfWeek,
+		MemberCount:            len(memberIDs),
+		OnLeaveMemberCount:     onLeaveMemberCount,
 
 		GlobalOffDays:    globalOffDays,
 		WorkspaceOffDays: workspaceOffDays,
@@ -213,6 +242,80 @@ func countOnLeaveMembers(memberUserIDs []string, onLeaveUserIDs map[string]bool)
 	}
 
 	return count
+}
+
+/*
+isLastWorkingDayInWeek evaluates a date against explicit workspace working-day
+rows. Missing rows use Campfire's Monday-Friday default.
+*/
+func isLastWorkingDayInWeek(
+	date time.Time,
+	timezone string,
+	workingDays []domain.WorkspaceWorkingDay,
+) bool {
+	weekday := int(date.Weekday())
+	enabledByWeekday := defaultWorkingDayMap()
+	for _, workingDay := range workingDays {
+		enabledByWeekday[int(workingDay.Weekday)] = workingDay.Enabled
+	}
+
+	if !enabledByWeekday[weekday] {
+		return false
+	}
+
+	weekOrder := workspaceWeekdayOrder(timezone)
+	position := weekdayPosition(weekOrder, weekday)
+	if position < 0 {
+		return false
+	}
+
+	for nextPosition := position + 1; nextPosition < len(weekOrder); nextPosition += 1 {
+		if enabledByWeekday[weekOrder[nextPosition]] {
+			return false
+		}
+	}
+
+	return true
+}
+
+/*
+defaultWorkingDayMap returns the same fallback used by the workspace calendar store.
+*/
+func defaultWorkingDayMap() map[int]bool {
+	return map[int]bool{
+		0: false,
+		1: true,
+		2: true,
+		3: true,
+		4: true,
+		5: true,
+		6: false,
+	}
+}
+
+/*
+workspaceWeekdayOrder returns weekdays in the local week order for a workspace.
+*/
+func workspaceWeekdayOrder(timezone string) []int {
+	switch strings.TrimSpace(timezone) {
+	case "Asia/Tehran":
+		return []int{6, 0, 1, 2, 3, 4, 5}
+	default:
+		return []int{1, 2, 3, 4, 5, 6, 0}
+	}
+}
+
+/*
+weekdayPosition returns the index of a weekday in a week order.
+*/
+func weekdayPosition(weekOrder []int, weekday int) int {
+	for index, currentWeekday := range weekOrder {
+		if currentWeekday == weekday {
+			return index
+		}
+	}
+
+	return -1
 }
 
 /*

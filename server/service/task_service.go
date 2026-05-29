@@ -145,6 +145,10 @@ func (s *TaskService) CreateTask(
 		return nil, NewError(ErrorCodeValidationFailed, "Task title is required.")
 	}
 
+	if err := s.requireUniqueTaskTitle(ctx, workspaceID, cleanActorUserID, title, ""); err != nil {
+		return nil, err
+	}
+
 	now := time.Now().UTC()
 	task := domain.Task{
 		ID:          domain.ID(uuid.NewString()),
@@ -219,6 +223,10 @@ func (s *TaskService) UpdateTask(
 		return nil, NewError(ErrorCodeValidationFailed, "Task title is required.")
 	}
 
+	if err := s.requireUniqueTaskTitle(ctx, workspaceID, cleanActorUserID, title, existingTask.ID); err != nil {
+		return nil, err
+	}
+
 	status := domain.TaskStatus(strings.TrimSpace(input.Status))
 	if !status.IsValid() {
 		return nil, NewError(ErrorCodeValidationFailed, "Task status is not supported.")
@@ -255,6 +263,46 @@ func (s *TaskService) UpdateTask(
 	}
 
 	return updated, nil
+}
+
+/*
+requireUniqueTaskTitle prevents duplicate task names for one user in a workspace.
+
+The database still stores the original title text, but comparisons are
+case-insensitive and whitespace-normalized so standup-created work rows can
+reuse existing tasks instead of multiplying near-identical task records.
+*/
+func (s *TaskService) requireUniqueTaskTitle(
+	ctx context.Context,
+	workspaceID domain.ID,
+	userID string,
+	title string,
+	allowedTaskID domain.ID,
+) error {
+	tasks, err := s.taskStore.ListTasksByWorkspaceIDAndUserID(ctx, workspaceID, userID, true)
+	if err != nil {
+		return NewError(ErrorCodeInternal, "Could not verify task title uniqueness.")
+	}
+
+	titleKey := normalizedUserTaskTitleKey(title)
+	for _, task := range tasks {
+		if task.ID == allowedTaskID {
+			continue
+		}
+
+		if normalizedUserTaskTitleKey(task.Title) == titleKey {
+			return NewError(ErrorCodeConflict, "You already have a Campfire task with this title in this workspace.")
+		}
+	}
+
+	return nil
+}
+
+/*
+normalizedUserTaskTitleKey returns the canonical comparison key for user task titles.
+*/
+func normalizedUserTaskTitleKey(value string) string {
+	return strings.ToLower(strings.Join(strings.Fields(value), " "))
 }
 
 /*

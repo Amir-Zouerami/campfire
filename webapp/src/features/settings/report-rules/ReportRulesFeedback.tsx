@@ -5,7 +5,7 @@ import { CampfireFeedback, CampfireLoadingFeedback } from '@/components/campfire
 import type { ReportRulesLoadState } from './report-rules.types';
 
 /**
- * ReportRulesFeedbackProps contains report-rule feedback state.
+ * ReportRulesFeedbackProps contains workflow feedback state.
  */
 type ReportRulesFeedbackProps = {
 	readonly state: ReportRulesLoadState;
@@ -13,7 +13,7 @@ type ReportRulesFeedbackProps = {
 };
 
 /**
- * ReportRulesFeedback renders report-rule success and error messages.
+ * ReportRulesFeedback renders compact local workflow feedback.
  */
 export function ReportRulesFeedback(props: ReportRulesFeedbackProps): ReactElement | null {
 	return <CampfireFeedback message={props.message} tone={props.state === 'error' ? 'error' : 'success'} />;

@@ -49,6 +49,17 @@ type ListStandupSubmissionsInput struct {
 }
 
 /*
+GetMyStandupSubmissionInput contains filters for loading the current user's
+stored standup answers for one editable occurrence date.
+*/
+type GetMyStandupSubmissionInput struct {
+	ActorUserID    string
+	WorkspaceID    string
+	OccurrenceDate string
+	TemplateID     string
+}
+
+/*
 SubmitStandupAnswerInput contains one submitted standup answer.
 */
 type SubmitStandupAnswerInput struct {
@@ -60,8 +71,10 @@ type SubmitStandupAnswerInput struct {
 ListStandupConfigurationInput contains standup configuration query fields.
 */
 type ListStandupConfigurationInput struct {
-	ActorUserID string
-	WorkspaceID string
+	ActorUserID     string
+	IsSystemAdmin   bool
+	WorkspaceID     string
+	IncludeInactive bool
 }
 
 /*
@@ -86,6 +99,7 @@ type CreateStandupTemplateInput struct {
 	Name          string
 	Description   string
 	Kind          string
+	IsActive      bool
 }
 
 /*
@@ -118,6 +132,7 @@ type CreateStandupQuestionInput struct {
 	Required      bool
 	ShowInReport  bool
 	IsPrivate     bool
+	CreatesTasks  bool
 	Position      int
 	Options       []string
 }
@@ -139,6 +154,7 @@ type UpdateStandupQuestionInput struct {
 	Required      bool
 	ShowInReport  bool
 	IsPrivate     bool
+	CreatesTasks  bool
 	Position      int
 	Options       []string
 }
@@ -180,8 +196,9 @@ type UpdateStandupScheduleInput struct {
 SubmitStandupResult contains the saved submission and answers.
 */
 type SubmitStandupResult struct {
-	Submission domain.StandupSubmission
-	Answers    []domain.StandupAnswer
+	Submission   domain.StandupSubmission
+	Answers      []domain.StandupAnswer
+	CreatedTasks []domain.Task
 }
 
 /*
@@ -193,6 +210,7 @@ type StandupService struct {
 	workspaceCalendarStore store.WorkspaceCalendarStore
 	globalSkipDateStore    store.GlobalSkipDateStore
 	standupStore           store.StandupStore
+	taskStore              store.TaskStore
 	leaveStore             store.LeaveStore
 	memberProvider         WorkspaceMemberProvider
 }
@@ -206,6 +224,7 @@ func NewStandupService(
 	workspaceCalendarStore store.WorkspaceCalendarStore,
 	globalSkipDateStore store.GlobalSkipDateStore,
 	standupStore store.StandupStore,
+	taskStore store.TaskStore,
 	leaveStore store.LeaveStore,
 	memberProvider WorkspaceMemberProvider,
 ) *StandupService {
@@ -215,6 +234,7 @@ func NewStandupService(
 		workspaceCalendarStore: workspaceCalendarStore,
 		globalSkipDateStore:    globalSkipDateStore,
 		standupStore:           standupStore,
+		taskStore:              taskStore,
 		leaveStore:             leaveStore,
 		memberProvider:         memberProvider,
 	}
@@ -241,7 +261,7 @@ func (s *StandupService) CreateTemplate(
 		return nil, err
 	}
 
-	name := strings.TrimSpace(input.Name)
+	name := normalizeStandupTemplateName(input.Name)
 	if name == "" {
 		return nil, NewError(ErrorCodeValidationFailed, "Template name is required.")
 	}
@@ -259,7 +279,7 @@ func (s *StandupService) CreateTemplate(
 		Description: strings.TrimSpace(input.Description),
 		Kind:        kind,
 		IsDefault:   false,
-		IsActive:    true,
+		IsActive:    input.IsActive,
 		CreatedBy:   cleanActorUserID,
 		CreatedAt:   now,
 		UpdatedAt:   now,
@@ -267,6 +287,10 @@ func (s *StandupService) CreateTemplate(
 
 	created, err := s.standupStore.CreateTemplate(ctx, template)
 	if err != nil {
+		if errors.Is(err, store.ErrConflict) {
+			return nil, NewError(ErrorCodeConflict, "A standup template with this name already exists in this workspace.")
+		}
+
 		return nil, NewError(ErrorCodeInternal, "Could not create standup template.")
 	}
 
@@ -308,7 +332,7 @@ func (s *StandupService) UpdateTemplate(
 		return nil, NewError(ErrorCodeInternal, "Could not load standup template.")
 	}
 
-	name := strings.TrimSpace(input.Name)
+	name := normalizeStandupTemplateName(input.Name)
 	if name == "" {
 		return nil, NewError(ErrorCodeValidationFailed, "Template name is required.")
 	}
@@ -329,6 +353,10 @@ func (s *StandupService) UpdateTemplate(
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return nil, NewError(ErrorCodeNotFound, "Standup template was not found.")
+		}
+
+		if errors.Is(err, store.ErrConflict) {
+			return nil, NewError(ErrorCodeConflict, "A standup template with this name already exists in this workspace.")
 		}
 
 		return nil, NewError(ErrorCodeInternal, "Could not update standup template.")
@@ -383,6 +411,7 @@ func (s *StandupService) CreateQuestion(
 		input.Required,
 		input.ShowInReport,
 		input.IsPrivate,
+		input.CreatesTasks,
 		input.Position,
 		input.Options,
 		time.Now().UTC(),
@@ -459,6 +488,7 @@ func (s *StandupService) UpdateQuestion(
 		input.Required,
 		input.ShowInReport,
 		input.IsPrivate,
+		input.CreatesTasks,
 		input.Position,
 		input.Options,
 		time.Now().UTC(),
@@ -645,7 +675,13 @@ func (s *StandupService) ListConfiguration(
 		return nil, NewError(ErrorCodeInternal, "Could not load workspace.")
 	}
 
-	configuration, err := s.loadConfiguration(ctx, workspaceID)
+	if input.IncludeInactive {
+		if err := s.requireStandupManagement(ctx, cleanActorUserID, input.IsSystemAdmin, workspaceID); err != nil {
+			return nil, err
+		}
+	}
+
+	configuration, err := s.loadConfiguration(ctx, workspaceID, input.IncludeInactive)
 	if err != nil {
 		return nil, err
 	}
@@ -732,6 +768,65 @@ func (s *StandupService) ListSubmissions(
 }
 
 /*
+GetMySubmission returns the current user's stored standup answers for one date
+and template so past valid submissions can be edited without exposing the full
+team-review submissions endpoint to normal members.
+*/
+func (s *StandupService) GetMySubmission(
+	ctx context.Context,
+	input GetMyStandupSubmissionInput,
+) (*domain.StandupSubmissionWithAnswers, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to view your standup.")
+	}
+
+	cleanWorkspaceID := strings.TrimSpace(input.WorkspaceID)
+	if cleanWorkspaceID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
+	}
+
+	occurrenceDate := domain.LocalDate(strings.TrimSpace(input.OccurrenceDate))
+	if _, err := parseLocalDate(occurrenceDate); err != nil {
+		return nil, NewError(ErrorCodeValidationFailed, "Occurrence date must be a real YYYY-MM-DD calendar date.")
+	}
+
+	workspaceID := domain.ID(cleanWorkspaceID)
+	if _, err := s.workspaceStore.GetByID(ctx, workspaceID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Workspace was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load workspace.")
+	}
+
+	submissions, err := s.standupStore.ListSubmissionsWithAnswersByWorkspaceIDAndDate(
+		ctx,
+		workspaceID,
+		occurrenceDate,
+	)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not load your standup submission.")
+	}
+
+	cleanTemplateID := strings.TrimSpace(input.TemplateID)
+	for _, submission := range submissions {
+		if submission.Submission.UserID != cleanActorUserID {
+			continue
+		}
+
+		if cleanTemplateID != "" && submission.Submission.TemplateID.String() != cleanTemplateID {
+			continue
+		}
+
+		matchedSubmission := submission
+		return &matchedSubmission, nil
+	}
+
+	return nil, nil
+}
+
+/*
 Submit creates or updates the current user's standup submission for one occurrence.
 */
 func (s *StandupService) Submit(ctx context.Context, input SubmitStandupInput) (*SubmitStandupResult, error) {
@@ -770,7 +865,7 @@ func (s *StandupService) Submit(ctx context.Context, input SubmitStandupInput) (
 		return nil, NewError(ErrorCodeInternal, "Could not load workspace.")
 	}
 
-	configuration, err := s.loadConfiguration(ctx, workspaceID)
+	configuration, err := s.loadConfiguration(ctx, workspaceID, false)
 	if err != nil {
 		return nil, err
 	}
@@ -793,11 +888,15 @@ func (s *StandupService) Submit(ctx context.Context, input SubmitStandupInput) (
 		return nil, NewError(ErrorCodeValidationFailed, "Standup schedule is disabled.")
 	}
 
-	if err := requireSubmissionDateIsWorkspaceToday(occurrenceDate, workspace.Timezone); err != nil {
+	if err := requireSubmissionDateIsNotFuture(occurrenceDate, workspace.Timezone); err != nil {
 		return nil, err
 	}
 
 	if err := s.requireStandupRunsForSubmission(ctx, *workspace, occurrenceDate); err != nil {
+		return nil, err
+	}
+
+	if err := s.requireScheduleAllowsSubmissionDate(ctx, *workspace, *schedule, configuration.Schedules, occurrenceDate); err != nil {
 		return nil, err
 	}
 
@@ -842,16 +941,180 @@ func (s *StandupService) Submit(ctx context.Context, input SubmitStandupInput) (
 		return nil, NewError(ErrorCodeInternal, "Could not save standup submission.")
 	}
 
+	createdTasks, err := s.createTasksFromStandupAnswers(ctx, result.Submission, result.Answers, templateQuestions)
+	if err != nil {
+		return nil, err
+	}
+
 	return &SubmitStandupResult{
-		Submission: result.Submission,
-		Answers:    result.Answers,
+		Submission:   result.Submission,
+		Answers:      result.Answers,
+		CreatedTasks: createdTasks,
 	}, nil
 }
 
 /*
-requireSubmissionDateIsWorkspaceToday prevents editing past or future standups through the submission endpoint.
+createTasksFromStandupAnswers creates active task rows from explicit work-item
+questions after a standup submission is saved.
+
+This keeps task creation as server-owned behavior instead of depending on a
+frontend follow-up call. It only uses questions marked with CreatesTasks, so
+admins can choose which standup inputs should produce tracked tasks.
 */
-func requireSubmissionDateIsWorkspaceToday(occurrenceDate domain.LocalDate, timezone string) error {
+func (s *StandupService) createTasksFromStandupAnswers(
+	ctx context.Context,
+	submission domain.StandupSubmission,
+	answers []domain.StandupAnswer,
+	questions []domain.StandupQuestion,
+) ([]domain.Task, error) {
+	if s.taskStore == nil {
+		return []domain.Task{}, nil
+	}
+
+	questionByID := map[string]domain.StandupQuestion{}
+	for _, question := range questions {
+		questionByID[question.ID.String()] = question
+	}
+
+	existingTasks, err := s.taskStore.ListTasksByWorkspaceIDAndUserID(
+		ctx,
+		submission.WorkspaceID,
+		submission.UserID,
+		true,
+	)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not load existing tasks for standup task sync.")
+	}
+
+	existingTitleKeys := map[string]bool{}
+	for _, task := range existingTasks {
+		existingTitleKeys[normalizedTaskTitleKey(task.Title)] = true
+	}
+
+	seenInSubmission := map[string]bool{}
+	createdTasks := []domain.Task{}
+	now := time.Now().UTC()
+
+	for _, answer := range answers {
+		question, ok := questionByID[answer.QuestionID.String()]
+		if !ok || !question.CreatesTasks {
+			continue
+		}
+
+		for _, title := range taskTitlesFromAnswerValue(answer.ValueJSON) {
+			titleKey := normalizedTaskTitleKey(title)
+			if titleKey == "" || existingTitleKeys[titleKey] || seenInSubmission[titleKey] {
+				continue
+			}
+
+			task := domain.Task{
+				ID:                 domain.ID(uuid.NewString()),
+				WorkspaceID:        submission.WorkspaceID,
+				UserID:             submission.UserID,
+				SourceSubmissionID: submission.ID,
+				SourceAnswerID:     answer.ID,
+				Title:              title,
+				Description:        "Created from Campfire standup work item.",
+				ProjectID:          "",
+				CategoryID:         "",
+				Status:             domain.TaskStatusActive,
+				BoardURL:           "",
+				CreatedBy:          submission.UserID,
+				CreatedAt:          now,
+				UpdatedAt:          now,
+				CompletedAt:        nil,
+			}
+
+			created, err := s.taskStore.CreateTask(ctx, store.CreateTaskParams{Task: task})
+			if err != nil {
+				return nil, NewError(ErrorCodeInternal, "Could not create tasks from standup work items.")
+			}
+
+			createdTasks = append(createdTasks, *created)
+			existingTitleKeys[titleKey] = true
+			seenInSubmission[titleKey] = true
+		}
+	}
+
+	return createdTasks, nil
+}
+
+/*
+taskTitlesFromAnswerValue extracts one task title per answer row.
+*/
+func taskTitlesFromAnswerValue(valueJSON string) []string {
+	rawValue := strings.TrimSpace(valueJSON)
+	if rawValue == "" || rawValue == "null" {
+		return []string{}
+	}
+
+	var answerText string
+	if err := json.Unmarshal([]byte(rawValue), &answerText); err != nil {
+		answerText = rawValue
+	}
+
+	lines := strings.Split(answerText, "\n")
+	titles := make([]string, 0, len(lines))
+
+	for _, line := range lines {
+		title := cleanTaskTitleLine(line)
+		if title != "" {
+			titles = append(titles, title)
+		}
+	}
+
+	return titles
+}
+
+/*
+cleanTaskTitleLine strips Markdown/list prefixes from one itemized answer row.
+*/
+func cleanTaskTitleLine(value string) string {
+	line := strings.TrimSpace(value)
+	line = strings.TrimLeft(line, "-*• ")
+
+	for index, char := range line {
+		if char == '.' || char == ')' {
+			prefix := line[:index]
+			if prefix != "" && allASCIIDigits(prefix) {
+				return strings.TrimSpace(line[index+1:])
+			}
+			break
+		}
+
+		if char < '0' || char > '9' {
+			break
+		}
+	}
+
+	return strings.TrimSpace(line)
+}
+
+/*
+allASCIIDigits reports whether a string contains only ASCII digits.
+*/
+func allASCIIDigits(value string) bool {
+	for _, char := range value {
+		if char < '0' || char > '9' {
+			return false
+		}
+	}
+
+	return value != ""
+}
+
+/*
+normalizedTaskTitleKey mirrors the frontend duplicate-prevention key.
+*/
+func normalizedTaskTitleKey(value string) string {
+	return strings.ToLower(strings.Join(strings.Fields(value), " "))
+}
+
+/*
+requireSubmissionDateIsNotFuture allows today and past corrections while still
+blocking future standup submissions.
+*/
+func requireSubmissionDateIsNotFuture(occurrenceDate domain.LocalDate, timezone string) error {
 	location := time.UTC
 	cleanTimezone := strings.TrimSpace(timezone)
 	if cleanTimezone != "" {
@@ -862,10 +1125,10 @@ func requireSubmissionDateIsWorkspaceToday(occurrenceDate domain.LocalDate, time
 	}
 
 	today := domain.LocalDate(time.Now().In(location).Format("2006-01-02"))
-	if occurrenceDate != today {
+	if occurrenceDate.String() > today.String() {
 		return NewError(
 			ErrorCodeValidationFailed,
-			"Standups can only be submitted for today. Past or future standups cannot be edited from My Day.",
+			"Standups cannot be submitted for future dates.",
 		)
 	}
 
@@ -910,10 +1173,16 @@ func (s *StandupService) requireStandupRunsForSubmission(
 		return NewError(ErrorCodeInternal, "Could not evaluate workspace members.")
 	}
 
+	isLastWorkingDayOfWeek, err := s.isLastWorkingDayOfWeek(ctx, workspace, date)
+	if err != nil {
+		return err
+	}
+
 	decision := buildStandupRunDecision(
 		workspace.ID,
 		occurrenceDate,
 		isWorkingDay,
+		isLastWorkingDayOfWeek,
 		globalOffDays,
 		workspaceOffDays,
 		approvedLeaves,
@@ -924,6 +1193,73 @@ func (s *StandupService) requireStandupRunsForSubmission(
 	}
 
 	return nil
+}
+
+/*
+requireScheduleAllowsSubmissionDate enforces schedule-specific rules after the
+shared runtime decision has confirmed the date is a valid standup day.
+*/
+func (s *StandupService) requireScheduleAllowsSubmissionDate(
+	ctx context.Context,
+	workspace domain.Workspace,
+	schedule domain.StandupSchedule,
+	schedules []domain.StandupSchedule,
+	occurrenceDate domain.LocalDate,
+) error {
+	date, err := parseLocalDate(occurrenceDate)
+	if err != nil {
+		return NewError(ErrorCodeValidationFailed, "Occurrence date must be a real YYYY-MM-DD calendar date.")
+	}
+
+	isLastWorkingDayOfWeek, err := s.isLastWorkingDayOfWeek(ctx, workspace, date)
+	if err != nil {
+		return err
+	}
+
+	switch schedule.Kind {
+	case domain.StandupKindWeekly:
+		if schedule.WeeklyMode == domain.WeeklyModeLastWorkingDay && !isLastWorkingDayOfWeek {
+			return NewError(ErrorCodeValidationFailed, "Weekly standups can only be submitted on the workspace's last working day of the week.")
+		}
+
+	case domain.StandupKindDaily:
+		if schedule.SkipDailyWhenWeeklyRuns && isLastWorkingDayOfWeek && hasEnabledWeeklyLastWorkingDaySchedule(schedules) {
+			return NewError(ErrorCodeValidationFailed, "Daily standup is skipped because the weekly standup runs on this workspace date.")
+		}
+	}
+
+	return nil
+}
+
+/*
+isLastWorkingDayOfWeek returns true when a date is the final enabled working
+weekday in the workspace-local week order.
+*/
+func (s *StandupService) isLastWorkingDayOfWeek(
+	ctx context.Context,
+	workspace domain.Workspace,
+	date time.Time,
+) (bool, error) {
+	workingDays, err := s.workspaceCalendarStore.ListWorkingDaysByWorkspaceID(ctx, workspace.ID)
+	if err != nil {
+		return false, NewError(ErrorCodeInternal, "Could not evaluate workspace working days.")
+	}
+
+	return isLastWorkingDayInWeek(date, workspace.Timezone, workingDays), nil
+}
+
+/*
+hasEnabledWeeklyLastWorkingDaySchedule reports whether any weekly schedule is
+configured to run on the last working day of the week.
+*/
+func hasEnabledWeeklyLastWorkingDaySchedule(schedules []domain.StandupSchedule) bool {
+	for _, schedule := range schedules {
+		if schedule.Enabled && schedule.Kind == domain.StandupKindWeekly && schedule.WeeklyMode == domain.WeeklyModeLastWorkingDay {
+			return true
+		}
+	}
+
+	return false
 }
 
 /*
@@ -992,6 +1328,7 @@ func buildStandupQuestionFromInput(
 	required bool,
 	showInReport bool,
 	isPrivate bool,
+	createsTasks bool,
 	position int,
 	options []string,
 	now time.Time,
@@ -1008,6 +1345,10 @@ func buildStandupQuestionFromInput(
 	typedQuestion := domain.QuestionType(strings.TrimSpace(questionType))
 	if !isValidQuestionType(typedQuestion) {
 		return nil, NewError(ErrorCodeValidationFailed, "Question type is not supported.")
+	}
+
+	if createsTasks && !questionTypeCanCreateTasks(typedQuestion) {
+		return nil, NewError(ErrorCodeValidationFailed, "Only text and long-text standup questions can create tasks.")
 	}
 
 	cleanOptions := normalizeQuestionOptions(options)
@@ -1034,6 +1375,7 @@ func buildStandupQuestionFromInput(
 		Required:     required,
 		ShowInReport: showInReport,
 		IsPrivate:    isPrivate,
+		CreatesTasks: createsTasks,
 		Position:     position,
 		SortOrder:    position,
 		OptionsJSON:  string(optionsJSON),
@@ -1088,6 +1430,22 @@ func isValidQuestionType(questionType domain.QuestionType) bool {
 		domain.QuestionTypeMultiSelect,
 		domain.QuestionTypeNumber,
 		domain.QuestionTypeDuration:
+		return true
+	default:
+		return false
+	}
+}
+
+/*
+questionTypeCanCreateTasks returns true when a standup question can safely
+produce task records from itemized answer text.
+
+Only free-text question types are allowed because selectable/boolean/numeric
+answers do not represent user-authored work items.
+*/
+func questionTypeCanCreateTasks(questionType domain.QuestionType) bool {
+	switch questionType {
+	case domain.QuestionTypeText, domain.QuestionTypeLongText:
 		return true
 	default:
 		return false
@@ -1193,18 +1551,58 @@ func validateScheduleWeeklyMode(kind domain.StandupKind, weeklyMode domain.Weekl
 }
 
 /*
+normalizeStandupTemplateName collapses whitespace while preserving the user's
+chosen casing. Persisting normalized names prevents UI-only hacks and makes the
+workspace-level uniqueness rule predictable.
+*/
+func normalizeStandupTemplateName(value string) string {
+	return strings.Join(strings.Fields(value), " ")
+}
+
+/*
+listConfigurationTemplates selects active-only or full template collections.
+*/
+func (s *StandupService) listConfigurationTemplates(
+	ctx context.Context,
+	workspaceID domain.ID,
+	includeInactive bool,
+) ([]domain.StandupTemplate, error) {
+	if includeInactive {
+		return s.standupStore.ListAllTemplatesByWorkspaceID(ctx, workspaceID)
+	}
+
+	return s.standupStore.ListTemplatesByWorkspaceID(ctx, workspaceID)
+}
+
+/*
+listConfigurationQuestions selects active-only or full question collections.
+*/
+func (s *StandupService) listConfigurationQuestions(
+	ctx context.Context,
+	workspaceID domain.ID,
+	includeInactive bool,
+) ([]domain.StandupQuestion, error) {
+	if includeInactive {
+		return s.standupStore.ListAllQuestionsByWorkspaceID(ctx, workspaceID)
+	}
+
+	return s.standupStore.ListQuestionsByWorkspaceID(ctx, workspaceID)
+}
+
+/*
 loadConfiguration loads standup configuration from the store.
 */
 func (s *StandupService) loadConfiguration(
 	ctx context.Context,
 	workspaceID domain.ID,
+	includeInactive bool,
 ) (*StandupConfiguration, error) {
-	templates, err := s.standupStore.ListTemplatesByWorkspaceID(ctx, workspaceID)
+	templates, err := s.listConfigurationTemplates(ctx, workspaceID, includeInactive)
 	if err != nil {
 		return nil, NewError(ErrorCodeInternal, "Could not load standup templates.")
 	}
 
-	questions, err := s.standupStore.ListQuestionsByWorkspaceID(ctx, workspaceID)
+	questions, err := s.listConfigurationQuestions(ctx, workspaceID, includeInactive)
 	if err != nil {
 		return nil, NewError(ErrorCodeInternal, "Could not load standup questions.")
 	}

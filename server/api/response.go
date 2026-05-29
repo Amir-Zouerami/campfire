@@ -466,6 +466,15 @@ func WriteListStandupConfiguration(
 }
 
 /*
+WriteGetMyStandupSubmission writes the current user's stored standup response.
+*/
+func WriteGetMyStandupSubmission(w http.ResponseWriter, statusCode int, payload GetMyStandupSubmissionResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode current-user standup submission response")
+}
+
+/*
 WriteSubmitStandup writes the standup submission response.
 */
 func WriteSubmitStandup(w http.ResponseWriter, statusCode int, payload SubmitStandupResponse) {

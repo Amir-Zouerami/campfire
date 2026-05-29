@@ -3,7 +3,9 @@ import type { KeyboardEvent, ReactElement } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { normalizeISODateInputValue } from '@/lib/dates';
+import { formatWorkspaceDateHint } from '@/lib/calendarLabels';
 import { cn } from '@/lib/utils';
+import { useCampfireFloatingPopover } from './useCampfireFloatingPopover';
 
 /**
  * CampfireDateInputProps contains a custom Campfire date picker.
@@ -13,6 +15,7 @@ type CampfireDateInputProps = {
 	readonly value: string;
 	readonly disabled?: boolean;
 	readonly className?: string;
+	readonly timezone?: string;
 	readonly onValueChange: (value: string) => void;
 };
 
@@ -56,6 +59,8 @@ const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
  */
 export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 	const rootRef = useRef<HTMLDivElement | null>(null);
+	const buttonRef = useRef<HTMLButtonElement | null>(null);
+	const popoverRef = useRef<HTMLDivElement | null>(null);
 	const selectedDate = parseDateValue(props.value);
 	const [open, setOpen] = useState(false);
 	const [visibleMonth, setVisibleMonth] = useState<Date>(() => startOfMonth(selectedDate ?? new Date()));
@@ -95,6 +100,17 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 		return buildCalendarCells(visibleMonth, selectedDate);
 	}, [visibleMonth, selectedDate]);
 
+	const alternateCalendarHint = useMemo(() => {
+		return formatWorkspaceDateHint(props.value, props.timezone);
+	}, [props.value, props.timezone]);
+
+	const popoverStyle = useCampfireFloatingPopover({
+		open,
+		triggerRef: buttonRef,
+		popoverRef,
+		placement: 'bottom-end',
+	});
+
 	/**
 	 * handleKeyDown supports keyboard toggle/close behavior.
 	 */
@@ -121,6 +137,7 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 	return (
 		<div ref={rootRef} className={cn('campfire-date-picker', props.className)}>
 			<button
+				ref={buttonRef}
 				id={props.id}
 				type="button"
 				disabled={props.disabled}
@@ -130,13 +147,19 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 				onClick={() => setOpen(current => !current)}
 				onKeyDown={handleKeyDown}
 			>
-				<span
-					className={cn(
-						'campfire-date-picker-value',
-						props.value.trim() === '' && 'campfire-date-picker-value--empty',
+				<span className="campfire-date-picker-value-stack">
+					<span
+						className={cn(
+							'campfire-date-picker-value',
+							props.value.trim() === '' && 'campfire-date-picker-value--empty',
+						)}
+					>
+						{props.value.trim() === '' ? 'YYYY-MM-DD' : props.value}
+					</span>
+
+					{alternateCalendarHint !== '' && (
+						<span className="campfire-date-picker-hint" dir="ltr">(<bdi dir="auto">{alternateCalendarHint}</bdi>)</span>
 					)}
-				>
-					{props.value.trim() === '' ? 'YYYY-MM-DD' : props.value}
 				</span>
 
 				<span className="campfire-date-picker-trigger-icon">
@@ -145,7 +168,13 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 			</button>
 
 			{open && (
-				<div role="dialog" aria-label="Choose date" className="campfire-date-picker-popover">
+				<div
+					ref={popoverRef}
+					role="dialog"
+					aria-label="Choose date"
+					className="campfire-date-picker-popover campfire-floating-popover"
+					style={popoverStyle}
+				>
 					<div className="campfire-date-picker-glow" />
 
 					<div className="campfire-date-picker-header">

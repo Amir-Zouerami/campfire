@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/components/campfire/campfire-toast';
 
 import { listReminderRules, listStandupConfiguration, updateReminderRule } from '@/api';
 import type { ReminderRule, Workspace } from '@/types/domain';

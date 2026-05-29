@@ -1,10 +1,10 @@
 import type { ReactElement } from 'react';
 import { Save } from 'lucide-react';
 
-import { CampfireStatusPill } from '@/app/campfire-ui';
 import { Button } from '@/components/ui/button';
 
-import { toggleWeekday, weekdayButtonClassName, weekdayOptions } from './working-calendar.helpers';
+import { toggleWeekday, weekdayButtonClassName, weekdayOptionsForTimezone } from './working-calendar.helpers';
+import { CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * WorkingDaysPanelProps contains working-day selection state.
@@ -14,6 +14,7 @@ type WorkingDaysPanelProps = {
 	readonly disabled: boolean;
 	readonly changed: boolean;
 	readonly canManageCalendar: boolean;
+	readonly timezone: string;
 	readonly onChange: (weekdays: readonly number[]) => void;
 	readonly onSave: () => Promise<void>;
 };
@@ -26,10 +27,10 @@ export function WorkingDaysPanel(props: WorkingDaysPanelProps): ReactElement {
 		<section className="cf:grid cf:gap-5 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
 				<div>
-					<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+					<p className="cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 						Working days
 					</p>
-					<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
+					<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
 						Choose active workdays
 					</h3>
 				</div>
@@ -40,7 +41,7 @@ export function WorkingDaysPanel(props: WorkingDaysPanelProps): ReactElement {
 			</div>
 
 			<div className="cf:grid cf:gap-3 cf:sm:grid-cols-2 cf:xl:grid-cols-7">
-				{weekdayOptions.map(option => {
+				{weekdayOptionsForTimezone(props.timezone).map(option => {
 					const active = props.selectedWeekdays.includes(option.weekday);
 
 					return (
@@ -51,11 +52,11 @@ export function WorkingDaysPanel(props: WorkingDaysPanelProps): ReactElement {
 							disabled={props.disabled || !props.canManageCalendar}
 							onClick={() => props.onChange(toggleWeekday(props.selectedWeekdays, option.weekday))}
 						>
-							<span className="cf:text-2xl cf:font-black cf:text-foreground">{option.shortName}</span>
+							<span className="cf:text-2xl cf:font-semibold cf:text-foreground">{option.shortName}</span>
 							<span className="cf:text-sm cf:font-semibold cf:text-muted-foreground">
 								{option.longName}
 							</span>
-							<span className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200">
+							<span className="cf:text-xs cf:font-semibold cf:uppercase cf:tracking-widest cf:text-amber-200">
 								{active ? 'Working' : 'Off'}
 							</span>
 						</button>

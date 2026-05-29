@@ -38,6 +38,7 @@ type StandupQuestionPayload struct {
 	Required     bool     `json:"required"`
 	ShowInReport bool     `json:"showInReport"`
 	IsPrivate    bool     `json:"isPrivate"`
+	CreatesTasks bool     `json:"createsTasks"`
 	Position     int      `json:"position"`
 	Options      []string `json:"options"`
 	CreatedAt    string   `json:"createdAt"`
@@ -135,6 +136,7 @@ type CreateStandupTemplateRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Kind        string `json:"kind"`
+	IsActive    *bool  `json:"isActive,omitempty"`
 }
 
 /*
@@ -174,6 +176,7 @@ type CreateStandupQuestionRequest struct {
 	Required     bool     `json:"required"`
 	ShowInReport bool     `json:"showInReport"`
 	IsPrivate    bool     `json:"isPrivate"`
+	CreatesTasks bool     `json:"createsTasks"`
 	Position     int      `json:"position"`
 	Options      []string `json:"options"`
 }
@@ -198,6 +201,7 @@ type UpdateStandupQuestionRequest struct {
 	Required     bool     `json:"required"`
 	ShowInReport bool     `json:"showInReport"`
 	IsPrivate    bool     `json:"isPrivate"`
+	CreatesTasks bool     `json:"createsTasks"`
 	Position     int      `json:"position"`
 	Options      []string `json:"options"`
 }
@@ -266,11 +270,20 @@ type ListStandupSubmissionsResponse struct {
 }
 
 /*
+GetMyStandupSubmissionResponse is returned by GET /workspaces/{workspaceID}/standups/my-submission.
+*/
+type GetMyStandupSubmissionResponse struct {
+	Submission *StandupSubmissionPayload `json:"submission"`
+	Answers    []StandupAnswerPayload    `json:"answers"`
+}
+
+/*
 SubmitStandupResponse is returned by POST /standups/submissions.
 */
 type SubmitStandupResponse struct {
-	Submission StandupSubmissionPayload `json:"submission"`
-	Answers    []StandupAnswerPayload   `json:"answers"`
+	Submission   StandupSubmissionPayload `json:"submission"`
+	Answers      []StandupAnswerPayload   `json:"answers"`
+	CreatedTasks []TaskPayload            `json:"createdTasks"`
 }
 
 /*
@@ -338,6 +351,28 @@ func StandupAnswersToPayload(answers []domain.StandupAnswer) []StandupAnswerPayl
 	}
 
 	return payloads
+}
+
+/*
+MyStandupSubmissionToPayload maps a nullable current-user standup row to an API
+response. A nil row means the user has not submitted for that date/template yet.
+*/
+func MyStandupSubmissionToPayload(
+	submission *domain.StandupSubmissionWithAnswers,
+) GetMyStandupSubmissionResponse {
+	if submission == nil {
+		return GetMyStandupSubmissionResponse{
+			Submission: nil,
+			Answers:    []StandupAnswerPayload{},
+		}
+	}
+
+	payload := StandupSubmissionToPayload(submission.Submission)
+
+	return GetMyStandupSubmissionResponse{
+		Submission: &payload,
+		Answers:    StandupAnswersToPayload(submission.Answers),
+	}
 }
 
 /*
@@ -455,6 +490,7 @@ func StandupQuestionToPayload(question domain.StandupQuestion) StandupQuestionPa
 		Required:     question.Required,
 		ShowInReport: question.ShowInReport,
 		IsPrivate:    question.IsPrivate,
+		CreatesTasks: question.CreatesTasks,
 		Position:     question.Position,
 		Options:      question.Options,
 		CreatedAt:    formatAPITime(question.CreatedAt),

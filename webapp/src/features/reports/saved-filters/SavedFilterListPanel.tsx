@@ -1,12 +1,12 @@
 import type { ReactElement } from 'react';
 import { Bookmark, Send, Trash2 } from 'lucide-react';
 
-import { CampfireEmpty, CampfireStatusPill } from '@/app/campfire-ui';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { Button } from '@/components/ui/button';
 import type { ReportKind, SavedReportFilter } from '@/types/domain';
 
 import { formatDateTime, formatReportKind, savedFilterReportKinds, toReportKind } from './saved-filters.helpers';
+import { CampfireEmpty, CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * SavedFilterListPanelProps contains saved-filter list state and actions.
@@ -25,13 +25,13 @@ type SavedFilterListPanelProps = {
  */
 export function SavedFilterListPanel(props: SavedFilterListPanelProps): ReactElement {
 	return (
-		<section className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
+		<section className="campfire-flat-work-panel">
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-4">
 				<div>
-					<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+					<p className="campfire-page-eyebrow">
 						Filter library
 					</p>
-					<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
+					<h3 className="campfire-surface-title">
 						Choose and apply
 					</h3>
 				</div>
@@ -85,10 +85,10 @@ function SavedFilterRow(props: {
 	readonly onDelete: () => Promise<void>;
 }): ReactElement {
 	return (
-		<article className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4">
+		<article className="campfire-flat-list-row">
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
 				<div className="cf:min-w-0">
-					<h4 className="cf:truncate cf:text-base cf:font-black cf:text-foreground">{props.filter.name}</h4>
+					<h4 className="cf:truncate cf:text-base cf:font-semibold cf:text-foreground">{props.filter.name}</h4>
 					<p className="cf:mt-1 cf:text-xs cf:font-bold cf:text-muted-foreground">
 						Updated {formatDateTime(props.filter.updatedAt)}
 					</p>

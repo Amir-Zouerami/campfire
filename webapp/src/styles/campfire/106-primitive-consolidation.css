@@ -1,0 +1,50 @@
+.campfire-theme .campfire-empty-state--plain {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.campfire-theme .campfire-status-pill {
+	display: inline-flex;
+	min-height: 1.65rem;
+	align-items: center;
+	gap: 0.35rem;
+	border-radius: 999px;
+	border: 1px solid rgba(251, 191, 36, 0.18);
+	background: rgba(15, 23, 42, 0.42);
+	padding: 0.25rem 0.65rem;
+	font-size: 0.72rem;
+	font-weight: 560;
+	line-height: 1;
+	letter-spacing: 0.01em;
+	color: rgba(255, 247, 237, 0.74);
+	box-shadow: none;
+}
+
+.campfire-theme .campfire-status-pill--ember {
+	border-color: rgba(251, 191, 36, 0.26);
+	background: rgba(120, 53, 15, 0.24);
+	color: rgba(254, 243, 199, 0.9);
+}
+
+.campfire-theme .campfire-status-pill--green {
+	border-color: rgba(134, 239, 172, 0.24);
+	background: rgba(20, 83, 45, 0.22);
+	color: rgba(220, 252, 231, 0.88);
+}
+
+.campfire-theme .campfire-status-pill--red {
+	border-color: rgba(252, 165, 165, 0.25);
+	background: rgba(127, 29, 29, 0.22);
+	color: rgba(254, 226, 226, 0.9);
+}
+
+.campfire-theme .campfire-status-pill--blue {
+	border-color: rgba(147, 197, 253, 0.22);
+	background: rgba(30, 64, 175, 0.2);
+	color: rgba(219, 234, 254, 0.88);
+}
+
+.campfire-theme .campfire-status-pill--slate {
+	border-color: rgba(148, 163, 184, 0.2);
+	background: rgba(15, 23, 42, 0.36);
+	color: rgba(226, 232, 240, 0.72);
+}

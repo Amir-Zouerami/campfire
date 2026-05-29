@@ -1,13 +1,19 @@
 import { useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 
+import { CampfirePageHeader } from '@/components/campfire/CampfireLayoutPrimitives';
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
 
+import { CSVExportsPage } from './csv-exports/CSVExportsPage';
+import { GlobalReportsPage } from './global-reports/GlobalReportsPage';
+import { DailyReportPage } from './report-preview/DailyReportPage';
+import { WeeklyReportPage } from './report-preview/WeeklyReportPage';
 import { ReportsSectionNavigation } from './ReportsSectionNavigation';
-import { ReportsSectionPanel } from './ReportsSectionPanel';
 import { RestrictedReportsState } from './RestrictedReportsState';
 import { canViewReportsPage, resolveReportSection, visibleReportSections } from './reports.helpers';
 import type { ReportsSectionID } from './reports.types';
+import { SavedFiltersPage } from './saved-filters/SavedFiltersPage';
+import { TimeReportsPage } from './time-report/TimeReportsPage';
 
 /**
  * ReportsPage renders report previews, summaries, filters, CSV, and global reports.
@@ -28,14 +34,46 @@ export function ReportsPage(props: WorkspaceShellProps): ReactElement {
 	}
 
 	return (
-		<div className="cf:grid cf:gap-4">
+		<div className="campfire-page-stack">
+			<CampfirePageHeader
+				eyebrow="Reports"
+				title={resolvedSection.label}
+				description={resolvedSection.description}
+			/>
+
 			<ReportsSectionNavigation
 				activeSection={resolvedSection.id}
 				sections={visibleSections}
 				onSelectSection={setActiveSection}
 			/>
 
-			<ReportsSectionPanel activeSection={resolvedSection.id} {...props} />
+			{renderReportsSection(resolvedSection.id, props)}
 		</div>
 	);
+}
+
+/**
+ * renderReportsSection renders the currently selected report workflow without
+ * an extra pass-through section panel component.
+ */
+function renderReportsSection(activeSection: ReportsSectionID, props: WorkspaceShellProps): ReactElement {
+	switch (activeSection) {
+		case 'daily':
+			return <DailyReportPage workspace={props.workspace} refreshToken={props.standupRefreshToken} />;
+
+		case 'weekly':
+			return <WeeklyReportPage workspace={props.workspace} refreshToken={props.standupRefreshToken} />;
+
+		case 'time':
+			return <TimeReportsPage workspace={props.workspace} />;
+
+		case 'exports':
+			return <CSVExportsPage workspace={props.workspace} />;
+
+		case 'saved':
+			return <SavedFiltersPage workspace={props.workspace} />;
+
+		case 'global':
+			return <GlobalReportsPage isSystemAdmin={props.isSystemAdmin} />;
+	}
 }

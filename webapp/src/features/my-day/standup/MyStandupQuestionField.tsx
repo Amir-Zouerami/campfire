@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactElement } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { useEffect, useState, type KeyboardEvent, type ReactElement } from 'react';
+import { CheckCircle2, Plus, Trash2 } from 'lucide-react';
 
 import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import type { Task } from '@/types/domain';
 
 import {
 	nextMultiSelectValue,
@@ -28,7 +29,7 @@ export function MyStandupQuestionField(props: MyStandupQuestionFieldProps): Reac
 	return (
 		<div className="cf:grid cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-4">
 			<div className="cf:grid cf:gap-1">
-				<Label htmlFor={inputID} className="cf:text-base cf:font-black">
+				<Label htmlFor={inputID} className="cf:text-base cf:font-semibold">
 					{props.question.label}
 					{props.question.required && <span className="cf:ml-1 cf:text-amber-200">*</span>}
 				</Label>
@@ -55,6 +56,7 @@ function QuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID
 				disabled={props.disabled}
 				inputID={props.inputID}
 				placeholder={props.question.placeholder}
+				tasks={props.tasks}
 				value={questionValueAsString(props.value)}
 				onChange={props.onChange}
 			/>
@@ -174,7 +176,7 @@ function CheckboxQuestionControl(props: MyStandupQuestionFieldProps & { readonly
 								props.onChange(nextMultiSelectValue(props.value, option, checked === true));
 							}}
 						/>
-						<span className="cf:text-sm cf:font-bold cf:text-foreground">{option}</span>
+						<span className="cf:text-sm cf:font-semibold cf:text-foreground">{option}</span>
 					</label>
 				);
 			})}
@@ -208,7 +210,7 @@ function MultiSelectQuestionControl(props: MyStandupQuestionFieldProps & { reado
 								props.onChange(nextMultiSelectValue(props.value, option, checked === true));
 							}}
 						/>
-						<span className="cf:text-sm cf:font-bold cf:text-foreground">{option}</span>
+						<span className="cf:text-sm cf:font-semibold cf:text-foreground">{option}</span>
 					</label>
 				);
 			})}
@@ -217,93 +219,138 @@ function MultiSelectQuestionControl(props: MyStandupQuestionFieldProps & { reado
 }
 
 /**
- * TaskListQuestionControl renders standup work items as editable list rows instead of one blob textarea.
+ * TaskListQuestionControl renders standup work items as editable list rows.
  */
 function TaskListQuestionControl(props: {
 	readonly inputID: string;
 	readonly value: string;
 	readonly placeholder: string;
 	readonly disabled: boolean;
+	readonly tasks: readonly Task[];
 	readonly onChange: (value: string) => void;
 }): ReactElement {
 	const [draftItems, setDraftItems] = useState<readonly string[]>(() => {
 		const items = parseTaskListItems(props.value);
-		return items.length > 0 ? items : [''];
+		return items.length > 0 ? editableTaskItems(items) : [''];
 	});
 
 	useEffect(() => {
 		const items = parseTaskListItems(props.value);
-		setDraftItems(items.length > 0 ? items : ['']);
+		setDraftItems(editableTaskItems(items));
 	}, [props.inputID, props.value]);
 
-	/**
-	 * commitItems updates local and parent value.
-	 */
 	function commitItems(nextItems: readonly string[]): void {
-		setDraftItems(nextItems.length > 0 ? nextItems : ['']);
-		props.onChange(formatTaskListValue(nextItems));
+		const editableItems = editableTaskItems(nextItems);
+		setDraftItems(editableItems);
+		props.onChange(formatTaskListValue(editableItems));
 	}
 
-	/**
-	 * updateItem changes one list row.
-	 */
 	function updateItem(index: number, nextValue: string): void {
 		const nextItems = [...draftItems];
 		nextItems[index] = nextValue;
 		commitItems(nextItems);
 	}
 
-	/**
-	 * addItem appends one empty row.
-	 */
+	function handleItemKeyDown(event: KeyboardEvent<HTMLInputElement>, index: number): void {
+		event.stopPropagation();
+
+		if (event.key !== 'Enter') {
+			return;
+		}
+
+		event.preventDefault();
+
+		if (draftItems[index]?.trim() === '') {
+			return;
+		}
+
+		commitItems([...draftItems, '']);
+	}
+
 	function addItem(): void {
 		setDraftItems(current => [...current, '']);
 	}
 
-	/**
-	 * removeItem removes one row.
-	 */
 	function removeItem(index: number): void {
 		const nextItems = draftItems.filter((_, currentIndex) => currentIndex !== index);
 		commitItems(nextItems.length > 0 ? nextItems : ['']);
 	}
 
+	function selectExistingTask(index: number, title: string): void {
+		updateItem(index, title);
+	}
+
 	return (
 		<div className="cf:grid cf:gap-3">
 			<div className="cf:grid cf:gap-2">
-				{draftItems.map((item, index) => (
-					<div
-						key={`${props.inputID}-${index}`}
-						className="cf:grid cf:grid-cols-[2.25rem_minmax(0,1fr)_auto] cf:items-center cf:gap-2"
-					>
-						<div className="cf:flex cf:h-10 cf:w-9 cf:items-center cf:justify-center cf:rounded-xl cf:border cf:border-white/10 cf:bg-black/20 cf:text-sm cf:font-black cf:text-amber-100">
-							{index + 1}
-						</div>
+				{draftItems.map((item, index) => {
+					const suggestions = matchingTasks(props.tasks, item);
+					const exactMatch = exactMatchingTask(props.tasks, item);
 
-						<Input
-							id={index === 0 ? props.inputID : undefined}
-							disabled={props.disabled}
-							placeholder={props.placeholder || 'Add one work item'}
-							value={item}
-							onChange={event => updateItem(index, event.currentTarget.value)}
-						/>
-
-						<Button
-							type="button"
-							variant="secondary"
-							disabled={props.disabled || draftItems.length === 1}
-							onClick={() => removeItem(index)}
+					return (
+						<div
+							key={`${props.inputID}-${index}`}
+							className="campfire-work-item-row cf:grid cf:grid-cols-[2.25rem_minmax(0,1fr)_auto] cf:items-start cf:gap-2"
 						>
-							<Trash2 className="cf:size-4" />
-							Remove
-						</Button>
-					</div>
-				))}
+							<div className="campfire-work-item-index cf:flex cf:h-10 cf:w-9 cf:items-center cf:justify-center cf:rounded-xl cf:border cf:border-white/10 cf:bg-black/20 cf:text-sm cf:font-semibold cf:text-amber-100">
+								{index + 1}
+							</div>
+
+							<div className="campfire-work-item-input-wrap">
+								<Input
+									id={index === 0 ? props.inputID : undefined}
+									disabled={props.disabled}
+									placeholder={props.placeholder || 'Add one work item'}
+									value={item}
+									onChange={event => updateItem(index, event.currentTarget.value)}
+									onKeyDown={event => handleItemKeyDown(event, index)}
+								/>
+
+								{exactMatch !== null && (
+									<p className="campfire-task-match-hint">
+										<CheckCircle2 className="cf:size-4" /> Existing task selected
+									</p>
+								)}
+
+								{suggestions.length > 0 && exactMatch === null && (
+									<div className="campfire-task-suggestion-list" role="listbox" aria-label="Matching existing tasks">
+										{suggestions.map(task => (
+											<button
+												key={task.id}
+												type="button"
+												tabIndex={-1}
+												className="campfire-task-suggestion"
+												onMouseDown={event => {
+													event.preventDefault();
+													selectExistingTask(index, task.title);
+												}}
+											>
+												<span>{task.title}</span>
+												<small>{task.status}</small>
+											</button>
+										))}
+									</div>
+								)}
+							</div>
+
+							<Button
+								type="button"
+								variant="secondary"
+								tabIndex={-1}
+								disabled={props.disabled || draftItems.length === 1}
+								onClick={() => removeItem(index)}
+							>
+								<Trash2 className="cf:size-4" />
+								Remove
+							</Button>
+						</div>
+					);
+				})}
 			</div>
 
 			<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3">
 				<p className="cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
-					Each row becomes a Markdown bullet and can be synced into Time Log as a task.
+					Start typing and Campfire opens the next row automatically. Use suggestions to reuse existing tasks.
 				</p>
 
 				<Button type="button" variant="secondary" disabled={props.disabled} onClick={() => addItem()}>
@@ -313,4 +360,48 @@ function TaskListQuestionControl(props: {
 			</div>
 		</div>
 	);
+}
+
+/**
+ * editableTaskItems normalizes rows for editing: blank rows in the middle are
+ * removed, and one empty trailing row is always kept for fast continuous entry.
+ */
+function editableTaskItems(items: readonly string[]): readonly string[] {
+	const filledItems = items.map(item => item.trim()).filter(item => item !== '');
+
+	return [...filledItems, ''];
+}
+
+/**
+ * matchingTasks returns a small list of active matching task suggestions.
+ */
+function matchingTasks(tasks: readonly Task[], value: string): readonly Task[] {
+	const query = normalizeTaskTitleKey(value);
+	if (query.length < 2) {
+		return [];
+	}
+
+	return tasks
+		.filter(task => task.status !== 'archived')
+		.filter(task => normalizeTaskTitleKey(task.title).includes(query))
+		.slice(0, 6);
+}
+
+/**
+ * exactMatchingTask returns the task whose title matches the current row exactly.
+ */
+function exactMatchingTask(tasks: readonly Task[], value: string): Task | null {
+	const key = normalizeTaskTitleKey(value);
+	if (key === '') {
+		return null;
+	}
+
+	return tasks.find(task => normalizeTaskTitleKey(task.title) === key) ?? null;
+}
+
+/**
+ * normalizeTaskTitleKey compares task titles the same way as the backend.
+ */
+function normalizeTaskTitleKey(value: string): string {
+	return value.trim().replace(/\s+/g, ' ').toLowerCase();
 }

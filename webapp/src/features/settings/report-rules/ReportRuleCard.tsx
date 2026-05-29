@@ -1,7 +1,6 @@
 import type { ReactElement } from 'react';
 import { FileText, Save } from 'lucide-react';
 
-import { CampfireStatusPill } from '@/app/campfire-ui';
 import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
 import { CampfireField } from '@/components/campfire/CampfireField';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
@@ -19,6 +18,7 @@ import {
 	toReportSortMode,
 } from './report-rules.helpers';
 import type { ReportRuleDraft, ReportRuleDraftPatch } from './report-rules.types';
+import { CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * ReportRuleCardProps contains one report rule and its editable draft.
@@ -46,12 +46,12 @@ export function ReportRuleCard(props: ReportRuleCardProps): ReactElement {
 		<article className={reportRuleCardClassName(props.draft.enabled)}>
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
 				<div className="cf:min-w-0">
-					<p className="cf:flex cf:flex-wrap cf:items-center cf:gap-2 cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+					<p className="cf:flex cf:flex-wrap cf:items-center cf:gap-2 cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 						<FileText className="cf:size-5" />
 						{reportKindLabel}
 					</p>
 
-					<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
+					<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
 						{reportRuleTitle(props.scheduleLabel, props.rule.reportKind)}
 					</h3>
 
@@ -175,7 +175,7 @@ function ScheduleContextChips(props: { readonly label: StandupScheduleLabel }): 
 			{props.label.chips.map(chip => (
 				<span
 					key={chip}
-					className="cf:rounded-full cf:border cf:border-white/10 cf:bg-black/20 cf:px-2.5 cf:py-1 cf:text-xs cf:font-black cf:text-amber-100"
+					className="cf:rounded-full cf:border cf:border-white/10 cf:bg-black/20 cf:px-2.5 cf:py-1 cf:text-xs cf:font-semibold cf:text-amber-100"
 				>
 					{chip}
 				</span>

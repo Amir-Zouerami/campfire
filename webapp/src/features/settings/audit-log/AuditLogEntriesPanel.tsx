@@ -1,10 +1,10 @@
 import type { ReactElement } from 'react';
 import { Activity } from 'lucide-react';
 
-import { CampfireEmpty, CampfireStatusPill } from '@/app/campfire-ui';
 import type { AuditLogEntry } from '@/types/domain';
 
 import { formatAuditLabel, formatDateTime, shortID } from './audit-log.helpers';
+import { CampfireEmpty, CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * AuditLogEntriesPanelProps contains audit entries and actor labels.
@@ -21,10 +21,10 @@ export function AuditLogEntriesPanel(props: AuditLogEntriesPanelProps): ReactEle
 	return (
 		<section className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
 			<div>
-				<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+				<p className="cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 					Audit entries
 				</p>
-				<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
+				<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
 					Recent workspace actions
 				</h3>
 			</div>
@@ -61,7 +61,7 @@ function AuditEntryRow(props: { readonly entry: AuditLogEntry; readonly actorLab
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
 				<div className="cf:min-w-0">
 					<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
-						<h4 className="cf:min-w-0 cf:truncate cf:text-base cf:font-black cf:text-foreground">
+						<h4 className="cf:min-w-0 cf:truncate cf:text-base cf:font-semibold cf:text-foreground">
 							{formatAuditLabel(props.entry.action)}
 						</h4>
 						<CampfireStatusPill tone="ember">{formatAuditLabel(props.entry.entityType)}</CampfireStatusPill>
@@ -69,7 +69,7 @@ function AuditEntryRow(props: { readonly entry: AuditLogEntry; readonly actorLab
 
 					<p className="cf:mt-2 cf:text-sm cf:font-semibold cf:text-muted-foreground">
 						Actor:{' '}
-						<span className="cf:font-black cf:text-slate-200" title={props.entry.actorUserId}>
+						<span className="cf:font-semibold cf:text-slate-200" title={props.entry.actorUserId}>
 							{props.actorLabel}
 						</span>
 					</p>
@@ -89,7 +89,7 @@ function AuditEntryRow(props: { readonly entry: AuditLogEntry; readonly actorLab
 							key={key}
 							className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-3"
 						>
-							<span className="cf:block cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200">
+							<span className="cf:block cf:text-xs cf:font-semibold cf:uppercase cf:tracking-widest cf:text-amber-200">
 								{formatAuditLabel(key)}
 							</span>
 							<strong className="cf:mt-1 cf:block cf:break-words cf:text-sm cf:font-bold cf:text-foreground">

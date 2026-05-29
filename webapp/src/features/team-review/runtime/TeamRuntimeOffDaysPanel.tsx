@@ -1,10 +1,10 @@
 import type { ReactElement } from 'react';
 import { CalendarX2, Globe2 } from 'lucide-react';
 
-import { CampfireEmpty, CampfireStatusPill } from '@/app/campfire-ui';
 import type { GlobalSkipDate, WorkspaceOffDay } from '@/types/domain';
 
 import { formatDateTime, formatGlobalOffDay, formatWorkspaceOffDay } from './team-runtime.helpers';
+import { CampfireEmpty, CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * TeamRuntimeOffDaysPanelProps contains global and workspace off-day matches.
@@ -23,10 +23,10 @@ export function TeamRuntimeOffDaysPanel(props: TeamRuntimeOffDaysPanelProps): Re
 	return (
 		<section className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
 			<div>
-				<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+				<p className="cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 					Off-day matches
 				</p>
-				<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
+				<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
 					Global and workspace skip dates
 				</h3>
 			</div>
@@ -77,7 +77,7 @@ function OffDayRow(props: {
 			<div className="cf:min-w-0">
 				<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
 					<Icon className="cf:size-4 cf:text-amber-200" />
-					<strong className="cf:min-w-0 cf:truncate cf:text-base cf:font-black cf:text-foreground">
+					<strong className="cf:min-w-0 cf:truncate cf:text-base cf:font-semibold cf:text-foreground">
 						{props.title}
 					</strong>
 				</div>

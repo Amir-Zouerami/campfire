@@ -1,0 +1,208 @@
+/*
+ * Focused workflow flattening.
+ *
+ * This module finishes the next UI pass for personal leave and report pages.
+ * The goal is to keep dense workflows on dedicated pages while making each page
+ * feel like one coherent workspace instead of nested cards inside cards.
+ */
+
+.campfire-theme .campfire-stat-grid--four {
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.campfire-theme .campfire-stat-grid--five {
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.campfire-theme .campfire-control-surface {
+	display: grid;
+	gap: 1rem;
+	padding: 1rem;
+}
+
+.campfire-theme .campfire-flat-section-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.campfire-theme .campfire-flat-header-icon {
+	width: 1.35rem;
+	height: 1.35rem;
+	flex: 0 0 auto;
+	color: rgb(253 186 116 / 0.86);
+}
+
+.campfire-theme .campfire-control-grid {
+	display: grid;
+	gap: 0.85rem;
+	align-items: end;
+	border: 1px solid rgba(255, 255, 255, 0.075);
+	border-radius: 1rem;
+	background: rgba(0, 0, 0, 0.12);
+	padding: 0.9rem;
+}
+
+.campfire-theme .campfire-control-grid--daily-report {
+	grid-template-columns: minmax(14rem, 16rem) minmax(14rem, 1fr);
+}
+
+.campfire-theme .campfire-control-grid--weekly-report,
+.campfire-theme .campfire-control-grid--time-report {
+	grid-template-columns: minmax(12rem, 1fr) minmax(12rem, 1fr) minmax(14rem, 1.15fr) auto;
+}
+
+.campfire-theme .campfire-control-grid--csv-export {
+	grid-template-columns: minmax(12rem, 1fr) minmax(12rem, 1fr) minmax(14rem, 1.15fr);
+}
+
+.campfire-theme .campfire-report-preview-layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.28fr);
+	gap: 1rem;
+	align-items: start;
+}
+
+.campfire-theme .campfire-report-preview-panel,
+.campfire-theme .campfire-report-action-rail,
+.campfire-theme .campfire-flat-work-panel {
+	min-width: 0;
+	border: 1px solid rgba(255, 255, 255, 0.09);
+	border-radius: 1.2rem;
+	background:
+		radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.048), transparent 15rem),
+		rgba(255, 255, 255, 0.026);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.campfire-theme .campfire-report-preview-panel,
+.campfire-theme .campfire-report-action-rail,
+.campfire-theme .campfire-flat-work-panel {
+	display: grid;
+	gap: 1rem;
+	padding: 1rem;
+}
+
+.campfire-theme .campfire-report-markdown-pre {
+	min-height: 25rem;
+	max-height: min(52vh, 42rem);
+	margin: 0;
+	overflow: auto;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 0.95rem;
+	background: rgba(0, 0, 0, 0.24);
+	color: #e7e5e4;
+	font-family:
+		ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+	font-size: 0.84rem;
+	font-weight: 520;
+	line-height: 1.7;
+	padding: 1rem;
+	white-space: pre-wrap;
+}
+
+.campfire-theme .campfire-report-action-rail {
+	position: sticky;
+	top: 0.25rem;
+}
+
+.campfire-theme .campfire-report-action-buttons {
+	display: grid;
+	gap: 0.65rem;
+}
+
+.campfire-theme .campfire-report-action-buttons [data-slot='button'] {
+	justify-content: flex-start;
+	width: 100%;
+}
+
+.campfire-theme .campfire-focused-split {
+	display: grid;
+	gap: 1rem;
+	align-items: start;
+}
+
+.campfire-theme .campfire-focused-split--leave,
+.campfire-theme .campfire-focused-split--saved-filters {
+	grid-template-columns: minmax(20rem, 0.85fr) minmax(0, 1.15fr);
+}
+
+.campfire-theme .campfire-flat-work-panel--form {
+	align-self: start;
+}
+
+.campfire-theme .campfire-flat-list-row {
+	display: grid;
+	min-width: 0;
+	gap: 0.85rem;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 0.95rem;
+	background: rgba(0, 0, 0, 0.14);
+	padding: 0.9rem;
+	transition:
+		background-color 160ms ease,
+		border-color 160ms ease;
+}
+
+.campfire-theme .campfire-flat-list-row:hover,
+.campfire-theme .campfire-flat-list-row--active {
+	border-color: rgba(253, 186, 116, 0.2);
+	background:
+		linear-gradient(90deg, rgba(249, 115, 22, 0.07), rgba(249, 115, 22, 0.018)),
+		rgba(255, 255, 255, 0.026);
+}
+
+.campfire-theme .campfire-flat-list-row--with-action {
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: start;
+}
+
+.campfire-theme .campfire-flat-list-row--export {
+	padding: 1rem;
+}
+
+.campfire-theme .campfire-csv-action-list {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0.85rem;
+}
+
+@media (max-width: 1280px) {
+	.campfire-theme .campfire-stat-grid--five {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+
+	.campfire-theme .campfire-csv-action-list,
+	.campfire-theme .campfire-report-preview-layout,
+	.campfire-theme .campfire-focused-split--leave,
+	.campfire-theme .campfire-focused-split--saved-filters {
+		grid-template-columns: 1fr;
+	}
+
+	.campfire-theme .campfire-report-action-rail {
+		position: static;
+	}
+}
+
+@media (max-width: 960px) {
+	.campfire-theme .campfire-stat-grid--four,
+	.campfire-theme .campfire-stat-grid--five {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.campfire-theme .campfire-control-grid--daily-report,
+	.campfire-theme .campfire-control-grid--weekly-report,
+	.campfire-theme .campfire-control-grid--time-report,
+	.campfire-theme .campfire-control-grid--csv-export,
+	.campfire-theme .campfire-flat-list-row--with-action {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (max-width: 640px) {
+	.campfire-theme .campfire-stat-grid--four,
+	.campfire-theme .campfire-stat-grid--five {
+		grid-template-columns: 1fr;
+	}
+}

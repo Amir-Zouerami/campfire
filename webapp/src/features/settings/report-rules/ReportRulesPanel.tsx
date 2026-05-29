@@ -1,12 +1,12 @@
 import type { ReactElement } from 'react';
 import { FileText } from 'lucide-react';
 
-import { CampfireEmpty } from '@/app/campfire-ui';
 import { scheduleLabelForRule, type StandupScheduleLabelLookup } from '@/features/settings/standup-schedule-labels';
 import type { ReportRule } from '@/types/domain';
 
 import { ReportRuleCard } from './ReportRuleCard';
 import type { ReportRuleDraftPatch, ReportRuleWithDraft } from './report-rules.types';
+import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * ReportRulesPanelProps contains report rules and edit actions.

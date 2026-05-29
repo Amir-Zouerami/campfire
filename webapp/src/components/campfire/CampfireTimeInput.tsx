@@ -3,6 +3,7 @@ import type { KeyboardEvent, ReactElement } from 'react';
 import { Check, ChevronDown, Clock3 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { useCampfireFloatingPopover } from './useCampfireFloatingPopover';
 
 /**
  * CampfireTimeInputProps contains a custom Campfire time picker.
@@ -38,6 +39,8 @@ const MINUTE_OPTIONS = Array.from({ length: 12 }, (_value, index) => index * 5);
  */
 export function CampfireTimeInput(props: CampfireTimeInputProps): ReactElement {
 	const rootRef = useRef<HTMLDivElement | null>(null);
+	const buttonRef = useRef<HTMLButtonElement | null>(null);
+	const popoverRef = useRef<HTMLDivElement | null>(null);
 	const parsedValue = parseTimeValue(props.value);
 	const fallbackTime = parsedValue ?? { hour: 9, minute: 0 };
 
@@ -82,6 +85,13 @@ export function CampfireTimeInput(props: CampfireTimeInputProps): ReactElement {
 	const selectedLabel = useMemo(() => {
 		return props.value.trim() === '' ? 'HH:MM' : props.value;
 	}, [props.value]);
+
+	const popoverStyle = useCampfireFloatingPopover({
+		open,
+		triggerRef: buttonRef,
+		popoverRef,
+		placement: 'bottom-end',
+	});
 
 	/**
 	 * handleKeyDown supports keyboard toggle/close behavior.
@@ -132,6 +142,7 @@ export function CampfireTimeInput(props: CampfireTimeInputProps): ReactElement {
 	return (
 		<div ref={rootRef} className={cn('campfire-time-picker', props.className)}>
 			<button
+				ref={buttonRef}
 				id={props.id}
 				type="button"
 				disabled={props.disabled}
@@ -157,7 +168,13 @@ export function CampfireTimeInput(props: CampfireTimeInputProps): ReactElement {
 			</button>
 
 			{open && (
-				<div role="dialog" aria-label="Choose time" className="campfire-time-picker-popover">
+				<div
+					ref={popoverRef}
+					role="dialog"
+					aria-label="Choose time"
+					className="campfire-time-picker-popover campfire-floating-popover"
+					style={popoverStyle}
+				>
 					<div className="campfire-time-picker-glow" />
 
 					<div className="campfire-time-picker-header">

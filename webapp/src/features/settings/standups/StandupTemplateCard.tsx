@@ -1,7 +1,6 @@
 import type { ReactElement } from 'react';
 import { FileQuestion, Loader2, Save } from 'lucide-react';
 
-import { CampfireEmpty, CampfireStatusPill } from '@/app/campfire-ui';
 import { Button } from '@/components/ui/button';
 import type { StandupQuestion, StandupTemplate } from '@/types/domain';
 
@@ -14,6 +13,7 @@ import type {
 } from './standup-settings.types';
 import { StandupQuestionCard } from './StandupQuestionCard';
 import { StandupTemplateFields } from './StandupTemplateFields';
+import { CampfireEmpty, CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * StandupTemplateCardProps contains one template and attached questions.
@@ -40,13 +40,13 @@ export function StandupTemplateCard(props: StandupTemplateCardProps): ReactEleme
 	const formDisabled = props.disabled || !props.canManageStandups;
 
 	return (
-		<article className="cf:grid cf:gap-5 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
+		<article className="campfire-standup-template-editor">
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
 				<div className="cf:min-w-0">
-					<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+					<p className="cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 						{formatLabel(props.template.kind)} template
 					</p>
-					<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
+					<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
 						{props.template.name}
 					</h3>
 					<p className="cf:mt-2 cf:text-xs cf:font-bold cf:text-muted-foreground">
@@ -87,10 +87,10 @@ export function StandupTemplateCard(props: StandupTemplateCardProps): ReactEleme
 				</Button>
 			</div>
 
-			<div className="cf:grid cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4">
+			<div className="campfire-standup-template-questions">
 				<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3">
 					<div>
-						<h4 className="cf:m-0 cf:text-base cf:font-black cf:text-foreground">Questions</h4>
+						<h4 className="cf:m-0 cf:text-base cf:font-semibold cf:text-foreground">Questions</h4>
 						<p className="cf:m-0 cf:mt-1 cf:text-xs cf:font-semibold cf:text-muted-foreground">
 							{props.questions.length} attached to this template
 						</p>
@@ -107,7 +107,7 @@ export function StandupTemplateCard(props: StandupTemplateCardProps): ReactEleme
 				)}
 
 				{props.questions.length > 0 && (
-					<div className="cf:grid cf:gap-3">
+					<div className="campfire-standup-question-editor-list">
 						{props.questions.map(pair => (
 							<StandupQuestionCard
 								key={pair.question.id}

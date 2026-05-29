@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/components/campfire/campfire-toast';
 
 import {
 	createStandupQuestion,
@@ -29,6 +29,7 @@ import {
 	normalizeScheduleDraft,
 	normalizeTemplateCreate,
 	normalizeTemplateUpdate,
+	templateNameKey,
 	pairSchedulesWithDrafts,
 	pairTemplatesWithDrafts,
 	questionToDraft,
@@ -142,7 +143,7 @@ export function useStandupSettings(input: UseStandupSettingsInput): UseStandupSe
 			setMessage('');
 
 			try {
-				const response = await listStandupConfiguration(input.workspace.id);
+				const response = await listStandupConfiguration(input.workspace.id, { includeInactive: true });
 
 				if (!isActive) {
 					return;
@@ -265,6 +266,11 @@ export function useStandupSettings(input: UseStandupSettingsInput): UseStandupSe
 			return;
 		}
 
+		if (templateNameExists(templates, newTemplate.name)) {
+			showValidationError('A standup template with this name already exists in this workspace.');
+			return;
+		}
+
 		setLoadState('saving');
 		setSavingID('new-template');
 		setMessage('');
@@ -272,7 +278,7 @@ export function useStandupSettings(input: UseStandupSettingsInput): UseStandupSe
 		try {
 			const response = await createStandupTemplate(input.workspace.id, normalizeTemplateCreate(newTemplate));
 
-			setTemplates(current => [...current, response.template]);
+			setTemplates(current => mergeTemplateWithActiveDailyRule([...current, response.template], response.template));
 			setTemplateDrafts(current => ({ ...current, [response.template.id]: templateToDraft(response.template) }));
 			setNewTemplate(emptyTemplateDraft());
 			setNewSchedule(current => ({
@@ -310,6 +316,11 @@ export function useStandupSettings(input: UseStandupSettingsInput): UseStandupSe
 			return;
 		}
 
+		if (templateNameExists(templates, draft.name, template.id)) {
+			showValidationError('A standup template with this name already exists in this workspace.');
+			return;
+		}
+
 		setLoadState('saving');
 		setSavingID(template.id);
 		setMessage('');
@@ -321,7 +332,7 @@ export function useStandupSettings(input: UseStandupSettingsInput): UseStandupSe
 				normalizeTemplateUpdate(draft),
 			);
 
-			setTemplates(current => replaceTemplate(current, response.template));
+			setTemplates(current => mergeTemplateWithActiveDailyRule(replaceTemplate(current, response.template), response.template));
 			setTemplateDrafts(current => ({ ...current, [response.template.id]: templateToDraft(response.template) }));
 			finishMutation('Standup template updated.');
 		} catch (error: unknown) {
@@ -553,6 +564,51 @@ export function useStandupSettings(input: UseStandupSettingsInput): UseStandupSe
 		createQuestion,
 		saveQuestion,
 	};
+}
+
+/**
+ * templateNameExists checks the workspace-unique template-name rule locally so
+ * the UI can fail fast before the backend enforces the same rule.
+ */
+function templateNameExists(
+	templates: readonly StandupTemplate[],
+	name: string,
+	excludedTemplateID = '',
+): boolean {
+	const nextKey = templateNameKey(name);
+	if (nextKey === '') {
+		return false;
+	}
+
+	return templates.some(template => template.id !== excludedTemplateID && templateNameKey(template.name) === nextKey);
+}
+
+/**
+ * mergeTemplateWithActiveDailyRule mirrors the backend rule in local state so
+ * the previous active daily template visually deactivates immediately.
+ */
+function mergeTemplateWithActiveDailyRule(
+	templates: readonly StandupTemplate[],
+	changedTemplate: StandupTemplate,
+): readonly StandupTemplate[] {
+	if (changedTemplate.kind !== 'daily' || !changedTemplate.isActive) {
+		return templates;
+	}
+
+	return templates.map(template => {
+		if (template.id === changedTemplate.id) {
+			return changedTemplate;
+		}
+
+		if (template.kind !== 'daily' || !template.isActive) {
+			return template;
+		}
+
+		return {
+			...template,
+			isActive: false,
+		};
+	});
 }
 
 /**

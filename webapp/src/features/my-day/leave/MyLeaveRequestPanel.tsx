@@ -20,6 +20,7 @@ type MyLeaveRequestPanelProps = {
 	readonly draft: MyLeaveDraft;
 	readonly leaveTypes: readonly LeaveType[];
 	readonly disabled: boolean;
+	readonly timezone: string;
 	readonly onChange: (patch: MyLeaveDraftPatch) => void;
 	readonly onSubmit: () => Promise<void>;
 };
@@ -38,14 +39,14 @@ export function MyLeaveRequestPanel(props: MyLeaveRequestPanelProps): ReactEleme
 
 	return (
 		<form
-			className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5"
+			className="campfire-flat-work-panel campfire-flat-work-panel--form"
 			onSubmit={handleSubmit}
 		>
 			<div>
-				<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+				<p className="campfire-page-eyebrow">
 					Request leave
 				</p>
-				<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
+				<h3 className="campfire-surface-title">
 					Tell the team when you will be away
 				</h3>
 			</div>
@@ -72,6 +73,7 @@ export function MyLeaveRequestPanel(props: MyLeaveRequestPanelProps): ReactEleme
 						<CampfireDateInput
 							id="campfire-my-leave-start"
 							disabled={props.disabled}
+							timezone={props.timezone}
 							value={props.draft.startDate}
 							onValueChange={value => props.onChange({ startDate: value })}
 						/>
@@ -81,6 +83,7 @@ export function MyLeaveRequestPanel(props: MyLeaveRequestPanelProps): ReactEleme
 						<CampfireDateInput
 							id="campfire-my-leave-end"
 							disabled={props.disabled}
+							timezone={props.timezone}
 							value={props.draft.endDate}
 							onValueChange={value => props.onChange({ endDate: value })}
 						/>

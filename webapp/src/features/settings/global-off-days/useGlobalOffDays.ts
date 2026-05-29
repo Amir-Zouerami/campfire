@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/components/campfire/campfire-toast';
 
 import { createGlobalSkipDate, deleteGlobalSkipDate, listGlobalSkipDates } from '@/api';
 import type { GlobalSkipDate } from '@/types/domain';

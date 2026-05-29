@@ -300,6 +300,18 @@ func formatChannelMissingReminderMessage(api plugin.API, reminder service.Standu
 		return strings.Join(lines, "\n")
 	}
 
+	if reminder.MentionLimit > 0 && reminder.MissingUserCount > len(reminder.MissingUserIDs) {
+		lines = append(
+			lines,
+			fmt.Sprintf(
+				"_Showing the last %d of %d missing users to keep this channel reminder readable._",
+				len(reminder.MissingUserIDs),
+				reminder.MissingUserCount,
+			),
+			"",
+		)
+	}
+
 	for _, userID := range reminder.MissingUserIDs {
 		lines = append(lines, fmt.Sprintf("- %s", userMentionOrID(api, userID)))
 	}

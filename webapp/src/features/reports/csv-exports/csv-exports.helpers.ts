@@ -190,10 +190,10 @@ export function downloadCSVBlob(blob: Blob, filename: string): void {
  */
 export function exportActionCardClassName(active: boolean): string {
 	return cn(
-		'campfire-csv-action-card cf:grid cf:gap-5 cf:rounded-2xl cf:border cf:px-5 cf:py-6 cf:transition',
+		'campfire-flat-list-row campfire-flat-list-row--export' ,
 		active
-			? 'cf:border-amber-300/35 cf:bg-amber-300/[0.08]'
-			: 'cf:border-white/10 cf:bg-white/[0.035] hover:cf:border-amber-300/25',
+			? 'campfire-flat-list-row--active'
+			: '',
 	);
 }
 

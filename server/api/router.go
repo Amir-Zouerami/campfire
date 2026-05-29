@@ -247,6 +247,14 @@ func NewRouter(config RouterConfig) http.Handler {
 			),
 		)
 		api.Get(
+			"/workspaces/{workspaceID}/standups/my-submission",
+			handleGetMyStandupSubmission(
+				config.Logger,
+				config.Mattermost,
+				config.StandupService,
+			),
+		)
+		api.Get(
 			"/workspaces/{workspaceID}/standups/submissions",
 			handleListStandupSubmissions(
 				config.Logger,

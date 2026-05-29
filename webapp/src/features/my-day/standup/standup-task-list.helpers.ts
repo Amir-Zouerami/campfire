@@ -3,16 +3,6 @@ import type { StandupQuestion } from '@/types/domain';
 import type { AnswerDrafts } from './my-standup.types';
 
 /**
- * workItemHintTokens identify standup questions that should behave like task lists.
- */
-const workItemHintTokens = ['today', 'plan', 'progress', 'yesterday', 'task', 'work item'];
-
-/**
- * excludedHintTokens identify standup questions that should not create tasks.
- */
-const excludedHintTokens = ['blocker', 'blocked', 'impediment', 'risk'];
-
-/**
  * normalizeTaskTitleKey creates a stable comparison key for task titles.
  */
 function normalizeTaskTitleKey(value: string): string {
@@ -20,36 +10,14 @@ function normalizeTaskTitleKey(value: string): string {
 }
 
 /**
- * questionSearchText returns searchable question text.
- */
-function questionSearchText(question: StandupQuestion): string {
-	return [
-		question.questionKey,
-		question.label,
-		question.section,
-		question.prompt,
-		question.helpText,
-		question.placeholder,
-	]
-		.join(' ')
-		.toLowerCase();
-}
-
-/**
  * isTaskListQuestion returns whether a question should be edited as a list of work items.
+ *
+ * Task generation is now explicit backend configuration. The frontend no longer
+ * guesses from labels like "today" or "yesterday", because that created hidden
+ * behavior and made template design unpredictable.
  */
 export function isTaskListQuestion(question: StandupQuestion): boolean {
-	if (question.type !== 'long_text' && question.type !== 'text') {
-		return false;
-	}
-
-	const haystack = questionSearchText(question);
-
-	if (excludedHintTokens.some(token => haystack.includes(token))) {
-		return false;
-	}
-
-	return workItemHintTokens.some(token => haystack.includes(token));
+	return question.createsTasks && (question.type === 'long_text' || question.type === 'text');
 }
 
 /**
@@ -58,8 +26,8 @@ export function isTaskListQuestion(question: StandupQuestion): boolean {
 export function parseTaskListItems(value: string): readonly string[] {
 	return value
 		.split(/\r?\n/g)
-		.map(line => line.replace(/^\s*(?:[-*•]+|\d+[.)])\s*/, '').trim())
-		.filter(line => line !== '');
+		.map((line) => line.replace(/^\s*(?:[-*•]+|\d+[.)])\s*/, '').trim())
+		.filter((line) => line !== '');
 }
 
 /**
@@ -67,9 +35,9 @@ export function parseTaskListItems(value: string): readonly string[] {
  */
 export function formatTaskListValue(items: readonly string[]): string {
 	return items
-		.map(item => item.trim())
-		.filter(item => item !== '')
-		.map(item => `- ${item}`)
+		.map((item) => item.trim())
+		.filter((item) => item !== '')
+		.map((item) => `- ${item}`)
 		.join('\n');
 }
 

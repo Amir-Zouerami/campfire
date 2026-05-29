@@ -1,13 +1,7 @@
 import type { ReactElement } from 'react';
-import { ClipboardList } from 'lucide-react';
+import { ClipboardList, FileQuestion } from 'lucide-react';
 
-import {
-	CampfireCardBody,
-	CampfireCardHeader,
-	CampfireEmpty,
-	CampfirePanel,
-	CampfireStatusPill,
-} from '@/app/campfire-ui';
+import { CampfireStatusPill, CampfireSurface } from '@/components/campfire/CampfireLayoutPrimitives';
 
 import { formatLabel } from './standup-settings.helpers';
 import type { StandupTemplateWithDetails } from './standup-settings.types';
@@ -24,82 +18,72 @@ type StandupConfigurationOverviewPanelProps = {
  */
 export function StandupConfigurationOverviewPanel(props: StandupConfigurationOverviewPanelProps): ReactElement {
 	return (
-		<CampfirePanel>
-			<CampfireCardHeader
-				eyebrow="Overview"
-				title="Current standup setup"
-				description="A compact map of templates, attached questions, and active schedules."
-				icon={ClipboardList}
-			/>
+		<CampfireSurface className="campfire-standup-overview-surface">
+			<div className="campfire-surface-header campfire-surface-header--with-action">
+				<div>
+					<p className="campfire-surface-eyebrow">Overview</p>
+					<h3 className="campfire-surface-title">Current standup setup</h3>
+					<p className="campfire-surface-description">
+						Templates, attached questions, and schedules in one scan-friendly view.
+					</p>
+				</div>
+				<CampfireStatusPill tone="ember">{props.templateDetails.length} templates</CampfireStatusPill>
+			</div>
 
-			<CampfireCardBody>
-				{props.templateDetails.length === 0 && (
-					<CampfireEmpty
-						icon={ClipboardList}
-						title="No standup templates yet"
-						description="Create a daily or weekly template below, then attach schedules and questions."
-					/>
-				)}
+			{props.templateDetails.length === 0 && (
+				<div className="campfire-flat-empty-state">
+					<span className="campfire-flat-empty-icon" aria-hidden="true">
+						<ClipboardList className="cf:size-5" />
+					</span>
+					<div>
+						<h4>No standup templates yet</h4>
+						<p>Create a daily or weekly template, then attach schedules and questions.</p>
+					</div>
+				</div>
+			)}
 
-				{props.templateDetails.length > 0 && (
-					<div className="cf:grid cf:gap-3">
-						{props.templateDetails.map(detail => (
-							<article
-								key={detail.template.id}
-								className="cf:grid cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-4"
-							>
-								<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
-									<div className="cf:min-w-0">
-										<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
-											<h3 className="cf:m-0 cf:text-lg cf:font-black cf:text-foreground">
-												{detail.template.name}
-											</h3>
-											<CampfireStatusPill tone={detail.template.isActive ? 'green' : 'slate'}>
-												{detail.template.isActive ? 'Active' : 'Inactive'}
-											</CampfireStatusPill>
-											<CampfireStatusPill tone="ember">
-												{formatLabel(detail.template.kind)}
-											</CampfireStatusPill>
-										</div>
+			{props.templateDetails.length > 0 && (
+				<div className="campfire-standup-overview-list">
+					{props.templateDetails.map(detail => (
+						<article key={detail.template.id} className="campfire-standup-overview-row">
+							<div className="campfire-standup-overview-main">
+								<span className="campfire-standup-overview-icon" aria-hidden="true">
+									<FileQuestion className="cf:size-4" />
+								</span>
 
-										{detail.template.description !== '' && (
-											<p className="cf:m-0 cf:mt-2 cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
-												{detail.template.description}
-											</p>
-										)}
+								<div className="cf:min-w-0">
+									<div className="campfire-standup-overview-title-row">
+										<h4>{detail.template.name}</h4>
+										<CampfireStatusPill tone={detail.template.isActive ? 'green' : 'slate'}>
+											{detail.template.isActive ? 'Active' : 'Inactive'}
+										</CampfireStatusPill>
+										<CampfireStatusPill tone="ember">{formatLabel(detail.template.kind)}</CampfireStatusPill>
 									</div>
 
-									<div className="cf:flex cf:flex-wrap cf:gap-2">
-										<CampfireStatusPill tone="slate">
-											{detail.questions.length} questions
-										</CampfireStatusPill>
-										<CampfireStatusPill tone="slate">
-											{detail.schedules.length} schedules
-										</CampfireStatusPill>
-									</div>
-								</div>
-
-								<div className="cf:flex cf:flex-wrap cf:gap-2">
-									{detail.questions.slice(0, 6).map(question => (
-										<span
-											key={question.id}
-											className="cf:rounded-full cf:border cf:border-white/10 cf:bg-black/20 cf:px-3 cf:py-1.5 cf:text-xs cf:font-black cf:text-muted-foreground"
-										>
-											{question.label}
-										</span>
-									))}
-
-									{detail.questions.length > 6 && (
-										<span className="cf:rounded-full cf:border cf:border-amber-300/20 cf:bg-amber-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-black cf:text-amber-100">
-											+{detail.questions.length - 6} more
-										</span>
+									{detail.template.description.trim() !== '' && (
+										<p className="campfire-standup-overview-description">{detail.template.description}</p>
 									)}
 								</div>
-							</article>
-						))}
-					</div>
-				)}
-			</CampfireCardBody>
-		</CampfirePanel>
+							</div>
+
+							<div className="campfire-standup-overview-meta">
+								<span>{detail.questions.length} questions</span>
+								<span>{detail.schedules.length} schedules</span>
+							</div>
+
+							{detail.questions.length > 0 && (
+								<div className="campfire-standup-question-chip-list">
+									{detail.questions.slice(0, 6).map(question => (
+										<span key={question.id}>{question.label}</span>
+									))}
+
+									{detail.questions.length > 6 && <span>+{detail.questions.length - 6} more</span>}
+								</div>
+							)}
+						</article>
+					))}
+				</div>
+			)}
+		</CampfireSurface>
 	);
 }

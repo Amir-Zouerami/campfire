@@ -1,10 +1,10 @@
 import type { ReactElement } from 'react';
 import { MessageSquareText } from 'lucide-react';
 
-import { CampfireEmpty, CampfireStatusPill } from '@/app/campfire-ui';
 import type { StandupQuestion, StandupSubmissionWithAnswers } from '@/types/domain';
 
 import { answerShouldHighlight, formatAnswerValue, formatDateTime } from './team-standups.helpers';
+import { CampfireEmpty, CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * TeamStandupSubmissionListProps contains submitted standup rows.
@@ -22,10 +22,10 @@ export function TeamStandupSubmissionList(props: TeamStandupSubmissionListProps)
 	return (
 		<section className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
 			<div>
-				<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+				<p className="cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 					Submissions
 				</p>
-				<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
+				<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
 					Submitted updates
 				</h3>
 			</div>
@@ -66,10 +66,10 @@ function TeamStandupSubmissionCard(props: {
 		<article className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-5">
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-4">
 				<div className="cf:min-w-0">
-					<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+					<p className="cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 						{props.labelForUserID(submission.userId)}
 					</p>
-					<h4 className="cf:mt-1 cf:text-2xl cf:font-black cf:tracking-[-0.04em] cf:text-foreground">
+					<h4 className="cf:mt-1 cf:text-2xl cf:font-semibold cf:tracking-[-0.04em] cf:text-foreground">
 						{submission.occurrenceDate}
 					</h4>
 				</div>
@@ -106,7 +106,7 @@ function TeamStandupSubmissionCard(props: {
 function SubmissionMeta(props: { readonly label: string; readonly value: string }): ReactElement {
 	return (
 		<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-3">
-			<p className="cf:text-xs cf:font-black cf:uppercase cf:tracking-widest cf:text-amber-200">{props.label}</p>
+			<p className="cf:text-xs cf:font-semibold cf:uppercase cf:tracking-widest cf:text-amber-200">{props.label}</p>
 			<p className="cf:mt-1 cf:truncate cf:text-sm cf:font-bold cf:text-slate-200" title={props.value}>
 				{props.value}
 			</p>
@@ -131,7 +131,7 @@ function AnswerRow(props: {
 			}
 		>
 			<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
-				<strong className="cf:text-sm cf:font-black cf:text-white">
+				<strong className="cf:text-sm cf:font-semibold cf:text-white">
 					{props.question?.label ?? 'Unknown question'}
 				</strong>
 

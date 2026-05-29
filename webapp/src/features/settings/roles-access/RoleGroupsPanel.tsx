@@ -1,11 +1,11 @@
 import type { ReactElement } from 'react';
 import { Loader2, Trash2, UsersRound } from 'lucide-react';
 
-import { CampfireEmpty, CampfireStatusPill } from '@/app/campfire-ui';
 import { Button } from '@/components/ui/button';
 
 import { isAssignableWorkspaceRole } from './roles-access.helpers';
 import type { AssignableWorkspaceRole, RoleGroup } from './roles-access.types';
+import { CampfireEmpty, CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * RoleGroupsPanelProps contains role groups and user labels.
@@ -57,10 +57,10 @@ function RoleGroupCard(props: {
 		<article className="campfire-role-group-card">
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
 				<div>
-					<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+					<p className="cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 						{props.group.title}
 					</p>
-					<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
+					<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
 						{props.group.userIDs.length} {props.group.userIDs.length === 1 ? 'user' : 'users'}
 					</h3>
 					<p className="cf:mt-2 cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
@@ -85,7 +85,7 @@ function RoleGroupCard(props: {
 						return (
 							<span
 								key={`${props.group.id}-${userID}`}
-								className="cf:inline-flex cf:max-w-full cf:items-center cf:gap-2 cf:rounded-full cf:border cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-black cf:text-emerald-100"
+								className="cf:inline-flex cf:max-w-full cf:items-center cf:gap-2 cf:rounded-full cf:border cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-semibold cf:text-emerald-100"
 								title={userID}
 							>
 								<span className="cf:truncate">{props.labelForUserID(userID)}</span>

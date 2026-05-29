@@ -5,7 +5,7 @@ import { CampfireFeedback, CampfireLoadingFeedback } from '@/components/campfire
 import type { StandupSettingsLoadState } from './standup-settings.types';
 
 /**
- * StandupSettingsFeedbackProps contains standup settings feedback state.
+ * StandupSettingsFeedbackProps contains workflow feedback state.
  */
 type StandupSettingsFeedbackProps = {
 	readonly state: StandupSettingsLoadState;
@@ -13,7 +13,7 @@ type StandupSettingsFeedbackProps = {
 };
 
 /**
- * StandupSettingsFeedback renders success and error feedback.
+ * StandupSettingsFeedback renders compact local workflow feedback.
  */
 export function StandupSettingsFeedback(props: StandupSettingsFeedbackProps): ReactElement | null {
 	return <CampfireFeedback message={props.message} tone={props.state === 'error' ? 'error' : 'success'} />;

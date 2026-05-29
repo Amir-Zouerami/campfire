@@ -1,16 +1,10 @@
 import type { ReactElement } from 'react';
-import { FileText, UserRoundCheck, UserRoundX, Umbrella } from 'lucide-react';
+import { Rows3, UserRoundCheck, UserRoundX, Umbrella } from 'lucide-react';
 
-import {
-	CampfireCardBody,
-	CampfireCardHeader,
-	CampfireMetric,
-	CampfirePanel,
-	CampfireStatusPill,
-} from '@/app/campfire-ui';
 import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
 import { CampfireField } from '@/components/campfire/CampfireField';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
+import { CampfireStatCard, CampfireSurface } from '@/components/campfire/CampfireLayoutPrimitives';
 import type { Workspace } from '@/types/domain';
 
 import { dailyReportSortOptions, formatReportSortMode, toDailyReportSortMode } from './report-preview.helpers';
@@ -33,77 +27,74 @@ export function DailyReportPage(props: DailyReportPageProps): ReactElement {
 	const report = useDailyReportPreview(props);
 
 	return (
-		<div className="cf:grid cf:gap-5">
-			<CampfirePanel>
-				<CampfireCardHeader
-					eyebrow="Daily report"
-					title="Preview daily Markdown"
-					description="Pick a date, review the generated report, then copy or post it to the workspace channel."
-					icon={FileText}
-					action={<CampfireStatusPill tone="ember">Daily</CampfireStatusPill>}
+		<div className="campfire-page-stack">
+			<div className="campfire-stat-grid campfire-stat-grid--four">
+				<CampfireStatCard
+					icon={UserRoundCheck}
+					label="Submitted"
+					value={String(report.submittedCount)}
+					helper="Included users"
+					tone="green"
 				/>
+				<CampfireStatCard
+					icon={UserRoundX}
+					label="Missing"
+					value={String(report.missingCount)}
+					helper="Follow-up users"
+					tone={report.missingCount > 0 ? 'red' : 'slate'}
+				/>
+				<CampfireStatCard icon={Umbrella} label="On leave" value={String(report.onLeaveCount)} helper="Leave-aware" />
+				<CampfireStatCard icon={Rows3} label="Markdown" value={String(report.markdownLines)} helper="Generated lines" />
+			</div>
 
-				<CampfireCardBody className="campfire-context-grid">
-					<CampfireMetric
-						label="Submitted"
-						value={String(report.submittedCount)}
-						helper="Included users"
-						icon={UserRoundCheck}
-					/>
-					<CampfireMetric
-						label="Missing"
-						value={String(report.missingCount)}
-						helper="Follow-up users"
-						icon={UserRoundX}
-					/>
-					<CampfireMetric
-						label="On leave"
-						value={String(report.onLeaveCount)}
-						helper="Leave-aware report"
-						icon={Umbrella}
-					/>
-				</CampfireCardBody>
-			</CampfirePanel>
-
-			<CampfirePanel>
-				<CampfireCardBody className="cf:grid cf:gap-5">
-					<ReportPreviewFeedback state={report.loadState} message={report.message} />
-
-					<div className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5 cf:md:grid-cols-[16rem_1fr]">
-						<CampfireField id="campfire-daily-report-date" label="Report date">
-							<CampfireDateInput
-								id="campfire-daily-report-date"
-								disabled={report.isBusy}
-								value={report.occurrenceDate}
-								onValueChange={report.setOccurrenceDate}
-							/>
-						</CampfireField>
-
-						<CampfireField id="campfire-daily-report-sort" label="Sort mode">
-							<CampfireSelect
-								id="campfire-daily-report-sort"
-								disabled={report.isBusy}
-								value={report.sortMode}
-								onValueChange={value => report.setSortMode(toDailyReportSortMode(value))}
-							>
-								{dailyReportSortOptions.map(sortMode => (
-									<option key={sortMode} value={sortMode}>
-										{formatReportSortMode(sortMode)}
-									</option>
-								))}
-							</CampfireSelect>
-						</CampfireField>
+			<CampfireSurface className="campfire-control-surface">
+				<header className="campfire-flat-section-header">
+					<div>
+						<p className="campfire-page-eyebrow">Daily report</p>
+						<h3 className="campfire-surface-title">Preview controls</h3>
+						<p className="campfire-surface-description">
+							Pick a date and sort mode, then review the generated Markdown below.
+						</p>
 					</div>
+				</header>
 
-					{report.loadState === 'loading' && <ReportPreviewLoading />}
+				<ReportPreviewFeedback state={report.loadState} message={report.message} />
 
-					<ReportMarkdownPreview
-						markdown={report.preview?.markdown ?? ''}
-						disabled={report.isBusy || report.preview === null}
-						onPost={report.postReport}
-					/>
-				</CampfireCardBody>
-			</CampfirePanel>
+				<div className="campfire-control-grid campfire-control-grid--daily-report">
+					<CampfireField id="campfire-daily-report-date" label="Report date">
+						<CampfireDateInput
+							id="campfire-daily-report-date"
+							disabled={report.isBusy}
+							timezone={props.workspace.timezone}
+							value={report.occurrenceDate}
+							onValueChange={report.setOccurrenceDate}
+						/>
+					</CampfireField>
+
+					<CampfireField id="campfire-daily-report-sort" label="Sort mode">
+						<CampfireSelect
+							id="campfire-daily-report-sort"
+							disabled={report.isBusy}
+							value={report.sortMode}
+							onValueChange={value => report.setSortMode(toDailyReportSortMode(value))}
+						>
+							{dailyReportSortOptions.map(sortMode => (
+								<option key={sortMode} value={sortMode}>
+									{formatReportSortMode(sortMode)}
+								</option>
+							))}
+						</CampfireSelect>
+					</CampfireField>
+				</div>
+			</CampfireSurface>
+
+			{report.loadState === 'loading' && <ReportPreviewLoading />}
+
+			<ReportMarkdownPreview
+				markdown={report.preview?.markdown ?? ''}
+				disabled={report.isBusy || report.preview === null}
+				onPost={report.postReport}
+			/>
 		</div>
 	);
 }

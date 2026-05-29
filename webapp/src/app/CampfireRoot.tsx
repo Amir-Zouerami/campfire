@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react';
 import type { MouseEvent, ReactElement } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Loader2, RefreshCw, X } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 import campfireLogoURL from '../../../assets/campfire-logo.svg';
 
-import { CampfireCardBody, CampfireEmpty, CampfirePanel } from './campfire-ui';
+import { CampfireToastHost } from '@/components/campfire/CampfireToastHost';
+
+import { CampfireEmptyState, CampfireSurface } from '@/components/campfire/CampfireLayoutPrimitives';
 import { CampfireWorkspaceTabs } from './CampfireWorkspaceTabs';
 import { CAMPFIRE_CLOSE_EVENT, CAMPFIRE_OPEN_EVENT, CAMPFIRE_TOGGLE_EVENT, isCampfireOpenEvent } from './events';
 import type { BootstrapStatus } from './useCampfireBootstrap';
@@ -132,6 +135,26 @@ export function CampfireRoot(): ReactElement | null {
 		}
 	}
 
+	const workspaceReady = isConfiguredWorkspaceReady(bootstrap);
+	const modalClassName = workspaceReady ? 'campfire-modal campfire-modal--workspace-app' : 'campfire-modal';
+	const commonContentProps = {
+		bootstrap,
+		onWorkspaceCreated: refreshBootstrap,
+		onWorkspaceArchived: handleWorkspaceArchived,
+		leaveRefreshToken,
+		standupRefreshToken,
+		workspaceCalendarRefreshToken,
+		onLeaveCreated: refreshLeaves,
+		onLeaveDecided: refreshLeaves,
+		onLeaveCancelled: refreshLeaves,
+		onStandupSubmitted: refreshStandups,
+		onWorkspaceSettingsChanged: refreshBootstrap,
+		onStandupConfigurationChanged: refreshStandups,
+		onWorkspaceCalendarChanged: refreshWorkspaceCalendar,
+		onClose: () => setIsOpen(false),
+		onRefresh: refreshBootstrap,
+	};
+
 	return createPortal(
 		<div
 			className="campfire-overlay campfire-theme dark"
@@ -140,28 +163,22 @@ export function CampfireRoot(): ReactElement | null {
 			aria-label="Campfire"
 			onMouseDown={handleOverlayMouseDown}
 		>
-			<div className="campfire-modal">
-				<CampfireTopbar bootstrap={bootstrap} onClose={() => setIsOpen(false)} onRefresh={refreshBootstrap} />
+			<CampfireToastHost />
 
-				<main className="campfire-scroll">
-					<div className="campfire-container">
-						<BootstrapContent
-							bootstrap={bootstrap}
-							onWorkspaceCreated={refreshBootstrap}
-							onWorkspaceArchived={handleWorkspaceArchived}
-							leaveRefreshToken={leaveRefreshToken}
-							standupRefreshToken={standupRefreshToken}
-							workspaceCalendarRefreshToken={workspaceCalendarRefreshToken}
-							onLeaveCreated={refreshLeaves}
-							onLeaveDecided={refreshLeaves}
-							onLeaveCancelled={refreshLeaves}
-							onStandupSubmitted={refreshStandups}
-							onWorkspaceSettingsChanged={refreshBootstrap}
-							onStandupConfigurationChanged={refreshStandups}
-							onWorkspaceCalendarChanged={refreshWorkspaceCalendar}
-						/>
-					</div>
-				</main>
+			<div className={modalClassName}>
+				{workspaceReady ? (
+					<BootstrapContent {...commonContentProps} />
+				) : (
+					<>
+						<CampfireTopbar bootstrap={bootstrap} onClose={() => setIsOpen(false)} onRefresh={refreshBootstrap} />
+
+						<main className="campfire-scroll">
+							<div className="campfire-container">
+								<BootstrapContent {...commonContentProps} />
+							</div>
+						</main>
+					</>
+				)}
 			</div>
 		</div>,
 		document.body,
@@ -169,7 +186,7 @@ export function CampfireRoot(): ReactElement | null {
 }
 
 /**
- * CampfireTopbar renders the modal header.
+ * CampfireTopbar renders the modal header for loading and setup states.
  */
 function CampfireTopbar(props: {
 	readonly bootstrap: BootstrapStatus;
@@ -229,48 +246,38 @@ function BootstrapContent(props: {
 	readonly onLeaveDecided: () => void;
 	readonly onLeaveCancelled: () => void;
 	readonly onStandupSubmitted: () => void;
-	readonly onWorkspaceSettingsChanged: () => void;
 	readonly onStandupConfigurationChanged: () => void;
+	readonly onWorkspaceSettingsChanged: () => void;
 	readonly onWorkspaceCalendarChanged: () => void;
+	readonly onClose: () => void;
+	readonly onRefresh: () => void;
 }): ReactElement {
 	switch (props.bootstrap.state) {
 		case 'idle':
 			return (
-				<CampfirePanel>
-					<CampfireCardBody>
-						<CampfireEmpty
-							icon={Loader2}
-							title="Campfire is waiting"
-							description="Open Campfire from a Mattermost channel to load workspace data."
-						/>
-					</CampfireCardBody>
-				</CampfirePanel>
+				<BootstrapStateSurface
+					icon={Loader2}
+					title="Campfire is waiting"
+					description="Open Campfire from a Mattermost channel to load workspace data."
+				/>
 			);
 
 		case 'loading':
 			return (
-				<CampfirePanel>
-					<CampfireCardBody>
-						<CampfireEmpty
-							icon={Loader2}
-							title="Loading Campfire"
-							description="Checking Mattermost, workspace setup, permissions, and schedules."
-						/>
-					</CampfireCardBody>
-				</CampfirePanel>
+				<BootstrapStateSurface
+					icon={Loader2}
+					title="Loading Campfire"
+					description="Checking Mattermost, workspace setup, permissions, and schedules."
+				/>
 			);
 
 		case 'error':
 			return (
-				<CampfirePanel>
-					<CampfireCardBody>
-						<CampfireEmpty
-							icon={AlertTriangle}
-							title="Campfire could not load"
-							description={props.bootstrap.errorMessage}
-						/>
-					</CampfireCardBody>
-				</CampfirePanel>
+				<BootstrapStateSurface
+					icon={AlertTriangle}
+					title="Campfire could not load"
+					description={props.bootstrap.errorMessage}
+				/>
 			);
 
 		case 'ready':
@@ -295,6 +302,8 @@ function BootstrapReadyContent(props: {
 	readonly onStandupConfigurationChanged: () => void;
 	readonly onWorkspaceSettingsChanged: () => void;
 	readonly onWorkspaceCalendarChanged: () => void;
+	readonly onClose: () => void;
+	readonly onRefresh: () => void;
 }): ReactElement {
 	if (props.bootstrap.workspace !== null && props.bootstrap.capabilities !== null) {
 		return (
@@ -303,9 +312,12 @@ function BootstrapReadyContent(props: {
 				capabilities={props.bootstrap.capabilities}
 				canManageWorkspace={props.bootstrap.capabilities.canManageWorkspace}
 				isSystemAdmin={props.bootstrap.me.isSystemAdmin}
+				currentUser={props.bootstrap.me.user}
 				leaveRefreshToken={props.leaveRefreshToken}
 				standupRefreshToken={props.standupRefreshToken}
 				workspaceCalendarRefreshToken={props.workspaceCalendarRefreshToken}
+				onClose={props.onClose}
+				onRefresh={props.onRefresh}
 				onLeaveCreated={props.onLeaveCreated}
 				onLeaveDecided={props.onLeaveDecided}
 				onLeaveCancelled={props.onLeaveCancelled}
@@ -320,32 +332,24 @@ function BootstrapReadyContent(props: {
 
 	if (props.bootstrap.channelID === null) {
 		return (
-			<CampfirePanel>
-				<CampfireCardBody>
-					<CampfireEmpty
-						icon={AlertTriangle}
-						title="Open Campfire from a channel"
-						description={
-							props.bootstrap.workspaceNotice ??
-							'Campfire needs a Mattermost channel context before it can create or load a workspace.'
-						}
-					/>
-				</CampfireCardBody>
-			</CampfirePanel>
+			<BootstrapStateSurface
+				icon={AlertTriangle}
+				title="Open Campfire from a channel"
+				description={
+					props.bootstrap.workspaceNotice ??
+					'Campfire needs a Mattermost channel context before it can create or load a workspace.'
+				}
+			/>
 		);
 	}
 
 	if (props.bootstrap.teamID.trim() === '') {
 		return (
-			<CampfirePanel>
-				<CampfireCardBody>
-					<CampfireEmpty
-						icon={AlertTriangle}
-						title="Mattermost team is missing"
-						description="Campfire found the channel, but Mattermost did not expose a team ID. Open Campfire from a normal team channel and try again."
-					/>
-				</CampfireCardBody>
-			</CampfirePanel>
+			<BootstrapStateSurface
+				icon={AlertTriangle}
+				title="Mattermost team is missing"
+				description="Campfire found the channel, but Mattermost did not expose a team ID. Open Campfire from a normal team channel and try again."
+			/>
 		);
 	}
 
@@ -363,6 +367,30 @@ function BootstrapReadyContent(props: {
 			/>
 		</div>
 	);
+}
+
+
+/**
+ * BootstrapStateSurface renders startup/fallback states with the same flat
+ * surface system used by the workspace app shell.
+ */
+function BootstrapStateSurface(props: {
+	readonly icon: LucideIcon;
+	readonly title: string;
+	readonly description: string;
+}): ReactElement {
+	return (
+		<CampfireSurface className="campfire-bootstrap-state-surface">
+			<CampfireEmptyState icon={props.icon} title={props.title} description={props.description} />
+		</CampfireSurface>
+	);
+}
+
+/**
+ * isConfiguredWorkspaceReady returns whether the modal should use the app shell.
+ */
+function isConfiguredWorkspaceReady(status: BootstrapStatus): boolean {
+	return status.state === 'ready' && status.workspace !== null && status.capabilities !== null;
 }
 
 /**

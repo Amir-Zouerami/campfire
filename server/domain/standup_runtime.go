@@ -59,9 +59,10 @@ type StandupRunDecision struct {
 	Reason    StandupSkipReason
 	Message   string
 
-	IsWorkingDay       bool
-	MemberCount        int
-	OnLeaveMemberCount int
+	IsWorkingDay           bool
+	IsLastWorkingDayOfWeek bool
+	MemberCount            int
+	OnLeaveMemberCount     int
 
 	GlobalOffDays    []GlobalSkipDate
 	WorkspaceOffDays []WorkspaceOffDay

@@ -17,6 +17,26 @@ export const weekdayOptions: readonly WeekdayOption[] = [
 	{ weekday: 6, shortName: 'Sat', longName: 'Saturday' },
 ];
 
+
+/**
+ * weekdayOptionsForTimezone returns weekday buttons in the workspace-local week order.
+ */
+export function weekdayOptionsForTimezone(timezone: string): readonly WeekdayOption[] {
+	if (timezone.trim() === 'Asia/Tehran') {
+		return [
+			{ weekday: 6, shortName: 'Sat', longName: 'Saturday' },
+			{ weekday: 0, shortName: 'Sun', longName: 'Sunday' },
+			{ weekday: 1, shortName: 'Mon', longName: 'Monday' },
+			{ weekday: 2, shortName: 'Tue', longName: 'Tuesday' },
+			{ weekday: 3, shortName: 'Wed', longName: 'Wednesday' },
+			{ weekday: 4, shortName: 'Thu', longName: 'Thursday' },
+			{ weekday: 5, shortName: 'Fri', longName: 'Friday' },
+		];
+	}
+
+	return weekdayOptions;
+}
+
 /**
  * emptyWorkspaceOffDayDraft returns the default off-day form state.
  */

@@ -48,6 +48,7 @@ export type StandupQuestionDraft = {
 	readonly required: boolean;
 	readonly showInReport: boolean;
 	readonly isPrivate: boolean;
+	readonly createsTasks: boolean;
 	readonly position: number;
 	readonly optionsText: string;
 };

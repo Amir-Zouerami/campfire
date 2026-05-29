@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/amir-zouerami/campfire/server/domain"
@@ -33,7 +34,9 @@ StandupStore defines persistence operations for standup configuration and submis
 */
 type StandupStore interface {
 	ListTemplatesByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.StandupTemplate, error)
+	ListAllTemplatesByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.StandupTemplate, error)
 	ListQuestionsByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.StandupQuestion, error)
+	ListAllQuestionsByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.StandupQuestion, error)
 	ListSchedulesByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.StandupSchedule, error)
 	CreateTemplate(ctx context.Context, template domain.StandupTemplate) (*domain.StandupTemplate, error)
 	UpdateTemplate(ctx context.Context, template domain.StandupTemplate) (*domain.StandupTemplate, error)
@@ -120,27 +123,53 @@ func (s *SQLStandupStore) ListTemplatesByWorkspaceID(
 	ctx context.Context,
 	workspaceID domain.ID,
 ) ([]domain.StandupTemplate, error) {
+	return s.listTemplatesByWorkspaceID(ctx, workspaceID, false)
+}
+
+/*
+ListAllTemplatesByWorkspaceID returns active and inactive standup templates for
+configuration screens that need to manage dormant templates.
+*/
+func (s *SQLStandupStore) ListAllTemplatesByWorkspaceID(
+	ctx context.Context,
+	workspaceID domain.ID,
+) ([]domain.StandupTemplate, error) {
+	return s.listTemplatesByWorkspaceID(ctx, workspaceID, true)
+}
+
+/*
+listTemplatesByWorkspaceID returns templates for a workspace.
+*/
+func (s *SQLStandupStore) listTemplatesByWorkspaceID(
+	ctx context.Context,
+	workspaceID domain.ID,
+	includeInactive bool,
+) ([]domain.StandupTemplate, error) {
 	records := []standupTemplateRecord{}
+	query := `
+		SELECT
+			id,
+			workspace_id,
+			name,
+			description,
+			kind,
+			FALSE AS is_default,
+			is_active,
+			created_by,
+			created_at,
+			updated_at
+		FROM campfire_standup_templates
+		WHERE workspace_id = ?
+	`
+	if !includeInactive {
+		query += ` AND is_active = TRUE`
+	}
+	query += ` ORDER BY kind ASC, is_active DESC, name ASC`
 
 	err := s.db.SelectContext(
 		ctx,
 		&records,
-		s.db.Rebind(`
-			SELECT
-				id,
-				workspace_id,
-				name,
-				description,
-				kind,
-				FALSE AS is_default,
-				is_active,
-				created_by,
-				created_at,
-				updated_at
-			FROM campfire_standup_templates
-			WHERE workspace_id = ? AND is_active = TRUE
-			ORDER BY kind ASC, name ASC
-		`),
+		s.db.Rebind(query),
 		workspaceID.String(),
 	)
 	if err != nil {
@@ -157,12 +186,39 @@ func (s *SQLStandupStore) ListTemplatesByWorkspaceID(
 
 /*
 CreateTemplate inserts a standup template.
+
+The insert is transactional because template names must be unique inside a
+workspace and activating a daily template must deactivate the previous daily
+template in the same workspace.
 */
 func (s *SQLStandupStore) CreateTemplate(
 	ctx context.Context,
 	template domain.StandupTemplate,
 ) (*domain.StandupTemplate, error) {
-	_, err := s.db.ExecContext(
+	transaction, err := s.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin standup template create transaction: %w", err)
+	}
+
+	committed := false
+	defer func() {
+		if !committed {
+			rollbackErr := transaction.Rollback()
+			if rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+				return
+			}
+		}
+	}()
+
+	if err := s.ensureUniqueTemplateName(ctx, transaction, template.WorkspaceID, template.Name, ""); err != nil {
+		return nil, err
+	}
+
+	if err := s.deactivateOtherActiveDailyTemplates(ctx, transaction, template.WorkspaceID, template.ID, template.Kind, template.IsActive, template.UpdatedAt); err != nil {
+		return nil, err
+	}
+
+	_, err = transaction.ExecContext(
 		ctx,
 		s.db.Rebind(`
 			INSERT INTO campfire_standup_templates (
@@ -191,6 +247,11 @@ func (s *SQLStandupStore) CreateTemplate(
 		return nil, fmt.Errorf("insert standup template: %w", err)
 	}
 
+	if err := transaction.Commit(); err != nil {
+		return nil, fmt.Errorf("commit standup template create transaction: %w", err)
+	}
+	committed = true
+
 	created, err := s.GetTemplateByID(ctx, template.WorkspaceID, template.ID)
 	if err != nil {
 		return nil, err
@@ -201,12 +262,40 @@ func (s *SQLStandupStore) CreateTemplate(
 
 /*
 UpdateTemplate updates mutable standup template fields.
+
+The update is transactional for the same reason template creation is
+transactional: a workspace cannot have duplicate template names, and activating
+one daily template must atomically deactivate the previous active daily
+template.
 */
 func (s *SQLStandupStore) UpdateTemplate(
 	ctx context.Context,
 	template domain.StandupTemplate,
 ) (*domain.StandupTemplate, error) {
-	result, err := s.db.ExecContext(
+	transaction, err := s.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin standup template update transaction: %w", err)
+	}
+
+	committed := false
+	defer func() {
+		if !committed {
+			rollbackErr := transaction.Rollback()
+			if rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+				return
+			}
+		}
+	}()
+
+	if err := s.ensureUniqueTemplateName(ctx, transaction, template.WorkspaceID, template.Name, template.ID); err != nil {
+		return nil, err
+	}
+
+	if err := s.deactivateOtherActiveDailyTemplates(ctx, transaction, template.WorkspaceID, template.ID, template.Kind, template.IsActive, template.UpdatedAt); err != nil {
+		return nil, err
+	}
+
+	result, err := transaction.ExecContext(
 		ctx,
 		s.db.Rebind(`
 			UPDATE campfire_standup_templates
@@ -239,6 +328,11 @@ func (s *SQLStandupStore) UpdateTemplate(
 		return nil, ErrNotFound
 	}
 
+	if err := transaction.Commit(); err != nil {
+		return nil, fmt.Errorf("commit standup template update transaction: %w", err)
+	}
+	committed = true
+
 	updated, err := s.GetTemplateByID(ctx, template.WorkspaceID, template.ID)
 	if err != nil {
 		return nil, err
@@ -254,35 +348,62 @@ func (s *SQLStandupStore) ListQuestionsByWorkspaceID(
 	ctx context.Context,
 	workspaceID domain.ID,
 ) ([]domain.StandupQuestion, error) {
+	return s.listQuestionsByWorkspaceID(ctx, workspaceID, false)
+}
+
+/*
+ListAllQuestionsByWorkspaceID returns questions for active and inactive templates
+in a workspace. Settings screens use this to avoid hiding questions when a
+template is temporarily inactive.
+*/
+func (s *SQLStandupStore) ListAllQuestionsByWorkspaceID(
+	ctx context.Context,
+	workspaceID domain.ID,
+) ([]domain.StandupQuestion, error) {
+	return s.listQuestionsByWorkspaceID(ctx, workspaceID, true)
+}
+
+/*
+listQuestionsByWorkspaceID returns standup questions for a workspace.
+*/
+func (s *SQLStandupStore) listQuestionsByWorkspaceID(
+	ctx context.Context,
+	workspaceID domain.ID,
+	includeInactiveTemplates bool,
+) ([]domain.StandupQuestion, error) {
 	records := []standupQuestionRecord{}
+	query := `
+		SELECT
+			questions.id,
+			questions.workspace_id,
+			questions.template_id,
+			questions.section,
+			questions.label,
+			questions.help_text,
+			questions.placeholder,
+			questions.type AS question_type,
+			questions.required,
+			questions.show_in_report,
+			questions.is_private,
+			questions.creates_tasks,
+			questions.position,
+			questions.options_json,
+			questions.created_at,
+			questions.updated_at
+		FROM campfire_standup_questions questions
+		INNER JOIN campfire_standup_templates templates
+			ON templates.id = questions.template_id
+		WHERE questions.workspace_id = ?
+	`
+	if !includeInactiveTemplates {
+		query += ` AND templates.is_active = TRUE`
+	}
+	query += ` ORDER BY questions.template_id ASC, questions.position ASC, questions.created_at ASC`
 
 	err := s.db.SelectContext(
 		ctx,
 		&records,
-		s.db.Rebind(`
-			SELECT
-				questions.id,
-				questions.workspace_id,
-				questions.template_id,
-				questions.section,
-				questions.label,
-				questions.help_text,
-				questions.placeholder,
-				questions.type AS question_type,
-				questions.required,
-				questions.show_in_report,
-				questions.is_private,
-				questions.position,
-				questions.options_json,
-				questions.created_at,
-				questions.updated_at
-			FROM campfire_standup_questions questions
-			INNER JOIN campfire_standup_templates templates
-				ON templates.id = questions.template_id
-			WHERE questions.workspace_id = ?
-				AND templates.is_active = TRUE
-			ORDER BY questions.template_id ASC, questions.position ASC, questions.created_at ASC
-		`),
+		s.db.Rebind(query),
 		workspaceID.String(),
 	)
 	if err != nil {
@@ -328,6 +449,7 @@ func (s *SQLStandupStore) GetQuestionByID(
 				required,
 				show_in_report,
 				is_private,
+				creates_tasks,
 				position,
 				options_json,
 				created_at,
@@ -377,11 +499,12 @@ func (s *SQLStandupStore) CreateQuestion(
 				required,
 				show_in_report,
 				is_private,
+				creates_tasks,
 				position,
 				options_json,
 				created_at,
 				updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`),
 		question.ID.String(),
 		question.TemplateID.String(),
@@ -394,6 +517,7 @@ func (s *SQLStandupStore) CreateQuestion(
 		question.Required,
 		question.ShowInReport,
 		question.IsPrivate,
+		question.CreatesTasks,
 		question.Position,
 		question.OptionsJSON,
 		question.CreatedAt,
@@ -432,6 +556,7 @@ func (s *SQLStandupStore) UpdateQuestion(
 				required = ?,
 				show_in_report = ?,
 				is_private = ?,
+				creates_tasks = ?,
 				position = ?,
 				options_json = ?,
 				updated_at = ?
@@ -446,6 +571,7 @@ func (s *SQLStandupStore) UpdateQuestion(
 		question.Required,
 		question.ShowInReport,
 		question.IsPrivate,
+		question.CreatesTasks,
 		question.Position,
 		question.OptionsJSON,
 		question.UpdatedAt,
@@ -1027,6 +1153,95 @@ func insertStandupAnswer(
 }
 
 /*
+ensureUniqueTemplateName prevents duplicate template names in one workspace.
+
+The comparison is intentionally case-insensitive and whitespace-normalized so
+"Daily Standup" and " daily  standup " are treated as the same PM-facing name.
+*/
+func (s *SQLStandupStore) ensureUniqueTemplateName(
+	ctx context.Context,
+	tx *sqlx.Tx,
+	workspaceID domain.ID,
+	name string,
+	excludedTemplateID domain.ID,
+) error {
+	cleanName := normalizeTemplateNameForLookup(name)
+	query := `
+		SELECT COUNT(*)
+		FROM campfire_standup_templates
+		WHERE workspace_id = ?
+			AND LOWER(name) = LOWER(?)
+	`
+	args := []interface{}{workspaceID.String(), cleanName}
+
+	if excludedTemplateID.String() != "" {
+		query += ` AND id <> ?`
+		args = append(args, excludedTemplateID.String())
+	}
+
+	var count int
+	if err := tx.GetContext(ctx, &count, s.db.Rebind(query), args...); err != nil {
+		return fmt.Errorf("check standup template name uniqueness: %w", err)
+	}
+
+	if count > 0 {
+		return ErrConflict
+	}
+
+	return nil
+}
+
+/*
+deactivateOtherActiveDailyTemplates enforces the workspace rule that only one
+active daily template may exist. Weekly and custom templates are intentionally
+not affected.
+*/
+func (s *SQLStandupStore) deactivateOtherActiveDailyTemplates(
+	ctx context.Context,
+	tx *sqlx.Tx,
+	workspaceID domain.ID,
+	templateID domain.ID,
+	kind domain.StandupKind,
+	isActive bool,
+	updatedAt time.Time,
+) error {
+	if kind != domain.StandupKindDaily || !isActive {
+		return nil
+	}
+
+	_, err := tx.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			UPDATE campfire_standup_templates
+			SET
+				is_active = FALSE,
+				updated_at = ?
+			WHERE workspace_id = ?
+				AND kind = ?
+				AND is_active = TRUE
+				AND id <> ?
+		`),
+		updatedAt,
+		workspaceID.String(),
+		string(domain.StandupKindDaily),
+		templateID.String(),
+	)
+	if err != nil {
+		return fmt.Errorf("deactivate previous daily standup templates: %w", err)
+	}
+
+	return nil
+}
+
+/*
+normalizeTemplateNameForLookup mirrors service-level cleanup for duplicate
+checks without changing the user-facing persisted casing.
+*/
+func normalizeTemplateNameForLookup(value string) string {
+	return strings.Join(strings.Fields(value), " ")
+}
+
+/*
 standupTemplateRecord represents a row from campfire_standup_templates.
 */
 type standupTemplateRecord struct {
@@ -1075,6 +1290,7 @@ type standupQuestionRecord struct {
 	Required     bool      `db:"required"`
 	ShowInReport bool      `db:"show_in_report"`
 	IsPrivate    bool      `db:"is_private"`
+	CreatesTasks bool      `db:"creates_tasks"`
 	Position     int       `db:"position"`
 	OptionsJSON  string    `db:"options_json"`
 	CreatedAt    time.Time `db:"created_at"`
@@ -1104,6 +1320,7 @@ func (r standupQuestionRecord) toDomain() (*domain.StandupQuestion, error) {
 		Required:     r.Required,
 		ShowInReport: r.ShowInReport,
 		IsPrivate:    r.IsPrivate,
+		CreatesTasks: r.CreatesTasks,
 		Position:     r.Position,
 		SortOrder:    r.Position,
 		OptionsJSON:  r.OptionsJSON,

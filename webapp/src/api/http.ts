@@ -1,6 +1,6 @@
 import type { ApiErrorBody } from '@/types/api';
 
-import { ApiClientError } from './errors';
+import { ApiClientError, publishAPIError } from './errors';
 
 /**
  * RequestOptions contains fetch options used by the API client.
@@ -19,15 +19,18 @@ export type QueryValue = string | number | boolean | null | undefined;
  * requestJson performs a JSON API request.
  */
 export async function requestJson<ResponseBody>(path: string, options: RequestOptions = {}): Promise<ResponseBody> {
-	const response = await fetch(buildURL(path), {
-		method: options.method ?? 'GET',
+	const method = options.method ?? 'GET';
+	const response = await safeFetch(path, method, {
+		method,
 		credentials: 'include',
 		headers: buildHeaders(options.body),
 		body: options.body === undefined ? undefined : JSON.stringify(options.body),
 	});
 
 	if (!response.ok) {
-		throw await buildAPIError(response);
+		const error = await buildAPIError(response);
+		publishAPIError(error, { method, path });
+		throw error;
 	}
 
 	if (response.status === 204) {
@@ -46,8 +49,9 @@ export async function requestJson<ResponseBody>(path: string, options: RequestOp
  * requestBlob performs a file-download API request.
  */
 export async function requestBlob(path: string): Promise<Blob> {
-	const response = await fetch(buildURL(path), {
-		method: 'GET',
+	const method = 'GET';
+	const response = await safeFetch(path, method, {
+		method,
 		credentials: 'include',
 		headers: {
 			Accept: 'text/csv, application/octet-stream, */*',
@@ -55,7 +59,9 @@ export async function requestBlob(path: string): Promise<Blob> {
 	});
 
 	if (!response.ok) {
-		throw await buildAPIError(response);
+		const error = await buildAPIError(response);
+		publishAPIError(error, { method, path });
+		throw error;
 	}
 
 	return response.blob();
@@ -88,6 +94,23 @@ export function withQuery(path: string, query: Readonly<Record<string, QueryValu
  */
 export function encodePath(value: string): string {
 	return encodeURIComponent(value);
+}
+
+
+/**
+ * safeFetch converts network-level failures into the same ApiClientError path as server failures.
+ */
+async function safeFetch(path: string, method: string, init: RequestInit): Promise<Response> {
+	try {
+		return await fetch(buildURL(path), init);
+	} catch (error: unknown) {
+		const message = error instanceof Error && error.message.trim() !== ''
+			? error.message
+			: 'Campfire could not reach the server. Check your connection and try again.';
+		const apiError = new ApiClientError('network_error', message, 0);
+		publishAPIError(apiError, { method, path });
+		throw apiError;
+	}
 }
 
 /**

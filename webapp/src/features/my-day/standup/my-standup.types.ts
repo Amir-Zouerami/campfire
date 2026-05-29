@@ -1,4 +1,4 @@
-import type { StandupQuestion } from '@/types/domain';
+import type { StandupQuestion, Task } from '@/types/domain';
 
 /**
  * AnswerDraftValue represents one editable standup answer value.
@@ -32,5 +32,6 @@ export type MyStandupQuestionFieldProps = {
 	readonly question: StandupQuestion;
 	readonly value: AnswerDraftValue | undefined;
 	readonly disabled: boolean;
+	readonly tasks: readonly Task[];
 	readonly onChange: (value: AnswerDraftValue) => void;
 };

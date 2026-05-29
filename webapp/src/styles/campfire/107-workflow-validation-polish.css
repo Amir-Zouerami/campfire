@@ -1,0 +1,35 @@
+.campfire-theme .campfire-field-error {
+	display: block;
+	margin-top: 0.35rem;
+	font-size: 0.75rem;
+	font-weight: 520;
+	line-height: 1.35;
+	color: rgba(254, 202, 202, 0.9);
+}
+
+.campfire-theme [aria-invalid='true'] {
+	border-color: rgba(248, 113, 113, 0.48) !important;
+	box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.12) !important;
+}
+
+.campfire-theme .campfire-data-table-empty {
+	grid-column: 1 / -1;
+	padding: 1.25rem;
+}
+
+.campfire-theme .campfire-data-table-empty .campfire-empty-state {
+	border-style: dashed;
+	background: rgba(15, 23, 42, 0.26);
+}
+
+.campfire-theme .campfire-select-trigger,
+.campfire-theme .campfire-list-toolbar button,
+.campfire-theme .campfire-form-field button[aria-haspopup='listbox'] {
+	font-weight: 520;
+}
+
+@media (max-width: 760px) {
+	.campfire-theme .campfire-data-table-empty {
+		padding: 0.9rem;
+	}
+}

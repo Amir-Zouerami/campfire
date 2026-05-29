@@ -1,8 +1,8 @@
 import type { ReactElement } from 'react';
 import { Globe2, Tags } from 'lucide-react';
 
-import { CampfireEmpty, CampfireStatusPill } from '@/app/campfire-ui';
 import type { GlobalLeaveReportTypeSummary, GlobalLeaveReportWorkspaceSummary } from '@/types/domain';
+import { CampfireEmpty, CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * GlobalLeaveBreakdownPanelProps contains global leave summary breakdowns.
@@ -68,11 +68,11 @@ function BreakdownPanel(props: {
 	return (
 		<section className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
 			<div>
-				<p className="cf:flex cf:items-center cf:gap-2 cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+				<p className="cf:flex cf:items-center cf:gap-2 cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 					<Icon className="cf:size-4" />
 					{props.title}
 				</p>
-				<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
+				<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
 					{props.description}
 				</h3>
 			</div>
@@ -100,7 +100,7 @@ function BreakdownRow(props: {
 }): ReactElement {
 	return (
 		<article className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4">
-			<h4 className="cf:truncate cf:text-base cf:font-black cf:text-foreground">{props.title}</h4>
+			<h4 className="cf:truncate cf:text-base cf:font-semibold cf:text-foreground">{props.title}</h4>
 
 			<div className="cf:mt-3 cf:flex cf:flex-wrap cf:gap-2">
 				<CampfireStatusPill tone="green">{props.approvedCount} approved</CampfireStatusPill>

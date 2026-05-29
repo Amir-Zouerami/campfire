@@ -1,0 +1,162 @@
+/*
+Setup polish brings the first-run workspace creation screen in line with the
+flatter app shell. It avoids the old panel-inside-card feel while preserving the
+same setup behavior and local validation affordances.
+*/
+.campfire-setup-form {
+	display: grid;
+	gap: 1rem;
+	width: 100%;
+}
+
+.campfire-setup-summary-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 0.75rem;
+}
+
+.campfire-setup-grid {
+	display: grid;
+	grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+	gap: 1rem;
+	align-items: start;
+}
+
+.campfire-setup-primary-surface,
+.campfire-setup-side-stack {
+	display: grid;
+	gap: 1rem;
+}
+
+.campfire-section-heading-row--compact {
+	align-items: flex-start;
+	gap: 0.75rem;
+}
+
+.campfire-setup-weekday-grid {
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	gap: 0.5rem;
+}
+
+.campfire-theme .campfire-check-card--flat {
+	background: rgba(255, 255, 255, 0.035);
+	border-color: rgba(255, 255, 255, 0.085);
+	box-shadow: none;
+}
+
+.campfire-theme .campfire-check-card--flat:hover {
+	background: rgba(255, 255, 255, 0.055);
+	border-color: rgba(253, 186, 116, 0.18);
+}
+
+.campfire-submit-row--flat {
+	background: rgba(15, 23, 42, 0.48);
+	border: 1px solid rgba(255, 255, 255, 0.085);
+	box-shadow: none;
+}
+
+.campfire-submit-button--flat {
+	background: rgba(251, 146, 60, 0.13);
+	border: 1px solid rgba(253, 186, 116, 0.28);
+	box-shadow: none;
+	font-weight: 500;
+}
+
+.campfire-submit-button--flat:hover:not(:disabled) {
+	background: rgba(251, 146, 60, 0.18);
+	border-color: rgba(253, 186, 116, 0.42);
+	box-shadow: none;
+}
+
+.campfire-setup-message {
+	border-radius: 1rem;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	background: rgba(255, 255, 255, 0.045);
+	padding: 0.85rem 1rem;
+	color: rgba(255, 237, 213, 0.76);
+	font-size: 0.9rem;
+	font-weight: 500;
+}
+
+.campfire-setup-message--success {
+	border-color: rgba(52, 211, 153, 0.2);
+	background: rgba(16, 185, 129, 0.1);
+	color: rgba(209, 250, 229, 0.96);
+}
+
+.campfire-setup-message--error {
+	border-color: rgba(248, 113, 113, 0.22);
+	background: rgba(248, 113, 113, 0.1);
+	color: rgba(254, 226, 226, 0.96);
+}
+
+.campfire-theme .campfire-weekday-button {
+	min-height: 4.25rem;
+	border-radius: 1rem;
+	border: 1px solid rgba(255, 255, 255, 0.085);
+	background: rgba(255, 255, 255, 0.035);
+	color: rgba(255, 237, 213, 0.64);
+	box-shadow: none;
+	transition:
+		background 160ms ease,
+		border-color 160ms ease,
+		color 160ms ease,
+		transform 160ms ease;
+}
+
+.campfire-theme .campfire-weekday-button:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.06);
+	border-color: rgba(253, 186, 116, 0.2);
+	color: rgba(255, 247, 237, 0.88);
+	transform: translateY(-1px);
+}
+
+.campfire-theme .campfire-weekday-button--selected {
+	background: rgba(251, 146, 60, 0.12);
+	border-color: rgba(253, 186, 116, 0.34);
+	color: rgba(255, 247, 237, 0.96);
+}
+
+.campfire-theme .campfire-weekday-button:focus-visible,
+.campfire-theme .campfire-submit-button--flat:focus-visible,
+.campfire-theme .campfire-check-card--flat:focus-within {
+	outline: 2px solid rgba(251, 146, 60, 0.55);
+	outline-offset: 2px;
+}
+
+@media (max-width: 1180px) {
+	.campfire-setup-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.campfire-setup-side-stack {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 820px) {
+	.campfire-setup-summary-grid,
+	.campfire-setup-side-stack {
+		grid-template-columns: 1fr;
+	}
+
+	.campfire-setup-weekday-grid {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 540px) {
+	.campfire-submit-row--flat {
+		align-items: stretch;
+	}
+
+	.campfire-submit-button--flat {
+		justify-content: center;
+		width: 100%;
+	}
+
+	.campfire-setup-weekday-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}

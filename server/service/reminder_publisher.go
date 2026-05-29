@@ -30,6 +30,7 @@ type StandupChannelMissingReminder struct {
 	MissingUserIDs      []string
 	MissingUserCount    int
 	MentionMissingUsers bool
+	MentionLimit        int
 
 	SequenceNumber int
 }

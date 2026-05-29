@@ -45,6 +45,7 @@ type StandupQuestion struct {
 
 	ShowInReport bool
 	IsPrivate    bool
+	CreatesTasks bool
 
 	Position    int
 	SortOrder   int

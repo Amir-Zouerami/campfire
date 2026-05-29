@@ -1,0 +1,234 @@
+/*
+ * Final live-test readiness pass.
+ *
+ * This file intentionally sits at the end of the Campfire cascade. It tames
+ * legacy surfaces and Tailwind utility remnants without changing product
+ * behavior or removing compatibility classes that are still referenced while
+ * the UI is being verified inside Mattermost.
+ */
+
+.campfire-theme {
+	--campfire-live-surface: color-mix(in oklab, var(--card) 88%, black 12%);
+	--campfire-live-surface-soft: color-mix(in oklab, var(--card) 72%, transparent);
+	--campfire-live-border: rgba(255, 255, 255, 0.095);
+	--campfire-live-border-warm: rgba(251, 191, 36, 0.18);
+	--campfire-live-text-muted: rgba(226, 232, 240, 0.72);
+}
+
+/* Keep old compatibility panels visually flat while they are phased out. */
+.campfire-theme .campfire-panel {
+	border-color: var(--campfire-live-border) !important;
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
+		var(--campfire-live-surface) !important;
+	box-shadow: none !important;
+}
+
+.campfire-theme .campfire-panel::before {
+	display: none !important;
+}
+
+.campfire-theme .campfire-panel .campfire-panel,
+.campfire-theme .campfire-card-body .campfire-panel,
+.campfire-theme .campfire-surface .campfire-panel {
+	border-color: rgba(255, 255, 255, 0.075) !important;
+	background: rgba(255, 255, 255, 0.026) !important;
+}
+
+.campfire-theme .campfire-card-header {
+	gap: 0.55rem !important;
+	padding: 1rem 1.15rem 0.45rem !important;
+}
+
+.campfire-theme .campfire-card-body {
+	gap: 0.95rem !important;
+	padding: 0.95rem 1.15rem 1.15rem !important;
+}
+
+.campfire-theme .campfire-card-title,
+.campfire-theme .campfire-card-header h2,
+.campfire-theme .campfire-card-header h3 {
+	font-size: clamp(1rem, 0.92rem + 0.28vw, 1.18rem) !important;
+	font-weight: 680 !important;
+	letter-spacing: -0.02em !important;
+}
+
+.campfire-theme .campfire-card-description,
+.campfire-theme .campfire-card-header p,
+.campfire-theme .campfire-card-body p {
+	line-height: 1.58 !important;
+}
+
+/* Reduce legacy dashboard glow; newer stat cards still keep subtle accents. */
+.campfire-theme .campfire-metric,
+.campfire-theme .campfire-metric-link {
+	border-color: rgba(255, 255, 255, 0.085) !important;
+	background: rgba(255, 255, 255, 0.032) !important;
+	box-shadow: none !important;
+}
+
+.campfire-theme .campfire-metric:hover,
+.campfire-theme .campfire-metric-link:hover {
+	border-color: var(--campfire-live-border-warm) !important;
+	background: rgba(251, 191, 36, 0.06) !important;
+	transform: none !important;
+}
+
+.campfire-theme .campfire-metric-label,
+.campfire-theme .campfire-stat-label,
+.campfire-theme .campfire-page-eyebrow {
+	font-weight: 620 !important;
+	letter-spacing: 0.14em !important;
+}
+
+.campfire-theme .campfire-metric-value,
+.campfire-theme .campfire-stat-value {
+	font-weight: 680 !important;
+	letter-spacing: -0.025em !important;
+}
+
+/* Tailwind leftovers from older screens should not make the product shout. */
+.campfire-theme .cf\:font-black {
+	font-weight: 650 !important;
+}
+
+.campfire-theme button.cf\:font-black,
+.campfire-theme a.cf\:font-black,
+.campfire-theme label.cf\:font-black,
+.campfire-theme .campfire-status-pill.cf\:font-black,
+.campfire-theme .campfire-inline-feedback.cf\:font-black {
+	font-weight: 560 !important;
+}
+
+/* Buttons stay matte even when older utility classes leak in. */
+.campfire-theme button[class*='cf:shadow'],
+.campfire-theme a[class*='cf:shadow'] {
+	box-shadow: none !important;
+}
+
+.campfire-theme button[class*='cf:font-bold'],
+.campfire-theme button[class*='cf:font-black'],
+.campfire-theme a[class*='cf:font-bold'],
+.campfire-theme a[class*='cf:font-black'] {
+	font-weight: 560 !important;
+}
+
+.campfire-theme button[class*='cf:bg-orange'],
+.campfire-theme button[class*='cf:bg-amber'] {
+	text-shadow: none !important;
+}
+
+/* Form controls should read as quiet inputs, not shiny widgets. */
+.campfire-theme input,
+.campfire-theme textarea,
+.campfire-theme select,
+.campfire-theme [role='combobox'] {
+	box-shadow: none !important;
+}
+
+.campfire-theme input:hover,
+.campfire-theme textarea:hover,
+.campfire-theme select:hover,
+.campfire-theme [role='combobox']:hover {
+	background-color: rgba(255, 255, 255, 0.055) !important;
+}
+
+.campfire-theme input:focus-visible,
+.campfire-theme textarea:focus-visible,
+.campfire-theme select:focus-visible,
+.campfire-theme [role='combobox']:focus-visible {
+	box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.14) !important;
+}
+
+/* Tables and row lists: preserve readability on dense Mattermost screens. */
+.campfire-theme table {
+	border-collapse: separate;
+	border-spacing: 0;
+}
+
+.campfire-theme th {
+	font-weight: 620 !important;
+	letter-spacing: 0.11em !important;
+}
+
+.campfire-theme tr,
+.campfire-theme [class*='campfire-table-row'],
+.campfire-theme [class*='campfire-list-row'] {
+	transition:
+		background-color 140ms ease,
+		border-color 140ms ease;
+}
+
+.campfire-theme tr:hover,
+.campfire-theme [class*='campfire-table-row']:hover,
+.campfire-theme [class*='campfire-list-row']:hover {
+	background-color: rgba(251, 191, 36, 0.035) !important;
+}
+
+/* Compact old feedback wrappers; server errors are toast-only. */
+.campfire-theme [class*='Feedback'] .campfire-inline-feedback,
+.campfire-theme .campfire-inline-feedback {
+	font-weight: 540 !important;
+	box-shadow: none !important;
+}
+
+.campfire-theme .campfire-loading-feedback {
+	border-color: rgba(255, 255, 255, 0.085) !important;
+	background: rgba(255, 255, 255, 0.035) !important;
+	box-shadow: none !important;
+}
+
+/* Keep the official logo unchanged but make the ember feel smoother in chrome. */
+.campfire-theme .campfire-logo-ember,
+.campfire-theme [class*='logo-ember'] {
+	animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1) !important;
+	filter: drop-shadow(0 0 16px rgba(251, 146, 60, 0.34)) !important;
+}
+
+/* Scrollbars should feel integrated with the warm dark app shell. */
+.campfire-theme * {
+	scrollbar-color: rgba(251, 191, 36, 0.38) rgba(255, 255, 255, 0.055);
+	scrollbar-width: thin;
+}
+
+.campfire-theme *::-webkit-scrollbar {
+	width: 0.7rem;
+	height: 0.7rem;
+}
+
+.campfire-theme *::-webkit-scrollbar-track {
+	background: rgba(255, 255, 255, 0.045);
+	border-radius: 999px;
+}
+
+.campfire-theme *::-webkit-scrollbar-thumb {
+	border: 2px solid transparent;
+	border-radius: 999px;
+	background: rgba(251, 191, 36, 0.34);
+	background-clip: padding-box;
+}
+
+.campfire-theme *::-webkit-scrollbar-thumb:hover {
+	background: rgba(251, 191, 36, 0.5);
+	background-clip: padding-box;
+}
+
+@media (max-width: 900px) {
+	.campfire-theme .campfire-card-header,
+	.campfire-theme .campfire-card-body {
+		padding-inline: 0.95rem !important;
+	}
+
+	.campfire-theme .campfire-panel,
+	.campfire-theme .campfire-surface {
+		border-radius: 1.25rem !important;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.campfire-theme tr,
+	.campfire-theme [class*='campfire-table-row'],
+	.campfire-theme [class*='campfire-list-row'] {
+		transition: none !important;
+	}
+}

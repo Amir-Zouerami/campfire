@@ -104,7 +104,7 @@ export function roleGroupCount(groups: readonly RoleGroup[]): number {
  */
 export function validateRoleAssignmentDraft(draft: RoleAssignmentDraft): string | null {
 	if (draft.userID.trim() === '') {
-		return 'Mattermost user ID is required.';
+		return 'Choose a workspace member before assigning a role.';
 	}
 
 	if (!ASSIGNABLE_WORKSPACE_ROLES.includes(draft.role)) {

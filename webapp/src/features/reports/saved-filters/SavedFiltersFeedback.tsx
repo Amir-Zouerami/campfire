@@ -5,7 +5,7 @@ import { CampfireFeedback, CampfireLoadingFeedback } from '@/components/campfire
 import type { SavedFiltersLoadState } from './saved-filters.types';
 
 /**
- * SavedFiltersFeedbackProps contains saved-filter feedback state.
+ * SavedFiltersFeedbackProps contains workflow feedback state.
  */
 type SavedFiltersFeedbackProps = {
 	readonly state: SavedFiltersLoadState;
@@ -13,7 +13,7 @@ type SavedFiltersFeedbackProps = {
 };
 
 /**
- * SavedFiltersFeedback renders saved-filter success and error messages.
+ * SavedFiltersFeedback renders compact local workflow feedback.
  */
 export function SavedFiltersFeedback(props: SavedFiltersFeedbackProps): ReactElement | null {
 	return <CampfireFeedback message={props.message} tone={props.state === 'error' ? 'error' : 'success'} />;

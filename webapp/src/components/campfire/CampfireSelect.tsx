@@ -9,7 +9,7 @@ import {
 	type ReactElement,
 	type ReactNode,
 } from 'react';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, Search } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -22,6 +22,9 @@ type CampfireSelectProps = {
 	readonly disabled?: boolean;
 	readonly className?: string;
 	readonly children: ReactNode;
+	readonly searchable?: boolean;
+	readonly searchPlaceholder?: string;
+	readonly maxVisibleOptions?: number;
 	readonly onValueChange: (value: string) => void;
 };
 
@@ -42,13 +45,18 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 	const rootRef = useRef<HTMLDivElement | null>(null);
 	const buttonRef = useRef<HTMLButtonElement | null>(null);
 	const [open, setOpen] = useState(false);
+	const [query, setQuery] = useState('');
 
 	const options = useMemo(() => extractOptions(props.children), [props.children]);
 	const selectedOption = options.find(option => option.value === props.value) ?? null;
+	const filteredOptions = useMemo(() => filterOptions(options, query, props.searchable === true), [options, props.searchable, query]);
+	const visibleOptions = props.maxVisibleOptions === undefined ? filteredOptions : filteredOptions.slice(0, props.maxVisibleOptions);
+	const hiddenOptionCount = Math.max(0, filteredOptions.length - visibleOptions.length);
 	const menuID = `${props.id}-menu`;
 
 	useEffect(() => {
 		if (!open) {
+			setQuery('');
 			return;
 		}
 
@@ -158,13 +166,13 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 				aria-expanded={open}
 				aria-controls={menuID}
 				className={cn(
-					'cf:flex cf:h-10 cf:w-full cf:items-center cf:justify-between cf:gap-3 cf:rounded-xl cf:border cf:px-3',
-					'cf:bg-black/55 cf:text-left cf:text-sm cf:font-bold cf:text-foreground cf:shadow-inner cf:outline-none',
-					'cf:border-amber-300/20 cf:transition-[background-color,border-color,box-shadow,transform]',
-					'hover:cf:border-amber-300/70 hover:cf:bg-amber-950/35 hover:cf:shadow-[0_0_0_1px_rgba(251,191,36,0.18),0_0_22px_rgba(245,158,11,0.10)]',
-					'focus-visible:cf:border-amber-300/80 focus-visible:cf:ring-2 focus-visible:cf:ring-amber-300/25',
+					'cf:flex cf:h-11 cf:w-full cf:items-center cf:justify-between cf:gap-3 cf:rounded-xl cf:border cf:px-3.5',
+					'cf:bg-white/[0.045] cf:text-left cf:text-base cf:font-medium cf:text-foreground cf:shadow-none cf:outline-none',
+					'cf:border-amber-200/18 cf:transition-[background-color,border-color,box-shadow,transform]',
+					'hover:cf:border-amber-200/35 hover:cf:bg-white/[0.065] hover:cf:shadow-none',
+					'focus-visible:cf:border-amber-300/70 focus-visible:cf:ring-2 focus-visible:cf:ring-amber-200/18',
 					'disabled:cf:cursor-not-allowed disabled:cf:opacity-50',
-					open && 'cf:border-amber-300/80 cf:bg-amber-950/35 cf:ring-2 cf:ring-amber-300/20',
+					open && 'cf:border-amber-200/45 cf:bg-white/[0.07] cf:ring-2 cf:ring-amber-200/14',
 				)}
 				onClick={toggleOpen}
 				onKeyDown={handleButtonKeyDown}
@@ -186,11 +194,24 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 					aria-labelledby={props.id}
 					className={cn(
 						'cf:absolute cf:left-0 cf:right-0 cf:top-[calc(100%+0.35rem)] cf:z-10000',
-						'cf:max-h-72 cf:overflow-y-auto cf:rounded-xl cf:border cf:border-amber-300/30',
-						'cf:bg-[#050505] cf:p-1.5 cf:shadow-[0_24px_80px_rgba(0,0,0,0.80)] cf:ring-1 cf:ring-white/10',
+						'cf:max-h-72 cf:overflow-y-auto cf:rounded-xl cf:border cf:border-amber-200/22',
+						'cf:bg-[#17130f] cf:p-1.5 cf:shadow-[0_24px_80px_rgba(0,0,0,0.70)] cf:ring-1 cf:ring-white/10',
 					)}
 				>
-					{options.map(option => {
+					{props.searchable === true && (
+						<label className="campfire-select-search">
+							<Search className="cf:size-4" aria-hidden="true" />
+							<input
+								type="search"
+								placeholder={props.searchPlaceholder ?? 'Search…'}
+								value={query}
+								onChange={event => setQuery(event.currentTarget.value)}
+								onKeyDown={event => event.stopPropagation()}
+							/>
+						</label>
+					)}
+
+					{visibleOptions.map(option => {
 						const selected = option.value === props.value;
 
 						return (
@@ -201,12 +222,12 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 								aria-selected={selected}
 								disabled={option.disabled}
 								className={cn(
-									'cf:flex cf:w-full cf:items-center cf:justify-between cf:gap-3 cf:rounded-lg cf:px-3 cf:py-2.5',
-									'cf:text-left cf:text-sm cf:font-bold cf:text-slate-200 cf:outline-none',
+									'cf:flex cf:w-full cf:items-center cf:justify-between cf:gap-3 cf:rounded-lg cf:px-3.5 cf:py-2.5',
+									'cf:text-left cf:text-base cf:font-medium cf:text-slate-200 cf:outline-none',
 									'cf:transition-[background-color,color,box-shadow,transform]',
-									'hover:cf:bg-amber-300/18 hover:cf:text-amber-50 hover:cf:shadow-[inset_0_0_0_1px_rgba(251,191,36,0.12)]',
-									'focus:cf:bg-amber-300/18 focus:cf:text-amber-50 focus:cf:shadow-[inset_0_0_0_1px_rgba(251,191,36,0.12)]',
-									selected && 'cf:bg-amber-300/22 cf:text-amber-50',
+									'hover:cf:bg-white/[0.075] hover:cf:text-amber-50 hover:cf:shadow-none',
+									'focus:cf:bg-white/[0.075] focus:cf:text-amber-50 focus:cf:shadow-none',
+									selected && 'cf:bg-amber-200/10 cf:text-amber-50',
 									option.disabled && 'cf:pointer-events-none cf:opacity-45',
 								)}
 								onClick={() => selectOption(option)}
@@ -218,10 +239,37 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 							</button>
 						);
 					})}
+
+					{hiddenOptionCount > 0 && (
+						<p className="campfire-select-hidden-count">
+							Showing {visibleOptions.length} of {filteredOptions.length}. Search to narrow the list.
+						</p>
+					)}
 				</div>
 			)}
 		</div>
 	);
+}
+
+
+/**
+ * filterOptions applies local text search when enabled.
+ */
+function filterOptions(
+	options: readonly CampfireSelectOption[],
+	query: string,
+	searchable: boolean,
+): readonly CampfireSelectOption[] {
+	if (!searchable) {
+		return options;
+	}
+
+	const cleanQuery = query.trim().toLowerCase();
+	if (cleanQuery === '') {
+		return options;
+	}
+
+	return options.filter(option => option.label.toLowerCase().includes(cleanQuery) || option.value.toLowerCase().includes(cleanQuery));
 }
 
 /**

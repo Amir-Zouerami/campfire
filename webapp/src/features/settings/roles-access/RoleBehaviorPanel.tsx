@@ -1,10 +1,10 @@
 import type { ReactElement } from 'react';
 import { ShieldCheck } from 'lucide-react';
 
-import { CampfireStatusPill } from '@/app/campfire-ui';
 import type { WorkspaceRoleSettings } from '@/types/domain';
 
 import { formatDateTime } from './roles-access.helpers';
+import { CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * RoleBehaviorPanelProps contains role behavior settings.
@@ -21,11 +21,11 @@ export function RoleBehaviorPanel(props: RoleBehaviorPanelProps): ReactElement {
 		<section className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
 				<div>
-					<p className="cf:flex cf:items-center cf:gap-2 cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+					<p className="cf:flex cf:items-center cf:gap-2 cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 						<ShieldCheck className="cf:size-4" />
 						Role behavior
 					</p>
-					<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
+					<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
 						Inherited access rules
 					</h3>
 				</div>
@@ -60,7 +60,7 @@ function RoleBehaviorRow(props: {
 	return (
 		<article className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4">
 			<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-2">
-				<h4 className="cf:text-base cf:font-black cf:text-foreground">{props.title}</h4>
+				<h4 className="cf:text-base cf:font-semibold cf:text-foreground">{props.title}</h4>
 				<CampfireStatusPill tone={props.enabled ? 'green' : 'slate'}>
 					{props.enabled ? 'Enabled' : 'Disabled'}
 				</CampfireStatusPill>

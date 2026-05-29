@@ -573,11 +573,12 @@ func (s *SQLWorkspaceStore) insertStandupQuestion(
 				required,
 				show_in_report,
 				is_private,
+				creates_tasks,
 				position,
 				options_json,
 				created_at,
 				updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`),
 		question.ID.String(),
 		question.TemplateID.String(),
@@ -590,6 +591,7 @@ func (s *SQLWorkspaceStore) insertStandupQuestion(
 		question.Required,
 		question.ShowInReport,
 		question.IsPrivate,
+		question.CreatesTasks,
 		question.Position,
 		question.OptionsJSON,
 		question.CreatedAt,
@@ -719,7 +721,7 @@ func (s *SQLWorkspaceStore) insertReportRule(
 				created_by,
 				created_at,
 				updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`),
 		rule.ID.String(),
 		rule.WorkspaceID.String(),

@@ -37,6 +37,11 @@ func handleCreateStandupTemplate(
 			return
 		}
 
+		isActive := true
+		if request.IsActive != nil {
+			isActive = *request.IsActive
+		}
+
 		template, err := standupService.CreateTemplate(r.Context(), service.CreateStandupTemplateInput{
 			ActorUserID:   user.ID,
 			IsSystemAdmin: user.IsSystemAdmin,
@@ -44,6 +49,7 @@ func handleCreateStandupTemplate(
 			Name:          request.Name,
 			Description:   request.Description,
 			Kind:          request.Kind,
+			IsActive:      isActive,
 		})
 		if err != nil {
 			logServiceError(log, err)
@@ -146,6 +152,7 @@ func handleCreateStandupQuestion(
 			Required:      request.Required,
 			ShowInReport:  request.ShowInReport,
 			IsPrivate:     request.IsPrivate,
+			CreatesTasks:  request.CreatesTasks,
 			Position:      request.Position,
 			Options:       request.Options,
 		})
@@ -203,6 +210,7 @@ func handleUpdateStandupQuestion(
 			Required:      request.Required,
 			ShowInReport:  request.ShowInReport,
 			IsPrivate:     request.IsPrivate,
+			CreatesTasks:  request.CreatesTasks,
 			Position:      request.Position,
 			Options:       request.Options,
 		})
@@ -342,8 +350,10 @@ func handleListStandupConfiguration(
 		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
 
 		configuration, err := standupService.ListConfiguration(r.Context(), service.ListStandupConfigurationInput{
-			ActorUserID: user.ID,
-			WorkspaceID: workspaceID,
+			ActorUserID:     user.ID,
+			IsSystemAdmin:   user.IsSystemAdmin,
+			WorkspaceID:     workspaceID,
+			IncludeInactive: parseBoolQuery(r, "includeInactive"),
 		})
 		if err != nil {
 			logServiceError(log, err)
@@ -356,6 +366,53 @@ func handleListStandupConfiguration(
 			http.StatusOK,
 			StandupConfigurationToPayload(*configuration),
 		)
+	}
+}
+
+/*
+parseBoolQuery accepts the small set of boolean query forms used by the
+Campfire webapp. Unknown values stay false so public active-only endpoints do
+not accidentally broaden their response.
+*/
+func parseBoolQuery(r *http.Request, name string) bool {
+	switch strings.ToLower(strings.TrimSpace(r.URL.Query().Get(name))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+/*
+handleGetMyStandupSubmission handles loading the current user's stored standup
+answers for one date/template so members can correct previous valid standups.
+*/
+func handleGetMyStandupSubmission(
+	log logger.Logger,
+	mm mattermost.Client,
+	standupService *service.StandupService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+
+		submission, err := standupService.GetMySubmission(r.Context(), service.GetMyStandupSubmissionInput{
+			ActorUserID:    user.ID,
+			WorkspaceID:    workspaceID,
+			OccurrenceDate: r.URL.Query().Get("occurrenceDate"),
+			TemplateID:     r.URL.Query().Get("templateId"),
+		})
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WriteGetMyStandupSubmission(w, http.StatusOK, MyStandupSubmissionToPayload(submission))
 	}
 }
 
@@ -442,8 +499,9 @@ func handleSubmitStandup(
 		)
 
 		WriteSubmitStandup(w, http.StatusCreated, SubmitStandupResponse{
-			Submission: StandupSubmissionToPayload(result.Submission),
-			Answers:    StandupAnswersToPayload(result.Answers),
+			Submission:   StandupSubmissionToPayload(result.Submission),
+			Answers:      StandupAnswersToPayload(result.Answers),
+			CreatedTasks: TasksToPayload(result.CreatedTasks),
 		})
 	}
 }

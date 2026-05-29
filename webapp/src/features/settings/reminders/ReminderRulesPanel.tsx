@@ -1,12 +1,12 @@
 import type { ReactElement } from 'react';
 import { BellRing } from 'lucide-react';
 
-import { CampfireEmpty } from '@/app/campfire-ui';
 import { scheduleLabelForRule, type StandupScheduleLabelLookup } from '@/features/settings/standup-schedule-labels';
 import type { ReminderRule } from '@/types/domain';
 
 import { ReminderRuleCard } from './ReminderRuleCard';
 import type { ReminderRuleDraftPatch, ReminderRuleWithDraft } from './reminders.types';
+import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * ReminderRulesPanelProps contains reminder rules and edit actions.

@@ -1,13 +1,7 @@
 import type { ReactElement } from 'react';
 import { CalendarClock, Loader2, Plus } from 'lucide-react';
 
-import {
-	CampfireCardBody,
-	CampfireCardHeader,
-	CampfireEmpty,
-	CampfirePanel,
-	CampfireStatusPill,
-} from '@/app/campfire-ui';
+import { CampfireStatusPill, CampfireSurface, CampfireWorkflowNote } from '@/components/campfire/CampfireLayoutPrimitives';
 import { Button } from '@/components/ui/button';
 import type { StandupSchedule, StandupTemplate } from '@/types/domain';
 
@@ -42,35 +36,32 @@ export function StandupSchedulesPanel(props: StandupSchedulesPanelProps): ReactE
 	const formDisabled = props.disabled || !props.canManageStandups || props.templates.length === 0;
 
 	return (
-		<CampfirePanel>
-			<CampfireCardHeader
-				eyebrow="Schedules"
-				title="When Campfire asks"
-				description="Keep the schedule layer calm: create a run, attach a template, and set its local time."
-				icon={CalendarClock}
-				action={
+		<div className="campfire-standup-schedules-workflow">
+			<CampfireSurface className="campfire-standup-schedules-create-surface">
+				<div className="campfire-surface-header campfire-surface-header--with-action">
+					<div>
+						<p className="campfire-surface-eyebrow">Schedules</p>
+						<h3 className="campfire-surface-title">When Campfire asks</h3>
+						<p className="campfire-surface-description">
+							Create one run, attach a template, and set its local time.
+						</p>
+					</div>
 					<CampfireStatusPill tone="ember">{props.schedulesWithDrafts.length} schedules</CampfireStatusPill>
-				}
-			/>
+				</div>
 
-			<CampfireCardBody className="cf:grid cf:gap-5">
+				<CampfireWorkflowNote
+					icon={CalendarClock}
+					title="Daily and weekly behavior stays explicit."
+					description="Daily schedules, weekly schedules, non-working-day skips, and weekly override behavior are separate controls."
+				/>
+
 				<form
-					className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-5"
+					className="campfire-standup-schedule-create-form"
 					onSubmit={event => {
 						event.preventDefault();
 						void props.onCreateSchedule();
 					}}
 				>
-					<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3">
-						<div>
-							<h3 className="cf:m-0 cf:text-lg cf:font-black cf:text-foreground">Create schedule</h3>
-							<p className="cf:m-0 cf:mt-1 cf:text-sm cf:font-semibold cf:text-muted-foreground">
-								New daily, weekly, or custom run for an existing template.
-							</p>
-						</div>
-						<CampfireStatusPill tone="ember">New</CampfireStatusPill>
-					</div>
-
 					<StandupScheduleFields
 						idPrefix="campfire-new-standup-schedule"
 						templates={props.templates}
@@ -79,26 +70,45 @@ export function StandupSchedulesPanel(props: StandupSchedulesPanelProps): ReactE
 						onChange={props.onNewScheduleChange}
 					/>
 
-					<Button type="submit" disabled={formDisabled}>
-						{props.savingID === 'new-schedule' ? (
-							<Loader2 className="cf:size-4 cf:animate-spin" />
-						) : (
-							<Plus className="cf:size-4" />
-						)}
-						Create schedule
-					</Button>
+					<div className="campfire-form-actions">
+						<Button type="submit" disabled={formDisabled}>
+							{props.savingID === 'new-schedule' ? (
+								<Loader2 className="cf:size-4 cf:animate-spin" />
+							) : (
+								<Plus className="cf:size-4" />
+							)}
+							Create schedule
+						</Button>
+					</div>
 				</form>
+			</CampfireSurface>
+
+			<CampfireSurface className="campfire-standup-schedules-list-surface">
+				<div className="campfire-surface-header campfire-surface-header--with-action">
+					<div>
+						<p className="campfire-surface-eyebrow">Saved runs</p>
+						<h3 className="campfire-surface-title">Existing schedules</h3>
+						<p className="campfire-surface-description">
+							Edit enabled state, cadence, time, and skip behavior in-place.
+						</p>
+					</div>
+					<CampfireStatusPill tone="slate">{props.schedulesWithDrafts.length}</CampfireStatusPill>
+				</div>
 
 				{props.schedulesWithDrafts.length === 0 && (
-					<CampfireEmpty
-						icon={CalendarClock}
-						title="No schedules yet"
-						description="Create at least one schedule after a template exists."
-					/>
+					<div className="campfire-flat-empty-state">
+						<span className="campfire-flat-empty-icon" aria-hidden="true">
+							<CalendarClock className="cf:size-5" />
+						</span>
+						<div>
+							<h4>No schedules yet</h4>
+							<p>Create at least one schedule after a template exists.</p>
+						</div>
+					</div>
 				)}
 
 				{props.schedulesWithDrafts.length > 0 && (
-					<div className="cf:grid cf:gap-4">
+					<div className="campfire-standup-schedule-list">
 						{props.schedulesWithDrafts.map(pair => (
 							<StandupScheduleCard
 								key={pair.schedule.id}
@@ -114,7 +124,7 @@ export function StandupSchedulesPanel(props: StandupSchedulesPanelProps): ReactE
 						))}
 					</div>
 				)}
-			</CampfireCardBody>
-		</CampfirePanel>
+			</CampfireSurface>
+		</div>
 	);
 }

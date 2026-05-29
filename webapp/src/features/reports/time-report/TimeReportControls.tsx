@@ -15,6 +15,7 @@ import type { TimeReportFilterDraft, TimeReportFilterPatch } from './time-report
 type TimeReportControlsProps = {
 	readonly filter: TimeReportFilterDraft;
 	readonly disabled: boolean;
+	readonly timezone: string;
 	readonly onChange: (patch: TimeReportFilterPatch) => void;
 	readonly onLoad: () => Promise<void>;
 };
@@ -31,11 +32,12 @@ export function TimeReportControls(props: TimeReportControlsProps): ReactElement
 	}
 
 	return (
-		<div className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5 cf:xl:grid-cols-[1fr_1fr_1.2fr_auto] cf:xl:items-end">
+		<div className="campfire-control-grid campfire-control-grid--time-report">
 			<CampfireField id="campfire-time-report-start" label="Start date">
 				<CampfireDateInput
 					id="campfire-time-report-start"
 					disabled={props.disabled}
+					timezone={props.timezone}
 					value={props.filter.startDate}
 					onValueChange={value => props.onChange({ startDate: value })}
 				/>
@@ -45,6 +47,7 @@ export function TimeReportControls(props: TimeReportControlsProps): ReactElement
 				<CampfireDateInput
 					id="campfire-time-report-end"
 					disabled={props.disabled}
+					timezone={props.timezone}
 					value={props.filter.endDate}
 					onValueChange={value => props.onChange({ endDate: value })}
 				/>

@@ -1,16 +1,20 @@
 import { useState } from 'react';
 import type { ReactElement } from 'react';
-import { CalendarClock, FileQuestion, ListChecks } from 'lucide-react';
+import { CalendarClock, FileQuestion, ListChecks, Route, ShieldCheck } from 'lucide-react';
 
-import { CampfireCardBody, CampfirePanel } from '@/app/campfire-ui';
+import {
+	CampfirePageHeader,
+	CampfireSectionTabs,
+	CampfireStatCard,
+	CampfireSurface,
+	CampfireWorkflowNote,
+} from '@/components/campfire/CampfireLayoutPrimitives';
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
-import { cn } from '@/lib/utils';
 
 import { StandupConfigurationOverviewPanel } from './StandupConfigurationOverviewPanel';
 import { StandupFormsPanel } from './StandupFormsPanel';
 import { StandupSchedulesPanel } from './StandupSchedulesPanel';
 import { StandupSettingsFeedback, StandupSettingsLoading } from './StandupSettingsFeedback';
-import { StandupSettingsHero } from './StandupSettingsHero';
 import { useStandupSettings } from './useStandupSettings';
 
 /**
@@ -25,7 +29,6 @@ type StandupSettingsSection = {
 	readonly id: StandupSettingsSectionID;
 	readonly label: string;
 	readonly description: string;
-	readonly icon: typeof ListChecks;
 };
 
 /**
@@ -36,19 +39,16 @@ const standupSettingsSections: readonly StandupSettingsSection[] = [
 		id: 'overview',
 		label: 'Overview',
 		description: 'Review templates, schedules, and questions.',
-		icon: ListChecks,
 	},
 	{
 		id: 'schedules',
 		label: 'Schedules',
 		description: 'Control when daily and weekly forms run.',
-		icon: CalendarClock,
 	},
 	{
 		id: 'forms',
 		label: 'Form builder',
 		description: 'Create templates and edit questions.',
-		icon: FileQuestion,
 	},
 ];
 
@@ -68,40 +68,74 @@ export function StandupSettingsPage(props: WorkspaceShellProps): ReactElement {
 	});
 
 	return (
-		<div className="cf:grid cf:gap-5">
-			<StandupSettingsHero
-				templateCount={standups.templates.length}
-				activeTemplateCount={standups.activeTemplateCount}
-				questionCount={standups.questions.length}
-				reportQuestionCount={standups.reportQuestionCount}
-				scheduleCount={standups.schedules.length}
-				enabledScheduleCount={standups.enabledScheduleCount}
-				dailyScheduleCount={standups.dailyScheduleCount}
-				weeklyScheduleCount={standups.weeklyScheduleCount}
-				canManageStandups={canManageStandups}
+		<div className="campfire-page-stack campfire-standup-settings-page">
+			<CampfirePageHeader
+				eyebrow="Settings"
+				title="Standup Forms"
+				description="Manage templates, schedules, and task-creating questions without nesting the whole setup inside another dashboard."
 			/>
 
-			<CampfirePanel>
-				<CampfireCardBody className="cf:grid cf:gap-5">
-					<StandupSettingsFeedback state={standups.loadState} message={standups.message} />
+			<div className="campfire-stat-grid campfire-stat-grid--four">
+				<CampfireStatCard
+					icon={FileQuestion}
+					label="Templates"
+					value={String(standups.templates.length)}
+					helper={`${standups.activeTemplateCount} active`}
+				/>
+				<CampfireStatCard
+					icon={ListChecks}
+					label="Questions"
+					value={String(standups.questions.length)}
+					helper={`${standups.reportQuestionCount} in reports`}
+					tone="blue"
+				/>
+				<CampfireStatCard
+					icon={CalendarClock}
+					label="Schedules"
+					value={String(standups.schedules.length)}
+					helper={`${standups.enabledScheduleCount} enabled`}
+					tone="green"
+				/>
+				<CampfireStatCard
+					icon={ShieldCheck}
+					label="Access"
+					value={canManageStandups ? 'Editable' : 'Read only'}
+					helper="Lead/system admin controlled"
+					tone={canManageStandups ? 'green' : 'slate'}
+				/>
+			</div>
 
-					{!canManageStandups && (
-						<StandupSettingsFeedback
-							state="error"
-							message="You can view standup settings, but only workspace Leads and system admins can edit them."
-						/>
-					)}
+			<CampfireWorkflowNote
+				icon={Route}
+				title="Template rules are enforced server-side."
+				description="Names are unique per workspace, and activating a daily template automatically deactivates the previous active daily template."
+			/>
 
-					{standups.loadState === 'loading' && <StandupSettingsLoading />}
+			<CampfireSurface className="campfire-standup-settings-nav-surface">
+				<StandupSettingsFeedback state={standups.loadState} message={standups.message} />
 
-					{standups.loadState !== 'loading' && (
-						<StandupSettingsNavigation
-							activeSectionID={activeSectionID}
-							onSelectSection={setActiveSectionID}
-						/>
-					)}
-				</CampfireCardBody>
-			</CampfirePanel>
+				{!canManageStandups && (
+					<StandupSettingsFeedback
+						state="error"
+						message="You can view standup settings, but only workspace Leads and system admins can edit them."
+					/>
+				)}
+
+				{standups.loadState === 'loading' && <StandupSettingsLoading />}
+
+				{standups.loadState !== 'loading' && (
+					<CampfireSectionTabs
+						label="Standup settings sections"
+						activeValue={activeSectionID}
+						tabs={standupSettingsSections.map(section => ({
+							value: section.id,
+							label: section.label,
+							description: section.description,
+						}))}
+						onChange={setActiveSectionID}
+					/>
+				)}
+			</CampfireSurface>
 
 			{standups.loadState !== 'loading' && (
 				<StandupSettingsSectionPanel
@@ -111,49 +145,6 @@ export function StandupSettingsPage(props: WorkspaceShellProps): ReactElement {
 				/>
 			)}
 		</div>
-	);
-}
-
-/**
- * StandupSettingsNavigation renders local standup settings navigation.
- */
-function StandupSettingsNavigation(props: {
-	readonly activeSectionID: StandupSettingsSectionID;
-	readonly onSelectSection: (sectionID: StandupSettingsSectionID) => void;
-}): ReactElement {
-	return (
-		<nav className="campfire-standup-settings-nav" aria-label="Standup settings sections">
-			{standupSettingsSections.map(section => {
-				const active = section.id === props.activeSectionID;
-				const Icon = section.icon;
-
-				return (
-					<button
-						key={section.id}
-						type="button"
-						aria-current={active ? 'page' : undefined}
-						className={cn(
-							'campfire-standup-settings-nav-button',
-							active && 'campfire-standup-settings-nav-button--active',
-						)}
-						onClick={() => props.onSelectSection(section.id)}
-					>
-						<span className="campfire-standup-settings-nav-icon">
-							<Icon className="cf:size-5" />
-						</span>
-
-						<span className="cf:min-w-0">
-							<span className="cf:block cf:text-base cf:font-black cf:tracking-[-0.02em] cf:text-foreground">
-								{section.label}
-							</span>
-							<span className="cf:mt-1 cf:block cf:text-sm cf:font-semibold cf:leading-5 cf:text-muted-foreground">
-								{section.description}
-							</span>
-						</span>
-					</button>
-				);
-			})}
-		</nav>
 	);
 }
 

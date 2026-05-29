@@ -1,6 +1,10 @@
 import type { ReactElement } from 'react';
 
-import { reportSectionButtonClassName } from './reports.helpers';
+import {
+	CampfireSectionTabs,
+	type CampfireSectionTab,
+} from '@/components/campfire/CampfireLayoutPrimitives';
+
 import type { ReportsSection, ReportsSectionID } from './reports.types';
 
 /**
@@ -13,23 +17,22 @@ type ReportsSectionNavigationProps = {
 };
 
 /**
- * ReportsSectionNavigation renders Reports sub-page navigation.
+ * ReportsSectionNavigation renders Reports sub-page navigation using the shared
+ * Campfire pill-tab primitive instead of the older card-like section grid.
  */
 export function ReportsSectionNavigation(props: ReportsSectionNavigationProps): ReactElement {
+	const tabs: CampfireSectionTab<ReportsSectionID>[] = props.sections.map(section => ({
+		value: section.id,
+		label: section.label,
+		description: section.description,
+	}));
+
 	return (
-		<nav className="campfire-section-nav" aria-label="Reports sections">
-			{props.sections.map(section => (
-				<button
-					key={section.id}
-					type="button"
-					className={reportSectionButtonClassName(section.id === props.activeSection)}
-					aria-current={section.id === props.activeSection ? 'page' : undefined}
-					onClick={() => props.onSelectSection(section.id)}
-				>
-					<span className="cf:text-base cf:font-black">{section.label}</span>
-					<span className="cf:text-sm cf:font-semibold cf:text-muted-foreground">{section.description}</span>
-				</button>
-			))}
-		</nav>
+		<CampfireSectionTabs
+			tabs={tabs}
+			activeValue={props.activeSection}
+			label="Reports sections"
+			onChange={props.onSelectSection}
+		/>
 	);
 }

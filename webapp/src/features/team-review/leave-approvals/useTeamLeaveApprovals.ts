@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/components/campfire/campfire-toast';
 
 import { decideLeaveRequest, listPendingLeaveRequests } from '@/api';
 import type { PendingLeaveRequest, Workspace } from '@/types/domain';

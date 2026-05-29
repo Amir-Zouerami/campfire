@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
-import { CalendarDays, Check, Flame, Hash, Loader2, ShieldCheck } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { CalendarDays, Check, Hash, Info, Loader2, ShieldCheck } from 'lucide-react';
 
-import { ApiClientError, createWorkspace } from '@/api';
+import { createWorkspace } from '@/api';
+import { CampfirePageHeader, CampfireStatCard, CampfireStatusPill, CampfireSurface, CampfireWorkflowNote } from '@/components/campfire/CampfireLayoutPrimitives';
+import { toast } from '@/components/campfire/campfire-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,7 +20,6 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import type { Workspace } from '@/types/domain';
 
-import { CampfireCardBody, CampfireCardHeader, CampfirePanel, CampfireStatusPill } from './campfire-ui';
 
 /**
  * WorkspaceSetupCardProps contains Mattermost context needed to create a workspace.
@@ -167,8 +167,11 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 			setMessage('Workspace created. Loading Campfire workspace…');
 			props.onWorkspaceCreated(response.workspace);
 		} catch (error: unknown) {
-			setSaveState('error');
-			setMessage(errorToMessage(error));
+			setSaveState('idle');
+			setMessage('');
+			toast.error(error, {
+				fallbackMessage: 'Could not create the Campfire workspace.',
+			});
 		}
 	}
 
@@ -193,119 +196,123 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 	const isBusy = saveState === 'saving';
 
 	return (
-		<form onSubmit={handleSubmit}>
-			<CampfirePanel>
-				<CampfireCardHeader
-					eyebrow="Workspace setup"
-					title="Turn this channel into a Campfire workspace"
-					description="Connect this Mattermost channel to standups, tasks, time, leave planning, reminders, and reports."
-					icon={Flame}
-					action={<CampfireStatusPill tone="ember">New workspace</CampfireStatusPill>}
-				/>
+		<form className="campfire-setup-form" onSubmit={handleSubmit}>
+			<CampfirePageHeader
+				eyebrow="Workspace setup"
+				title="Turn this channel into a Campfire workspace"
+				description="Connect this Mattermost channel to standups, tasks, time, leave planning, reminders, and reports."
+				actions={<CampfireStatusPill tone="ember">New workspace</CampfireStatusPill>}
+			/>
 
-				<CampfireCardBody className="cf:grid cf:gap-7">
-					<div className="campfire-summary-grid">
-						<ContextTile
-							label="Channel"
-							value={props.channelName ?? 'Current channel'}
-							helper={props.channelID}
-							icon={Hash}
-						/>
-						<ContextTile
-							label="Working days"
-							value={`${form.workingDays.length} selected`}
-							helper={workingDaysLabel(form.workingDays)}
-							icon={CalendarDays}
-						/>
-						<ContextTile
-							label="Defaults"
-							value={form.createDefaultTemplates ? 'Seeded setup' : 'Empty setup'}
-							helper="Templates, schedules, rules"
-							icon={ShieldCheck}
-						/>
+			<div className="campfire-setup-summary-grid">
+				<CampfireStatCard
+					icon={Hash}
+					label="Channel"
+					value={props.channelName ?? 'Current channel'}
+					helper={shortID(props.channelID)}
+				/>
+				<CampfireStatCard
+					icon={CalendarDays}
+					label="Working days"
+					value={`${form.workingDays.length} selected`}
+					helper={workingDaysLabel(form.workingDays)}
+					tone="green"
+				/>
+				<CampfireStatCard
+					icon={ShieldCheck}
+					label="Defaults"
+					value={form.createDefaultTemplates ? 'Seeded setup' : 'Empty setup'}
+					helper="Templates, reminders, reports"
+				/>
+			</div>
+
+			<CampfireWorkflowNote
+				icon={Info}
+				title="Startup behavior"
+				description="This setup keeps local validation inline, while server and permission errors appear as bottom-right Campfire toasts."
+			/>
+
+			<div className="campfire-setup-grid">
+				<CampfireSurface className="campfire-setup-primary-surface">
+					<div className="campfire-section-heading-row">
+						<div>
+							<h3 className="campfire-section-title">Workspace identity</h3>
+							<p className="campfire-section-description">
+								These values can be cleaned up later in workspace settings.
+							</p>
+						</div>
+
+						<CampfireStatusPill>Team {shortID(props.teamID)}</CampfireStatusPill>
 					</div>
 
-					<div className="campfire-form-section">
-						<div className="campfire-section-heading-row">
-							<div>
-								<h3 className="campfire-section-title">Workspace identity</h3>
-								<p className="campfire-section-description">
-									These values can be cleaned up later in workspace settings.
-								</p>
-							</div>
-
-							<CampfireStatusPill>Team {props.teamID.slice(0, 7)}</CampfireStatusPill>
-						</div>
-
-						<div className="cf:grid cf:gap-6 cf:md:grid-cols-2">
-							<div className="cf:grid cf:gap-3">
-								<Label htmlFor="campfire-workspace-name" className="campfire-field-label">
-									Workspace name
-								</Label>
-								<Input
-									id="campfire-workspace-name"
-									value={form.name}
-									onChange={event => updateForm({ name: event.currentTarget.value })}
-									disabled={isBusy}
-									className="campfire-input"
-								/>
-							</div>
-
-							<div className="cf:grid cf:gap-3">
-								<Label htmlFor="campfire-workspace-timezone" className="campfire-field-label">
-									Timezone
-								</Label>
-								<TimezoneSelect
-									id="campfire-workspace-timezone"
-									value={form.timezone}
-									disabled={isBusy}
-									onChange={timezone => updateForm({ timezone })}
-								/>
-							</div>
-						</div>
-
+					<div className="cf:grid cf:gap-6 cf:md:grid-cols-2">
 						<div className="cf:grid cf:gap-3">
-							<Label htmlFor="campfire-workspace-board-url" className="campfire-field-label">
-								Board URL
+							<Label htmlFor="campfire-workspace-name" className="campfire-field-label">
+								Workspace name
 							</Label>
 							<Input
-								id="campfire-workspace-board-url"
-								value={form.boardURL}
-								placeholder="Optional board, Jira, Linear, GitHub project, or task source URL"
-								onChange={event => updateForm({ boardURL: event.currentTarget.value })}
+								id="campfire-workspace-name"
+								value={form.name}
+								onChange={event => updateForm({ name: event.currentTarget.value })}
 								disabled={isBusy}
 								className="campfire-input"
 							/>
 						</div>
 
 						<div className="cf:grid cf:gap-3">
-							<Label htmlFor="campfire-workspace-description" className="campfire-field-label">
-								Description
+							<Label htmlFor="campfire-workspace-timezone" className="campfire-field-label">
+								Timezone
 							</Label>
-							<Textarea
-								id="campfire-workspace-description"
-								value={form.description}
-								placeholder="Optional workspace note…"
-								onChange={event => updateForm({ description: event.currentTarget.value })}
+							<TimezoneSelect
+								id="campfire-workspace-timezone"
+								value={form.timezone}
 								disabled={isBusy}
-								className="campfire-textarea"
+								onChange={timezone => updateForm({ timezone })}
 							/>
 						</div>
 					</div>
 
-					<div className="campfire-form-section">
-						<div className="campfire-section-heading-row">
+					<div className="cf:grid cf:gap-3">
+						<Label htmlFor="campfire-workspace-board-url" className="campfire-field-label">
+							Board URL
+						</Label>
+						<Input
+							id="campfire-workspace-board-url"
+							value={form.boardURL}
+							placeholder="Optional board, Jira, Linear, GitHub project, or task source URL"
+							onChange={event => updateForm({ boardURL: event.currentTarget.value })}
+							disabled={isBusy}
+							className="campfire-input"
+						/>
+					</div>
+
+					<div className="cf:grid cf:gap-3">
+						<Label htmlFor="campfire-workspace-description" className="campfire-field-label">
+							Description
+						</Label>
+						<Textarea
+							id="campfire-workspace-description"
+							value={form.description}
+							placeholder="Optional workspace note…"
+							onChange={event => updateForm({ description: event.currentTarget.value })}
+							disabled={isBusy}
+							className="campfire-textarea"
+						/>
+					</div>
+				</CampfireSurface>
+
+				<aside className="campfire-setup-side-stack">
+					<CampfireSurface>
+						<div className="campfire-section-heading-row campfire-section-heading-row--compact">
 							<div>
 								<h3 className="campfire-section-title">Working calendar</h3>
-								<p className="campfire-section-description">
-									Standups can skip non-working days when schedules are configured to do so.
-								</p>
+								<p className="campfire-section-description">Choose the default rhythm for standups.</p>
 							</div>
 
 							<CampfireStatusPill tone="green">{workingDaysLabel(form.workingDays)}</CampfireStatusPill>
 						</div>
 
-						<div className="cf:grid cf:grid-cols-2 cf:gap-3 cf:sm:grid-cols-4 cf:lg:grid-cols-7">
+						<div className="campfire-setup-weekday-grid">
 							{weekdayOptions.map(option => {
 								const isSelected = form.workingDays.includes(option.value);
 
@@ -317,26 +324,26 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 										className={weekdayButtonClassName(isSelected)}
 										onClick={() => toggleWorkingDay(option.value)}
 									>
-										<span className="cf:block cf:text-lg cf:font-bold">{option.shortLabel}</span>
-										<span className="cf:mt-1.5 cf:block cf:text-sm cf:font-bold cf:uppercase cf:tracking-widest">
+										<span className="cf:block cf:text-sm cf:font-semibold">{option.shortLabel}</span>
+										<span className="cf:mt-1 cf:block cf:text-[0.68rem] cf:font-medium cf:uppercase cf:tracking-[0.16em]">
 											{option.label}
 										</span>
 									</button>
 								);
 							})}
 						</div>
-					</div>
+					</CampfireSurface>
 
-					<div className="campfire-form-section">
-						<div>
-							<h3 className="campfire-section-title">Startup behavior</h3>
-							<p className="campfire-section-description">
-								These defaults make the workspace usable immediately after creation.
-							</p>
-						</div>
+					<CampfireSurface>
+						<div className="cf:grid cf:gap-5">
+							<div>
+								<h3 className="campfire-section-title">Role and template defaults</h3>
+								<p className="campfire-section-description">
+									These defaults make the workspace usable immediately after creation.
+								</p>
+							</div>
 
-						<div className="cf:grid cf:gap-5 cf:md:grid-cols-2">
-							<label className="campfire-check-card">
+							<label className="campfire-check-card campfire-check-card--flat">
 								<Checkbox
 									checked={form.channelAdminsAreLeads}
 									onCheckedChange={checked => updateForm({ channelAdminsAreLeads: checked === true })}
@@ -346,25 +353,21 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 								<span>
 									<span className="campfire-check-title">Treat channel admins as Leads</span>
 									<span className="campfire-check-description">
-										Channel admins can manage Campfire settings, templates, schedules, reminders,
-										reports, and workspace calendar rules.
+										Channel admins can manage workspace settings, templates, schedules, reminders,
+										reports, and calendar rules.
 									</span>
 								</span>
 							</label>
 
-							<label className="campfire-check-card">
+							<label className="campfire-check-card campfire-check-card--flat">
 								<Checkbox
 									checked={form.createDefaultTemplates}
-									onCheckedChange={checked =>
-										updateForm({ createDefaultTemplates: checked === true })
-									}
+									onCheckedChange={checked => updateForm({ createDefaultTemplates: checked === true })}
 									disabled={isBusy}
 									className="campfire-check-box"
 								/>
 								<span>
-									<span className="campfire-check-title">
-										Create default standup templates and schedules
-									</span>
+									<span className="campfire-check-title">Create default templates and schedules</span>
 									<span className="campfire-check-description">
 										Seeds daily and weekly standup templates, reminder rules, report rules, working
 										days, and leave defaults.
@@ -372,29 +375,25 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 								</span>
 							</label>
 						</div>
-					</div>
+					</CampfireSurface>
+				</aside>
+			</div>
 
-					<div className="campfire-submit-row">
-						<div>
-							<p className="campfire-submit-title">Ready to light the fire?</p>
-							<p className="campfire-submit-description">
-								This creates the Campfire workspace for the current Mattermost channel.
-							</p>
-						</div>
+			<div className="campfire-submit-row campfire-submit-row--flat">
+				<div>
+					<p className="campfire-submit-title">Ready to light the fire?</p>
+					<p className="campfire-submit-description">
+						This creates the Campfire workspace for the current Mattermost channel.
+					</p>
+				</div>
 
-						<button type="submit" disabled={isBusy} className="campfire-submit-button">
-							{isBusy ? (
-								<Loader2 className="cf:size-5 cf:animate-spin" />
-							) : (
-								<Check className="cf:size-5" />
-							)}
-							<span>Create workspace</span>
-						</button>
-					</div>
+				<button type="submit" disabled={isBusy} className="campfire-submit-button campfire-submit-button--flat">
+					{isBusy ? <Loader2 className="cf:size-5 cf:animate-spin" /> : <Check className="cf:size-5" />}
+					<span>Create workspace</span>
+				</button>
+			</div>
 
-					{message !== '' && <div className={messageClassName(saveState)}>{message}</div>}
-				</CampfireCardBody>
-			</CampfirePanel>
+			{message !== '' && <div className={messageClassName(saveState)}>{message}</div>}
 		</form>
 	);
 }
@@ -432,32 +431,6 @@ function TimezoneSelect(props: {
 				))}
 			</SelectContent>
 		</Select>
-	);
-}
-
-/**
- * ContextTile renders a small setup summary tile.
- */
-function ContextTile(props: {
-	readonly label: string;
-	readonly value: string;
-	readonly helper: string;
-	readonly icon: LucideIcon;
-}): ReactElement {
-	const Icon = props.icon;
-
-	return (
-		<div className="campfire-summary-tile">
-			<div className="campfire-summary-icon">
-				<Icon className="cf:size-9" />
-			</div>
-
-			<div className="campfire-summary-copy">
-				<p className="campfire-summary-label">{props.label}</p>
-				<p className="campfire-summary-value">{props.value}</p>
-				<p className="campfire-summary-helper">{props.helper}</p>
-			</div>
-		</div>
 	);
 }
 
@@ -607,35 +580,33 @@ function timezoneGroupSortValue(label: string): number {
 }
 
 /**
- * messageClassName returns feedback styling.
+ * shortID returns a compact identifier label for setup context.
  */
-function messageClassName(saveState: SaveState): string {
-	const baseClassName = 'cf:rounded-2xl cf:border cf:px-5 cf:py-4 cf:text-base cf:font-semibold';
+function shortID(value: string): string {
+	const trimmed = value.trim();
 
-	switch (saveState) {
-		case 'created':
-			return `${baseClassName} cf:border-emerald-400/20 cf:bg-emerald-500/10 cf:text-emerald-100`;
-
-		case 'error':
-			return `${baseClassName} cf:border-red-400/20 cf:bg-red-500/10 cf:text-red-100`;
-
-		case 'idle':
-		case 'saving':
-			return `${baseClassName} cf:border-border cf:bg-card/70 cf:text-muted-foreground`;
+	if (trimmed.length <= 7) {
+		return trimmed;
 	}
+
+	return trimmed.slice(0, 7);
 }
 
 /**
- * errorToMessage converts unknown thrown values into a safe UI message.
+ * messageClassName returns feedback styling.
  */
-function errorToMessage(error: unknown): string {
-	if (error instanceof ApiClientError) {
-		return error.message;
-	}
+function messageClassName(saveState: SaveState): string {
+	const baseClassName = 'campfire-setup-message';
 
-	if (error instanceof Error) {
-		return error.message;
-	}
+	switch (saveState) {
+		case 'created':
+			return `${baseClassName} campfire-setup-message--success`;
 
-	return 'Could not create the Campfire workspace.';
+		case 'error':
+			return `${baseClassName} campfire-setup-message--error`;
+
+		case 'idle':
+		case 'saving':
+			return baseClassName;
+	}
 }

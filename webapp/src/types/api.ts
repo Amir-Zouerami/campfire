@@ -382,6 +382,7 @@ export type CreateStandupTemplateRequest = {
 	readonly name: string;
 	readonly description: string;
 	readonly kind: StandupKind;
+	readonly isActive?: boolean;
 };
 
 /**
@@ -421,6 +422,7 @@ export type CreateStandupQuestionRequest = {
 	readonly required: boolean;
 	readonly showInReport: boolean;
 	readonly isPrivate: boolean;
+	readonly createsTasks: boolean;
 	readonly position: number;
 	readonly options: readonly string[];
 };
@@ -500,6 +502,25 @@ export type SubmitStandupRequest = {
  */
 export type SubmitStandupResponse = {
 	readonly submission: StandupSubmission;
+	readonly answers: readonly StandupAnswer[];
+	readonly createdTasks: readonly Task[];
+};
+
+
+/**
+ * GetMyStandupSubmissionRequest is used for GET /workspaces/{workspaceID}/standups/my-submission.
+ */
+export type GetMyStandupSubmissionRequest = {
+	readonly workspaceId: string;
+	readonly occurrenceDate: string;
+	readonly templateId?: string;
+};
+
+/**
+ * GetMyStandupSubmissionResponse is returned when loading the current user's stored standup.
+ */
+export type GetMyStandupSubmissionResponse = {
+	readonly submission: StandupSubmission | null;
 	readonly answers: readonly StandupAnswer[];
 };
 

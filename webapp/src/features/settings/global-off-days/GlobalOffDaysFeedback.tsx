@@ -5,7 +5,7 @@ import { CampfireFeedback, CampfireLoadingFeedback } from '@/components/campfire
 import type { GlobalOffDaysLoadState } from './global-off-days.types';
 
 /**
- * GlobalOffDaysFeedbackProps contains global off-day feedback state.
+ * GlobalOffDaysFeedbackProps contains workflow feedback state.
  */
 type GlobalOffDaysFeedbackProps = {
 	readonly state: GlobalOffDaysLoadState;
@@ -13,7 +13,7 @@ type GlobalOffDaysFeedbackProps = {
 };
 
 /**
- * GlobalOffDaysFeedback renders global off-day success and error messages.
+ * GlobalOffDaysFeedback renders compact local workflow feedback.
  */
 export function GlobalOffDaysFeedback(props: GlobalOffDaysFeedbackProps): ReactElement | null {
 	return <CampfireFeedback message={props.message} tone={props.state === 'error' ? 'error' : 'success'} />;

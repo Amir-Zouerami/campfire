@@ -1,0 +1,244 @@
+/*
+ * Standup settings flattening
+ * --------------------------
+ * Keeps the form builder dense enough for admins while removing the old
+ * hero/card-inside-card structure.
+ */
+.campfire-standup-settings-page {
+	--campfire-standup-line: rgba(255, 255, 255, 0.09);
+}
+
+.campfire-standup-settings-nav-surface,
+.campfire-standup-builder-header,
+.campfire-standup-overview-surface,
+.campfire-standup-template-list-surface,
+.campfire-standup-schedules-create-surface,
+.campfire-standup-schedules-list-surface,
+.campfire-standup-create-surface {
+	display: grid;
+	gap: 1rem;
+}
+
+.campfire-surface-eyebrow {
+	margin: 0 0 0.35rem;
+	font-size: 0.68rem;
+	font-weight: 700;
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	color: rgba(253, 186, 116, 0.78);
+}
+
+.campfire-pill-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 0.5rem;
+}
+
+.campfire-standup-builder,
+.campfire-standup-schedules-workflow {
+	display: grid;
+	gap: 1rem;
+}
+
+.campfire-standup-builder-create-grid,
+.campfire-standup-schedules-workflow {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.campfire-standup-create-form,
+.campfire-standup-schedule-create-form {
+	display: grid;
+	gap: 1rem;
+}
+
+.campfire-standup-builder-create-grid {
+	display: grid;
+	gap: 1rem;
+}
+
+.campfire-flat-empty-state {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.85rem;
+	padding: 1rem;
+	border: 1px dashed rgba(251, 191, 36, 0.18);
+	border-radius: 1rem;
+	background: rgba(0, 0, 0, 0.16);
+	color: rgba(255, 247, 237, 0.7);
+}
+
+.campfire-flat-empty-state h4 {
+	margin: 0;
+	font-size: 0.95rem;
+	font-weight: 700;
+	color: rgba(255, 247, 237, 0.9);
+}
+
+.campfire-flat-empty-state p {
+	margin: 0.25rem 0 0;
+	font-size: 0.84rem;
+	font-weight: 500;
+	line-height: 1.5;
+}
+
+.campfire-flat-empty-icon,
+.campfire-standup-overview-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	width: 2.25rem;
+	height: 2.25rem;
+	border-radius: 0.8rem;
+	border: 1px solid rgba(251, 191, 36, 0.16);
+	background: rgba(251, 146, 60, 0.08);
+	color: rgba(253, 186, 116, 0.94);
+}
+
+.campfire-standup-overview-list,
+.campfire-standup-template-editor-list,
+.campfire-standup-schedule-list,
+.campfire-standup-question-editor-list {
+	display: grid;
+	gap: 0.8rem;
+}
+
+.campfire-standup-overview-row,
+.campfire-standup-template-editor,
+.campfire-standup-question-editor,
+.campfire-standup-schedule-card {
+	display: grid;
+	gap: 1rem;
+	padding: 1rem;
+	border: 1px solid var(--campfire-standup-line);
+	border-radius: 1.1rem;
+	background: rgba(0, 0, 0, 0.14);
+	box-shadow: none;
+}
+
+.campfire-standup-template-editor,
+.campfire-standup-schedule-card {
+	padding: 1.15rem;
+}
+
+.campfire-standup-overview-main {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.85rem;
+	min-width: 0;
+}
+
+.campfire-standup-overview-title-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.campfire-standup-overview-title-row h4 {
+	margin: 0;
+	font-size: 1rem;
+	font-weight: 750;
+	letter-spacing: -0.02em;
+	color: rgba(255, 247, 237, 0.92);
+}
+
+.campfire-standup-overview-description {
+	margin: 0.45rem 0 0;
+	font-size: 0.85rem;
+	font-weight: 500;
+	line-height: 1.55;
+	color: rgba(255, 247, 237, 0.62);
+}
+
+.campfire-standup-overview-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.45rem;
+	font-size: 0.76rem;
+	font-weight: 700;
+	color: rgba(255, 247, 237, 0.56);
+}
+
+.campfire-standup-overview-meta span,
+.campfire-standup-question-chip-list span {
+	display: inline-flex;
+	align-items: center;
+	min-height: 1.7rem;
+	padding: 0.25rem 0.65rem;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.035);
+}
+
+.campfire-standup-question-chip-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+	font-size: 0.74rem;
+	font-weight: 700;
+	color: rgba(255, 247, 237, 0.6);
+}
+
+.campfire-standup-template-questions {
+	display: grid;
+	gap: 0.85rem;
+	padding-top: 1rem;
+	border-top: 1px solid var(--campfire-standup-line);
+}
+
+.campfire-standup-schedule-footer {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.8rem;
+	padding-top: 0.85rem;
+	border-top: 1px solid var(--campfire-standup-line);
+}
+
+.campfire-standup-schedule-footer .cf\:text-muted-foreground,
+.campfire-standup-template-editor .cf\:text-muted-foreground,
+.campfire-standup-question-editor .cf\:text-muted-foreground {
+	font-weight: 500;
+}
+
+.campfire-standup-template-editor .cf\:font-black,
+.campfire-standup-question-editor .cf\:font-black,
+.campfire-standup-schedule-card .cf\:font-black {
+	font-weight: 750;
+}
+
+@media (min-width: 1180px) {
+	.campfire-standup-builder-create-grid,
+	.campfire-standup-schedules-workflow {
+		grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+	}
+
+	.campfire-standup-schedules-create-surface {
+		align-self: start;
+		position: sticky;
+		top: 1rem;
+	}
+}
+
+@media (max-width: 720px) {
+	.campfire-pill-row {
+		justify-content: flex-start;
+	}
+
+	.campfire-standup-overview-main,
+	.campfire-flat-empty-state {
+		align-items: flex-start;
+	}
+
+	.campfire-standup-schedule-footer {
+		align-items: stretch;
+	}
+
+	.campfire-standup-schedule-footer button {
+		width: 100%;
+	}
+}

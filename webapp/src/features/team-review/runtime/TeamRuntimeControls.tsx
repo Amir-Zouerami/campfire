@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 type TeamRuntimeControlsProps = {
 	readonly date: string;
 	readonly disabled: boolean;
+	readonly timezone: string;
 	readonly onDateChange: (date: string) => void;
 	readonly onTodayClick: () => void;
 };
@@ -20,12 +21,13 @@ type TeamRuntimeControlsProps = {
  */
 export function TeamRuntimeControls(props: TeamRuntimeControlsProps): ReactElement {
 	return (
-		<div className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5 cf:lg:grid-cols-[1fr_auto] cf:lg:items-end">
+		<div className="campfire-team-control-grid campfire-team-control-grid--runtime">
 			<div className="cf:grid cf:gap-2">
 				<Label htmlFor="campfire-team-runtime-date">Runtime date</Label>
 				<CampfireDateInput
 					id="campfire-team-runtime-date"
 					disabled={props.disabled}
+					timezone={props.timezone}
 					value={props.date}
 					onValueChange={props.onDateChange}
 				/>

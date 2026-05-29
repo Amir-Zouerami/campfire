@@ -28,6 +28,22 @@ export type TimeEntryDraft = {
 	readonly categoryId: string;
 };
 
+
+/**
+ * TaskDraftValidationErrors stores local validation messages for the create-task form.
+ */
+export type TaskDraftValidationErrors = {
+	readonly title?: string;
+};
+
+/**
+ * TimeEntryDraftValidationErrors stores local validation messages for the time-entry form.
+ */
+export type TimeEntryDraftValidationErrors = {
+	readonly taskId?: string;
+	readonly minutes?: string;
+};
+
 /**
  * TaskDraftPatch updates part of the create-task form.
  */

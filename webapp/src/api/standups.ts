@@ -6,6 +6,8 @@ import type {
 	CreateStandupTemplateRequest,
 	CreateStandupTemplateResponse,
 	EvaluateStandupDayResponse,
+	GetMyStandupSubmissionRequest,
+	GetMyStandupSubmissionResponse,
 	ListStandupConfigurationResponse,
 	ListStandupSubmissionsRequest,
 	ListStandupSubmissionsResponse,
@@ -22,11 +24,23 @@ import type {
 import { encodePath, requestJson, withQuery } from './http';
 
 /**
+ * ListStandupConfigurationOptions controls whether dormant templates are returned.
+ */
+type ListStandupConfigurationOptions = {
+	readonly includeInactive?: boolean;
+};
+
+/**
  * listStandupConfiguration calls GET /workspaces/{workspaceID}/standups/configuration.
  */
-export function listStandupConfiguration(workspaceID: string): Promise<ListStandupConfigurationResponse> {
+export function listStandupConfiguration(
+	workspaceID: string,
+	options: ListStandupConfigurationOptions = {},
+): Promise<ListStandupConfigurationResponse> {
 	return requestJson<ListStandupConfigurationResponse>(
-		`/workspaces/${encodePath(workspaceID)}/standups/configuration`,
+		withQuery(`/workspaces/${encodePath(workspaceID)}/standups/configuration`, {
+			includeInactive: options.includeInactive === true ? true : undefined,
+		}),
 	);
 }
 
@@ -128,6 +142,20 @@ export function submitStandup(request: SubmitStandupRequest): Promise<SubmitStan
 		method: 'POST',
 		body: request,
 	});
+}
+
+/**
+ * getMyStandupSubmission calls GET /workspaces/{workspaceID}/standups/my-submission.
+ */
+export function getMyStandupSubmission(
+	request: GetMyStandupSubmissionRequest,
+): Promise<GetMyStandupSubmissionResponse> {
+	return requestJson<GetMyStandupSubmissionResponse>(
+		withQuery(`/workspaces/${encodePath(request.workspaceId)}/standups/my-submission`, {
+			occurrenceDate: request.occurrenceDate,
+			templateId: request.templateId,
+		}),
+	);
 }
 
 /**

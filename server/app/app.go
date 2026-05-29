@@ -177,6 +177,7 @@ func New(config Config) (*App, error) {
 		workspaceCalendarStore,
 		globalSkipDateStore,
 		standupStore,
+		taskStore,
 		leaveStore,
 		workspaceMemberProvider,
 	)

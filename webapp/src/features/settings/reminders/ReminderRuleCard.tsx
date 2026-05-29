@@ -1,7 +1,6 @@
 import type { ReactElement } from 'react';
 import { BellRing, Save, Timer } from 'lucide-react';
 
-import { CampfireStatusPill } from '@/app/campfire-ui';
 import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
 import { reminderRuleTitle, type StandupScheduleLabel } from '@/features/settings/standup-schedule-labels';
 import { Button } from '@/components/ui/button';
@@ -16,6 +15,7 @@ import {
 	reminderRuleHasChanges,
 } from './reminders.helpers';
 import type { ReminderRuleDraft, ReminderRuleDraftPatch } from './reminders.types';
+import { CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * ReminderRuleCardProps contains one reminder rule and its editable draft.
@@ -43,12 +43,12 @@ export function ReminderRuleCard(props: ReminderRuleCardProps): ReactElement {
 		<article className={reminderRuleCardClassName(props.draft.enabled)}>
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
 				<div className="cf:min-w-0">
-					<p className="cf:flex cf:items-center cf:gap-2 cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+					<p className="cf:flex cf:items-center cf:gap-2 cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 						<BellRing className="cf:size-5" />
 						{reminderDeliveryLabel(props.draft)}
 					</p>
 
-					<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
+					<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
 						{reminderRuleTitle(props.scheduleLabel)}
 					</h3>
 
@@ -105,7 +105,7 @@ export function ReminderRuleCard(props: ReminderRuleCardProps): ReactElement {
 					checked={props.draft.mentionMissingInChannel}
 					disabled={formDisabled}
 					label="Mention missing users"
-					description="Include missing users directly in the channel reminder."
+					description="Mention at most the last 50 missing users so large channels stay readable."
 					onCheckedChange={checked =>
 						props.onDraftChange(props.rule.id, { mentionMissingInChannel: checked })
 					}
@@ -126,7 +126,7 @@ export function ReminderRuleCard(props: ReminderRuleCardProps): ReactElement {
 				<p className="cf:flex cf:flex-wrap cf:items-center cf:gap-2 cf:text-xs cf:font-semibold cf:leading-5 cf:text-muted-foreground">
 					<Timer className="cf:size-4 cf:text-amber-200" />
 					Minute offsets from schedule time. Parsed as:{' '}
-					<span className="cf:font-black cf:text-amber-100">
+					<span className="cf:font-semibold cf:text-amber-100">
 						{parsedOffsets.length === 0 ? 'none' : parsedOffsets.join(', ')}
 					</span>
 				</p>
@@ -155,7 +155,7 @@ function ScheduleContextChips(props: { readonly label: StandupScheduleLabel }): 
 			{props.label.chips.map(chip => (
 				<span
 					key={chip}
-					className="cf:rounded-full cf:border cf:border-white/10 cf:bg-black/20 cf:px-2.5 cf:py-1 cf:text-xs cf:font-black cf:text-amber-100"
+					className="cf:rounded-full cf:border cf:border-white/10 cf:bg-black/20 cf:px-2.5 cf:py-1 cf:text-xs cf:font-semibold cf:text-amber-100"
 				>
 					{chip}
 				</span>

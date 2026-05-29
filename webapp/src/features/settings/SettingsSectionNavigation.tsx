@@ -1,6 +1,10 @@
 import type { ReactElement } from 'react';
 
-import { settingsSectionButtonClassName } from './settings.helpers';
+import {
+	CampfireSectionTabs,
+	type CampfireSectionTab,
+} from '@/components/campfire/CampfireLayoutPrimitives';
+
 import type { SettingsSection, SettingsSectionID } from './settings.types';
 
 /**
@@ -13,23 +17,22 @@ type SettingsSectionNavigationProps = {
 };
 
 /**
- * SettingsSectionNavigation renders Settings sub-page navigation.
+ * SettingsSectionNavigation renders Settings sub-page navigation with the same
+ * matte pill-tab system used by Reports and Team Review.
  */
 export function SettingsSectionNavigation(props: SettingsSectionNavigationProps): ReactElement {
+	const tabs: CampfireSectionTab<SettingsSectionID>[] = props.sections.map(section => ({
+		value: section.id,
+		label: section.label,
+		description: section.description,
+	}));
+
 	return (
-		<nav className="campfire-section-nav campfire-section-nav--settings" aria-label="Settings sections">
-			{props.sections.map(section => (
-				<button
-					key={section.id}
-					type="button"
-					className={settingsSectionButtonClassName(section.id === props.activeSection)}
-					aria-current={section.id === props.activeSection ? 'page' : undefined}
-					onClick={() => props.onSelectSection(section.id)}
-				>
-					<span className="cf:text-base cf:font-black">{section.label}</span>
-					<span className="cf:text-sm cf:font-semibold cf:text-muted-foreground">{section.description}</span>
-				</button>
-			))}
-		</nav>
+		<CampfireSectionTabs
+			tabs={tabs}
+			activeValue={props.activeSection}
+			label="Settings sections"
+			onChange={props.onSelectSection}
+		/>
 	);
 }

@@ -279,9 +279,10 @@ func (s *ReminderExecutionService) sendChannelReminder(
 		ChannelID:           workspace.ChannelID,
 		ScheduleID:          rule.ScheduleID.String(),
 		OccurrenceDate:      occurrenceDate.String(),
-		MissingUserIDs:      missingUserIDs,
+		MissingUserIDs:      lastMissingUserIDs(missingUserIDs, channelMissingMentionLimit),
 		MissingUserCount:    len(missingUserIDs),
 		MentionMissingUsers: rule.MentionMissingInChannel,
+		MentionLimit:        channelMissingMentionLimit,
 		SequenceNumber:      sequenceNumber,
 	})
 	if err != nil {
@@ -295,18 +296,34 @@ func (s *ReminderExecutionService) sendChannelReminder(
 	return true, false, nil
 }
 
+/*
+lastMissingUserIDs returns the final visible slice for channel mentions.
+
+Large Mattermost channels can have thousands of members. Channel reminders must
+not mention every missing user because that creates huge posts and noisy push
+notifications. Campfire keeps the total missing count, but mentions only the
+last configured subset.
+*/
+func lastMissingUserIDs(userIDs []string, limit int) []string {
+	if limit <= 0 || len(userIDs) <= limit {
+		return userIDs
+	}
+
+	return userIDs[len(userIDs)-limit:]
+}
+
+const channelMissingMentionLimit = 50
 
 /*
 standupDMRemindersEnabled returns whether direct-message standup reminders may be sent.
 
-Campfire currently opens against the active Mattermost channel. Direct-message
-reminders send users into a DM-scoped context, so they are intentionally disabled
-until Campfire has a safe channel deep-link/open action.
+DM reminders are controlled by workspace reminder settings. The reminder copy
+points users back to the workspace channel so the Campfire modal opens against
+the correct channel context instead of the direct-message conversation.
 */
-func standupDMRemindersEnabled(_ domain.ReminderRule) bool {
-	return false
+func standupDMRemindersEnabled(rule domain.ReminderRule) bool {
+	return rule.DMReminderEnabled
 }
-
 
 /*
 notificationRunExists returns true when a notification run already exists.

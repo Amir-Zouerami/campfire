@@ -1,11 +1,11 @@
 import type { ReactElement } from 'react';
 import { CalendarX2, Trash2 } from 'lucide-react';
 
-import { CampfireEmpty, CampfireStatusPill } from '@/app/campfire-ui';
 import { Button } from '@/components/ui/button';
 import type { GlobalSkipDate } from '@/types/domain';
 
 import { formatDateTime, globalOffDayIsPast } from './global-off-days.helpers';
+import { CampfireEmpty, CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * GlobalOffDaysListPanelProps contains global skip-date list state.
@@ -25,10 +25,10 @@ export function GlobalOffDaysListPanel(props: GlobalOffDaysListPanelProps): Reac
 	return (
 		<section className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
 			<div>
-				<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+				<p className="cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 					Global skip dates
 				</p>
-				<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
+				<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
 					Company-wide holidays
 				</h3>
 			</div>
@@ -71,7 +71,7 @@ function GlobalOffDayRow(props: {
 		<article className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4 cf:sm:grid-cols-[1fr_auto]">
 			<div className="cf:min-w-0">
 				<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
-					<h4 className="cf:min-w-0 cf:truncate cf:text-base cf:font-black cf:text-foreground">
+					<h4 className="cf:min-w-0 cf:truncate cf:text-base cf:font-semibold cf:text-foreground">
 						{props.skipDate.label}
 					</h4>
 					<CampfireStatusPill tone={isPast ? 'slate' : 'ember'}>

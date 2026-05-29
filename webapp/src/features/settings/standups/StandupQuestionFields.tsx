@@ -32,6 +32,7 @@ type StandupQuestionFieldsProps = {
  */
 export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactElement {
 	const needsOptions = questionTypeNeedsOptions(props.draft.type);
+	const taskCreationSupported = props.draft.type === 'text' || props.draft.type === 'long_text';
 
 	return (
 		<div className="cf:grid cf:gap-4">
@@ -41,10 +42,10 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 						id={`${props.idPrefix}-template`}
 						disabled={props.disabled || !props.allowTemplateChange}
 						value={props.draft.templateId}
-						onValueChange={value => props.onChange({ templateId: value })}
+						onValueChange={(value) => props.onChange({ templateId: value })}
 					>
 						<option value="">Choose template</option>
-						{props.templates.map(template => (
+						{props.templates.map((template) => (
 							<option key={template.id} value={template.id}>
 								{template.name}
 							</option>
@@ -57,9 +58,15 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 						id={`${props.idPrefix}-type`}
 						disabled={props.disabled}
 						value={props.draft.type}
-						onValueChange={value => props.onChange({ type: toQuestionType(value) })}
+						onValueChange={(value) => {
+							const nextType = toQuestionType(value);
+							props.onChange({
+								type: nextType,
+								createsTasks: nextType === 'text' || nextType === 'long_text' ? props.draft.createsTasks : false,
+							});
+						}}
 					>
-						{SUPPORTED_QUESTION_TYPES.map(type => (
+						{SUPPORTED_QUESTION_TYPES.map((type) => (
 							<option key={type} value={type}>
 								{formatLabel(type)}
 							</option>
@@ -75,8 +82,10 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 						min={0}
 						step={1}
 						value={String(props.draft.position)}
-						onChange={event =>
-							props.onChange({ position: Number.parseInt(event.currentTarget.value, 10) || 0 })
+						onChange={(event) =>
+							props.onChange({
+								position: Number.parseInt(event.currentTarget.value, 10) || 0,
+							})
 						}
 					/>
 				</StandupField>
@@ -89,7 +98,7 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 						disabled={props.disabled}
 						placeholder="What did you work on yesterday?"
 						value={props.draft.label}
-						onChange={event => props.onChange({ label: event.currentTarget.value })}
+						onChange={(event) => props.onChange({ label: event.currentTarget.value })}
 					/>
 				</StandupField>
 
@@ -99,7 +108,7 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 						disabled={props.disabled}
 						placeholder="general"
 						value={props.draft.section}
-						onChange={event => props.onChange({ section: event.currentTarget.value })}
+						onChange={(event) => props.onChange({ section: event.currentTarget.value })}
 					/>
 				</StandupField>
 			</div>
@@ -111,7 +120,7 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 						disabled={props.disabled}
 						placeholder="Optional helper text for submitters."
 						value={props.draft.helpText}
-						onChange={event => props.onChange({ helpText: event.currentTarget.value })}
+						onChange={(event) => props.onChange({ helpText: event.currentTarget.value })}
 					/>
 				</StandupField>
 
@@ -121,7 +130,7 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 						disabled={props.disabled}
 						placeholder="Optional input placeholder."
 						value={props.draft.placeholder}
-						onChange={event => props.onChange({ placeholder: event.currentTarget.value })}
+						onChange={(event) => props.onChange({ placeholder: event.currentTarget.value })}
 					/>
 				</StandupField>
 			</div>
@@ -138,18 +147,18 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 						disabled={props.disabled}
 						placeholder="Option one&#10;Option two&#10;Option three"
 						value={props.draft.optionsText}
-						onChange={event => props.onChange({ optionsText: event.currentTarget.value })}
+						onChange={(event) => props.onChange({ optionsText: event.currentTarget.value })}
 					/>
 				</StandupField>
 			)}
 
-			<div className="cf:grid cf:gap-3 cf:xl:grid-cols-3">
+			<div className="cf:grid cf:gap-3 cf:xl:grid-cols-4">
 				<CampfireCheckboxField
 					checked={props.draft.required}
 					disabled={props.disabled}
 					label="Required"
 					description="Submitters must answer this question."
-					onCheckedChange={checked => props.onChange({ required: checked })}
+					onCheckedChange={(checked) => props.onChange({ required: checked })}
 				/>
 
 				<CampfireCheckboxField
@@ -157,7 +166,7 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 					disabled={props.disabled}
 					label="Show in report"
 					description="Include answers in Markdown previews and reports."
-					onCheckedChange={checked => props.onChange({ showInReport: checked })}
+					onCheckedChange={(checked) => props.onChange({ showInReport: checked })}
 				/>
 
 				<CampfireCheckboxField
@@ -165,7 +174,15 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 					disabled={props.disabled}
 					label="Private"
 					description="Keep this answer out of public reports when supported."
-					onCheckedChange={checked => props.onChange({ isPrivate: checked })}
+					onCheckedChange={(checked) => props.onChange({ isPrivate: checked })}
+				/>
+
+				<CampfireCheckboxField
+					checked={props.draft.createsTasks}
+					disabled={props.disabled || !taskCreationSupported}
+					label="Create tasks"
+					description="Each answer row becomes a task behind the scenes."
+					onCheckedChange={(checked) => props.onChange({ createsTasks: checked })}
 				/>
 			</div>
 		</div>

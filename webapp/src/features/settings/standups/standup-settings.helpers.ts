@@ -94,6 +94,7 @@ export function emptyQuestionDraft(templateID = '', position = 10): StandupQuest
 		required: true,
 		showInReport: true,
 		isPrivate: false,
+		createsTasks: false,
 		position,
 		optionsText: '',
 	};
@@ -140,6 +141,7 @@ export function questionToDraft(question: StandupQuestion): StandupQuestionDraft
 		required: question.required,
 		showInReport: question.showInReport,
 		isPrivate: question.isPrivate,
+		createsTasks: question.createsTasks,
 		position: question.position,
 		optionsText: question.options.join('\n'),
 	};
@@ -189,9 +191,10 @@ export function buildQuestionDrafts(questions: readonly StandupQuestion[]): Stan
  */
 export function normalizeTemplateCreate(draft: StandupTemplateDraft): CreateStandupTemplateRequest {
 	return {
-		name: draft.name.trim(),
+		name: normalizeTemplateName(draft.name),
 		description: draft.description.trim(),
 		kind: draft.kind,
+		isActive: draft.isActive,
 	};
 }
 
@@ -200,7 +203,7 @@ export function normalizeTemplateCreate(draft: StandupTemplateDraft): CreateStan
  */
 export function normalizeTemplateUpdate(draft: StandupTemplateDraft): UpdateStandupTemplateRequest {
 	return {
-		name: draft.name.trim(),
+		name: normalizeTemplateName(draft.name),
 		description: draft.description.trim(),
 		kind: draft.kind,
 		isActive: draft.isActive,
@@ -240,6 +243,7 @@ export function normalizeQuestionDraft(
 		required: draft.required,
 		showInReport: draft.showInReport,
 		isPrivate: draft.isPrivate,
+		createsTasks: draft.createsTasks,
 		position: draft.position,
 		options: parseQuestionOptions(draft.optionsText),
 	};
@@ -249,11 +253,25 @@ export function normalizeQuestionDraft(
  * validateTemplateDraft validates template state before mutation.
  */
 export function validateTemplateDraft(draft: StandupTemplateDraft): string | null {
-	if (draft.name.trim() === '') {
+	if (normalizeTemplateName(draft.name) === '') {
 		return 'Template name is required.';
 	}
 
 	return null;
+}
+
+/**
+ * normalizeTemplateName mirrors backend whitespace cleanup for template names.
+ */
+export function normalizeTemplateName(value: string): string {
+	return value.trim().replace(/\s+/g, ' ');
+}
+
+/**
+ * templateNameKey creates a case-insensitive comparison key for unique names.
+ */
+export function templateNameKey(value: string): string {
+	return normalizeTemplateName(value).toLowerCase();
 }
 
 /**
@@ -287,6 +305,10 @@ export function validateQuestionDraft(draft: StandupQuestionDraft): string | nul
 		return 'This question type needs at least one option.';
 	}
 
+	if (draft.createsTasks && draft.type !== 'text' && draft.type !== 'long_text') {
+		return 'Only text and long-text questions can create tasks.';
+	}
+
 	return null;
 }
 
@@ -296,8 +318,8 @@ export function validateQuestionDraft(draft: StandupQuestionDraft): string | nul
 export function parseQuestionOptions(value: string): readonly string[] {
 	const options = value
 		.split(/[\n,]+/)
-		.map(option => option.trim())
-		.filter(option => option !== '');
+		.map((option) => option.trim())
+		.filter((option) => option !== '');
 
 	return [...new Set(options)];
 }
@@ -316,7 +338,7 @@ export function replaceTemplate(
 	templates: readonly StandupTemplate[],
 	updatedTemplate: StandupTemplate,
 ): readonly StandupTemplate[] {
-	return templates.map(template => (template.id === updatedTemplate.id ? updatedTemplate : template));
+	return templates.map((template) => (template.id === updatedTemplate.id ? updatedTemplate : template));
 }
 
 /**
@@ -326,7 +348,7 @@ export function replaceSchedule(
 	schedules: readonly StandupSchedule[],
 	updatedSchedule: StandupSchedule,
 ): readonly StandupSchedule[] {
-	return schedules.map(schedule => (schedule.id === updatedSchedule.id ? updatedSchedule : schedule));
+	return schedules.map((schedule) => (schedule.id === updatedSchedule.id ? updatedSchedule : schedule));
 }
 
 /**
@@ -336,7 +358,7 @@ export function replaceQuestion(
 	questions: readonly StandupQuestion[],
 	updatedQuestion: StandupQuestion,
 ): readonly StandupQuestion[] {
-	return questions.map(question => (question.id === updatedQuestion.id ? updatedQuestion : question));
+	return questions.map((question) => (question.id === updatedQuestion.id ? updatedQuestion : question));
 }
 
 /**
@@ -423,7 +445,7 @@ export function buildTemplateDetails(
 	const questionsByTemplateID = groupQuestionsByTemplateID(questions);
 	const schedulesByTemplateID = groupSchedulesByTemplateID(schedules);
 
-	return sortTemplates(templates).map(template => ({
+	return sortTemplates(templates).map((template) => ({
 		template,
 		questions: questionsByTemplateID[template.id] ?? [],
 		schedules: schedulesByTemplateID[template.id] ?? [],
@@ -438,7 +460,7 @@ export function pairSchedulesWithDrafts(
 	drafts: StandupScheduleDraftsByID,
 ): readonly StandupScheduleWithDraft[] {
 	return sortSchedules(schedules)
-		.map(schedule => {
+		.map((schedule) => {
 			const draft = drafts[schedule.id];
 
 			if (draft === undefined) {
@@ -464,7 +486,7 @@ export function pairTemplatesWithDrafts(
 	const schedulesByTemplateID = groupSchedulesByTemplateID(schedules);
 
 	return sortTemplates(templates)
-		.map(template => {
+		.map((template) => {
 			const draft = templateDrafts[template.id];
 
 			if (draft === undefined) {
@@ -489,7 +511,7 @@ export function pairQuestionsWithDrafts(
 	drafts: StandupQuestionDraftsByID,
 ): readonly StandupQuestionWithDraft[] {
 	return sortQuestions(questions)
-		.map(question => {
+		.map((question) => {
 			const draft = drafts[question.id];
 
 			if (draft === undefined) {
@@ -546,6 +568,7 @@ export function questionHasChanges(question: StandupQuestion, draft: StandupQues
 		question.required !== normalizedDraft.required ||
 		question.showInReport !== normalizedDraft.showInReport ||
 		question.isPrivate !== normalizedDraft.isPrivate ||
+		question.createsTasks !== normalizedDraft.createsTasks ||
 		question.position !== normalizedDraft.position ||
 		question.options.join('\n') !== normalizedDraft.options.join('\n')
 	);
@@ -600,8 +623,8 @@ export function normalizeWeeklyMode(value: WeeklyMode | 'none' | ''): WeeklyMode
  */
 export function nextQuestionPosition(templateID: string, questions: readonly StandupQuestion[]): number {
 	const positions = questions
-		.filter(question => question.templateId === templateID)
-		.map(question => question.position);
+		.filter((question) => question.templateId === templateID)
+		.map((question) => question.position);
 
 	if (positions.length === 0) {
 		return 10;
@@ -614,35 +637,35 @@ export function nextQuestionPosition(templateID: string, questions: readonly Sta
  * activeTemplateCount returns active template count.
  */
 export function activeTemplateCount(templates: readonly StandupTemplate[]): number {
-	return templates.filter(template => template.isActive).length;
+	return templates.filter((template) => template.isActive).length;
 }
 
 /**
  * enabledScheduleCount returns enabled schedule count.
  */
 export function enabledScheduleCount(schedules: readonly StandupSchedule[]): number {
-	return schedules.filter(schedule => schedule.enabled).length;
+	return schedules.filter((schedule) => schedule.enabled).length;
 }
 
 /**
  * dailyScheduleCount returns daily schedule count.
  */
 export function dailyScheduleCount(schedules: readonly StandupSchedule[]): number {
-	return schedules.filter(schedule => schedule.kind === 'daily').length;
+	return schedules.filter((schedule) => schedule.kind === 'daily').length;
 }
 
 /**
  * weeklyScheduleCount returns weekly schedule count.
  */
 export function weeklyScheduleCount(schedules: readonly StandupSchedule[]): number {
-	return schedules.filter(schedule => schedule.kind === 'weekly').length;
+	return schedules.filter((schedule) => schedule.kind === 'weekly').length;
 }
 
 /**
  * reportQuestionCount returns questions shown in reports.
  */
 export function reportQuestionCount(questions: readonly StandupQuestion[]): number {
-	return questions.filter(question => question.showInReport).length;
+	return questions.filter((question) => question.showInReport).length;
 }
 
 /**
@@ -675,7 +698,7 @@ export function formatDateTime(value: string): string {
 export function formatLabel(value: string): string {
 	return value
 		.split('_')
-		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
+		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
 		.join(' ');
 }
 

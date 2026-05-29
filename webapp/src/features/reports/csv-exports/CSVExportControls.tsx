@@ -13,6 +13,7 @@ import { csvExportSortOptions, formatCSVExportSortMode, toCSVExportSortMode } fr
 type CSVExportControlsProps = {
 	readonly filter: CSVExportFilterDraft;
 	readonly disabled: boolean;
+	readonly timezone: string;
 	readonly onChange: (patch: CSVExportFilterPatch) => void;
 };
 
@@ -21,11 +22,12 @@ type CSVExportControlsProps = {
  */
 export function CSVExportControls(props: CSVExportControlsProps): ReactElement {
 	return (
-		<div className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5 cf:xl:grid-cols-[1fr_1fr_1.2fr]">
+		<div className="campfire-control-grid campfire-control-grid--csv-export">
 			<CampfireField id="campfire-csv-export-start" label="Start date">
 				<CampfireDateInput
 					id="campfire-csv-export-start"
 					disabled={props.disabled}
+					timezone={props.timezone}
 					value={props.filter.startDate}
 					onValueChange={value => props.onChange({ startDate: value })}
 				/>
@@ -35,6 +37,7 @@ export function CSVExportControls(props: CSVExportControlsProps): ReactElement {
 				<CampfireDateInput
 					id="campfire-csv-export-end"
 					disabled={props.disabled}
+					timezone={props.timezone}
 					value={props.filter.endDate}
 					onValueChange={value => props.onChange({ endDate: value })}
 				/>

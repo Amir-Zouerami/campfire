@@ -5,7 +5,7 @@ import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { CampfireTimeInput } from '@/components/campfire/CampfireTimeInput';
 import type { StandupTemplate } from '@/types/domain';
 
-import { formatLabel, STANDUP_KINDS, toStandupKind, toWeeklyMode, WEEKLY_MODES } from './standup-settings.helpers';
+import { formatLabel, STANDUP_KINDS, toStandupKind } from './standup-settings.helpers';
 import type { StandupScheduleDraft, StandupScheduleDraftPatch } from './standup-settings.types';
 import { StandupField } from './StandupField';
 
@@ -25,7 +25,6 @@ type StandupScheduleFieldsProps = {
  */
 export function StandupScheduleFields(props: StandupScheduleFieldsProps): ReactElement {
 	const isWeekly = props.draft.kind === 'weekly';
-	const weeklyModeValue = props.draft.weeklyMode === '' ? 'none' : props.draft.weeklyMode;
 
 	return (
 		<div className="cf:grid cf:gap-4">
@@ -51,7 +50,13 @@ export function StandupScheduleFields(props: StandupScheduleFieldsProps): ReactE
 						id={`${props.idPrefix}-kind`}
 						disabled={props.disabled}
 						value={props.draft.kind}
-						onValueChange={value => props.onChange({ kind: toStandupKind(value) })}
+						onValueChange={value => {
+							const kind = toStandupKind(value);
+							props.onChange({
+								kind,
+								weeklyMode: kind === 'weekly' ? 'last_working_day' : 'none',
+							});
+						}}
 					>
 						{STANDUP_KINDS.map(kind => (
 							<option key={kind} value={kind}>
@@ -71,25 +76,14 @@ export function StandupScheduleFields(props: StandupScheduleFieldsProps): ReactE
 				</StandupField>
 			</div>
 
-			<div className="cf:grid cf:gap-4 cf:xl:grid-cols-[14rem_1fr]">
-				<StandupField
-					htmlFor={`${props.idPrefix}-weekly-mode`}
-					label="Weekly mode"
-					description="Only applies when kind is Weekly."
-				>
-					<CampfireSelect
-						id={`${props.idPrefix}-weekly-mode`}
-						disabled={props.disabled || !isWeekly}
-						value={weeklyModeValue}
-						onValueChange={value => props.onChange({ weeklyMode: toWeeklyMode(value) })}
-					>
-						{WEEKLY_MODES.map(mode => (
-							<option key={mode} value={mode}>
-								{mode === 'none' ? 'None' : formatLabel(mode)}
-							</option>
-						))}
-					</CampfireSelect>
-				</StandupField>
+			<div className="cf:grid cf:gap-4">
+				{isWeekly && (
+					<div className="campfire-static-field">
+						<span>Weekly mode</span>
+						<strong>Last working day</strong>
+						<small>Weekly standups run on the workspace-local final enabled workday.</small>
+					</div>
+				)}
 
 				<div className="cf:grid cf:gap-3 cf:xl:grid-cols-3">
 					<CampfireCheckboxField

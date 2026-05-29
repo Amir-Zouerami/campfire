@@ -1,6 +1,10 @@
 import type { ReactElement } from 'react';
 
-import { teamReviewSectionButtonClassName } from './team-review.helpers';
+import {
+	CampfireSectionTabs,
+	type CampfireSectionTab,
+} from '@/components/campfire/CampfireLayoutPrimitives';
+
 import type { TeamReviewSection, TeamReviewSectionID } from './team-review.types';
 
 /**
@@ -13,23 +17,22 @@ type TeamReviewSectionNavigationProps = {
 };
 
 /**
- * TeamReviewSectionNavigation renders Team Review sub-page navigation.
+ * TeamReviewSectionNavigation renders Team Review sub-page navigation using the
+ * shared Campfire pill-tab primitive.
  */
 export function TeamReviewSectionNavigation(props: TeamReviewSectionNavigationProps): ReactElement {
+	const tabs: CampfireSectionTab<TeamReviewSectionID>[] = props.sections.map(section => ({
+		value: section.id,
+		label: section.label,
+		description: section.description,
+	}));
+
 	return (
-		<nav className="campfire-section-nav" aria-label="Team Review sections">
-			{props.sections.map(section => (
-				<button
-					key={section.id}
-					type="button"
-					className={teamReviewSectionButtonClassName(section.id === props.activeSection)}
-					aria-current={section.id === props.activeSection ? 'page' : undefined}
-					onClick={() => props.onSelectSection(section.id)}
-				>
-					<span className="cf:text-base cf:font-black">{section.label}</span>
-					<span className="cf:text-sm cf:font-semibold cf:text-muted-foreground">{section.description}</span>
-				</button>
-			))}
-		</nav>
+		<CampfireSectionTabs
+			tabs={tabs}
+			activeValue={props.activeSection}
+			label="Team Review sections"
+			onChange={props.onSelectSection}
+		/>
 	);
 }

@@ -1,0 +1,188 @@
+/*
+ * Final QA polish for the Campfire redesign.
+ *
+ * This file intentionally stays late in the cascade. It tightens accessibility,
+ * responsive behavior, and layout stability without changing product behavior.
+ */
+
+.campfire-theme {
+	--campfire-focus-ring: 0 0 0 3px color-mix(in srgb, var(--campfire-ember-300, #fbbf24) 26%, transparent);
+	--campfire-focus-border: color-mix(in srgb, var(--campfire-ember-300, #fbbf24) 46%, transparent);
+}
+
+.campfire-theme :is(button, a, input, textarea, select, [role='button'], [tabindex]):focus-visible {
+	outline: none;
+	box-shadow: var(--campfire-focus-ring);
+}
+
+.campfire-theme :is(input, textarea, select):focus-visible,
+.campfire-theme .campfire-date-input:focus-within,
+.campfire-theme .campfire-time-input:focus-within,
+.campfire-theme .campfire-select-trigger:focus-visible {
+	border-color: var(--campfire-focus-border) !important;
+}
+
+.campfire-theme :is(button, [role='button']) svg,
+.campfire-theme .campfire-section-tab svg,
+.campfire-theme .campfire-pill-tab svg,
+.campfire-theme .campfire-sidebar-nav-item svg {
+	stroke-width: 1.85;
+}
+
+.campfire-theme .campfire-section-tabs,
+.campfire-theme .campfire-pill-tabs {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(251, 191, 36, 0.22) transparent;
+}
+
+.campfire-theme .campfire-section-tabs::-webkit-scrollbar,
+.campfire-theme .campfire-pill-tabs::-webkit-scrollbar {
+	height: 6px;
+}
+
+.campfire-theme .campfire-section-tabs::-webkit-scrollbar-thumb,
+.campfire-theme .campfire-pill-tabs::-webkit-scrollbar-thumb {
+	background: rgba(251, 191, 36, 0.2);
+	border-radius: 999px;
+}
+
+.campfire-theme .campfire-surface {
+	min-width: 0;
+}
+
+.campfire-theme .campfire-surface :is(table, .campfire-report-table, .campfire-data-table) {
+	min-width: 100%;
+}
+
+.campfire-theme .campfire-table-scroll,
+.campfire-theme .campfire-report-table-scroll,
+.campfire-theme .campfire-workflow-table-scroll {
+	overflow-x: auto;
+	overscroll-behavior-x: contain;
+	padding-bottom: 0.25rem;
+}
+
+.campfire-divider {
+	width: 100%;
+	border: 0;
+	border-top: 1px solid rgba(255, 255, 255, 0.09);
+	margin: 0.25rem 0;
+}
+
+.campfire-divider--labeled {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	border: 0;
+	color: rgba(226, 232, 240, 0.52);
+	font-size: 0.72rem;
+	font-weight: 600;
+	letter-spacing: 0.09em;
+	text-transform: uppercase;
+}
+
+.campfire-divider--labeled::before,
+.campfire-divider--labeled::after {
+	content: '';
+	min-width: 1rem;
+	flex: 1;
+	border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.campfire-kbd {
+	display: inline-flex;
+	min-width: 1.5rem;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	border-bottom-color: rgba(255, 255, 255, 0.2);
+	border-radius: 0.55rem;
+	background: rgba(255, 255, 255, 0.055);
+	padding: 0.12rem 0.42rem;
+	color: rgba(255, 237, 213, 0.82);
+	font-size: 0.72rem;
+	font-weight: 600;
+	line-height: 1.1;
+	box-shadow: none;
+}
+
+.campfire-visually-hidden {
+	position: absolute !important;
+	width: 1px !important;
+	height: 1px !important;
+	padding: 0 !important;
+	margin: -1px !important;
+	overflow: hidden !important;
+	clip: rect(0, 0, 0, 0) !important;
+	white-space: nowrap !important;
+	border: 0 !important;
+}
+
+.campfire-inline-feedback,
+.campfire-loading-feedback,
+.campfire-workflow-note,
+.campfire-empty-state {
+	contain: layout paint;
+}
+
+.campfire-theme .campfire-page-actions,
+.campfire-theme .campfire-workflow-actions,
+.campfire-theme .campfire-form-actions {
+	min-width: 0;
+}
+
+.campfire-theme .campfire-page-actions > *,
+.campfire-theme .campfire-workflow-actions > *,
+.campfire-theme .campfire-form-actions > * {
+	min-width: fit-content;
+}
+
+@media (max-width: 860px) {
+	.campfire-theme .campfire-page-header {
+		align-items: stretch;
+	}
+
+	.campfire-theme .campfire-page-actions {
+		width: 100%;
+		justify-content: flex-start;
+		overflow-x: auto;
+		padding-bottom: 0.15rem;
+	}
+
+	.campfire-theme .campfire-stat-card {
+		min-width: min(100%, 13rem);
+	}
+}
+
+@media (max-width: 640px) {
+	.campfire-theme .campfire-section-tabs,
+	.campfire-theme .campfire-pill-tabs {
+		margin-inline: -0.25rem;
+		padding-inline: 0.25rem;
+	}
+
+	.campfire-theme .campfire-section-tab,
+	.campfire-theme .campfire-pill-tab {
+		min-height: 2.35rem;
+	}
+
+	.campfire-theme .campfire-toast-host [data-sonner-toaster] {
+		inset-inline: 0.75rem !important;
+		bottom: max(0.75rem, env(safe-area-inset-bottom)) !important;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.campfire-theme *,
+	.campfire-theme *::before,
+	.campfire-theme *::after {
+		scroll-behavior: auto !important;
+	}
+
+	.campfire-theme .campfire-logo-ember,
+	.campfire-theme .campfire-logo-ember::before,
+	.campfire-theme .campfire-logo-ember::after {
+		animation-duration: 0.001ms !important;
+		animation-iteration-count: 1 !important;
+	}
+}

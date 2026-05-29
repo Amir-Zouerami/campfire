@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 
 import { CampfireWorkspaceShell } from '@/features/workspace-shell/CampfireWorkspaceShell';
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
+import type { MeUserResponse } from '@/types/api';
 import type { Workspace, WorkspaceCapabilities } from '@/types/domain';
 
 /**
@@ -15,9 +16,12 @@ type CampfireWorkspaceTabsProps = {
 	readonly capabilities?: WorkspaceCapabilities;
 	readonly canManageWorkspace: boolean;
 	readonly isSystemAdmin: boolean;
+	readonly currentUser: MeUserResponse;
 	readonly leaveRefreshToken: number;
 	readonly standupRefreshToken: number;
 	readonly workspaceCalendarRefreshToken: number;
+	readonly onClose: () => void;
+	readonly onRefresh: () => void;
 	readonly onLeaveCreated: () => void;
 	readonly onLeaveDecided: () => void;
 	readonly onLeaveCancelled: () => void;
@@ -37,9 +41,12 @@ export function CampfireWorkspaceTabs(props: CampfireWorkspaceTabsProps): ReactE
 		capabilities: props.capabilities ?? fallbackCapabilities(props.canManageWorkspace, props.isSystemAdmin),
 		canManageWorkspace: props.canManageWorkspace,
 		isSystemAdmin: props.isSystemAdmin,
+		currentUser: props.currentUser,
 		leaveRefreshToken: props.leaveRefreshToken,
 		standupRefreshToken: props.standupRefreshToken,
 		workspaceCalendarRefreshToken: props.workspaceCalendarRefreshToken,
+		onClose: props.onClose,
+		onRefresh: props.onRefresh,
 		onLeaveCreated: props.onLeaveCreated,
 		onLeaveDecided: props.onLeaveDecided,
 		onLeaveCancelled: props.onLeaveCancelled,

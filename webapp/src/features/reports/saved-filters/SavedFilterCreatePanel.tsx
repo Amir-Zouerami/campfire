@@ -34,14 +34,14 @@ export function SavedFilterCreatePanel(props: SavedFilterCreatePanelProps): Reac
 
 	return (
 		<form
-			className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5"
+			className="campfire-flat-work-panel campfire-flat-work-panel--form"
 			onSubmit={handleSubmit}
 		>
 			<div>
-				<p className="cf:text-sm cf:font-black cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
+				<p className="campfire-page-eyebrow">
 					Create filter
 				</p>
-				<h3 className="cf:mt-1 cf:text-xl cf:font-black cf:tracking-[-0.03em] cf:text-foreground">
+				<h3 className="campfire-surface-title">
 					Save a report view
 				</h3>
 			</div>

@@ -12,6 +12,7 @@ import type { TeamAvailabilityRange } from './team-availability.types';
 type TeamAvailabilityRangeControlsProps = {
 	readonly range: TeamAvailabilityRange;
 	readonly disabled: boolean;
+	readonly timezone: string;
 	readonly onChange: (patch: Partial<TeamAvailabilityRange>) => void;
 };
 
@@ -20,12 +21,13 @@ type TeamAvailabilityRangeControlsProps = {
  */
 export function TeamAvailabilityRangeControls(props: TeamAvailabilityRangeControlsProps): ReactElement {
 	return (
-		<div className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5 cf:md:grid-cols-2">
+		<div className="campfire-team-control-grid campfire-team-control-grid--availability">
 			<div className={rangeInputClassName()}>
 				<Label htmlFor="campfire-availability-start">Start date</Label>
 				<CampfireDateInput
 					id="campfire-availability-start"
 					disabled={props.disabled}
+					timezone={props.timezone}
 					value={props.range.startDate}
 					onValueChange={value => props.onChange({ startDate: value })}
 				/>
@@ -36,6 +38,7 @@ export function TeamAvailabilityRangeControls(props: TeamAvailabilityRangeContro
 				<CampfireDateInput
 					id="campfire-availability-end"
 					disabled={props.disabled}
+					timezone={props.timezone}
 					value={props.range.endDate}
 					onValueChange={value => props.onChange({ endDate: value })}
 				/>
