@@ -66,7 +66,7 @@ export function StandupScheduleFields(props: StandupScheduleFieldsProps): ReactE
 					</CampfireSelect>
 				</StandupField>
 
-				<StandupField htmlFor={`${props.idPrefix}-time`} label="Time">
+				<StandupField htmlFor={`${props.idPrefix}-time`} label="Report time">
 					<CampfireTimeInput
 						id={`${props.idPrefix}-time`}
 						disabled={props.disabled}
@@ -81,7 +81,7 @@ export function StandupScheduleFields(props: StandupScheduleFieldsProps): ReactE
 					<div className="campfire-static-field">
 						<span>Weekly mode</span>
 						<strong>Last working day</strong>
-						<small>Weekly standups run on the workspace-local final enabled workday.</small>
+						<small>Weekly reports post on the workspace-local final enabled workday.</small>
 					</div>
 				)}
 
@@ -90,7 +90,7 @@ export function StandupScheduleFields(props: StandupScheduleFieldsProps): ReactE
 						checked={props.draft.enabled}
 						disabled={props.disabled}
 						label="Enabled"
-						description="Allow this schedule to run."
+						description="Allow this report schedule to run."
 						onCheckedChange={checked => props.onChange({ enabled: checked })}
 					/>
 
@@ -98,7 +98,7 @@ export function StandupScheduleFields(props: StandupScheduleFieldsProps): ReactE
 						checked={props.draft.skipNonWorkingDays}
 						disabled={props.disabled}
 						label="Skip non-working days"
-						description="Do not run on disabled weekdays."
+						description="Do not ask or post on disabled weekdays."
 						onCheckedChange={checked => props.onChange({ skipNonWorkingDays: checked })}
 					/>
 
@@ -106,7 +106,7 @@ export function StandupScheduleFields(props: StandupScheduleFieldsProps): ReactE
 						checked={props.draft.skipDailyWhenWeeklyRuns}
 						disabled={props.disabled}
 						label="Skip daily on weekly"
-						description="Optional. Weekly can suppress daily, but never by force."
+						description="Optional. Weekly report day can suppress the daily report."
 						onCheckedChange={checked => props.onChange({ skipDailyWhenWeeklyRuns: checked })}
 					/>
 				</div>

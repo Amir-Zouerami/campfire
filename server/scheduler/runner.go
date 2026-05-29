@@ -285,15 +285,10 @@ func (r *Runner) tickWorkspace(ctx context.Context, workspace domain.Workspace, 
 		return
 	}
 
-	schedulesByID := schedulesByID(schedules)
+	rulesByScheduleID := rulesByScheduleID(rules)
 
-	for _, rule := range rules {
-		if !rule.Enabled {
-			continue
-		}
-
-		schedule, exists := schedulesByID[rule.ScheduleID]
-		if !exists || !schedule.Enabled {
+	for _, schedule := range schedules {
+		if !schedule.Enabled {
 			continue
 		}
 
@@ -319,12 +314,25 @@ func (r *Runner) tickWorkspace(ctx context.Context, workspace domain.Workspace, 
 			continue
 		}
 
-		r.executeDueReminderSequences(ctx, workspace, schedule, rule, occurrenceDate, localNow)
+		r.executeDueScheduleReport(ctx, workspace, schedule, occurrenceDate, localNow)
+
+		for _, rule := range rulesByScheduleID[schedule.ID] {
+			if !rule.Enabled {
+				continue
+			}
+
+			r.executeDueReminderSequences(ctx, workspace, schedule, rule, occurrenceDate, localNow)
+		}
 	}
 }
 
 /*
 executeDueReminderSequences executes reminder sequences due in the current local minute.
+
+A schedule's TimeOfDay is the report/posting time. Reminder offsets are minutes
+after the one-hour reminder window opens, not minutes after the schedule time.
+For example, report time 09:00 and offsets [0, 15, 30, 55] send reminders
+at 08:00, 08:15, 08:30, and 08:55.
 */
 func (r *Runner) executeDueReminderSequences(
 	ctx context.Context,
@@ -339,10 +347,10 @@ func (r *Runner) executeDueReminderSequences(
 		return
 	}
 
-	scheduleTime, err := scheduleTimeForDate(localNow, schedule.TimeOfDay)
+	reportTime, err := scheduleTimeForDate(localNow, schedule.TimeOfDay)
 	if err != nil {
 		r.logger.Warn(
-			"scheduler could not parse standup schedule time",
+			"scheduler could not parse standup report time",
 			logger.String("workspace_id", workspace.ID.String()),
 			logger.String("schedule_id", schedule.ID.String()),
 			logger.String("time_of_day", schedule.TimeOfDay.String()),
@@ -351,8 +359,21 @@ func (r *Runner) executeDueReminderSequences(
 		return
 	}
 
+	reminderWindowStart := reportTime.Add(-time.Hour)
+
 	for sequenceNumber, offsetMinutes := range offsets {
-		dueAt := scheduleTime.Add(time.Duration(offsetMinutes) * time.Minute)
+		if offsetMinutes < 0 || offsetMinutes > 59 {
+			r.logger.Warn(
+				"scheduler skipped reminder offset outside the pre-report reminder window",
+				logger.String("workspace_id", workspace.ID.String()),
+				logger.String("schedule_id", schedule.ID.String()),
+				logger.String("sequence_number", fmt.Sprintf("%d", sequenceNumber)),
+				logger.String("offset_minutes", fmt.Sprintf("%d", offsetMinutes)),
+			)
+			continue
+		}
+
+		dueAt := reminderWindowStart.Add(time.Duration(offsetMinutes) * time.Minute)
 		if !sameLocalMinute(localNow, dueAt) {
 			continue
 		}
@@ -383,15 +404,40 @@ func (r *Runner) executeDueReminderSequences(
 			logger.String("channel_sent", fmt.Sprintf("%d", result.ChannelRemindersSent)),
 			logger.String("skipped_existing", fmt.Sprintf("%d", result.SkippedExistingRuns)),
 		)
-
-		if sequenceNumber == len(offsets)-1 {
-			r.executeDueReports(ctx, workspace, schedule, occurrenceDate, localNow)
-		}
 	}
 }
 
 /*
-executeDueReports posts due automated reports after the final reminder sequence.
+executeDueScheduleReport posts an automated report when the schedule's report time is due.
+*/
+func (r *Runner) executeDueScheduleReport(
+	ctx context.Context,
+	workspace domain.Workspace,
+	schedule domain.StandupSchedule,
+	occurrenceDate domain.LocalDate,
+	localNow time.Time,
+) {
+	reportTime, err := scheduleTimeForDate(localNow, schedule.TimeOfDay)
+	if err != nil {
+		r.logger.Warn(
+			"scheduler could not parse standup report time",
+			logger.String("workspace_id", workspace.ID.String()),
+			logger.String("schedule_id", schedule.ID.String()),
+			logger.String("time_of_day", schedule.TimeOfDay.String()),
+			logger.String("error", err.Error()),
+		)
+		return
+	}
+
+	if !sameLocalMinute(localNow, reportTime) {
+		return
+	}
+
+	r.executeDueReports(ctx, workspace, schedule, occurrenceDate, localNow)
+}
+
+/*
+executeDueReports posts due automated reports at the schedule report time.
 */
 func (r *Runner) executeDueReports(
 	ctx context.Context,
@@ -663,13 +709,13 @@ func loadWorkspaceLocation(timezone string) (*time.Location, error) {
 }
 
 /*
-schedulesByID indexes schedules by ID.
+rulesByScheduleID groups reminder rules by their linked schedule.
 */
-func schedulesByID(schedules []domain.StandupSchedule) map[domain.ID]domain.StandupSchedule {
-	indexed := make(map[domain.ID]domain.StandupSchedule, len(schedules))
+func rulesByScheduleID(rules []domain.ReminderRule) map[domain.ID][]domain.ReminderRule {
+	indexed := make(map[domain.ID][]domain.ReminderRule, len(rules))
 
-	for _, schedule := range schedules {
-		indexed[schedule.ID] = schedule
+	for _, rule := range rules {
+		indexed[rule.ScheduleID] = append(indexed[rule.ScheduleID], rule)
 	}
 
 	return indexed

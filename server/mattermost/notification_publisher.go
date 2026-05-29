@@ -265,12 +265,12 @@ func formatStandupDMReminderMessage(api plugin.API, reminder service.StandupDMRe
 	channelReference := channelReferenceOrWorkspaceName(api, reminder.ChannelID, reminder.WorkspaceName)
 
 	lines := []string{
-		"🔥 **Campfire standup reminder**",
+		"🔥 **Standup reminder**",
 		"",
 		fmt.Sprintf("%s, your standup for **%s** is still missing.", targetLabel, reminder.OccurrenceDate),
-		fmt.Sprintf("Please open %s and submit your Campfire update from that channel.", channelReference),
+		fmt.Sprintf("Please open %s and submit your update from that channel.", channelReference),
 		"",
-		"_Campfire standups are tied to the workspace channel, so this DM is only a reminder._",
+		"_Standups are tied to the workspace channel, so this DM is only a reminder._",
 	}
 
 	if reminder.SequenceNumber > 0 {
@@ -285,7 +285,7 @@ formatChannelMissingReminderMessage formats a channel reminder for missing stand
 */
 func formatChannelMissingReminderMessage(api plugin.API, reminder service.StandupChannelMissingReminder) string {
 	lines := []string{
-		"🔥 **Campfire standup reminder**",
+		"🔥 **Standup reminder**",
 		"",
 		fmt.Sprintf("Missing standups for **%s**:", reminder.OccurrenceDate),
 	}
@@ -327,121 +327,86 @@ func formatChannelMissingReminderMessage(api plugin.API, reminder service.Standu
 formatLeaveRequestedMessage formats the approver-facing leave request DM.
 */
 func formatLeaveRequestedMessage(api plugin.API, notification service.LeaveRequestNotification) string {
+	copy := leaveNotificationCopyForLanguage(notification.Language)
 	requesterLabel := userMentionOrID(api, notification.RequesterUserID)
 	workspaceLabel := channelReferenceOrWorkspaceName(api, notification.ChannelID, notification.WorkspaceName)
 
 	lines := []string{
-		"🔥 **Campfire leave request**",
+		copy.RequestTitle,
 		"",
-		fmt.Sprintf("%s requested **%s** leave.", requesterLabel, notification.LeaveTypeName),
-		fmt.Sprintf("**Workspace:** %s", workspaceLabel),
-		fmt.Sprintf("**Dates:** %s → %s", notification.StartDate, notification.EndDate),
-		fmt.Sprintf("**Status:** %s", notification.Status),
+		fmt.Sprintf(copy.RequestSummary, requesterLabel, notification.LeaveTypeName),
+		formatLabeledInlineValue(copy.WorkspaceLabel, workspaceLabel),
+		formatLabeledInlineValue(copy.DatesLabel, formatDateRange(notification.StartDate, notification.EndDate)),
+		formatLabeledInlineValue(copy.StatusLabel, translateLeaveStatus(notification.Status, copy)),
 	}
 
-	details := formatLeaveRequestDetails(
-		notification.DurationMode,
-		notification.HalfDayPart,
-		notification.StartTime,
-		notification.EndTime,
-	)
-	if details != "" {
-		lines = append(lines, details)
-	}
-
-	lines = appendLabeledMultilineValue(lines, "Reason", notification.Reason)
+	lines = appendLeaveRequestDetails(lines, copy, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
+	lines = appendLabeledMultilineValue(lines, copy.ReasonLabel, notification.Reason)
 
 	if strings.TrimSpace(notification.BackupUserID) != "" {
-		lines = append(lines, fmt.Sprintf("**Backup:** %s", userMentionOrID(api, notification.BackupUserID)))
+		lines = append(lines, formatLabeledInlineValue(copy.BackupLabel, userMentionOrID(api, notification.BackupUserID)))
 	}
 
-	lines = append(lines, "", "Open Campfire in the workspace channel to approve or reject this request.")
+	lines = append(lines, "", copy.OpenCampfireInstruction)
 
 	return strings.Join(lines, "\n")
 }
 
 /*
-formatLeaveDecidedMessage formats the leave approval/rejection notification.
+formatLeaveDecidedMessage formats the private leave approval/rejection notification.
 */
 func formatLeaveDecidedMessage(api plugin.API, notification service.LeaveDecisionNotification) string {
+	copy := leaveNotificationCopyForLanguage(notification.Language)
 	deciderLabel := userMentionOrID(api, notification.DeciderUserID)
 
-	header := "🔥 **Campfire leave update**"
-	summary := fmt.Sprintf(
-		"Your **%s** leave request was **%s** by %s.",
-		notification.LeaveTypeName,
-		notification.Decision,
-		deciderLabel,
-	)
+	header := copy.DecisionTitle
+	summary := fmt.Sprintf(copy.DecisionSummary, notification.LeaveTypeName, translateLeaveStatus(notification.Decision, copy), deciderLabel)
 
 	switch domain.LeaveStatus(notification.Decision) {
 	case domain.LeaveStatusApproved:
-		header = "✅ **Campfire leave approved**"
-		summary = fmt.Sprintf(
-			"✅ Your **%s** leave request was **approved** by %s.",
-			notification.LeaveTypeName,
-			deciderLabel,
-		)
+		header = copy.ApprovedTitle
+		summary = fmt.Sprintf(copy.ApprovedSummary, notification.LeaveTypeName, deciderLabel)
 
 	case domain.LeaveStatusRejected:
-		header = "❌ **Campfire leave rejected**"
-		summary = fmt.Sprintf(
-			"❌ Your **%s** leave request was **rejected** by %s.",
-			notification.LeaveTypeName,
-			deciderLabel,
-		)
+		header = copy.RejectedTitle
+		summary = fmt.Sprintf(copy.RejectedSummary, notification.LeaveTypeName, deciderLabel)
 	}
 
 	lines := []string{
 		header,
 		"",
 		summary,
-		fmt.Sprintf("**Dates:** %s → %s", notification.StartDate, notification.EndDate),
+		formatLabeledInlineValue(copy.DatesLabel, formatDateRange(notification.StartDate, notification.EndDate)),
 	}
 
-	details := formatLeaveRequestDetails(
-		notification.DurationMode,
-		notification.HalfDayPart,
-		notification.StartTime,
-		notification.EndTime,
-	)
-	if details != "" {
-		lines = append(lines, details)
-	}
-
-	lines = appendLabeledMultilineValue(lines, "Comment", notification.Comment)
+	lines = appendLeaveRequestDetails(lines, copy, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
+	lines = appendLabeledMultilineValue(lines, copy.CommentLabel, notification.Comment)
 
 	return strings.Join(lines, "\n")
 }
 
 /*
 formatApprovedLeaveChannelMessage formats the team-facing approved leave post.
+
+Approver comments are intentionally omitted because approval notes are private
+and are only sent to the requester by direct message.
 */
 func formatApprovedLeaveChannelMessage(api plugin.API, notification service.LeaveDecisionNotification) string {
+	copy := leaveNotificationCopyForLanguage(notification.Language)
 	requesterLabel := userMentionOrID(api, notification.RequesterUserID)
 	deciderLabel := userMentionOrID(api, notification.DeciderUserID)
 	workspaceLabel := channelReferenceOrWorkspaceName(api, notification.ChannelID, notification.WorkspaceName)
 
 	lines := []string{
-		"🔥 **Campfire availability update**",
+		copy.ChannelApprovedTitle,
 		"",
-		fmt.Sprintf("%s will be away on approved **%s** leave.", requesterLabel, notification.LeaveTypeName),
-		fmt.Sprintf("**Workspace:** %s", workspaceLabel),
-		fmt.Sprintf("**Dates:** %s → %s", notification.StartDate, notification.EndDate),
-		fmt.Sprintf("**Approved by:** %s", deciderLabel),
+		fmt.Sprintf(copy.ChannelApprovedSummary, requesterLabel, notification.LeaveTypeName),
+		formatLabeledInlineValue(copy.WorkspaceLabel, workspaceLabel),
+		formatLabeledInlineValue(copy.DatesLabel, formatDateRange(notification.StartDate, notification.EndDate)),
+		formatLabeledInlineValue(copy.ApprovedByLabel, deciderLabel),
 	}
 
-	details := formatLeaveRequestDetails(
-		notification.DurationMode,
-		notification.HalfDayPart,
-		notification.StartTime,
-		notification.EndTime,
-	)
-	if details != "" {
-		lines = append(lines, details)
-	}
-
-	lines = appendLabeledMultilineValue(lines, "Approval note", notification.Comment)
+	lines = appendLeaveRequestDetails(lines, copy, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
 
 	return strings.Join(lines, "\n")
 }
@@ -465,34 +430,22 @@ func appendLabeledMultilineValue(lines []string, label string, value string) []s
 formatLeaveCancelledMessage formats the leave cancellation notification.
 */
 func formatLeaveCancelledMessage(api plugin.API, notification service.LeaveCancellationNotification) string {
+	copy := leaveNotificationCopyForLanguage(notification.Language)
 	requesterLabel := userMentionOrID(api, notification.RequesterUserID)
-	previousStatus := "pending"
+	previousStatus := copy.PendingStatus
 	if notification.WasApproved {
-		previousStatus = "approved"
+		previousStatus = copy.ApprovedStatus
 	}
 
 	lines := []string{
-		"🔥 **Campfire leave cancelled**",
+		copy.CancelledTitle,
 		"",
-		fmt.Sprintf(
-			"%s cancelled their %s **%s** leave request.",
-			requesterLabel,
-			previousStatus,
-			notification.LeaveTypeName,
-		),
-		fmt.Sprintf("**Dates:** %s → %s", notification.StartDate, notification.EndDate),
-		fmt.Sprintf("**Status:** %s", notification.Status),
+		fmt.Sprintf(copy.CancelledSummary, requesterLabel, notification.LeaveTypeName, previousStatus),
+		formatLabeledInlineValue(copy.DatesLabel, formatDateRange(notification.StartDate, notification.EndDate)),
+		formatLabeledInlineValue(copy.StatusLabel, translateLeaveStatus(notification.Status, copy)),
 	}
 
-	details := formatLeaveRequestDetails(
-		notification.DurationMode,
-		notification.HalfDayPart,
-		notification.StartTime,
-		notification.EndTime,
-	)
-	if details != "" {
-		lines = append(lines, details)
-	}
+	lines = appendLeaveRequestDetails(lines, copy, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
 
 	return strings.Join(lines, "\n")
 }
@@ -505,54 +458,270 @@ func formatApprovedLeaveCancelledChannelMessage(
 	api plugin.API,
 	notification service.LeaveCancellationNotification,
 ) string {
+	copy := leaveNotificationCopyForLanguage(notification.Language)
 	requesterLabel := userMentionOrID(api, notification.RequesterUserID)
 
 	lines := []string{
-		"🔥 **Campfire availability update**",
+		copy.ChannelCancelledTitle,
 		"",
-		fmt.Sprintf(
-			"%s cancelled their approved **%s** leave.",
-			requesterLabel,
-			notification.LeaveTypeName,
-		),
-		fmt.Sprintf("**Dates:** %s → %s", notification.StartDate, notification.EndDate),
-		"They are no longer marked as away for this period.",
+		fmt.Sprintf(copy.ChannelCancelledSummary, requesterLabel, notification.LeaveTypeName),
+		formatLabeledInlineValue(copy.DatesLabel, formatDateRange(notification.StartDate, notification.EndDate)),
+		copy.NoLongerAwayMessage,
 	}
 
-	details := formatLeaveRequestDetails(
-		notification.DurationMode,
-		notification.HalfDayPart,
-		notification.StartTime,
-		notification.EndTime,
-	)
-	if details != "" {
-		lines = append(lines, details)
-	}
+	lines = appendLeaveRequestDetails(lines, copy, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
 
 	return strings.Join(lines, "\n")
 }
 
 /*
-formatLeaveRequestDetails returns mode-specific leave detail copy.
+formatDateRange returns a compact date-range label.
 */
-func formatLeaveRequestDetails(durationMode string, halfDayPart string, startTime string, endTime string) string {
+func formatDateRange(startDate string, endDate string) string {
+	if strings.TrimSpace(startDate) == strings.TrimSpace(endDate) {
+		return strings.TrimSpace(startDate)
+	}
+
+	return fmt.Sprintf("%s → %s", startDate, endDate)
+}
+
+/*
+formatLabeledInlineValue formats one bold markdown label and value.
+*/
+func formatLabeledInlineValue(label string, value string) string {
+	return fmt.Sprintf("**%s:** %s", label, value)
+}
+
+/*
+appendLeaveRequestDetails appends translated mode-specific leave detail copy.
+*/
+func appendLeaveRequestDetails(
+	lines []string,
+	copy leaveNotificationCopy,
+	durationMode string,
+	halfDayPart string,
+	startTime string,
+	endTime string,
+) []string {
+	details := formatLeaveRequestDetails(copy, durationMode, halfDayPart, startTime, endTime)
+	if details == "" {
+		return lines
+	}
+
+	return append(lines, details)
+}
+
+/*
+formatLeaveRequestDetails returns translated mode-specific leave detail copy.
+*/
+func formatLeaveRequestDetails(
+	copy leaveNotificationCopy,
+	durationMode string,
+	halfDayPart string,
+	startTime string,
+	endTime string,
+) string {
 	switch durationMode {
 	case string(domain.LeaveDurationHalfDay):
-		if strings.TrimSpace(halfDayPart) == "" {
-			return "**Duration:** half day"
+		cleanPart := strings.TrimSpace(halfDayPart)
+		if cleanPart == "" {
+			return formatLabeledInlineValue(copy.DurationLabel, copy.HalfDayDuration)
 		}
 
-		return fmt.Sprintf("**Duration:** half day, %s", halfDayPart)
+		return formatLabeledInlineValue(copy.DurationLabel, fmt.Sprintf("%s, %s", copy.HalfDayDuration, translateHalfDayPart(cleanPart, copy)))
 
 	case string(domain.LeaveDurationHourly):
 		if strings.TrimSpace(startTime) == "" || strings.TrimSpace(endTime) == "" {
-			return "**Duration:** hourly"
+			return formatLabeledInlineValue(copy.DurationLabel, copy.HourlyDuration)
 		}
 
-		return fmt.Sprintf("**Duration:** %s → %s", startTime, endTime)
+		return formatLabeledInlineValue(copy.DurationLabel, fmt.Sprintf("%s → %s", startTime, endTime))
 
 	default:
 		return ""
+	}
+}
+
+/*
+translateLeaveStatus returns a notification-language status label.
+*/
+func translateLeaveStatus(status string, copy leaveNotificationCopy) string {
+	switch domain.LeaveStatus(status) {
+	case domain.LeaveStatusApproved:
+		return copy.ApprovedStatus
+	case domain.LeaveStatusRejected:
+		return copy.RejectedStatus
+	case domain.LeaveStatusCancelled:
+		return copy.CancelledStatus
+	default:
+		return copy.PendingStatus
+	}
+}
+
+/*
+translateHalfDayPart returns a notification-language half-day label.
+*/
+func translateHalfDayPart(part string, copy leaveNotificationCopy) string {
+	switch strings.TrimSpace(part) {
+	case string(domain.LeaveHalfDayMorning):
+		return copy.MorningPart
+	case string(domain.LeaveHalfDayAfternoon):
+		return copy.AfternoonPart
+	default:
+		return part
+	}
+}
+
+/*
+leaveNotificationCopy contains generated leave notification copy.
+*/
+type leaveNotificationCopy struct {
+	RequestTitle            string
+	RequestSummary          string
+	WorkspaceLabel          string
+	DatesLabel              string
+	StatusLabel             string
+	ReasonLabel             string
+	BackupLabel             string
+	OpenCampfireInstruction string
+	DecisionTitle           string
+	DecisionSummary         string
+	ApprovedTitle           string
+	ApprovedSummary         string
+	RejectedTitle           string
+	RejectedSummary         string
+	ChannelApprovedTitle    string
+	ChannelCancelledTitle   string
+	ChannelApprovedSummary  string
+	ApprovedByLabel         string
+	CommentLabel            string
+	CancelledTitle          string
+	CancelledSummary        string
+	ChannelCancelledSummary string
+	NoLongerAwayMessage     string
+	DurationLabel           string
+	HalfDayDuration         string
+	HourlyDuration          string
+	MorningPart             string
+	AfternoonPart           string
+	PendingStatus           string
+	ApprovedStatus          string
+	RejectedStatus          string
+	CancelledStatus         string
+}
+
+/*
+leaveNotificationCopyForLanguage returns generated notification copy in the requested language.
+*/
+func leaveNotificationCopyForLanguage(language domain.ReportLanguage) leaveNotificationCopy {
+	switch language {
+	case domain.ReportLanguagePersian:
+		return leaveNotificationCopy{
+			RequestTitle:            "درخواست مرخصی 🔥",
+			RequestSummary:          "کاربر %s درخواست مرخصی **%s** ثبت کرده است.",
+			WorkspaceLabel:          "فضای کاری",
+			DatesLabel:              "تاریخ‌ها",
+			StatusLabel:             "وضعیت",
+			ReasonLabel:             "دلیل",
+			BackupLabel:             "جانشین",
+			OpenCampfireInstruction: "برای تایید یا رد این درخواست، صفحه فضای کاری را باز کنید.",
+			DecisionTitle:           "به‌روزرسانی مرخصی 🔥",
+			DecisionSummary:         "درخواست مرخصی **%s** شما با وضعیت **%s** توسط کاربر %s ثبت شد.",
+			ApprovedTitle:           "مرخصی شما تایید شد ✅",
+			ApprovedSummary:         "درخواست مرخصی **%s** شما توسط کاربر %s تایید شد ✅",
+			RejectedTitle:           "مرخصی شما رد شد ❌",
+			RejectedSummary:         "درخواست مرخصی **%s** شما توسط کاربر %s رد شد ❌",
+			ChannelApprovedTitle:    "اعلام مرخصی تاییدشده ✅",
+			ChannelCancelledTitle:   "لغو مرخصی تاییدشده ↩️",
+			ChannelApprovedSummary:  "کاربر %s در مرخصی تاییدشده **%s** خواهد بود. ✅",
+			ApprovedByLabel:         "تاییدکننده",
+			CommentLabel:            "یادداشت",
+			CancelledTitle:          "مرخصی لغو شد 🔥",
+			CancelledSummary:        "کاربر %s درخواست مرخصی **%s** خود با وضعیت قبلی %s را لغو کرد.",
+			ChannelCancelledSummary: "کاربر %s مرخصی تاییدشده **%s** خود را لغو کرد. ↩️",
+			NoLongerAwayMessage:     "این کاربر دیگر برای این بازه غایب محسوب نمی‌شود. ✅",
+			DurationLabel:           "مدت",
+			HalfDayDuration:         "نیم‌روز",
+			HourlyDuration:          "ساعتی",
+			MorningPart:             "صبح",
+			AfternoonPart:           "بعدازظهر",
+			PendingStatus:           "در انتظار",
+			ApprovedStatus:          "تاییدشده",
+			RejectedStatus:          "ردشده",
+			CancelledStatus:         "لغوشده",
+		}
+
+	case domain.ReportLanguageArabic:
+		return leaveNotificationCopy{
+			RequestTitle:            "طلب إجازة 🔥",
+			RequestSummary:          "المستخدم %s طلب إجازة **%s**.",
+			WorkspaceLabel:          "مساحة العمل",
+			DatesLabel:              "التواريخ",
+			StatusLabel:             "الحالة",
+			ReasonLabel:             "السبب",
+			BackupLabel:             "البديل",
+			OpenCampfireInstruction: "افتح صفحة مساحة العمل للموافقة على هذا الطلب أو رفضه.",
+			DecisionTitle:           "تحديث الإجازة 🔥",
+			DecisionSummary:         "تم تحديث طلب إجازة **%s** الخاص بك إلى **%s** بواسطة المستخدم %s.",
+			ApprovedTitle:           "تمت الموافقة على إجازتك ✅",
+			ApprovedSummary:         "تمت الموافقة على طلب إجازة **%s** الخاص بك بواسطة المستخدم %s ✅",
+			RejectedTitle:           "تم رفض إجازتك ❌",
+			RejectedSummary:         "تم رفض طلب إجازة **%s** الخاص بك بواسطة المستخدم %s ❌",
+			ChannelApprovedTitle:    "إعلان إجازة معتمدة ✅",
+			ChannelCancelledTitle:   "إلغاء إجازة معتمدة ↩️",
+			ChannelApprovedSummary:  "المستخدم %s سيكون في إجازة **%s** معتمدة. ✅",
+			ApprovedByLabel:         "تمت الموافقة بواسطة",
+			CommentLabel:            "ملاحظة",
+			CancelledTitle:          "تم إلغاء الإجازة 🔥",
+			CancelledSummary:        "المستخدم %s ألغى طلب إجازة **%s** الذي كان %s.",
+			ChannelCancelledSummary: "المستخدم %s ألغى إجازة **%s** المعتمدة. ↩️",
+			NoLongerAwayMessage:     "لم يعد هذا المستخدم مسجلاً كغائب خلال هذه الفترة. ✅",
+			DurationLabel:           "المدة",
+			HalfDayDuration:         "نصف يوم",
+			HourlyDuration:          "بالساعة",
+			MorningPart:             "الصباح",
+			AfternoonPart:           "بعد الظهر",
+			PendingStatus:           "قيد الانتظار",
+			ApprovedStatus:          "معتمدة",
+			RejectedStatus:          "مرفوضة",
+			CancelledStatus:         "ملغاة",
+		}
+
+	default:
+		return leaveNotificationCopy{
+			RequestTitle:            "🔥 **Leave request**",
+			RequestSummary:          "%s requested **%s** leave.",
+			WorkspaceLabel:          "Workspace",
+			DatesLabel:              "Dates",
+			StatusLabel:             "Status",
+			ReasonLabel:             "Reason",
+			BackupLabel:             "Backup",
+			OpenCampfireInstruction: "Open the workspace channel to approve or reject this request.",
+			DecisionTitle:           "🔥 **Leave update**",
+			DecisionSummary:         "Your **%s** leave request was **%s** by %s.",
+			ApprovedTitle:           "✅ **Leave approved**",
+			ApprovedSummary:         "✅ Your **%s** leave request was **approved** by %s.",
+			RejectedTitle:           "❌ **Leave rejected**",
+			RejectedSummary:         "❌ Your **%s** leave request was **rejected** by %s.",
+			ChannelApprovedTitle:    "✅ **Approved leave**",
+			ChannelCancelledTitle:   "↩️ **Approved leave cancelled**",
+			ChannelApprovedSummary:  "✅ %s will be away on approved **%s** leave.",
+			ApprovedByLabel:         "Approved by",
+			CommentLabel:            "Comment",
+			CancelledTitle:          "🔥 **Leave cancelled**",
+			CancelledSummary:        "%s cancelled their **%s** leave request that was %s.",
+			ChannelCancelledSummary: "↩️ %s cancelled their approved **%s** leave.",
+			NoLongerAwayMessage:     "✅ They are no longer marked as away for this period.",
+			DurationLabel:           "Duration",
+			HalfDayDuration:         "half day",
+			HourlyDuration:          "hourly",
+			MorningPart:             "morning",
+			AfternoonPart:           "afternoon",
+			PendingStatus:           "pending",
+			ApprovedStatus:          "approved",
+			RejectedStatus:          "rejected",
+			CancelledStatus:         "cancelled",
+		}
 	}
 }
 

@@ -44,7 +44,7 @@ export function buildStandupScheduleLabelLookup(
 			enabledLabel,
 			title: templateName,
 			subtitle: `${kindLabel} schedule for ${templateName}`,
-			chips: [kindLabel, schedule.timeOfDay, enabledLabel, `Template: ${templateName}`],
+			chips: [kindLabel, `Report time: ${schedule.timeOfDay}`, enabledLabel, `Template: ${templateName}`],
 			unavailable: false,
 		};
 	}

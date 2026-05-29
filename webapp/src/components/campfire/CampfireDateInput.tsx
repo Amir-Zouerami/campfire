@@ -32,6 +32,14 @@ type CalendarDayCell = {
 };
 
 /**
+ * AlternateCalendarHintParts keeps RTL calendar text isolated from English labels.
+ */
+type AlternateCalendarHintParts = {
+	readonly label: string;
+	readonly calendarDate: string;
+};
+
+/**
  * MONTH_NAMES contains month labels.
  */
 const MONTH_NAMES = [
@@ -100,8 +108,8 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 		return buildCalendarCells(visibleMonth, selectedDate);
 	}, [visibleMonth, selectedDate]);
 
-	const alternateCalendarHint = useMemo(() => {
-		return formatWorkspaceDateHint(props.value, props.timezone);
+	const alternateCalendarHintParts = useMemo(() => {
+		return splitAlternateCalendarHint(formatWorkspaceDateHint(props.value, props.timezone));
 	}, [props.value, props.timezone]);
 
 	const popoverStyle = useCampfireFloatingPopover({
@@ -157,8 +165,13 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 						{props.value.trim() === '' ? 'YYYY-MM-DD' : props.value}
 					</span>
 
-					{alternateCalendarHint !== '' && (
-						<span className="campfire-date-picker-hint" dir="ltr">(<bdi dir="auto">{alternateCalendarHint}</bdi>)</span>
+					{alternateCalendarHintParts !== null && (
+						<span className="campfire-date-picker-hint" dir="ltr">
+							(<span className="campfire-date-picker-hint-label">{alternateCalendarHintParts.label}: </span>
+							<bdi className="campfire-date-picker-hint-calendar" dir="rtl">
+								{alternateCalendarHintParts.calendarDate}
+							</bdi>)
+						</span>
 					)}
 				</span>
 
@@ -245,6 +258,42 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 			)}
 		</div>
 	);
+}
+
+/**
+ * splitAlternateCalendarHint separates the English label from RTL calendar text.
+ *
+ * Rendering the pieces separately prevents Persian/Arabic day, month, and year
+ * text from visually reordering when it is placed beside an English label.
+ */
+function splitAlternateCalendarHint(hint: string): AlternateCalendarHintParts | null {
+	const cleanHint = hint.trim();
+	if (cleanHint === '') {
+		return null;
+	}
+
+	const separatorIndex = cleanHint.indexOf(':');
+	if (separatorIndex < 0) {
+		return {
+			label: 'Calendar',
+			calendarDate: cleanHint,
+		};
+	}
+
+	const label = cleanHint.slice(0, separatorIndex).trim();
+	const calendarDate = cleanHint.slice(separatorIndex + 1).trim();
+
+	if (label === '' || calendarDate === '') {
+		return {
+			label: 'Calendar',
+			calendarDate: cleanHint,
+		};
+	}
+
+	return {
+		label,
+		calendarDate,
+	};
 }
 
 /**

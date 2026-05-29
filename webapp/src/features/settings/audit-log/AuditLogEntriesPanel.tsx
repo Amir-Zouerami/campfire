@@ -19,7 +19,7 @@ type AuditLogEntriesPanelProps = {
  */
 export function AuditLogEntriesPanel(props: AuditLogEntriesPanelProps): ReactElement {
 	return (
-		<section className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
+		<section className="campfire-audit-entries-panel cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
 			<div>
 				<p className="cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 					Audit entries
@@ -36,7 +36,7 @@ export function AuditLogEntriesPanel(props: AuditLogEntriesPanelProps): ReactEle
 					description="Important workspace actions will appear here after they are recorded."
 				/>
 			) : (
-				<div className="cf:grid cf:gap-3">
+				<div className="campfire-audit-entries-scroll cf:grid cf:gap-3">
 					{props.entries.map(entry => (
 						<AuditEntryRow
 							key={entry.id}

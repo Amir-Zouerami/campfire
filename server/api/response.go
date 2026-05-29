@@ -48,6 +48,24 @@ type ErrorPayload struct {
 }
 
 /*
+WriteLookupChannels writes the channel lookup response.
+*/
+func WriteLookupChannels(w http.ResponseWriter, statusCode int, payload LookupChannelsResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode channel lookup response")
+}
+
+/*
+WriteSearchChannels writes the channel search response.
+*/
+func WriteSearchChannels(w http.ResponseWriter, statusCode int, payload SearchChannelsResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode channel search response")
+}
+
+/*
 WriteLookupUsers writes the user lookup response.
 */
 func WriteLookupUsers(w http.ResponseWriter, statusCode int, payload LookupUsersResponse) {

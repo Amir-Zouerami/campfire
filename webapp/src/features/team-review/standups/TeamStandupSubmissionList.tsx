@@ -1,10 +1,10 @@
 import type { ReactElement } from 'react';
 import { MessageSquareText } from 'lucide-react';
 
+import { CampfireEmpty, CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 import type { StandupQuestion, StandupSubmissionWithAnswers } from '@/types/domain';
 
 import { answerShouldHighlight, formatAnswerValue, formatDateTime } from './team-standups.helpers';
-import { CampfireEmpty, CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * TeamStandupSubmissionListProps contains submitted standup rows.
@@ -20,24 +20,16 @@ type TeamStandupSubmissionListProps = {
  */
 export function TeamStandupSubmissionList(props: TeamStandupSubmissionListProps): ReactElement {
 	return (
-		<section className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
-			<div>
-				<p className="cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
-					Submissions
-				</p>
-				<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
-					Submitted updates
-				</h3>
-			</div>
-
+		<div className="campfire-submission-stage">
 			{props.submissions.length === 0 ? (
 				<CampfireEmpty
+					className="campfire-submission-empty"
 					icon={MessageSquareText}
 					title="No submissions yet"
 					description="Submitted standups for the selected date will appear here."
 				/>
 			) : (
-				<div className="cf:grid cf:gap-4">
+				<div className="campfire-submission-stack">
 					{props.submissions.map(item => (
 						<TeamStandupSubmissionCard
 							key={item.submission.id}
@@ -48,7 +40,7 @@ export function TeamStandupSubmissionList(props: TeamStandupSubmissionListProps)
 					))}
 				</div>
 			)}
-		</section>
+		</div>
 	);
 }
 
@@ -63,26 +55,22 @@ function TeamStandupSubmissionCard(props: {
 	const submission = props.item.submission;
 
 	return (
-		<article className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-5">
-			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-4">
-				<div className="cf:min-w-0">
-					<p className="cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
-						{props.labelForUserID(submission.userId)}
-					</p>
-					<h4 className="cf:mt-1 cf:text-2xl cf:font-semibold cf:tracking-[-0.04em] cf:text-foreground">
-						{submission.occurrenceDate}
-					</h4>
+		<article className="campfire-submission-card">
+			<div className="campfire-submission-card-header">
+				<div className="campfire-submission-user-copy">
+					<p>{props.labelForUserID(submission.userId)}</p>
+					<h4>{submission.occurrenceDate}</h4>
 				</div>
 
 				<CampfireStatusPill tone="green">Submitted</CampfireStatusPill>
 			</div>
 
-			<div className="cf:grid cf:gap-3 cf:md:grid-cols-2">
+			<div className="campfire-submission-meta-grid">
 				<SubmissionMeta label="First submitted" value={formatDateTime(submission.firstSubmittedAt)} />
 				<SubmissionMeta label="Last updated" value={formatDateTime(submission.lastUpdatedAt)} />
 			</div>
 
-			<div className="cf:grid cf:gap-3">
+			<div className="campfire-answer-stack">
 				{props.item.answers.map(answer => {
 					const question = props.questionsByID[answer.questionId];
 
@@ -105,11 +93,9 @@ function TeamStandupSubmissionCard(props: {
  */
 function SubmissionMeta(props: { readonly label: string; readonly value: string }): ReactElement {
 	return (
-		<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-3">
-			<p className="cf:text-xs cf:font-semibold cf:uppercase cf:tracking-widest cf:text-amber-200">{props.label}</p>
-			<p className="cf:mt-1 cf:truncate cf:text-sm cf:font-bold cf:text-slate-200" title={props.value}>
-				{props.value}
-			</p>
+		<div className="campfire-submission-meta">
+			<p>{props.label}</p>
+			<strong title={props.value}>{props.value}</strong>
 		</div>
 	);
 }
@@ -123,25 +109,15 @@ function AnswerRow(props: {
 	readonly highlight: boolean;
 }): ReactElement {
 	return (
-		<div
-			className={
-				props.highlight
-					? 'cf:rounded-2xl cf:border cf:border-red-300/25 cf:bg-red-950/20 cf:p-4'
-					: 'cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.04] cf:p-4'
-			}
-		>
-			<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
-				<strong className="cf:text-sm cf:font-semibold cf:text-white">
-					{props.question?.label ?? 'Unknown question'}
-				</strong>
+		<div className={props.highlight ? 'campfire-answer-row campfire-answer-row--attention' : 'campfire-answer-row'}>
+			<div className="campfire-answer-row-header">
+				<strong>{props.question?.label ?? 'Unknown question'}</strong>
 
 				{props.question?.isPrivate === true && <CampfireStatusPill tone="slate">Private</CampfireStatusPill>}
 				{props.highlight && <CampfireStatusPill tone="red">Needs attention</CampfireStatusPill>}
 			</div>
 
-			<p className="cf:mt-2 cf:whitespace-pre-wrap cf:text-sm cf:font-medium cf:leading-6 cf:text-slate-300">
-				{props.value.trim() === '' ? '—' : props.value}
-			</p>
+			<p>{props.value.trim() === '' ? '—' : props.value}</p>
 		</div>
 	);
 }

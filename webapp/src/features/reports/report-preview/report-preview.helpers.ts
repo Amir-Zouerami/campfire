@@ -1,5 +1,6 @@
 import { ApiClientError } from '@/api';
 import type { ReportSortMode, StandupSubmissionSortMode } from '@/types/domain';
+import { buildWorkspaceDateLabelMap } from '@/lib/calendarLabels';
 import { isISODateInputValue, normalizeISODateInputValue } from '@/lib/dates';
 
 /**
@@ -129,6 +130,40 @@ export function toWeeklyReportSortMode(value: string): ReportSortMode {
 	}
 
 	return 'first_submitted';
+}
+
+/**
+ * buildDailyReportCalendarLabels returns browser-generated date labels for one report day.
+ */
+export function buildDailyReportCalendarLabels(
+	date: string,
+	timezone: string,
+): Readonly<Record<string, string>> {
+	return buildWorkspaceDateLabelMap([date], timezone);
+}
+
+/**
+ * buildWeeklyReportCalendarLabels returns browser-generated labels for an inclusive weekly range.
+ */
+export function buildWeeklyReportCalendarLabels(
+	startDate: string,
+	endDate: string,
+	timezone: string,
+): Readonly<Record<string, string>> {
+	if (!reportDateRangeIsValid(startDate, endDate)) {
+		return {};
+	}
+
+	const dates: string[] = [];
+	let currentDate = normalizeISODateInputValue(startDate);
+	const normalizedEndDate = normalizeISODateInputValue(endDate);
+
+	while (currentDate <= normalizedEndDate && dates.length < 14) {
+		dates.push(currentDate);
+		currentDate = addDaysToLocalDate(currentDate, 1);
+	}
+
+	return buildWorkspaceDateLabelMap(dates, timezone);
 }
 
 /**

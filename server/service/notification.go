@@ -1,6 +1,10 @@
 package service
 
-import "context"
+import (
+	"context"
+
+	"github.com/amir-zouerami/campfire/server/domain"
+)
 
 /*
 LeaveRequestNotification contains the data needed to notify leave approvers.
@@ -10,6 +14,7 @@ type LeaveRequestNotification struct {
 	WorkspaceID    string
 	WorkspaceName  string
 	ChannelID      string
+	Language       domain.ReportLanguage
 
 	RequesterUserID string
 	ApproverUserIDs []string
@@ -35,6 +40,7 @@ type LeaveDecisionNotification struct {
 	WorkspaceID    string
 	WorkspaceName  string
 	ChannelID      string
+	Language       domain.ReportLanguage
 
 	/*
 		AnnouncementChannelID optionally overrides the workspace channel for
@@ -65,6 +71,7 @@ type LeaveCancellationNotification struct {
 	WorkspaceID    string
 	WorkspaceName  string
 	ChannelID      string
+	Language       domain.ReportLanguage
 
 	/*
 		AnnouncementChannelID optionally overrides the workspace channel for

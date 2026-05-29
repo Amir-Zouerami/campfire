@@ -61,13 +61,13 @@ export function sortReminderRules(rules: readonly ReminderRule[]): readonly Remi
 }
 
 /**
- * parseReminderOffsets parses comma/space/newline-separated minute offsets.
+ * parseReminderOffsets parses comma/space/newline-separated minute offsets inside the one-hour pre-report reminder window.
  */
 export function parseReminderOffsets(value: string): readonly number[] {
 	const offsets = value
 		.split(/[\s,]+/)
 		.map(part => Number.parseInt(part.trim(), 10))
-		.filter(offset => Number.isInteger(offset) && offset >= 0 && offset <= 1440);
+		.filter(offset => Number.isInteger(offset) && offset >= 0 && offset <= 59);
 
 	return [...new Set(offsets)].sort((first, second) => first - second);
 }
@@ -119,7 +119,7 @@ export function channelReminderRuleCount(rules: readonly ReminderRule[]): number
 }
 
 /**
- * totalReminderOffsetCount returns total configured offsets across rules.
+ * totalReminderOffsetCount returns total configured reminder points across rules.
  */
 export function totalReminderOffsetCount(rules: readonly ReminderRule[]): number {
 	return rules.reduce((total, rule) => total + rule.reminderOffsets.length, 0);

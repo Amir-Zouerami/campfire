@@ -81,7 +81,7 @@ export function ReminderRuleCard(props: ReminderRuleCardProps): ReactElement {
 					checked={props.draft.enabled}
 					disabled={formDisabled}
 					label="Enable reminders"
-					description="Allow this schedule to send reminders."
+					description="Allow reminders before this report posts."
 					onCheckedChange={checked => props.onDraftChange(props.rule.id, { enabled: checked })}
 				/>
 
@@ -89,7 +89,7 @@ export function ReminderRuleCard(props: ReminderRuleCardProps): ReactElement {
 					checked={props.draft.dmReminderEnabled}
 					disabled={formDisabled}
 					label="DM reminders"
-					description="Send private reminders to users who have not submitted."
+					description="Send private reminders before report time to users who have not submitted."
 					onCheckedChange={checked => props.onDraftChange(props.rule.id, { dmReminderEnabled: checked })}
 				/>
 
@@ -97,7 +97,7 @@ export function ReminderRuleCard(props: ReminderRuleCardProps): ReactElement {
 					checked={props.draft.channelReminderEnabled}
 					disabled={formDisabled}
 					label="Channel reminders"
-					description="Post a channel reminder when users are still missing."
+					description="Post a channel reminder before report time when users are still missing."
 					onCheckedChange={checked => props.onDraftChange(props.rule.id, { channelReminderEnabled: checked })}
 				/>
 
@@ -113,11 +113,11 @@ export function ReminderRuleCard(props: ReminderRuleCardProps): ReactElement {
 			</div>
 
 			<div className="cf:grid cf:gap-2">
-				<Label htmlFor={`campfire-reminder-offsets-${props.rule.id}`}>Reminder offsets</Label>
+				<Label htmlFor={`campfire-reminder-offsets-${props.rule.id}`}>Reminder offsets before report</Label>
 				<Input
 					id={`campfire-reminder-offsets-${props.rule.id}`}
 					disabled={formDisabled}
-					placeholder="0, 30, 45, 55"
+					placeholder="0, 15, 30, 55"
 					value={props.draft.reminderOffsetsText}
 					onChange={event =>
 						props.onDraftChange(props.rule.id, { reminderOffsetsText: event.currentTarget.value })
@@ -125,7 +125,7 @@ export function ReminderRuleCard(props: ReminderRuleCardProps): ReactElement {
 				/>
 				<p className="cf:flex cf:flex-wrap cf:items-center cf:gap-2 cf:text-xs cf:font-semibold cf:leading-5 cf:text-muted-foreground">
 					<Timer className="cf:size-4 cf:text-amber-200" />
-					Minute offsets from schedule time. Parsed as:{' '}
+					The reminder window opens 60 minutes before report time. Use offsets from 0 to 59 minutes after that window opens. Parsed as:{' '}
 					<span className="cf:font-semibold cf:text-amber-100">
 						{parsedOffsets.length === 0 ? 'none' : parsedOffsets.join(', ')}
 					</span>
@@ -134,7 +134,7 @@ export function ReminderRuleCard(props: ReminderRuleCardProps): ReactElement {
 
 			<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4">
 				<p className="cf:m-0 cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
-					Users on approved leave and users who already submitted should be skipped by the scheduler.
+					Users on approved leave and users who already submitted are skipped. Reports post at the schedule report time, not after the last reminder.
 				</p>
 
 				<Button type="button" disabled={formDisabled || !changed} onClick={() => void props.onSave(props.rule)}>

@@ -1,4 +1,4 @@
-import type { ReportRule, ReportSortMode } from '@/types/domain';
+import type { ReportLanguage, ReportRule, ReportSortMode } from '@/types/domain';
 
 /**
  * ReportRulesLoadState describes report-rule loading and mutation state.
@@ -13,6 +13,7 @@ export type ReportRuleDraft = {
 	readonly postToChannel: boolean;
 	readonly previewRequired: boolean;
 	readonly sortMode: ReportSortMode;
+	readonly reportLanguage: ReportLanguage;
 	readonly includeOnLeave: boolean;
 	readonly includeMissing: boolean;
 	readonly includeTime: boolean;

@@ -13,6 +13,7 @@ import type {
 	PostDailyReportPreviewResponse,
 	PostWeeklyReportPreviewRequest,
 	PostWeeklyReportPreviewResponse,
+	ReportCalendarLabels,
 } from '@/types/api';
 import type { ReportKind, ReportSortMode, StandupSubmissionSortMode, TimeReportGroupBy } from '@/types/domain';
 
@@ -43,11 +44,13 @@ export function getDailyReportPreview(
 	workspaceID: string,
 	occurrenceDate: string,
 	sortMode: StandupSubmissionSortMode,
+	calendarLabels?: ReportCalendarLabels,
 ): Promise<GetDailyReportPreviewResponse> {
 	return requestJson<GetDailyReportPreviewResponse>(
 		withQuery(`/workspaces/${encodePath(workspaceID)}/reports/daily-preview`, {
 			occurrenceDate,
 			sortMode,
+			calendarLabels: reportCalendarLabelsQueryValue(calendarLabels),
 		}),
 	);
 }
@@ -76,12 +79,14 @@ export function getWeeklyReportPreview(
 	periodStart: string,
 	periodEnd: string,
 	sortMode: ReportSortMode,
+	calendarLabels?: ReportCalendarLabels,
 ): Promise<GetWeeklyReportPreviewResponse> {
 	return requestJson<GetWeeklyReportPreviewResponse>(
 		withQuery(`/workspaces/${encodePath(workspaceID)}/reports/weekly-preview`, {
 			periodStart,
 			periodEnd,
 			sortMode,
+			calendarLabels: reportCalendarLabelsQueryValue(calendarLabels),
 		}),
 	);
 }
@@ -282,4 +287,15 @@ export function exportGlobalLeaveReportCSV(startDate: string, endDate: string): 
 			endDate,
 		}),
 	);
+}
+
+/**
+ * reportCalendarLabelsQueryValue serializes optional display-only labels for GET preview endpoints.
+ */
+function reportCalendarLabelsQueryValue(labels?: ReportCalendarLabels): string | undefined {
+	if (labels === undefined || Object.keys(labels).length === 0) {
+		return undefined;
+	}
+
+	return JSON.stringify(labels);
 }

@@ -45,6 +45,7 @@ type App struct {
 	PermissionService               *service.PermissionService
 	WorkspaceRoleService            *service.WorkspaceRoleService
 	UserDirectoryService            *service.UserDirectoryService
+	ChannelDirectoryService         *service.ChannelDirectoryService
 	WorkspaceMemberDirectoryService *service.WorkspaceMemberDirectoryService
 	WorkspaceCalendarService        *service.WorkspaceCalendarService
 	ReminderService                 *service.ReminderService
@@ -141,6 +142,8 @@ func New(config Config) (*App, error) {
 	workspaceMemberProvider := mattermost.NewWorkspaceMemberProvider(config.API)
 	userDirectoryProvider := mattermost.NewUserDirectoryProvider(config.API)
 	userDirectoryService := service.NewUserDirectoryService(userDirectoryProvider)
+	channelDirectoryProvider := mattermost.NewChannelDirectoryProvider(config.API)
+	channelDirectoryService := service.NewChannelDirectoryService(channelDirectoryProvider)
 
 	workspaceRoleService := service.NewWorkspaceRoleService(
 		workspaceStore,
@@ -219,6 +222,7 @@ func New(config Config) (*App, error) {
 		workspaceStore,
 		workspaceRoleStore,
 		reportStore,
+		taskStore,
 		reportPublisher,
 		userDirectoryProvider,
 	)
@@ -268,6 +272,7 @@ func New(config Config) (*App, error) {
 		PermissionService:               permissionService,
 		WorkspaceRoleService:            workspaceRoleService,
 		UserDirectoryService:            userDirectoryService,
+		ChannelDirectoryService:         channelDirectoryService,
 		WorkspaceMemberDirectoryService: workspaceMemberDirectoryService,
 		WorkspaceCalendarService:        workspaceCalendarService,
 		ReminderService:                 reminderService,
@@ -295,6 +300,7 @@ func New(config Config) (*App, error) {
 		PermissionService:               permissionService,
 		WorkspaceRoleService:            workspaceRoleService,
 		UserDirectoryService:            userDirectoryService,
+		ChannelDirectoryService:         channelDirectoryService,
 		WorkspaceMemberDirectoryService: workspaceMemberDirectoryService,
 		WorkspaceCalendarService:        workspaceCalendarService,
 		ReminderService:                 reminderService,

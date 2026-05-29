@@ -65,6 +65,28 @@ const (
 )
 
 /*
+ReportLanguage identifies the language used for generated report copy.
+*/
+type ReportLanguage string
+
+const (
+	/*
+		ReportLanguageEnglish renders generated report labels in English.
+	*/
+	ReportLanguageEnglish ReportLanguage = "english"
+
+	/*
+		ReportLanguagePersian renders generated report labels in Persian.
+	*/
+	ReportLanguagePersian ReportLanguage = "persian"
+
+	/*
+		ReportLanguageArabic renders generated report labels in Arabic.
+	*/
+	ReportLanguageArabic ReportLanguage = "arabic"
+)
+
+/*
 ReportRunStatus identifies the lifecycle state of a generated report run.
 */
 type ReportRunStatus string
@@ -99,6 +121,7 @@ type ReportRule struct {
 	PostToChannel   bool
 	PreviewRequired bool
 	SortMode        ReportSortMode
+	ReportLanguage  ReportLanguage
 
 	IncludeOnLeave  bool
 	IncludeMissing  bool

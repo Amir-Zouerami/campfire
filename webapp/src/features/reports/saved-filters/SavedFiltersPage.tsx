@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
-import { Bookmark, Filter, Save, SlidersHorizontal } from 'lucide-react';
+import { Bookmark, Filter, SlidersHorizontal } from 'lucide-react';
 
-import { CampfireStatCard, CampfireSurface } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireStatCard, CampfireWorkflowIntro } from '@/components/campfire/CampfireLayoutPrimitives';
 import type { Workspace } from '@/types/domain';
 
 import { SavedFilterCreatePanel } from './SavedFilterCreatePanel';
@@ -39,7 +39,7 @@ export function SavedFiltersPage(props: SavedFiltersPageProps): ReactElement {
 					label="Report type"
 					value={formatReportKind(savedFilters.selectedReportType)}
 					helper="Visible library"
-					tone="blue"
+					tone="slate"
 				/>
 				<CampfireStatCard
 					icon={SlidersHorizontal}
@@ -50,21 +50,14 @@ export function SavedFiltersPage(props: SavedFiltersPageProps): ReactElement {
 				/>
 			</div>
 
-			<CampfireSurface className="campfire-control-surface">
-				<header className="campfire-flat-section-header">
-					<div>
-						<p className="campfire-page-eyebrow">Saved filters</p>
-						<h3 className="campfire-surface-title">Reusable report views</h3>
-						<p className="campfire-surface-description">
-							Create, apply, and delete saved filters without leaving the report workspace.
-						</p>
-					</div>
-					<Save className="campfire-flat-header-icon" aria-hidden="true" />
-				</header>
-
+			<CampfireWorkflowIntro
+				eyebrow="Saved filters"
+				title="Reusable report views"
+				description="Create, apply, and delete saved filters without leaving the report workspace."
+			>
 				<SavedFiltersFeedback state={savedFilters.loadState} message={savedFilters.message} />
 				{savedFilters.loadState === 'loading' && <SavedFiltersLoading />}
-			</CampfireSurface>
+			</CampfireWorkflowIntro>
 
 			<div className="campfire-focused-split campfire-focused-split--saved-filters">
 				<SavedFilterCreatePanel

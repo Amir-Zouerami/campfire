@@ -18,10 +18,35 @@ export function formatWorkspaceDateHint(dateValue: string, timezone?: string): s
 	}
 
 	if (calendar === 'persian') {
-		return formatCalendarLabel(date, timezone ?? '', 'fa-IR-u-ca-persian', 'Persian', 'persian');
+		return formatCalendarLabel(date, timezone ?? '', 'fa-IR-u-ca-persian', 'persian');
 	}
 
-	return formatCalendarLabel(date, timezone ?? '', 'ar-SA-u-ca-islamic', 'Hijri', 'islamic');
+	return formatCalendarLabel(date, timezone ?? '', 'ar-SA-u-ca-islamic', 'islamic');
+}
+
+/**
+ * buildWorkspaceDateLabelMap returns browser-rendered alternate calendar labels
+ * keyed by canonical Gregorian YYYY-MM-DD dates for report Markdown.
+ */
+export function buildWorkspaceDateLabelMap(
+	dates: readonly string[],
+	timezone?: string,
+): Readonly<Record<string, string>> {
+	const labels: Record<string, string> = {};
+
+	for (const date of dates) {
+		const cleanDate = date.trim();
+		if (cleanDate === '' || labels[cleanDate] !== undefined) {
+			continue;
+		}
+
+		const label = formatWorkspaceDateHint(cleanDate, timezone);
+		if (label !== '') {
+			labels[cleanDate] = label;
+		}
+	}
+
+	return labels;
 }
 
 /**
@@ -53,7 +78,6 @@ function formatCalendarLabel(
 	date: Date,
 	timezone: string,
 	locale: string,
-	label: string,
 	calendar: 'persian' | 'islamic',
 ): string {
 	try {
@@ -69,7 +93,7 @@ function formatCalendarLabel(
 		const year = parts.find(part => part.type === 'year')?.value ?? '';
 		const formatted = [day, month, year].filter(Boolean).join(' ');
 
-		return `${label}: ${formatted}`;
+		return formatted;
 	} catch {
 		return '';
 	}

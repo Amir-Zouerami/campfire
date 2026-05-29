@@ -16,6 +16,11 @@ import type { StandupQuestionDraft, StandupQuestionDraftPatch } from './standup-
 import { StandupField } from './StandupField';
 
 /**
+ * QuestionReportVisibility is the UI-safe merged visibility control.
+ */
+type QuestionReportVisibility = 'report' | 'hidden' | 'private';
+
+/**
  * StandupQuestionFieldsProps contains shared question form fields.
  */
 type StandupQuestionFieldsProps = {
@@ -24,6 +29,7 @@ type StandupQuestionFieldsProps = {
 	readonly draft: StandupQuestionDraft;
 	readonly disabled: boolean;
 	readonly allowTemplateChange: boolean;
+	readonly hideTemplateField?: boolean;
 	readonly onChange: (patch: StandupQuestionDraftPatch) => void;
 };
 
@@ -33,27 +39,30 @@ type StandupQuestionFieldsProps = {
 export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactElement {
 	const needsOptions = questionTypeNeedsOptions(props.draft.type);
 	const taskCreationSupported = props.draft.type === 'text' || props.draft.type === 'long_text';
+	const visibility = questionVisibilityFromDraft(props.draft);
 
 	return (
 		<div className="cf:grid cf:gap-4">
-			<div className="cf:grid cf:gap-4 cf:xl:grid-cols-[1fr_14rem_10rem]">
-				<StandupField htmlFor={`${props.idPrefix}-template`} label="Template">
-					<CampfireSelect
-						id={`${props.idPrefix}-template`}
-						disabled={props.disabled || !props.allowTemplateChange}
-						value={props.draft.templateId}
-						onValueChange={(value) => props.onChange({ templateId: value })}
-					>
-						<option value="">Choose template</option>
-						{props.templates.map((template) => (
-							<option key={template.id} value={template.id}>
-								{template.name}
-							</option>
-						))}
-					</CampfireSelect>
-				</StandupField>
+			<div className={props.hideTemplateField === true ? 'cf:grid cf:gap-4 cf:xl:grid-cols-[1fr_10rem]' : 'cf:grid cf:gap-4 cf:xl:grid-cols-[1fr_14rem_10rem]'}>
+				{props.hideTemplateField !== true && (
+					<StandupField htmlFor={`${props.idPrefix}-template`} label="Template">
+						<CampfireSelect
+							id={`${props.idPrefix}-template`}
+							disabled={props.disabled || !props.allowTemplateChange}
+							value={props.draft.templateId}
+							onValueChange={(value) => props.onChange({ templateId: value })}
+						>
+							<option value="">Choose template</option>
+							{props.templates.map((template) => (
+								<option key={template.id} value={template.id}>
+									{template.name}
+								</option>
+							))}
+						</CampfireSelect>
+					</StandupField>
+				)}
 
-				<StandupField htmlFor={`${props.idPrefix}-type`} label="Type">
+				<StandupField htmlFor={`${props.idPrefix}-type`} label="Question type">
 					<CampfireSelect
 						id={`${props.idPrefix}-type`}
 						disabled={props.disabled}
@@ -74,7 +83,7 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 					</CampfireSelect>
 				</StandupField>
 
-				<StandupField htmlFor={`${props.idPrefix}-position`} label="Position">
+				<StandupField htmlFor={`${props.idPrefix}-position`} label="Order">
 					<Input
 						id={`${props.idPrefix}-position`}
 						type="number"
@@ -92,21 +101,21 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 			</div>
 
 			<div className="cf:grid cf:gap-4 cf:xl:grid-cols-[1fr_18rem]">
-				<StandupField htmlFor={`${props.idPrefix}-label`} label="Question label">
+				<StandupField htmlFor={`${props.idPrefix}-label`} label="Question text">
 					<Input
 						id={`${props.idPrefix}-label`}
 						disabled={props.disabled}
-						placeholder="What did you work on yesterday?"
+						placeholder="What did you do last working day?"
 						value={props.draft.label}
 						onChange={(event) => props.onChange({ label: event.currentTarget.value })}
 					/>
 				</StandupField>
 
-				<StandupField htmlFor={`${props.idPrefix}-section`} label="Section">
+				<StandupField htmlFor={`${props.idPrefix}-section`} label="Report group">
 					<Input
 						id={`${props.idPrefix}-section`}
 						disabled={props.disabled}
-						placeholder="general"
+						placeholder="progress"
 						value={props.draft.section}
 						onChange={(event) => props.onChange({ section: event.currentTarget.value })}
 					/>
@@ -138,7 +147,7 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 			{needsOptions && (
 				<StandupField
 					htmlFor={`${props.idPrefix}-options`}
-					label="Options"
+					label="Answer options"
 					description="One option per line. Empty and duplicate rows are ignored."
 				>
 					<Textarea
@@ -152,7 +161,24 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 				</StandupField>
 			)}
 
-			<div className="cf:grid cf:gap-3 cf:xl:grid-cols-4">
+			<div className="campfire-question-behavior-grid">
+				<StandupField
+					htmlFor={`${props.idPrefix}-visibility`}
+					label="Report visibility"
+					description="Private answers are always hidden from channel reports."
+				>
+					<CampfireSelect
+						id={`${props.idPrefix}-visibility`}
+						disabled={props.disabled}
+						value={visibility}
+						onValueChange={(value) => props.onChange(visibilityPatch(value))}
+					>
+						<option value="report">Show in channel reports</option>
+						<option value="hidden">Hide from reports</option>
+						<option value="private">Private answer</option>
+					</CampfireSelect>
+				</StandupField>
+
 				<CampfireCheckboxField
 					checked={props.draft.required}
 					disabled={props.disabled}
@@ -162,29 +188,53 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 				/>
 
 				<CampfireCheckboxField
-					checked={props.draft.showInReport}
-					disabled={props.disabled}
-					label="Show in report"
-					description="Include answers in Markdown previews and reports."
-					onCheckedChange={(checked) => props.onChange({ showInReport: checked })}
-				/>
-
-				<CampfireCheckboxField
-					checked={props.draft.isPrivate}
-					disabled={props.disabled}
-					label="Private"
-					description="Keep this answer out of public reports when supported."
-					onCheckedChange={(checked) => props.onChange({ isPrivate: checked })}
-				/>
-
-				<CampfireCheckboxField
 					checked={props.draft.createsTasks}
 					disabled={props.disabled || !taskCreationSupported}
 					label="Create tasks"
-					description="Each answer row becomes a task behind the scenes."
+					description="Each itemized answer row becomes a task behind the scenes."
 					onCheckedChange={(checked) => props.onChange({ createsTasks: checked })}
 				/>
 			</div>
 		</div>
 	);
+}
+
+/**
+ * questionVisibilityFromDraft converts legacy show/private booleans into one UI state.
+ */
+function questionVisibilityFromDraft(draft: StandupQuestionDraft): QuestionReportVisibility {
+	if (draft.isPrivate) {
+		return 'private';
+	}
+
+	if (draft.showInReport) {
+		return 'report';
+	}
+
+	return 'hidden';
+}
+
+/**
+ * visibilityPatch maps the merged visibility control back to persisted booleans.
+ */
+function visibilityPatch(value: string): StandupQuestionDraftPatch {
+	switch (value) {
+		case 'private':
+			return {
+				showInReport: false,
+				isPrivate: true,
+			};
+
+		case 'hidden':
+			return {
+				showInReport: false,
+				isPrivate: false,
+			};
+
+		default:
+			return {
+				showInReport: true,
+				isPrivate: false,
+			};
+	}
 }

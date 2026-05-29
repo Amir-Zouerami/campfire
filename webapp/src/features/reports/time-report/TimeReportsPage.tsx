@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import { Clock3, ListChecks, Rows3, Users } from 'lucide-react';
 
 import { useUserProfiles } from '@/app/useUserProfiles';
-import { CampfireStatCard, CampfireSurface } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireStatCard, CampfireWorkflowIntro } from '@/components/campfire/CampfireLayoutPrimitives';
 import type { Workspace } from '@/types/domain';
 
 import { TimeReportControls } from './TimeReportControls';
@@ -32,7 +32,7 @@ export function TimeReportsPage(props: TimeReportsPageProps): ReactElement {
 		<div className="campfire-page-stack">
 			<div className="campfire-stat-grid campfire-stat-grid--four">
 				<CampfireStatCard icon={Clock3} label="Total time" value={formatMinutes(report.totalMinutes)} helper="Selected range" />
-				<CampfireStatCard icon={Rows3} label="Rows" value={String(report.rowCount)} helper="Grouped results" tone="blue" />
+				<CampfireStatCard icon={Rows3} label="Rows" value={String(report.rowCount)} helper="Grouped results" tone="slate" />
 				<CampfireStatCard icon={ListChecks} label="Entries" value={String(report.entryCount)} helper="Time logs" />
 				<CampfireStatCard
 					icon={Users}
@@ -43,29 +43,26 @@ export function TimeReportsPage(props: TimeReportsPageProps): ReactElement {
 				/>
 			</div>
 
-			<CampfireSurface className="campfire-control-surface">
-				<header className="campfire-flat-section-header">
-					<div>
-						<p className="campfire-page-eyebrow">Time report</p>
-						<h3 className="campfire-surface-title">Report controls</h3>
-						<p className="campfire-surface-description">Load grouped time totals for the selected range.</p>
-					</div>
-				</header>
-
+			<CampfireWorkflowIntro
+				eyebrow="Time report"
+				title="Report controls"
+				description="Load grouped time totals for the selected range."
+				controls={
+					<TimeReportControls
+						filter={report.filter}
+						disabled={report.isBusy}
+						timezone={props.workspace.timezone}
+						onChange={report.updateFilter}
+						onLoad={report.loadReport}
+					/>
+				}
+			>
 				<TimeReportFeedback
 					state={report.loadState}
 					message={report.message}
 					profileErrorMessage={profiles.errorMessage}
 				/>
-
-				<TimeReportControls
-					filter={report.filter}
-					disabled={report.isBusy}
-					timezone={props.workspace.timezone}
-					onChange={report.updateFilter}
-					onLoad={report.loadReport}
-				/>
-			</CampfireSurface>
+			</CampfireWorkflowIntro>
 
 			{report.loadState === 'loading' && <TimeReportLoading />}
 

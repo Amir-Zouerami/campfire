@@ -7,6 +7,7 @@ import { normalizeISODateInputValue } from '@/lib/dates';
 import type { ReportSortMode, WeeklyReportPreview, Workspace } from '@/types/domain';
 
 import {
+	buildWeeklyReportCalendarLabels,
 	errorToMessage,
 	getCurrentWeekRange,
 	markdownLineCount,
@@ -134,11 +135,17 @@ export function useWeeklyReportPreview(input: UseWeeklyReportPreviewInput): UseW
 			setMessage('');
 
 			try {
+				const calendarLabels = buildWeeklyReportCalendarLabels(
+					normalizedStartDate,
+					normalizedEndDate,
+					input.workspace.timezone,
+				);
 				const response = await getWeeklyReportPreview(
 					input.workspace.id,
 					normalizedStartDate,
 					normalizedEndDate,
 					sortMode,
+					calendarLabels,
 				);
 
 				if (!isActive) {
@@ -216,10 +223,16 @@ export function useWeeklyReportPreview(input: UseWeeklyReportPreviewInput): UseW
 		setMessage('');
 
 		try {
+			const calendarLabels = buildWeeklyReportCalendarLabels(
+				normalizedStartDate,
+				normalizedEndDate,
+				input.workspace.timezone,
+			);
 			await postWeeklyReportPreview(input.workspace.id, {
 				periodStart: normalizedStartDate,
 				periodEnd: normalizedEndDate,
 				sortMode,
+				calendarLabels,
 			});
 
 			setPeriodStartState(normalizedStartDate);

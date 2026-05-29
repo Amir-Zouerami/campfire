@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import { ClipboardList, Percent, UserRoundCheck, UserRoundX, Users } from 'lucide-react';
 
-import { CampfireSurface, CampfireStatCard } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireStatCard, CampfireWorkflowIntro } from '@/components/campfire/CampfireLayoutPrimitives';
 import { useUserProfiles } from '@/app/useUserProfiles';
 import type { Workspace } from '@/types/domain';
 
@@ -27,8 +27,25 @@ export function TeamStandupsPage(props: TeamStandupsPageProps): ReactElement {
 	const profiles = useUserProfiles(standups.userIDsForProfiles);
 
 	return (
-		<div className="campfire-team-workflow">
-			<div className="campfire-stat-grid campfire-stat-grid--four">
+		<div className="campfire-team-standups-page">
+			<CampfireWorkflowIntro
+				eyebrow="Review cockpit"
+				title="One clean standup review"
+				description="Pick the occurrence date, choose the review order, then scan missing people and submitted updates without nested cards."
+				id="campfire-standup-review-title"
+				controls={
+					<TeamStandupsControls
+						occurrenceDate={standups.occurrenceDate}
+						sortMode={standups.sortMode}
+						disabled={standups.isBusy}
+						timezone={props.workspace.timezone}
+						onOccurrenceDateChange={standups.setOccurrenceDate}
+						onSortModeChange={standups.setSortMode}
+					/>
+				}
+			/>
+
+			<div className="campfire-stat-grid campfire-stat-grid--four campfire-standup-review-metrics">
 				<CampfireStatCard
 					icon={Users}
 					label="Members"
@@ -54,45 +71,32 @@ export function TeamStandupsPage(props: TeamStandupsPageProps): ReactElement {
 					label="Completion"
 					value={`${standups.submittedPercent}%`}
 					helper={profiles.loading ? 'Profiles loading' : 'Profiles ready'}
-					tone="blue"
+					tone="ember"
 				/>
 			</div>
 
-			<CampfireSurface className="campfire-team-workflow-surface">
-				<TeamStandupsFeedback
-					state={standups.loadState}
-					message={standups.message}
-					profileErrorMessage={profiles.errorMessage}
-				/>
+			<TeamStandupsFeedback
+				state={standups.loadState}
+				message={standups.message}
+				profileErrorMessage={profiles.errorMessage}
+			/>
 
-				<TeamStandupsControls
-					occurrenceDate={standups.occurrenceDate}
-					sortMode={standups.sortMode}
-					disabled={standups.isBusy}
-					timezone={props.workspace.timezone}
-					onOccurrenceDateChange={standups.setOccurrenceDate}
-					onSortModeChange={standups.setSortMode}
-				/>
+			{standups.loadState === 'loading' && <TeamStandupsLoading />}
 
-				{standups.loadState === 'loading' && <TeamStandupsLoading />}
+			{standups.loadState !== 'loading' && standups.summary !== null && (
+				<>
+					<TeamStandupsAttentionStrip
+						missingUserIDs={standups.summary.missingUserIds}
+						onLeaveUserIDs={standups.summary.onLeaveUserIds}
+						labelForUserID={profiles.labelForUserID}
+					/>
 
-				{standups.loadState !== 'loading' && standups.summary !== null && (
-					<>
-						<TeamStandupsAttentionStrip
-							missingUserIDs={standups.summary.missingUserIds}
-							onLeaveUserIDs={standups.summary.onLeaveUserIds}
-							labelForUserID={profiles.labelForUserID}
-						/>
-
-						<div className="campfire-team-list-heading">
+					<section className="campfire-standup-review-submissions" aria-labelledby="campfire-submitted-standups-title">
+						<div className="campfire-team-list-heading campfire-team-list-heading--flat">
 							<ClipboardList className="campfire-flat-header-icon" />
 							<div>
-								<h3 className="cf:m-0 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
-									Submitted standups
-								</h3>
-								<p className="cf:m-0 cf:mt-1 cf:text-sm cf:font-medium cf:text-muted-foreground">
-									One focused list for submissions, answers, blockers, and follow-up context.
-								</p>
+								<h3 id="campfire-submitted-standups-title">Submitted standups</h3>
+								<p>Answers, blockers, and follow-up context for the selected occurrence date.</p>
 							</div>
 						</div>
 
@@ -101,9 +105,9 @@ export function TeamStandupsPage(props: TeamStandupsPageProps): ReactElement {
 							questionsByID={standups.questionsByID}
 							labelForUserID={profiles.labelForUserID}
 						/>
-					</>
-				)}
-			</CampfireSurface>
+					</section>
+				</>
+			)}
 		</div>
 	);
 }

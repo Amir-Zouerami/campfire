@@ -7,6 +7,7 @@ import { isISODateInputValue, normalizeISODateInputValue } from '@/lib/dates';
 import type { DailyReportPreview, StandupSubmissionSortMode, Workspace } from '@/types/domain';
 
 import {
+	buildDailyReportCalendarLabels,
 	errorToMessage,
 	getTodayLocalDateString,
 	markdownLineCount,
@@ -123,7 +124,13 @@ export function useDailyReportPreview(input: UseDailyReportPreviewInput): UseDai
 			setMessage('');
 
 			try {
-				const response = await getDailyReportPreview(input.workspace.id, normalizedOccurrenceDate, sortMode);
+				const calendarLabels = buildDailyReportCalendarLabels(normalizedOccurrenceDate, input.workspace.timezone);
+				const response = await getDailyReportPreview(
+					input.workspace.id,
+					normalizedOccurrenceDate,
+					sortMode,
+					calendarLabels,
+				);
 
 				if (!isActive) {
 					return;
@@ -182,9 +189,11 @@ export function useDailyReportPreview(input: UseDailyReportPreviewInput): UseDai
 		setMessage('');
 
 		try {
+			const calendarLabels = buildDailyReportCalendarLabels(normalizedOccurrenceDate, input.workspace.timezone);
 			await postDailyReportPreview(input.workspace.id, {
 				occurrenceDate: normalizedOccurrenceDate,
 				sortMode,
+				calendarLabels,
 			});
 
 			setOccurrenceDateState(normalizedOccurrenceDate);

@@ -67,6 +67,11 @@ export type ReportKind = 'daily' | 'weekly' | 'blockers' | 'missing' | 'time';
 export type ReportSortMode = 'name' | 'first_submitted' | 'last_submitted' | 'missing_first' | 'blockers_first';
 
 /**
+ * ReportLanguage identifies generated report copy language.
+ */
+export type ReportLanguage = 'english' | 'persian' | 'arabic';
+
+/**
  * ReportRunStatus identifies the lifecycle state of a generated report run.
  */
 export type ReportRunStatus = 'posting' | 'posted' | 'failed';
@@ -92,6 +97,7 @@ export type Workspace = {
 	readonly description: string;
 	readonly boardUrl: string;
 	readonly approvedLeaveNotificationChannelId: string;
+	readonly leaveNotificationLanguage: ReportLanguage;
 	readonly timezone: string;
 	readonly createdBy: string;
 	readonly createdAt: string;
@@ -444,6 +450,7 @@ export type ReportRule = {
 	readonly postToChannel: boolean;
 	readonly previewRequired: boolean;
 	readonly sortMode: ReportSortMode;
+	readonly reportLanguage: ReportLanguage;
 	readonly includeOnLeave: boolean;
 	readonly includeMissing: boolean;
 	readonly includeTime: boolean;

@@ -14,6 +14,7 @@ import type {
 	QuestionType,
 	ReminderRule,
 	ReportKind,
+	ReportLanguage,
 	ReportRule,
 	ReportRun,
 	ReportSortMode,
@@ -79,6 +80,40 @@ export type MeResponse = {
 	readonly isSystemAdmin: boolean;
 };
 
+
+/**
+ * ChannelProfile is the frontend representation of a Mattermost channel.
+ */
+export type ChannelProfile = {
+	readonly id: string;
+	readonly teamId: string;
+	readonly teamName: string;
+	readonly name: string;
+	readonly displayName: string;
+	readonly type: string;
+};
+
+/**
+ * LookupChannelsRequest is sent to POST /channels/lookup.
+ */
+export type LookupChannelsRequest = {
+	readonly channelIds: readonly string[];
+};
+
+/**
+ * LookupChannelsResponse is returned by POST /channels/lookup.
+ */
+export type LookupChannelsResponse = {
+	readonly channels: readonly ChannelProfile[];
+};
+
+/**
+ * SearchChannelsResponse is returned by GET /channels/search.
+ */
+export type SearchChannelsResponse = {
+	readonly channels: readonly ChannelProfile[];
+};
+
 /**
  * UserProfile is the frontend representation of a Mattermost user profile.
  */
@@ -123,6 +158,7 @@ export type WorkspaceByChannelResponse = {
  */
 export type UpdateWorkspaceNotificationSettingsRequest = {
 	readonly approvedLeaveNotificationChannelId: string;
+	readonly leaveNotificationLanguage: ReportLanguage;
 };
 
 /**
@@ -638,11 +674,17 @@ export type GetDailyReportPreviewResponse = {
 };
 
 /**
+ * ReportCalendarLabels contains browser-rendered, display-only alternate calendar labels keyed by YYYY-MM-DD.
+ */
+export type ReportCalendarLabels = Readonly<Record<string, string>>;
+
+/**
  * PostDailyReportPreviewRequest is sent to POST /workspaces/{workspaceID}/reports/daily-preview/post.
  */
 export type PostDailyReportPreviewRequest = {
 	readonly occurrenceDate: string;
 	readonly sortMode: StandupSubmissionSortMode;
+	readonly calendarLabels?: ReportCalendarLabels;
 };
 
 /**
@@ -666,6 +708,7 @@ export type PostWeeklyReportPreviewRequest = {
 	readonly periodStart: string;
 	readonly periodEnd: string;
 	readonly sortMode: ReportSortMode;
+	readonly calendarLabels?: ReportCalendarLabels;
 };
 
 /**
@@ -753,6 +796,7 @@ export type UpdateReportRuleRequest = {
 	readonly postToChannel: boolean;
 	readonly previewRequired: boolean;
 	readonly sortMode: ReportSortMode;
+	readonly reportLanguage: ReportLanguage;
 	readonly includeOnLeave: boolean;
 	readonly includeMissing: boolean;
 	readonly includeTime: boolean;

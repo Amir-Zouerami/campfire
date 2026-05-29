@@ -18,7 +18,7 @@ type CampfireFieldProps = {
  */
 export function CampfireField(props: CampfireFieldProps): ReactElement {
 	return (
-		<div className="cf:grid cf:gap-2">
+		<div className="campfire-field cf:grid cf:gap-2">
 			<Label htmlFor={props.id}>{props.label}</Label>
 
 			{props.children}

@@ -1,0 +1,312 @@
+/* Patch 33: operational hardening for live Campfire UI feedback. */
+
+.campfire-theme [data-sonner-toaster] {
+	bottom: 1.25rem !important;
+	right: 1.25rem !important;
+	z-index: 2147483647 !important;
+}
+
+.campfire-theme [data-sonner-toast].campfire-toast,
+.campfire-theme .campfire-toast {
+	width: min(25rem, calc(100vw - 2rem)) !important;
+	border: 1px solid rgba(251, 191, 36, 0.2) !important;
+	border-radius: 1rem !important;
+	background:
+		linear-gradient(145deg, rgba(31, 24, 18, 0.98), rgba(13, 12, 11, 0.98)) !important;
+	box-shadow: 0 1.25rem 3rem rgba(0, 0, 0, 0.38) !important;
+	color: rgba(255, 247, 237, 0.96) !important;
+	padding: 0.9rem 1rem !important;
+}
+
+.campfire-theme [data-sonner-toast].campfire-toast::before,
+.campfire-theme .campfire-toast::before {
+	display: none !important;
+}
+
+.campfire-theme [data-sonner-toast].campfire-toast--success,
+.campfire-theme .campfire-toast--success {
+	border-color: rgba(74, 222, 128, 0.28) !important;
+	background:
+		linear-gradient(145deg, rgba(18, 31, 23, 0.98), rgba(12, 12, 10, 0.98)) !important;
+}
+
+.campfire-theme [data-sonner-toast].campfire-toast--error,
+.campfire-theme .campfire-toast--error {
+	border-color: rgba(248, 113, 113, 0.34) !important;
+	background:
+		linear-gradient(145deg, rgba(38, 19, 18, 0.98), rgba(13, 12, 11, 0.98)) !important;
+}
+
+.campfire-theme [data-sonner-toast].campfire-toast--warning,
+.campfire-theme .campfire-toast--warning {
+	border-color: rgba(251, 191, 36, 0.34) !important;
+}
+
+.campfire-theme .campfire-toast-title {
+	font-size: 0.94rem !important;
+	font-weight: 780 !important;
+	letter-spacing: -0.015em !important;
+	line-height: 1.25 !important;
+	color: rgba(255, 247, 237, 0.98) !important;
+}
+
+.campfire-theme .campfire-toast-description {
+	margin-top: 0.2rem !important;
+	font-size: 0.78rem !important;
+	font-weight: 620 !important;
+	line-height: 1.45 !important;
+	color: rgba(231, 229, 228, 0.74) !important;
+}
+
+.campfire-theme .campfire-toast-icon-slot,
+.campfire-theme .campfire-toast-icon {
+	color: rgba(251, 191, 36, 0.9) !important;
+}
+
+.campfire-theme .campfire-toast--success .campfire-toast-icon-slot,
+.campfire-theme .campfire-toast--success .campfire-toast-icon {
+	color: rgba(134, 239, 172, 0.92) !important;
+}
+
+.campfire-theme .campfire-toast--error .campfire-toast-icon-slot,
+.campfire-theme .campfire-toast--error .campfire-toast-icon {
+	color: rgba(252, 165, 165, 0.94) !important;
+}
+
+.campfire-theme .campfire-toast-close {
+	background: rgba(255, 255, 255, 0.06) !important;
+	border: 1px solid rgba(255, 255, 255, 0.12) !important;
+	color: rgba(255, 247, 237, 0.8) !important;
+}
+
+.campfire-theme .campfire-bounded-result-list {
+	max-height: min(26rem, 42vh);
+	overflow: auto;
+	padding-right: 0.15rem;
+}
+
+.campfire-theme .campfire-bounded-result-list--tall {
+	max-height: min(34rem, 50vh);
+}
+
+.campfire-theme .campfire-approval-queue {
+	max-height: min(42rem, 60vh);
+	overflow: auto;
+	padding-right: 0.25rem;
+}
+
+.campfire-theme .campfire-approval-comment-block {
+	margin-top: 1.1rem !important;
+	display: grid !important;
+	gap: 0.7rem !important;
+}
+
+.campfire-theme .campfire-approval-comment-block textarea {
+	min-height: 6.5rem !important;
+	margin-bottom: 0.75rem !important;
+}
+
+.campfire-theme .campfire-approval-comment-block + footer,
+.campfire-theme .campfire-approval-queue footer {
+	padding-top: 0.6rem !important;
+}
+
+.campfire-theme .campfire-channel-picker {
+	display: grid;
+	gap: 0.65rem;
+}
+
+.campfire-theme .campfire-channel-picker-search,
+.campfire-theme .campfire-user-picker-search {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 0.55rem;
+	border: 1px solid rgba(251, 191, 36, 0.22);
+	border-radius: 0.9rem;
+	background: rgba(0, 0, 0, 0.24);
+	padding: 0.15rem 0.7rem;
+	color: rgba(251, 191, 36, 0.78);
+}
+
+.campfire-theme .campfire-channel-picker-search input,
+.campfire-theme .campfire-user-picker-search input {
+	border: 0 !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	padding-inline: 0 !important;
+}
+
+.campfire-theme .campfire-channel-picker-selected,
+.campfire-theme .campfire-user-picker-selected {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.8rem;
+	min-width: 0;
+	border: 1px solid rgba(255, 255, 255, 0.09);
+	border-radius: 0.9rem;
+	background: rgba(255, 255, 255, 0.035);
+	padding: 0.65rem 0.75rem;
+}
+
+.campfire-theme .campfire-channel-picker-selected span,
+.campfire-theme .campfire-user-picker-selected span {
+	display: grid;
+	min-width: 0;
+	gap: 0.16rem;
+}
+
+.campfire-theme .campfire-channel-picker-selected strong,
+.campfire-theme .campfire-user-picker-selected strong {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 0.9rem;
+}
+
+.campfire-theme .campfire-channel-picker-selected small,
+.campfire-theme .campfire-user-picker-selected small {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 0.72rem;
+	font-weight: 700;
+	color: rgba(231, 229, 228, 0.56);
+}
+
+.campfire-theme .campfire-channel-picker-results,
+.campfire-theme .campfire-user-picker-results {
+	max-height: 11.25rem;
+	overflow: auto;
+	border: 1px solid rgba(251, 191, 36, 0.18);
+	border-radius: 0.95rem;
+	background: rgba(13, 11, 9, 0.96);
+	padding: 0.35rem;
+}
+
+.campfire-theme .campfire-channel-picker-results button,
+.campfire-theme .campfire-user-picker-results button {
+	display: grid;
+	width: 100%;
+	gap: 0.15rem;
+	border: 0;
+	border-radius: 0.75rem;
+	background: transparent;
+	padding: 0.65rem 0.7rem;
+	text-align: left;
+	color: rgba(255, 247, 237, 0.92);
+}
+
+.campfire-theme .campfire-channel-picker-results button:hover,
+.campfire-theme .campfire-user-picker-results button:hover {
+	background: rgba(251, 191, 36, 0.12);
+}
+
+.campfire-theme .campfire-channel-picker-results small,
+.campfire-theme .campfire-user-picker-results small,
+.campfire-theme .campfire-channel-picker-message,
+.campfire-theme .campfire-user-picker-message {
+	font-size: 0.74rem;
+	font-weight: 650;
+	color: rgba(231, 229, 228, 0.62);
+}
+
+.campfire-theme .campfire-channel-picker-message--error,
+.campfire-theme .campfire-user-picker-message--error {
+	color: rgba(252, 165, 165, 0.92);
+}
+
+.campfire-theme .campfire-role-assignment-panel form {
+	align-items: start !important;
+}
+
+.campfire-theme .campfire-role-assignment-panel .campfire-user-picker-results {
+	max-height: 10.5rem;
+}
+
+.campfire-theme .campfire-overview-fact {
+	padding: 1rem !important;
+	gap: 0.85rem !important;
+}
+
+.campfire-theme .campfire-overview-fact-icon {
+	width: 2.25rem !important;
+	height: 2.25rem !important;
+}
+
+.campfire-theme .campfire-overview-fact-copy span,
+.campfire-theme .campfire-overview-fact-copy small {
+	font-size: 0.78rem !important;
+	letter-spacing: 0.075em !important;
+}
+
+.campfire-theme .campfire-overview-fact-copy strong,
+.campfire-theme .campfire-overview-fact-copy a {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 1rem !important;
+	font-weight: 760 !important;
+	letter-spacing: -0.015em !important;
+	color: rgba(255, 247, 237, 0.98) !important;
+}
+
+.campfire-theme :is(.campfire-workflow-intro-controls, .campfire-control-surface) .campfire-control-grid {
+	display: flex !important;
+	flex-wrap: wrap !important;
+	align-items: end !important;
+	justify-content: flex-end !important;
+	max-width: 100% !important;
+	overflow: visible !important;
+}
+
+.campfire-theme :is(.campfire-workflow-intro-controls, .campfire-control-surface) .campfire-control-grid .campfire-field {
+	flex: 1 1 12rem;
+}
+
+.campfire-theme :is(.campfire-workflow-intro-controls, .campfire-control-surface) .campfire-control-grid button {
+	flex: 0 0 auto;
+	min-height: 3.5rem;
+}
+
+.campfire-theme .campfire-logo-ember {
+	animation-duration: 2.55s !important;
+	animation-timing-function: linear !important;
+	will-change: transform, opacity;
+}
+
+@keyframes campfire-visible-ember-rise {
+	0% {
+		opacity: 0;
+		transform: translate3d(0, 0.25rem, 0) scale(0.34);
+	}
+
+	15% {
+		opacity: 0.9;
+		transform: translate3d(0.04rem, -0.25rem, 0) scale(0.66);
+	}
+
+	45% {
+		opacity: 0.82;
+		transform: translate3d(0.12rem, -0.85rem, 0) scale(0.82);
+	}
+
+	73% {
+		opacity: 0.56;
+		transform: translate3d(-0.04rem, -1.45rem, 0) scale(0.55);
+	}
+
+	100% {
+		opacity: 0;
+		transform: translate3d(-0.22rem, -2.15rem, 0) scale(0.16);
+	}
+}
+
+@media (max-width: 900px) {
+	.campfire-theme :is(.campfire-workflow-intro-controls, .campfire-control-surface) .campfire-control-grid .campfire-field,
+	.campfire-theme :is(.campfire-workflow-intro-controls, .campfire-control-surface) .campfire-control-grid button {
+		flex: 1 1 100%;
+		width: 100%;
+	}
+}

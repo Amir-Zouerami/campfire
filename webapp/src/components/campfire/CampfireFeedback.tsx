@@ -52,6 +52,10 @@ export function CampfireFeedback(props: CampfireFeedbackProps): ReactElement | n
 		return null;
 	}
 
+	if (props.tone === 'success') {
+		return null;
+	}
+
 	if (props.tone === 'error' && props.showInlineError !== true) {
 		return null;
 	}

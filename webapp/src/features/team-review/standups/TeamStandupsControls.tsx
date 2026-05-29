@@ -24,31 +24,35 @@ type TeamStandupsControlsProps = {
  */
 export function TeamStandupsControls(props: TeamStandupsControlsProps): ReactElement {
 	return (
-		<div className="campfire-team-standups-controls">
-			<CampfireField id="campfire-team-standups-date" label="Occurrence date">
-				<CampfireDateInput
-					id="campfire-team-standups-date"
-					disabled={props.disabled}
-					timezone={props.timezone}
-					value={props.occurrenceDate}
-					onValueChange={props.onOccurrenceDateChange}
-				/>
-			</CampfireField>
+		<div className="campfire-team-standups-controls" aria-label="Standup review filters">
+			<div className="campfire-team-standups-control-item">
+				<CampfireField id="campfire-team-standups-date" label="Occurrence date">
+					<CampfireDateInput
+						id="campfire-team-standups-date"
+						disabled={props.disabled}
+						timezone={props.timezone}
+						value={props.occurrenceDate}
+						onValueChange={props.onOccurrenceDateChange}
+					/>
+				</CampfireField>
+			</div>
 
-			<CampfireField id="campfire-team-standups-sort" label="Sort review by">
-				<CampfireSelect
-					id="campfire-team-standups-sort"
-					disabled={props.disabled}
-					value={props.sortMode}
-					onValueChange={value => props.onSortModeChange(toStandupSortMode(value))}
-				>
-					{teamStandupSortOptions.map(option => (
-						<option key={option.value} value={option.value}>
-							{option.label}
-						</option>
-					))}
-				</CampfireSelect>
-			</CampfireField>
+			<div className="campfire-team-standups-control-item">
+				<CampfireField id="campfire-team-standups-sort" label="Sort review by">
+					<CampfireSelect
+						id="campfire-team-standups-sort"
+						disabled={props.disabled}
+						value={props.sortMode}
+						onValueChange={value => props.onSortModeChange(toStandupSortMode(value))}
+					>
+						{teamStandupSortOptions.map(option => (
+							<option key={option.value} value={option.value}>
+								{option.label}
+							</option>
+						))}
+					</CampfireSelect>
+				</CampfireField>
+			</div>
 		</div>
 	);
 }

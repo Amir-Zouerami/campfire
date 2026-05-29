@@ -44,10 +44,11 @@ type WorkspaceStore interface {
 	GetByChannelID(ctx context.Context, channelID string) (*domain.Workspace, error)
 	ListActive(ctx context.Context) ([]domain.Workspace, error)
 	Create(ctx context.Context, params CreateWorkspaceParams) (*domain.Workspace, error)
-	UpdateApprovedLeaveNotificationChannelID(
+	UpdateNotificationSettings(
 		ctx context.Context,
 		workspaceID domain.ID,
 		channelID string,
+		leaveNotificationLanguage domain.ReportLanguage,
 		updatedAt time.Time,
 	) (*domain.Workspace, error)
 	ArchiveByID(ctx context.Context, workspaceID domain.ID, archivedAt time.Time) (bool, error)
@@ -88,30 +89,38 @@ func (s *SQLWorkspaceStore) ArchiveByID(
 }
 
 /*
-UpdateApprovedLeaveNotificationChannelID updates where approved-leave announcements are posted.
+UpdateNotificationSettings updates workspace leave notification routing and copy language.
 
 An empty channel ID means Campfire falls back to the workspace channel.
 */
-func (s *SQLWorkspaceStore) UpdateApprovedLeaveNotificationChannelID(
+func (s *SQLWorkspaceStore) UpdateNotificationSettings(
 	ctx context.Context,
 	workspaceID domain.ID,
 	channelID string,
+	leaveNotificationLanguage domain.ReportLanguage,
 	updatedAt time.Time,
 ) (*domain.Workspace, error) {
 	query := s.db.Rebind(`
 		UPDATE campfire_workspaces
-		SET approved_leave_notification_channel_id = ?, updated_at = ?
+		SET approved_leave_notification_channel_id = ?, leave_notification_language = ?, updated_at = ?
 		WHERE id = ? AND is_archived = FALSE
 	`)
 
-	result, err := s.db.ExecContext(ctx, query, channelID, updatedAt, workspaceID.String())
+	result, err := s.db.ExecContext(
+		ctx,
+		query,
+		channelID,
+		string(leaveNotificationLanguage),
+		updatedAt,
+		workspaceID.String(),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("update approved leave notification channel: %w", err)
+		return nil, fmt.Errorf("update workspace notification settings: %w", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return nil, fmt.Errorf("read approved leave notification update rows: %w", err)
+		return nil, fmt.Errorf("read workspace notification update rows: %w", err)
 	}
 
 	if rowsAffected == 0 {
@@ -145,6 +154,7 @@ func (s *SQLWorkspaceStore) GetByID(ctx context.Context, workspaceID domain.ID) 
 			description,
 			board_url,
 			approved_leave_notification_channel_id,
+			leave_notification_language,
 			timezone,
 			created_by,
 			created_at,
@@ -184,6 +194,7 @@ func (s *SQLWorkspaceStore) GetByChannelID(ctx context.Context, channelID string
 			description,
 			board_url,
 			approved_leave_notification_channel_id,
+			leave_notification_language,
 			timezone,
 			created_by,
 			created_at,
@@ -223,6 +234,7 @@ func (s *SQLWorkspaceStore) ListActive(ctx context.Context) ([]domain.Workspace,
 			description,
 			board_url,
 			approved_leave_notification_channel_id,
+			leave_notification_language,
 			timezone,
 			created_by,
 			created_at,
@@ -345,12 +357,13 @@ func (s *SQLWorkspaceStore) insertWorkspace(ctx context.Context, tx *sqlx.Tx, wo
 				description,
 				board_url,
 				approved_leave_notification_channel_id,
+				leave_notification_language,
 				timezone,
 				created_by,
 				created_at,
 				updated_at,
 				is_archived
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`),
 		workspace.ID.String(),
 		workspace.TeamID,
@@ -359,6 +372,7 @@ func (s *SQLWorkspaceStore) insertWorkspace(ctx context.Context, tx *sqlx.Tx, wo
 		workspace.Description,
 		workspace.BoardURL,
 		workspace.ApprovedLeaveNotificationChannelID,
+		string(workspace.LeaveNotificationLanguage),
 		workspace.Timezone,
 		workspace.CreatedBy,
 		workspace.CreatedAt,
@@ -578,7 +592,7 @@ func (s *SQLWorkspaceStore) insertStandupQuestion(
 				options_json,
 				created_at,
 				updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`),
 		question.ID.String(),
 		question.TemplateID.String(),
@@ -628,7 +642,7 @@ func (s *SQLWorkspaceStore) insertStandupSchedule(
 				created_by,
 				created_at,
 				updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`),
 		schedule.ID.String(),
 		schedule.WorkspaceID.String(),
@@ -673,7 +687,7 @@ func (s *SQLWorkspaceStore) insertReminderRule(
 				created_by,
 				created_at,
 				updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`),
 		rule.ID.String(),
 		rule.WorkspaceID.String(),
@@ -714,6 +728,7 @@ func (s *SQLWorkspaceStore) insertReportRule(
 				post_to_channel,
 				preview_required,
 				sort_mode,
+				report_language,
 				include_on_leave,
 				include_missing,
 				include_time,
@@ -721,7 +736,7 @@ func (s *SQLWorkspaceStore) insertReportRule(
 				created_by,
 				created_at,
 				updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`),
 		rule.ID.String(),
 		rule.WorkspaceID.String(),
@@ -731,6 +746,7 @@ func (s *SQLWorkspaceStore) insertReportRule(
 		rule.PostToChannel,
 		rule.PreviewRequired,
 		string(rule.SortMode),
+		string(rule.ReportLanguage),
 		rule.IncludeOnLeave,
 		rule.IncludeMissing,
 		rule.IncludeTime,
@@ -757,6 +773,7 @@ type workspaceRecord struct {
 	Description                        string    `db:"description"`
 	BoardURL                           string    `db:"board_url"`
 	ApprovedLeaveNotificationChannelID string    `db:"approved_leave_notification_channel_id"`
+	LeaveNotificationLanguage          string    `db:"leave_notification_language"`
 	Timezone                           string    `db:"timezone"`
 	CreatedBy                          string    `db:"created_by"`
 	CreatedAt                          time.Time `db:"created_at"`
@@ -776,6 +793,7 @@ func (r workspaceRecord) toDomain() domain.Workspace {
 		Description:                        r.Description,
 		BoardURL:                           r.BoardURL,
 		ApprovedLeaveNotificationChannelID: r.ApprovedLeaveNotificationChannelID,
+		LeaveNotificationLanguage:          domain.ReportLanguage(r.LeaveNotificationLanguage),
 		Timezone:                           r.Timezone,
 		CreatedBy:                          r.CreatedBy,
 		CreatedAt:                          parseStoredTime(r.CreatedAt),

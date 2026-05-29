@@ -203,6 +203,7 @@ func (s *ReminderService) requireReminderManagement(
 
 /*
 normalizeReminderOffsets validates, de-duplicates, and sorts reminder offsets.
+Offsets are minutes after the one-hour reminder window opens before report time.
 */
 func normalizeReminderOffsets(offsets []int) ([]int, error) {
 	if len(offsets) == 0 {
@@ -217,8 +218,8 @@ func normalizeReminderOffsets(offsets []int) ([]int, error) {
 			return nil, NewError(ErrorCodeValidationFailed, "Reminder offsets cannot be negative.")
 		}
 
-		if offset > 1440 {
-			return nil, NewError(ErrorCodeValidationFailed, "Reminder offsets cannot be more than 1440 minutes.")
+		if offset > 59 {
+			return nil, NewError(ErrorCodeValidationFailed, "Reminder offsets cannot be more than 59 minutes after the reminder window opens.")
 		}
 
 		if seen[offset] {

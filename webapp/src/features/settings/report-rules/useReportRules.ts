@@ -166,6 +166,7 @@ export function useReportRules(input: UseReportRulesInput): UseReportRulesResult
 				postToChannel: draft.postToChannel,
 				previewRequired: draft.previewRequired,
 				sortMode: draft.sortMode,
+				reportLanguage: draft.reportLanguage,
 				includeOnLeave: draft.includeOnLeave,
 				includeMissing: draft.includeMissing,
 				includeTime: draft.includeTime,

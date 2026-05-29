@@ -71,6 +71,7 @@ type UpdateWorkspaceNotificationSettingsInput struct {
 	ActorUserID                        string
 	WorkspaceID                        string
 	ApprovedLeaveNotificationChannelID string
+	LeaveNotificationLanguage          string
 }
 
 /*
@@ -216,17 +217,18 @@ func (s *WorkspaceService) Create(ctx context.Context, input CreateWorkspaceInpu
 
 	params := store.CreateWorkspaceParams{
 		Workspace: domain.Workspace{
-			ID:          workspaceID,
-			TeamID:      cleanTeamID,
-			ChannelID:   cleanChannelID,
-			Name:        cleanName,
-			Description: strings.TrimSpace(input.Description),
-			BoardURL:    strings.TrimSpace(input.BoardURL),
-			Timezone:    cleanTimezone,
-			CreatedBy:   cleanActorUserID,
-			CreatedAt:   now,
-			UpdatedAt:   now,
-			IsArchived:  false,
+			ID:                        workspaceID,
+			TeamID:                    cleanTeamID,
+			ChannelID:                 cleanChannelID,
+			Name:                      cleanName,
+			Description:               strings.TrimSpace(input.Description),
+			BoardURL:                  strings.TrimSpace(input.BoardURL),
+			LeaveNotificationLanguage: domain.ReportLanguageEnglish,
+			Timezone:                  cleanTimezone,
+			CreatedBy:                 cleanActorUserID,
+			CreatedAt:                 now,
+			UpdatedAt:                 now,
+			IsArchived:                false,
 		},
 		WorkingDays: buildWorkingDays(workspaceID, input.WorkingDays, now),
 		RoleSettings: domain.WorkspaceRoleSettings{
@@ -267,7 +269,7 @@ func (s *WorkspaceService) Create(ctx context.Context, input CreateWorkspaceInpu
 }
 
 /*
-UpdateApprovedLeaveNotificationChannelID updates the fixed channel for approved-leave announcements.
+UpdateApprovedLeaveNotificationChannelID updates leave notification routing and copy language.
 
 An empty channel ID clears the override and makes Campfire post approved-leave
 announcements back to the workspace channel.
@@ -287,11 +289,13 @@ func (s *WorkspaceService) UpdateApprovedLeaveNotificationChannelID(
 	}
 
 	cleanChannelID := strings.TrimSpace(input.ApprovedLeaveNotificationChannelID)
+	leaveNotificationLanguage := normalizeWorkspaceNotificationLanguage(input.LeaveNotificationLanguage)
 
-	workspace, err := s.workspaceStore.UpdateApprovedLeaveNotificationChannelID(
+	workspace, err := s.workspaceStore.UpdateNotificationSettings(
 		ctx,
 		domain.ID(cleanWorkspaceID),
 		cleanChannelID,
+		leaveNotificationLanguage,
 		time.Now().UTC(),
 	)
 	if err != nil {
@@ -307,6 +311,20 @@ func (s *WorkspaceService) UpdateApprovedLeaveNotificationChannelID(
 	}
 
 	return workspace, nil
+}
+
+/*
+normalizeWorkspaceNotificationLanguage returns a safe leave notification language.
+*/
+func normalizeWorkspaceNotificationLanguage(language string) domain.ReportLanguage {
+	switch domain.ReportLanguage(strings.TrimSpace(language)) {
+	case domain.ReportLanguagePersian:
+		return domain.ReportLanguagePersian
+	case domain.ReportLanguageArabic:
+		return domain.ReportLanguageArabic
+	default:
+		return domain.ReportLanguageEnglish
+	}
 }
 
 /*
@@ -337,17 +355,21 @@ func validateWorkingDays(workingDays []int) error {
 }
 
 /*
-buildWorkingDays creates one enabled working-day record for each selected day.
+buildWorkingDays creates one explicit row per weekday.
 */
 func buildWorkingDays(workspaceID domain.ID, weekdays []int, now time.Time) []domain.WorkspaceWorkingDay {
-	workingDays := make([]domain.WorkspaceWorkingDay, 0, len(weekdays))
-
+	enabledByWeekday := map[int]bool{}
 	for _, weekday := range weekdays {
+		enabledByWeekday[weekday] = true
+	}
+
+	workingDays := make([]domain.WorkspaceWorkingDay, 0, 7)
+	for weekday := int(time.Sunday); weekday <= int(time.Saturday); weekday++ {
 		workingDays = append(workingDays, domain.WorkspaceWorkingDay{
 			ID:          domain.ID(uuid.NewString()),
 			WorkspaceID: workspaceID,
 			Weekday:     time.Weekday(weekday),
-			Enabled:     true,
+			Enabled:     enabledByWeekday[weekday],
 			CreatedAt:   now,
 			UpdatedAt:   now,
 		})

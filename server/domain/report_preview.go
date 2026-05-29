@@ -56,8 +56,19 @@ DailyReportAnswerRow contains one answer formatted for report display.
 type DailyReportAnswerRow struct {
 	QuestionID    ID
 	QuestionLabel string
-	ValueText     string
-	ShowInReport  bool
-	IsPrivate     bool
-	Position      int
+
+	/*
+		ValueText is the compact plain-text representation used by API payloads.
+		ValueItems preserves itemized answer rows for Markdown reports.
+		ValueItemMinutes stores optional item-level tracked time aligned by index
+		with ValueItems. A zero value means no time should be shown for that row.
+	*/
+	ValueText        string
+	ValueItems       []string
+	ValueItemMinutes []int
+	ShowItemTime     bool
+
+	ShowInReport bool
+	IsPrivate    bool
+	Position     int
 }

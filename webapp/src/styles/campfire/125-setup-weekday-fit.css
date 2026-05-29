@@ -1,0 +1,45 @@
+/*
+Setup weekday fit keeps the first-run working-day toggles readable inside the
+narrow setup sidebar without letting long weekday names bleed into neighbors.
+*/
+.campfire-setup-weekday-grid {
+	grid-template-columns: repeat(auto-fit, minmax(4.85rem, 1fr));
+	align-items: stretch;
+}
+
+.campfire-theme .campfire-setup-weekday-grid .campfire-weekday-button {
+	box-sizing: border-box;
+	min-width: 0;
+	min-height: 4.35rem;
+	align-items: center;
+	justify-content: center;
+	padding: 0.75rem 0.55rem;
+	text-align: center;
+}
+
+.campfire-theme .campfire-setup-weekday-grid .campfire-weekday-button span {
+	max-width: 100%;
+	min-width: 0;
+}
+
+.campfire-theme .campfire-setup-weekday-grid .campfire-weekday-button span:first-child {
+	font-size: 0.9rem;
+	line-height: 1.1;
+}
+
+.campfire-theme .campfire-setup-weekday-grid .campfire-weekday-button span:last-child {
+	margin-top: 0.3rem;
+	overflow: hidden;
+	font-size: 0.58rem;
+	font-weight: 650;
+	letter-spacing: 0.035em;
+	line-height: 1.1;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+@media (max-width: 540px) {
+	.campfire-setup-weekday-grid {
+		grid-template-columns: repeat(auto-fit, minmax(4.5rem, 1fr));
+	}
+}

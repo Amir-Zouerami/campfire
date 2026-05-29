@@ -51,7 +51,7 @@ export function RoleAssignmentPanel(props: RoleAssignmentPanelProps): ReactEleme
 			</div>
 
 			<form
-				className="cf:grid cf:gap-4 cf:xl:grid-cols-[1fr_14rem_auto]"
+				className="cf:grid cf:items-start cf:gap-4 cf:xl:grid-cols-[1fr_14rem_auto]"
 				onSubmit={event => {
 					event.preventDefault();
 					void props.onAssign();
@@ -67,7 +67,7 @@ export function RoleAssignmentPanel(props: RoleAssignmentPanelProps): ReactEleme
 					/>
 				</div>
 
-				<div className="cf:grid cf:gap-2">
+				<div className="cf:grid cf:gap-2 cf:xl:self-start">
 					<Label htmlFor="campfire-role-select">Role</Label>
 					<CampfireSelect
 						id="campfire-role-select"
@@ -83,7 +83,7 @@ export function RoleAssignmentPanel(props: RoleAssignmentPanelProps): ReactEleme
 					</CampfireSelect>
 				</div>
 
-				<div className="cf:flex cf:items-end">
+				<div className="cf:flex cf:items-end cf:xl:self-start cf:xl:pt-[1.7rem]">
 					<Button type="submit" disabled={formDisabled}>
 						{props.saving ? (
 							<Loader2 className="cf:size-4 cf:animate-spin" />

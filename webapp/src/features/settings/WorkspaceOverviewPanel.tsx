@@ -18,11 +18,39 @@ import type { LucideIcon } from 'lucide-react';
 import { deleteWorkspace, updateWorkspaceNotificationSettings } from '@/api';
 import { useUserProfiles } from '@/app/useUserProfiles';
 import { CampfireSurface, CampfireWorkflowNote } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireChannelPicker } from '@/components/campfire/CampfireChannelPicker';
+import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/campfire/campfire-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
+import type { ReportLanguage } from '@/types/domain';
+
+/**
+ * normalizeLeaveNotificationLanguage narrows API values to supported leave notification languages.
+ */
+function normalizeLeaveNotificationLanguage(value: string | undefined): ReportLanguage {
+	if (value === 'persian' || value === 'arabic') {
+		return value;
+	}
+
+	return 'english';
+}
+
+/**
+ * formatLeaveNotificationLanguage returns a readable leave notification language label.
+ */
+function formatLeaveNotificationLanguage(language: ReportLanguage): string {
+	switch (language) {
+		case 'persian':
+			return 'Persian';
+		case 'arabic':
+			return 'Arabic';
+		default:
+			return 'English';
+	}
+}
 
 /**
  * WorkspaceOverviewPanel renders workspace identity, notification routing, and
@@ -33,6 +61,9 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [notificationChannelID, setNotificationChannelID] = useState(
 		props.workspace.approvedLeaveNotificationChannelId,
+	);
+	const [leaveNotificationLanguage, setLeaveNotificationLanguage] = useState<ReportLanguage>(
+		normalizeLeaveNotificationLanguage(props.workspace.leaveNotificationLanguage),
 	);
 	const [isSavingNotifications, setIsSavingNotifications] = useState(false);
 
@@ -46,13 +77,17 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 		props.workspace.createdBy.trim() === '' ? 'Unknown' : creatorProfiles.labelForUserID(props.workspace.createdBy);
 	const savedNotificationChannelID = props.workspace.approvedLeaveNotificationChannelId.trim();
 	const draftNotificationChannelID = notificationChannelID.trim();
-	const notificationDirty = draftNotificationChannelID !== savedNotificationChannelID;
+	const savedLeaveNotificationLanguage = normalizeLeaveNotificationLanguage(props.workspace.leaveNotificationLanguage);
+	const notificationDirty =
+		draftNotificationChannelID !== savedNotificationChannelID ||
+		leaveNotificationLanguage !== savedLeaveNotificationLanguage;
 	const notificationTargetLabel =
 		savedNotificationChannelID === '' ? 'Workspace channel' : `Fixed channel ${savedNotificationChannelID}`;
 
 	useEffect(() => {
 		setNotificationChannelID(props.workspace.approvedLeaveNotificationChannelId);
-	}, [props.workspace.approvedLeaveNotificationChannelId]);
+		setLeaveNotificationLanguage(normalizeLeaveNotificationLanguage(props.workspace.leaveNotificationLanguage));
+	}, [props.workspace.approvedLeaveNotificationChannelId, props.workspace.leaveNotificationLanguage]);
 
 	/**
 	 * handleSaveNotificationSettings saves approved-leave announcement routing.
@@ -67,6 +102,7 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 		try {
 			await updateWorkspaceNotificationSettings(props.workspace.id, {
 				approvedLeaveNotificationChannelId: draftNotificationChannelID,
+				leaveNotificationLanguage,
 			});
 
 			toast.success('Workspace notification settings saved.');
@@ -166,23 +202,39 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 				<div className="campfire-workspace-route-summary">
 					<OverviewFact icon={BellRing} label="Current target" value={notificationTargetLabel} helper="Approved and cancelled approved leave" />
 					<OverviewFact icon={Hash} label="Fallback" value="Workspace channel" helper="Used when no fixed channel is set" />
+					<OverviewFact icon={BellRing} label="Language" value={formatLeaveNotificationLanguage(savedLeaveNotificationLanguage)} helper="Leave request and approval messages" />
 				</div>
 
 				<div className="campfire-field-stack">
 					<label htmlFor="campfire-approved-leave-notification-channel" className="campfire-field-label">
-						Fixed notification channel ID
+						Fixed notification channel
 					</label>
-					<Input
-						id="campfire-approved-leave-notification-channel"
-						disabled={!canEditNotifications || isSavingNotifications}
-						placeholder={`Empty = workspace channel (${props.workspace.channelId})`}
+					<CampfireChannelPicker
+						teamID={props.workspace.teamId}
 						value={notificationChannelID}
-						onChange={event => setNotificationChannelID(event.currentTarget.value)}
+						disabled={!canEditNotifications || isSavingNotifications}
+						onChange={setNotificationChannelID}
 					/>
 					<p>
-						Leave this empty to post announcements in the Campfire workspace channel. Paste a
-						Mattermost channel or group conversation ID to route them to a fixed place.
+						Leave this empty to post announcements in the Campfire workspace channel. Search by
+						channel name, then save the stable Mattermost channel ID Campfire needs.
 					</p>
+				</div>
+
+				<div className="campfire-field-stack">
+					<label htmlFor="campfire-leave-notification-language" className="campfire-field-label">
+						Leave notification language
+					</label>
+					<CampfireSelect
+						id="campfire-leave-notification-language"
+						disabled={!canEditNotifications || isSavingNotifications}
+						value={leaveNotificationLanguage}
+						onValueChange={value => setLeaveNotificationLanguage(normalizeLeaveNotificationLanguage(value))}
+					>
+						<option value="english">English</option>
+						<option value="persian">Persian</option>
+						<option value="arabic">Arabic</option>
+					</CampfireSelect>
 				</div>
 
 				<div className="campfire-workspace-actions-row">

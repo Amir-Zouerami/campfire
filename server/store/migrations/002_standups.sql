@@ -115,6 +115,7 @@ CREATE TABLE IF NOT EXISTS campfire_report_rules (
     post_to_channel BOOLEAN NOT NULL,
     preview_required BOOLEAN NOT NULL,
     sort_mode VARCHAR(64) NOT NULL,
+    report_language VARCHAR(32) NOT NULL DEFAULT 'english',
     include_on_leave BOOLEAN NOT NULL,
     include_missing BOOLEAN NOT NULL,
     include_time BOOLEAN NOT NULL,

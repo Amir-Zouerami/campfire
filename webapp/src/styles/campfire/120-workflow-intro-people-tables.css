@@ -1,0 +1,410 @@
+/*
+ * Shared workflow intro and scalable people-review tables.
+ *
+ * This patch turns the liked Team Review cockpit surface into a reusable
+ * primitive and replaces pill-compressed missing/on-leave status with tables
+ * that can handle large organizations.
+ */
+
+.campfire-theme .campfire-workflow-intro,
+.campfire-theme .campfire-control-surface,
+.campfire-theme .campfire-team-workflow-surface {
+	display: grid !important;
+	gap: 1rem !important;
+	border: 1px solid rgba(251, 191, 36, 0.13) !important;
+	border-radius: 1.45rem !important;
+	background:
+		radial-gradient(circle at 0% 0%, rgba(251, 146, 60, 0.105), transparent 22rem),
+		linear-gradient(135deg, rgba(31, 24, 17, 0.66), rgba(14, 12, 10, 0.78)),
+		rgba(12, 10, 8, 0.74) !important;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.055),
+		0 20px 70px rgba(0, 0, 0, 0.24) !important;
+	padding: clamp(1rem, 1.2vw, 1.35rem) !important;
+}
+
+.campfire-theme .campfire-workflow-intro-row {
+	display: grid;
+	grid-template-columns: minmax(20rem, 1fr) minmax(32rem, 44rem);
+	gap: clamp(1.25rem, 2vw, 2.4rem);
+	align-items: center;
+}
+
+.campfire-theme .campfire-workflow-intro-copy,
+.campfire-theme .campfire-flat-section-header > div {
+	display: grid;
+	min-width: 0;
+	gap: 0.42rem;
+}
+
+.campfire-theme .campfire-workflow-intro-eyebrow,
+.campfire-theme .campfire-flat-section-header .campfire-page-eyebrow,
+.campfire-theme .campfire-team-workflow-surface .campfire-page-eyebrow {
+	margin: 0 !important;
+	color: #fbbf24 !important;
+	font-size: 0.76rem !important;
+	font-weight: 900 !important;
+	letter-spacing: 0.22em !important;
+	line-height: 1 !important;
+	text-transform: uppercase !important;
+}
+
+.campfire-theme .campfire-workflow-intro-copy h3,
+.campfire-theme .campfire-flat-section-header .campfire-surface-title,
+.campfire-theme .campfire-team-workflow-surface .campfire-surface-title {
+	margin: 0 !important;
+	color: #fff7ed !important;
+	font-size: clamp(1.45rem, 0.9vw + 1.1rem, 1.95rem) !important;
+	font-weight: 780 !important;
+	letter-spacing: -0.048em !important;
+	line-height: 1.04 !important;
+}
+
+.campfire-theme .campfire-workflow-intro-copy p:not(.campfire-workflow-intro-eyebrow),
+.campfire-theme .campfire-flat-section-header .campfire-surface-description,
+.campfire-theme .campfire-team-workflow-surface .campfire-surface-description {
+	max-width: 52rem;
+	margin: 0 !important;
+	color: rgba(255, 247, 237, 0.7) !important;
+	font-size: 0.98rem !important;
+	font-weight: 560 !important;
+	line-height: 1.5 !important;
+}
+
+.campfire-theme .campfire-workflow-intro-controls {
+	min-width: 0;
+	align-self: center;
+}
+
+.campfire-theme .campfire-workflow-intro-body {
+	display: grid;
+	gap: 0.75rem;
+}
+
+.campfire-theme :is(.campfire-workflow-intro-controls, .campfire-control-surface) :is(.campfire-control-grid, .campfire-team-control-grid, .campfire-team-standups-controls) {
+	width: 100% !important;
+	align-items: end !important;
+}
+
+.campfire-theme :is(.campfire-workflow-intro-controls, .campfire-control-surface) .campfire-field,
+.campfire-theme .campfire-team-standups-controls .campfire-field {
+	display: grid !important;
+	min-width: 0 !important;
+	height: 100% !important;
+	grid-template-rows: 1.15rem 3.5rem !important;
+	gap: 0.48rem !important;
+	align-content: end !important;
+}
+
+.campfire-theme :is(.campfire-workflow-intro-controls, .campfire-control-surface) .campfire-field > label,
+.campfire-theme .campfire-team-standups-controls .campfire-field > label {
+	display: flex !important;
+	min-height: 1.15rem !important;
+	align-items: center !important;
+	align-self: end !important;
+	margin: 0 !important;
+	color: rgba(255, 231, 186, 0.9) !important;
+	font-size: 0.79rem !important;
+	font-weight: 900 !important;
+	letter-spacing: 0.12em !important;
+	line-height: 1 !important;
+}
+
+.campfire-theme :is(.campfire-workflow-intro-controls, .campfire-control-surface) :is(.campfire-date-picker, .campfire-field > .cf\:relative),
+.campfire-theme .campfire-team-standups-controls :is(.campfire-date-picker, .campfire-field > .cf\:relative) {
+	height: 3.5rem !important;
+	align-self: end !important;
+}
+
+.campfire-theme :is(.campfire-workflow-intro-controls, .campfire-control-surface) :is(.campfire-date-picker-trigger, .campfire-select-trigger),
+.campfire-theme .campfire-team-standups-controls :is(.campfire-date-picker-trigger, .campfire-select-trigger) {
+	height: 3.5rem !important;
+	min-height: 3.5rem !important;
+	align-items: center !important;
+}
+
+.campfire-theme .campfire-date-picker-hint-label,
+.campfire-theme .campfire-date-picker-hint-calendar {
+	unicode-bidi: isolate;
+}
+
+.campfire-theme .campfire-date-picker-hint-calendar {
+	direction: rtl;
+	text-align: start;
+}
+
+.campfire-theme .campfire-people-review {
+	display: grid;
+	gap: 0.95rem;
+	border: 1px solid rgba(255, 255, 255, 0.085);
+	border-radius: 1.35rem;
+	background:
+		radial-gradient(circle at 0% 0%, rgba(251, 146, 60, 0.05), transparent 20rem),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.032), rgba(255, 255, 255, 0.012)),
+		rgba(9, 8, 7, 0.56);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+	padding: 1rem;
+}
+
+.campfire-theme .campfire-people-review-header {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 1rem;
+	padding-inline: 0.12rem;
+}
+
+.campfire-theme .campfire-people-review-header h3,
+.campfire-theme .campfire-people-review-header p {
+	margin: 0;
+}
+
+.campfire-theme .campfire-people-review-eyebrow {
+	color: #fbbf24;
+	font-size: 0.75rem;
+	font-weight: 900;
+	letter-spacing: 0.18em;
+	line-height: 1;
+	text-transform: uppercase;
+}
+
+.campfire-theme .campfire-people-review-header h3 {
+	margin-top: 0.35rem;
+	color: #fff7ed;
+	font-size: 1.35rem;
+	font-weight: 780;
+	letter-spacing: -0.04em;
+	line-height: 1.08;
+}
+
+.campfire-theme .campfire-people-review-header > p {
+	max-width: 42rem;
+	color: rgba(255, 247, 237, 0.66);
+	font-size: 0.98rem;
+	font-weight: 560;
+	line-height: 1.45;
+	text-align: right;
+}
+
+.campfire-theme .campfire-people-review-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0.9rem;
+}
+
+.campfire-theme .campfire-people-review-bucket {
+	display: grid;
+	min-width: 0;
+	gap: 0.72rem;
+	border: 1px solid rgba(255, 255, 255, 0.075);
+	border-radius: 1.05rem;
+	background: rgba(0, 0, 0, 0.18);
+	padding: 0.78rem;
+}
+
+.campfire-theme .campfire-people-review-bucket--red {
+	border-color: rgba(248, 113, 113, 0.14);
+	background: linear-gradient(180deg, rgba(248, 113, 113, 0.052), rgba(0, 0, 0, 0.18));
+}
+
+.campfire-theme .campfire-people-review-bucket-header {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	gap: 0.72rem;
+	align-items: center;
+}
+
+.campfire-theme .campfire-people-review-bucket-header h4,
+.campfire-theme .campfire-people-review-bucket-header p {
+	margin: 0;
+}
+
+.campfire-theme .campfire-people-review-bucket-header h4 {
+	color: #fff7ed;
+	font-size: 1.08rem;
+	font-weight: 780;
+	letter-spacing: -0.025em;
+	line-height: 1.1;
+}
+
+.campfire-theme .campfire-people-review-bucket-header p {
+	margin-top: 0.22rem;
+	color: rgba(255, 247, 237, 0.62);
+	font-size: 0.88rem;
+	font-weight: 560;
+	line-height: 1.35;
+}
+
+.campfire-theme .campfire-people-review-bucket-header strong {
+	display: grid;
+	min-width: 2.35rem;
+	height: 2.35rem;
+	place-items: center;
+	border: 1px solid rgba(251, 191, 36, 0.18);
+	border-radius: 0.82rem;
+	background: rgba(251, 191, 36, 0.08);
+	color: #fff7ed;
+	font-size: 1.04rem;
+	font-weight: 850;
+	line-height: 1;
+}
+
+.campfire-theme .campfire-people-review-icon {
+	display: grid;
+	width: 2.35rem;
+	height: 2.35rem;
+	place-items: center;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 0.82rem;
+	background: rgba(255, 255, 255, 0.04);
+}
+
+.campfire-theme .campfire-people-review-icon--red {
+	border-color: rgba(248, 113, 113, 0.26);
+	background: rgba(248, 113, 113, 0.1);
+	color: #fecaca;
+}
+
+.campfire-theme .campfire-people-review-icon--slate {
+	border-color: rgba(255, 255, 255, 0.14);
+	background: rgba(255, 255, 255, 0.055);
+	color: rgba(255, 247, 237, 0.82);
+}
+
+.campfire-theme .campfire-people-review-table {
+	display: grid;
+	overflow: hidden;
+	border: 1px solid rgba(255, 255, 255, 0.07);
+	border-radius: 0.88rem;
+	background: rgba(255, 255, 255, 0.018);
+}
+
+.campfire-theme .campfire-people-review-body {
+	display: grid;
+	max-height: 18rem;
+	overflow: auto;
+}
+
+.campfire-theme .campfire-people-review-row {
+	display: grid;
+	grid-template-columns: minmax(10rem, 1fr) minmax(7rem, 0.55fr) minmax(10rem, 0.85fr);
+	gap: 0.8rem;
+	align-items: center;
+	min-height: 2.85rem;
+	border-top: 1px solid rgba(255, 255, 255, 0.055);
+	padding: 0.58rem 0.7rem;
+}
+
+.campfire-theme .campfire-people-review-row--head {
+	min-height: 2.3rem;
+	border-top: 0;
+	background: rgba(253, 186, 116, 0.055);
+	color: rgba(255, 237, 213, 0.7);
+	font-size: 0.73rem;
+	font-weight: 900;
+	letter-spacing: 0.12em;
+	line-height: 1;
+	text-transform: uppercase;
+}
+
+.campfire-theme .campfire-people-review-row strong {
+	min-width: 0;
+	overflow: hidden;
+	color: #fff7ed;
+	font-size: 0.95rem;
+	font-weight: 760;
+	line-height: 1.25;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.campfire-theme .campfire-people-review-row span:not(.campfire-people-review-status) {
+	min-width: 0;
+	color: rgba(255, 247, 237, 0.66);
+	font-size: 0.88rem;
+	font-weight: 580;
+	line-height: 1.25;
+}
+
+.campfire-theme .campfire-people-review-status {
+	display: inline-flex;
+	width: fit-content;
+	align-items: center;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 999px;
+	padding: 0.28rem 0.58rem;
+	font-size: 0.76rem;
+	font-weight: 820;
+	line-height: 1;
+}
+
+.campfire-theme .campfire-people-review-status--red {
+	border-color: rgba(248, 113, 113, 0.24);
+	background: rgba(248, 113, 113, 0.11);
+	color: #fecaca;
+}
+
+.campfire-theme .campfire-people-review-status--slate {
+	border-color: rgba(255, 255, 255, 0.14);
+	background: rgba(255, 255, 255, 0.06);
+	color: rgba(255, 247, 237, 0.82);
+}
+
+.campfire-theme .campfire-people-review-empty {
+	display: grid;
+	gap: 0.26rem;
+	min-height: 6.5rem;
+	place-content: center;
+	border: 1px dashed rgba(251, 191, 36, 0.15);
+	border-radius: 0.9rem;
+	background: rgba(0, 0, 0, 0.12);
+	padding: 1rem;
+	text-align: center;
+}
+
+.campfire-theme .campfire-people-review-empty strong {
+	color: #fff7ed;
+	font-size: 1rem;
+	font-weight: 780;
+	line-height: 1.15;
+}
+
+.campfire-theme .campfire-people-review-empty span {
+	color: rgba(255, 247, 237, 0.62);
+	font-size: 0.88rem;
+	font-weight: 560;
+	line-height: 1.35;
+}
+
+@media (max-width: 1260px) {
+	.campfire-theme .campfire-workflow-intro-row {
+		grid-template-columns: 1fr;
+		align-items: start;
+	}
+
+	.campfire-theme .campfire-workflow-intro-controls {
+		width: 100%;
+	}
+}
+
+@media (max-width: 1080px) {
+	.campfire-theme .campfire-people-review-header {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+
+	.campfire-theme .campfire-people-review-header > p {
+		text-align: left;
+	}
+
+	.campfire-theme .campfire-people-review-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (max-width: 760px) {
+	.campfire-theme .campfire-people-review-row {
+		grid-template-columns: 1fr;
+		align-items: start;
+	}
+}

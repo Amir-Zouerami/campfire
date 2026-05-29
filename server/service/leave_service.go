@@ -409,6 +409,7 @@ func (s *LeaveService) Create(ctx context.Context, input CreateLeaveInput) (*dom
 			WorkspaceID:    workspace.ID.String(),
 			WorkspaceName:  workspace.Name,
 			ChannelID:      workspace.ChannelID,
+			Language:       normalizeLeaveNotificationLanguage(workspace.LeaveNotificationLanguage),
 
 			RequesterUserID: cleanActorUserID,
 			ApproverUserIDs: filterNotificationRecipients(approverUserIDs, cleanActorUserID),
@@ -513,6 +514,7 @@ func (s *LeaveService) Decide(ctx context.Context, input DecideLeaveInput) (*dom
 		WorkspaceID:    workspace.ID.String(),
 		WorkspaceName:  workspace.Name,
 		ChannelID:      workspace.ChannelID,
+		Language:       normalizeLeaveNotificationLanguage(workspace.LeaveNotificationLanguage),
 
 		AnnouncementChannelID: workspace.ApprovedLeaveNotificationChannelID,
 
@@ -615,6 +617,7 @@ func (s *LeaveService) Cancel(ctx context.Context, input CancelLeaveInput) (*dom
 			WorkspaceID:    workspace.ID.String(),
 			WorkspaceName:  workspace.Name,
 			ChannelID:      workspace.ChannelID,
+			Language:       normalizeLeaveNotificationLanguage(workspace.LeaveNotificationLanguage),
 
 			AnnouncementChannelID: workspace.ApprovedLeaveNotificationChannelID,
 
@@ -664,6 +667,20 @@ func (s *LeaveService) requireLeaveDecisionPermission(
 	}
 
 	return nil
+}
+
+/*
+normalizeLeaveNotificationLanguage returns a safe leave notification language.
+*/
+func normalizeLeaveNotificationLanguage(language domain.ReportLanguage) domain.ReportLanguage {
+	switch language {
+	case domain.ReportLanguagePersian:
+		return domain.ReportLanguagePersian
+	case domain.ReportLanguageArabic:
+		return domain.ReportLanguageArabic
+	default:
+		return domain.ReportLanguageEnglish
+	}
 }
 
 /*

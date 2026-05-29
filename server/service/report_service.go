@@ -23,6 +23,9 @@ type BuildDailyReportPreviewInput struct {
 	WorkspaceID    string
 	OccurrenceDate string
 	SortMode       string
+
+	// CalendarLabels contains untrusted, display-only browser-formatted labels keyed by YYYY-MM-DD.
+	CalendarLabels map[string]string
 }
 
 /*
@@ -34,6 +37,9 @@ type BuildWeeklyReportPreviewInput struct {
 	PeriodStart string
 	PeriodEnd   string
 	SortMode    string
+
+	// CalendarLabels contains untrusted, display-only browser-formatted labels keyed by YYYY-MM-DD.
+	CalendarLabels map[string]string
 }
 
 /*
@@ -65,6 +71,7 @@ type UpdateReportRuleInput struct {
 	PostToChannel   bool
 	PreviewRequired bool
 	SortMode        string
+	ReportLanguage  string
 	IncludeOnLeave  bool
 	IncludeMissing  bool
 	IncludeTime     bool
@@ -80,6 +87,10 @@ type PostDailyReportPreviewInput struct {
 	WorkspaceID    string
 	OccurrenceDate string
 	SortMode       string
+	AllowRepost    bool
+
+	// CalendarLabels contains untrusted, display-only browser-formatted labels keyed by YYYY-MM-DD.
+	CalendarLabels map[string]string
 }
 
 /*
@@ -101,6 +112,10 @@ type PostWeeklyReportPreviewInput struct {
 	PeriodStart   string
 	PeriodEnd     string
 	SortMode      string
+	AllowRepost   bool
+
+	// CalendarLabels contains untrusted, display-only browser-formatted labels keyed by YYYY-MM-DD.
+	CalendarLabels map[string]string
 }
 
 /*
@@ -157,6 +172,7 @@ type ReportService struct {
 	workspaceStore        store.WorkspaceStore
 	workspaceRoleStore    store.WorkspaceRoleStore
 	reportStore           store.ReportStore
+	taskStore             store.TaskStore
 	reportPublisher       ReportPublisher
 	userDirectoryProvider UserDirectoryProvider
 }
@@ -169,6 +185,7 @@ func NewReportService(
 	workspaceStore store.WorkspaceStore,
 	workspaceRoleStore store.WorkspaceRoleStore,
 	reportStore store.ReportStore,
+	taskStore store.TaskStore,
 	reportPublisher ReportPublisher,
 	userDirectoryProvider UserDirectoryProvider,
 ) *ReportService {
@@ -177,6 +194,7 @@ func NewReportService(
 		workspaceStore:        workspaceStore,
 		workspaceRoleStore:    workspaceRoleStore,
 		reportStore:           reportStore,
+		taskStore:             taskStore,
 		reportPublisher:       reportPublisher,
 		userDirectoryProvider: userDirectoryProvider,
 	}
@@ -192,6 +210,11 @@ func (s *ReportService) BuildDailyPreview(
 	ctx context.Context,
 	input BuildDailyReportPreviewInput,
 ) (*domain.DailyReportPreview, error) {
+	workspace, err := s.loadReportWorkspace(ctx, input.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+
 	configuration, err := s.standupService.ListConfiguration(ctx, ListStandupConfigurationInput{
 		ActorUserID: input.ActorUserID,
 		WorkspaceID: input.WorkspaceID,
@@ -224,10 +247,211 @@ func (s *ReportService) BuildDailyPreview(
 		Markdown:         "",
 	}
 
+	calendarLabels := normalizeReportCalendarLabels(input.CalendarLabels)
+	formatSettings, err := s.reportFormatSettingsForKind(ctx, workspace.ID, domain.ReportKindDaily)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.applyReportItemTimes(
+		ctx,
+		workspace.ID,
+		preview.OccurrenceDate,
+		preview.OccurrenceDate,
+		formatSettings.IncludeTime,
+		preview,
+	); err != nil {
+		return nil, err
+	}
+
 	userLabels := s.userLabelsForReport(ctx, collectDailyPreviewUserIDs(*preview))
-	preview.Markdown = buildDailyReportMarkdown(*preview, userLabels)
+	preview.Markdown = buildDailyReportMarkdown(
+		*preview,
+		userLabels,
+		*workspace,
+		calendarLabels,
+		formatSettings.Language,
+	)
 
 	return preview, nil
+}
+
+/*
+reportFormatSettings contains display and content settings for a report kind.
+*/
+type reportFormatSettings struct {
+	Language    domain.ReportLanguage
+	IncludeTime bool
+}
+
+/*
+reportFormatSettingsForKind returns the report-rule settings used by manual
+preview/post flows. Enabled rules are preferred, but disabled rules still carry
+admin-selected display settings for manual report previews.
+*/
+func (s *ReportService) reportFormatSettingsForKind(
+	ctx context.Context,
+	workspaceID domain.ID,
+	reportKind domain.ReportKind,
+) (reportFormatSettings, error) {
+	settings := reportFormatSettings{
+		Language:    domain.ReportLanguageEnglish,
+		IncludeTime: false,
+	}
+
+	rules, err := s.reportStore.ListRulesByWorkspaceID(ctx, workspaceID)
+	if err != nil {
+		return settings, NewError(ErrorCodeInternal, "Could not load report display settings.")
+	}
+
+	rule := preferredReportRuleForKind(rules, reportKind)
+	if rule == nil {
+		return settings, nil
+	}
+
+	settings.Language = normalizeReportLanguage(rule.ReportLanguage)
+	settings.IncludeTime = rule.IncludeTime
+
+	return settings, nil
+}
+
+/*
+reportTimeSummary returns a workspace time summary when the report settings ask
+daily or weekly reports to include time tracking.
+*/
+func (s *ReportService) reportTimeSummary(
+	ctx context.Context,
+	workspaceID domain.ID,
+	startDate domain.LocalDate,
+	endDate domain.LocalDate,
+	includeTime bool,
+) (*domain.TimeReportSummary, error) {
+	if s.taskStore == nil || !includeTime {
+		return nil, nil
+	}
+
+	entries, err := s.taskStore.ListTimeEntriesByWorkspaceIDBetween(ctx, workspaceID, startDate, endDate)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not load time entries for the report.")
+	}
+
+	tasks, err := s.taskStore.ListTasksByWorkspaceID(ctx, workspaceID, true)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not load tasks for the report time summary.")
+	}
+
+	tasksByID := indexTimeReportTasks(tasks)
+	summary := buildTimeReportSummary(
+		workspaceID,
+		startDate,
+		endDate,
+		domain.TimeReportGroupByPerson,
+		entries,
+		tasksByID,
+	)
+
+	return summary, nil
+}
+
+/*
+applyReportItemTimes annotates report-visible progress items with tracked time.
+
+The lookup is display-only. Time is attached to matching Campfire tasks for the
+selected report date range and is never used to decide submission state or report
+eligibility.
+*/
+func (s *ReportService) applyReportItemTimes(
+	ctx context.Context,
+	workspaceID domain.ID,
+	startDate domain.LocalDate,
+	endDate domain.LocalDate,
+	includeTime bool,
+	preview *domain.DailyReportPreview,
+) error {
+	if preview == nil || s.taskStore == nil || !includeTime {
+		return nil
+	}
+
+	lookup, err := s.reportItemTimeLookup(ctx, workspaceID, startDate, endDate)
+	if err != nil {
+		return err
+	}
+
+	for rowIndex := range preview.Rows {
+		userLookup := lookup[strings.TrimSpace(preview.Rows[rowIndex].UserID)]
+		if len(userLookup) == 0 {
+			continue
+		}
+
+		for answerIndex := range preview.Rows[rowIndex].Answers {
+			answer := &preview.Rows[rowIndex].Answers[answerIndex]
+			if !answer.ShowItemTime || len(answer.ValueItems) == 0 {
+				continue
+			}
+
+			if len(answer.ValueItemMinutes) != len(answer.ValueItems) {
+				answer.ValueItemMinutes = reportEmptyItemMinutes(answer.ValueItems)
+			}
+
+			for itemIndex, item := range answer.ValueItems {
+				minutes := userLookup[normalizedTaskTitleKey(item)]
+				if minutes > 0 {
+					answer.ValueItemMinutes[itemIndex] = minutes
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+/*
+reportItemTimeLookup aggregates tracked time by user and normalized task title
+for a report display range.
+*/
+func (s *ReportService) reportItemTimeLookup(
+	ctx context.Context,
+	workspaceID domain.ID,
+	startDate domain.LocalDate,
+	endDate domain.LocalDate,
+) (map[string]map[string]int, error) {
+	entries, err := s.taskStore.ListTimeEntriesByWorkspaceIDBetween(ctx, workspaceID, startDate, endDate)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not load time entries for the report.")
+	}
+
+	if len(entries) == 0 {
+		return map[string]map[string]int{}, nil
+	}
+
+	tasks, err := s.taskStore.ListTasksByWorkspaceID(ctx, workspaceID, true)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not load tasks for the report time labels.")
+	}
+
+	tasksByID := indexTimeReportTasks(tasks)
+	lookup := map[string]map[string]int{}
+	for _, entry := range entries {
+		task := tasksByID[entry.TaskID.String()]
+		titleKey := normalizedTaskTitleKey(task.Title)
+		if titleKey == "" {
+			continue
+		}
+
+		userID := strings.TrimSpace(task.UserID)
+		if userID == "" {
+			userID = strings.TrimSpace(entry.UserID)
+		}
+		if userID == "" {
+			continue
+		}
+
+		if lookup[userID] == nil {
+			lookup[userID] = map[string]int{}
+		}
+		lookup[userID][titleKey] += entry.Minutes
+	}
+
+	return lookup, nil
 }
 
 /*
@@ -286,6 +510,11 @@ func (s *ReportService) UpdateRule(
 		return nil, NewError(ErrorCodeValidationFailed, "Report sort mode is not supported.")
 	}
 
+	reportLanguage := normalizeReportLanguage(domain.ReportLanguage(strings.TrimSpace(input.ReportLanguage)))
+	if !isValidReportLanguage(reportLanguage) {
+		return nil, NewError(ErrorCodeValidationFailed, "Report language is not supported.")
+	}
+
 	rules, err := s.reportStore.ListRulesByWorkspaceID(ctx, workspaceID)
 	if err != nil {
 		return nil, NewError(ErrorCodeInternal, "Could not load report settings.")
@@ -301,6 +530,7 @@ func (s *ReportService) UpdateRule(
 	updatedRule.PostToChannel = input.PostToChannel
 	updatedRule.PreviewRequired = input.PreviewRequired
 	updatedRule.SortMode = sortMode
+	updatedRule.ReportLanguage = reportLanguage
 	updatedRule.IncludeOnLeave = input.IncludeOnLeave
 	updatedRule.IncludeMissing = input.IncludeMissing
 	updatedRule.IncludeTime = input.IncludeTime
@@ -322,7 +552,7 @@ func (s *ReportService) UpdateRule(
 /*
 BuildWeeklyPreview builds a Markdown weekly report preview.
 
-The weekly preview combines daily report previews across an inclusive date range.
+The weekly preview renders only weekly standup submissions for the selected period. It must not stitch together daily standup reports across the week.
 */
 func (s *ReportService) BuildWeeklyPreview(
 	ctx context.Context,
@@ -366,35 +596,57 @@ func (s *ReportService) BuildWeeklyPreview(
 		sortMode = string(domain.StandupSubmissionSortFirstSubmitted)
 	}
 
-	dailyPreviews := make([]domain.DailyReportPreview, 0, len(dates))
-	submittedUserIDs := map[string]bool{}
-	missingUserIDs := map[string]bool{}
-	onLeaveUserIDs := map[string]bool{}
+	workspace, err := s.loadReportWorkspace(ctx, cleanWorkspaceID)
+	if err != nil {
+		return nil, err
+	}
 
-	for _, date := range dates {
-		dailyPreview, err := s.BuildDailyPreview(ctx, BuildDailyReportPreviewInput{
-			ActorUserID:    cleanActorUserID,
-			WorkspaceID:    cleanWorkspaceID,
-			OccurrenceDate: date.String(),
-			SortMode:       sortMode,
-		})
-		if err != nil {
-			return nil, err
-		}
+	configuration, err := s.standupService.ListConfiguration(ctx, ListStandupConfigurationInput{
+		ActorUserID: cleanActorUserID,
+		WorkspaceID: cleanWorkspaceID,
+	})
+	if err != nil {
+		return nil, err
+	}
 
-		dailyPreviews = append(dailyPreviews, *dailyPreview)
+	weeklyTemplateIDs := weeklyTemplateIDSet(configuration.Templates)
+	weeklyScheduleIDs := weeklyScheduleIDSet(configuration.Schedules)
+	if len(weeklyTemplateIDs) == 0 && len(weeklyScheduleIDs) == 0 {
+		return nil, NewError(ErrorCodeValidationFailed, "Weekly standup template is not configured for this workspace.")
+	}
 
-		for _, userID := range dailyPreview.SubmittedUserIDs {
-			submittedUserIDs[userID] = true
-		}
+	weeklySummary, err := s.standupService.ListSubmissions(ctx, ListStandupSubmissionsInput{
+		ActorUserID:    cleanActorUserID,
+		WorkspaceID:    cleanWorkspaceID,
+		OccurrenceDate: periodEnd.String(),
+		SortMode:       sortMode,
+	})
+	if err != nil {
+		return nil, err
+	}
 
-		for _, userID := range dailyPreview.MissingUserIDs {
-			missingUserIDs[userID] = true
-		}
+	weeklySubmissions := filterWeeklyReportSubmissions(
+		weeklySummary.Submissions,
+		weeklyTemplateIDs,
+		weeklyScheduleIDs,
+	)
+	submittedUserIDs := submittedUserIDsFromSubmissions(weeklySubmissions)
+	onLeaveUserIDs := weeklySummary.OnLeaveUserIDs
+	missingUserIDs := missingStandupUserIDs(
+		weeklySummary.MemberUserIDs,
+		submittedUserIDs,
+		onLeaveUserIDs,
+	)
 
-		for _, userID := range dailyPreview.OnLeaveUserIDs {
-			onLeaveUserIDs[userID] = true
-		}
+	weeklySubmissionPreview := domain.DailyReportPreview{
+		WorkspaceID:      domain.ID(weeklySummary.WorkspaceID),
+		OccurrenceDate:   periodEnd,
+		SortMode:         weeklySummary.SortMode,
+		SubmittedUserIDs: submittedUserIDs,
+		MissingUserIDs:   missingUserIDs,
+		OnLeaveUserIDs:   onLeaveUserIDs,
+		Rows:             buildDailyReportRows(weeklySubmissions, questionsByID(configuration.Questions)),
+		Markdown:         "",
 	}
 
 	preview := &domain.WeeklyReportPreview{
@@ -402,17 +654,98 @@ func (s *ReportService) BuildWeeklyPreview(
 		PeriodStart:    periodStart,
 		PeriodEnd:      periodEnd,
 		SortMode:       domain.StandupSubmissionSortMode(sortMode),
-		DailyPreviews:  dailyPreviews,
+		DailyPreviews:  []domain.DailyReportPreview{weeklySubmissionPreview},
 		SubmittedCount: len(submittedUserIDs),
 		MissingCount:   len(missingUserIDs),
 		OnLeaveCount:   len(onLeaveUserIDs),
 		Markdown:       "",
 	}
 
+	calendarLabels := normalizeReportCalendarLabels(input.CalendarLabels)
+	formatSettings, err := s.reportFormatSettingsForKind(ctx, domain.ID(cleanWorkspaceID), domain.ReportKindWeekly)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.applyReportItemTimes(
+		ctx,
+		domain.ID(cleanWorkspaceID),
+		periodStart,
+		periodEnd,
+		formatSettings.IncludeTime,
+		&preview.DailyPreviews[0],
+	); err != nil {
+		return nil, err
+	}
+
 	userLabels := s.userLabelsForReport(ctx, collectWeeklyPreviewUserIDs(*preview))
-	preview.Markdown = buildWeeklyReportMarkdown(*preview, userLabels)
+	preview.Markdown = buildWeeklyReportMarkdown(
+		*preview,
+		userLabels,
+		*workspace,
+		calendarLabels,
+		formatSettings.Language,
+	)
 
 	return preview, nil
+}
+
+/*
+weeklyTemplateIDSet returns template IDs that are allowed in weekly reports.
+
+Weekly channel reports must not stitch together the entire week's daily
+standups. They should render only submissions made against weekly standup
+configuration.
+*/
+func weeklyTemplateIDSet(templates []domain.StandupTemplate) map[string]bool {
+	ids := map[string]bool{}
+	for _, template := range templates {
+		if template.Kind != domain.StandupKindWeekly {
+			continue
+		}
+
+		ids[template.ID.String()] = true
+	}
+
+	return ids
+}
+
+/*
+weeklyScheduleIDSet returns weekly schedule IDs as an extra guard for filtering
+weekly report submissions.
+*/
+func weeklyScheduleIDSet(schedules []domain.StandupSchedule) map[string]bool {
+	ids := map[string]bool{}
+	for _, schedule := range schedules {
+		if schedule.Kind != domain.StandupKindWeekly {
+			continue
+		}
+
+		ids[schedule.ID.String()] = true
+	}
+
+	return ids
+}
+
+/*
+filterWeeklyReportSubmissions keeps only submissions that belong to a weekly
+standup template or schedule.
+*/
+func filterWeeklyReportSubmissions(
+	submissions []domain.StandupSubmissionWithAnswers,
+	weeklyTemplateIDs map[string]bool,
+	weeklyScheduleIDs map[string]bool,
+) []domain.StandupSubmissionWithAnswers {
+	filtered := make([]domain.StandupSubmissionWithAnswers, 0, len(submissions))
+	for _, submission := range submissions {
+		templateID := submission.Submission.TemplateID.String()
+		scheduleID := submission.Submission.ScheduleID.String()
+
+		if weeklyTemplateIDs[templateID] || weeklyScheduleIDs[scheduleID] {
+			filtered = append(filtered, submission)
+		}
+	}
+
+	return filtered
 }
 
 /*
@@ -502,11 +835,12 @@ func (s *ReportService) PostWeeklyPreview(
 	}
 
 	preview, err := s.BuildWeeklyPreview(ctx, BuildWeeklyReportPreviewInput{
-		ActorUserID: cleanActorUserID,
-		WorkspaceID: cleanWorkspaceID,
-		PeriodStart: input.PeriodStart,
-		PeriodEnd:   input.PeriodEnd,
-		SortMode:    firstNonEmptyReportString(input.SortMode, string(reportRule.SortMode)),
+		ActorUserID:    cleanActorUserID,
+		WorkspaceID:    cleanWorkspaceID,
+		PeriodStart:    input.PeriodStart,
+		PeriodEnd:      input.PeriodEnd,
+		SortMode:       firstNonEmptyReportString(input.SortMode, string(reportRule.SortMode)),
+		CalendarLabels: input.CalendarLabels,
 	})
 	if err != nil {
 		return nil, err
@@ -532,7 +866,32 @@ func (s *ReportService) PostWeeklyPreview(
 
 	createdRun, err := s.reportStore.CreateRun(ctx, run)
 	if err != nil {
-		return nil, NewError(ErrorCodeConflict, "This weekly report has already been posted or is currently posting.")
+		if !input.AllowRepost {
+			return nil, NewError(ErrorCodeConflict, "This weekly report has already been posted or is currently posting.")
+		}
+
+		existingRun, existingErr := s.reportStore.GetRunByRuleAndPeriod(
+			ctx,
+			workspaceID,
+			reportRule.ID,
+			domain.ReportKindWeekly,
+			preview.PeriodStart,
+			preview.PeriodEnd,
+		)
+		if existingErr != nil {
+			return nil, NewError(ErrorCodeInternal, "Could not load weekly report history for reposting.")
+		}
+
+		createdRun, err = s.reportStore.PrepareRunForRepost(
+			ctx,
+			existingRun.ID,
+			cleanActorUserID,
+			preview.Markdown,
+			now,
+		)
+		if err != nil {
+			return nil, NewError(ErrorCodeInternal, "Could not prepare weekly report for reposting.")
+		}
 	}
 
 	postID, err := s.reportPublisher.PostWeeklyReport(ctx, WeeklyReportPost{
@@ -614,6 +973,7 @@ func (s *ReportService) PostDailyPreview(
 		WorkspaceID:    cleanWorkspaceID,
 		OccurrenceDate: input.OccurrenceDate,
 		SortMode:       firstNonEmptyReportString(input.SortMode, string(reportRule.SortMode)),
+		CalendarLabels: input.CalendarLabels,
 	})
 	if err != nil {
 		return nil, err
@@ -621,22 +981,6 @@ func (s *ReportService) PostDailyPreview(
 
 	if strings.TrimSpace(preview.Markdown) == "" {
 		return nil, NewError(ErrorCodeValidationFailed, "Daily report preview is empty.")
-	}
-
-	existingRun, err := s.reportStore.GetRunByRuleAndPeriod(
-		ctx,
-		workspaceID,
-		reportRule.ID,
-		domain.ReportKindDaily,
-		preview.OccurrenceDate,
-		preview.OccurrenceDate,
-	)
-	if err != nil && !errors.Is(err, store.ErrNotFound) {
-		return nil, NewError(ErrorCodeInternal, "Could not check daily report history.")
-	}
-
-	if existingRun != nil && existingRun.Status == domain.ReportRunStatusPosted {
-		return nil, NewError(ErrorCodeConflict, "Daily report was already posted for this date.")
 	}
 
 	now := time.Now().UTC()
@@ -660,7 +1004,32 @@ func (s *ReportService) PostDailyPreview(
 
 	createdRun, err := s.reportStore.CreateRun(ctx, reservedRun)
 	if err != nil {
-		return nil, NewError(ErrorCodeConflict, "Daily report was already posted or reserved for this date.")
+		if !input.AllowRepost {
+			return nil, NewError(ErrorCodeConflict, "Daily report was already posted or reserved for this date.")
+		}
+
+		existingRun, existingErr := s.reportStore.GetRunByRuleAndPeriod(
+			ctx,
+			workspaceID,
+			reportRule.ID,
+			domain.ReportKindDaily,
+			preview.OccurrenceDate,
+			preview.OccurrenceDate,
+		)
+		if existingErr != nil {
+			return nil, NewError(ErrorCodeInternal, "Could not load daily report history for reposting.")
+		}
+
+		createdRun, err = s.reportStore.PrepareRunForRepost(
+			ctx,
+			existingRun.ID,
+			cleanActorUserID,
+			preview.Markdown,
+			now,
+		)
+		if err != nil {
+			return nil, NewError(ErrorCodeInternal, "Could not prepare daily report for reposting.")
+		}
 	}
 
 	postID, err := s.reportPublisher.PostDailyReport(ctx, DailyReportPost{
@@ -1017,17 +1386,35 @@ func collectWeeklyPreviewUserIDs(preview domain.WeeklyReportPreview) []string {
 }
 
 /*
+collectTimeSummaryUserIDs returns user IDs shown in an optional time summary.
+*/
+func collectTimeSummaryUserIDs(summary *domain.TimeReportSummary) []string {
+	if summary == nil {
+		return []string{}
+	}
+
+	userIDs := make([]string, 0, len(summary.Rows))
+	for _, row := range summary.Rows {
+		if strings.TrimSpace(row.UserID) != "" {
+			userIDs = append(userIDs, row.UserID)
+		}
+	}
+
+	return normalizeUserIDs(userIDs)
+}
+
+/*
 userProfileReportLabel formats a Mattermost profile for report Markdown.
 */
 func userProfileReportLabel(profile UserProfile) string {
-	displayName := strings.TrimSpace(profile.DisplayName)
-	if displayName != "" {
-		return displayName
-	}
-
 	username := strings.TrimSpace(profile.Username)
 	if username != "" {
 		return "@" + username
+	}
+
+	displayName := strings.TrimSpace(profile.DisplayName)
+	if displayName != "" {
+		return displayName
 	}
 
 	return strings.TrimSpace(profile.ID)
@@ -1051,8 +1438,98 @@ func reportUserLabel(userLabels map[string]string, userID string) string {
 }
 
 /*
+reportUserLabelForLanguage returns a report user label with optional RTL prefix.
+
+Mattermost turns @username values into profile links. Persian and Arabic report
+languages intentionally start visible user labels with RTL text so external RTL
+rendering helpers can align the line correctly.
+*/
+func reportUserLabelForLanguage(userLabels map[string]string, userID string, copy reportCopy) string {
+	label := reportUserLabel(userLabels, userID)
+	if label == "" {
+		return ""
+	}
+
+	prefix := strings.TrimSpace(copy.UserLinePrefix)
+	if prefix == "" {
+		return label
+	}
+
+	return prefix + " " + label
+}
+
+/*
+localizedReportQuestionLabel translates Campfire's default standup prompts.
+
+Custom question labels are left untouched so workspace-specific wording stays
+exactly as the Lead configured it.
+*/
+func localizedReportQuestionLabel(label string, copy reportCopy) string {
+	cleanLabel := strings.TrimSpace(label)
+	switch strings.ToLower(cleanLabel) {
+	case "yesterday / progress":
+		return firstNonEmptyReportString(copy.YesterdayProgress, cleanLabel)
+	case "today / plan":
+		return firstNonEmptyReportString(copy.TodayPlan, cleanLabel)
+	default:
+		return cleanLabel
+	}
+}
+
+/*
 buildDailyReportRows maps standup submissions into report rows.
 */
+/*
+reportEmptyItemMinutes creates a zero-filled minutes slice aligned to report
+answer items.
+*/
+func reportEmptyItemMinutes(items []string) []int {
+	if len(items) == 0 {
+		return []int{}
+	}
+
+	return make([]int, len(items))
+}
+
+/*
+clearReportItemTimes removes item-level time labels from a daily preview.
+*/
+func clearReportItemTimes(preview *domain.DailyReportPreview) {
+	if preview == nil {
+		return
+	}
+
+	for rowIndex := range preview.Rows {
+		for answerIndex := range preview.Rows[rowIndex].Answers {
+			answer := &preview.Rows[rowIndex].Answers[answerIndex]
+			answer.ValueItemMinutes = reportEmptyItemMinutes(answer.ValueItems)
+		}
+	}
+}
+
+/*
+reportQuestionShouldShowTaskTime reports whether item-level tracked time should
+be rendered next to answer rows for a question.
+
+Campfire only shows item-level time for the completed-work/progress question.
+Today/plan items may become tasks too, but they represent future work and should
+not receive tracked-time labels in the report.
+*/
+func reportQuestionShouldShowTaskTime(question domain.StandupQuestion) bool {
+	if !question.CreatesTasks {
+		return false
+	}
+
+	label := strings.ToLower(strings.TrimSpace(question.Label))
+	section := strings.ToLower(strings.TrimSpace(question.Section))
+	prompt := strings.ToLower(strings.TrimSpace(question.Prompt))
+
+	return label == "yesterday / progress" ||
+		section == "progress" ||
+		strings.Contains(prompt, "finish") ||
+		strings.Contains(prompt, "progress")
+}
+
 func buildDailyReportRows(
 	submissions []domain.StandupSubmissionWithAnswers,
 	questionsByID map[string]domain.StandupQuestion,
@@ -1072,13 +1549,18 @@ func buildDailyReportRows(
 				continue
 			}
 
+			reportValue := answerValueJSONToReportValue(answer.ValueJSON)
+
 			answerRows = append(answerRows, domain.DailyReportAnswerRow{
-				QuestionID:    answer.QuestionID,
-				QuestionLabel: firstNonEmptyReportString(question.Prompt, question.Label, question.ID.String()),
-				ValueText:     answerValueJSONToText(answer.ValueJSON),
-				ShowInReport:  question.ShowInReport,
-				IsPrivate:     question.IsPrivate,
-				Position:      question.Position,
+				QuestionID:       answer.QuestionID,
+				QuestionLabel:    firstNonEmptyReportString(question.Prompt, question.Label, question.ID.String()),
+				ValueText:        reportValue.Text,
+				ValueItems:       reportValue.Items,
+				ValueItemMinutes: reportEmptyItemMinutes(reportValue.Items),
+				ShowItemTime:     reportQuestionShouldShowTaskTime(question),
+				ShowInReport:     question.ShowInReport,
+				IsPrivate:        question.IsPrivate,
+				Position:         question.Position,
 			})
 		}
 
@@ -1100,128 +1582,563 @@ func buildDailyReportRows(
 /*
 buildWeeklyReportMarkdown builds the Markdown weekly report body.
 */
-func buildWeeklyReportMarkdown(preview domain.WeeklyReportPreview, userLabels map[string]string) string {
+func buildWeeklyReportMarkdown(
+	preview domain.WeeklyReportPreview,
+	userLabels map[string]string,
+	workspace domain.Workspace,
+	calendarLabels map[string]string,
+	language domain.ReportLanguage,
+) string {
+	copy := reportCopyForLanguage(language)
 	lines := []string{
-		fmt.Sprintf("# Weekly Standup Summary — %s → %s", preview.PeriodStart.String(), preview.PeriodEnd.String()),
+		fmt.Sprintf(
+			"# %s — %s → %s",
+			copy.WeeklyTitle,
+			formatReportDate(preview.PeriodStart, calendarLabels),
+			formatReportDate(preview.PeriodEnd, calendarLabels),
+		),
 		"",
-		fmt.Sprintf("- Unique submitted users: %d", preview.SubmittedCount),
-		fmt.Sprintf("- Unique missing users: %d", preview.MissingCount),
-		fmt.Sprintf("- Unique users on approved leave: %d", preview.OnLeaveCount),
+		fmt.Sprintf("**%s:** `%s`", copy.WorkspaceTimezone, reportTimezoneLabel(workspace.Timezone)),
 		"",
 	}
+
+	appendReportMetricTable(&lines, 2, copy.Overview, []reportMetricRow{
+		{Label: "✅ " + copy.UniqueSubmitted, Count: preview.SubmittedCount},
+		{Label: "🔴 " + copy.UniqueMissing, Count: preview.MissingCount},
+		{Label: "🟠 " + copy.OnApprovedLeave, Count: preview.OnLeaveCount},
+	})
 
 	if len(preview.DailyPreviews) == 0 {
-		lines = append(lines, "No daily report data for this period.", "")
+		lines = append(lines, copy.NoSubmittedStandups, "")
 		return strings.Join(lines, "\n")
 	}
 
-	for _, dailyPreview := range preview.DailyPreviews {
-		lines = append(lines,
-			fmt.Sprintf("## %s", dailyPreview.OccurrenceDate.String()),
-			"",
-			fmt.Sprintf("- Submitted: %d", len(dailyPreview.SubmittedUserIDs)),
-			fmt.Sprintf("- Missing: %d", len(dailyPreview.MissingUserIDs)),
-			fmt.Sprintf("- On approved leave: %d", len(dailyPreview.OnLeaveUserIDs)),
-			"",
-		)
+	weeklyPreview := preview.DailyPreviews[0]
+	appendReportUserTable(&lines, 2, copy.Missing, copy.User, weeklyPreview.MissingUserIDs, userLabels, copy)
+	appendReportUserTable(&lines, 2, copy.OnApprovedLeave, copy.User, weeklyPreview.OnLeaveUserIDs, userLabels, copy)
+	appendReportSubmittedSection(&lines, weeklyPreview, userLabels, workspace, calendarLabels, 2, true, copy)
 
-		if len(dailyPreview.Rows) == 0 {
-			lines = append(lines, "No submitted standups.", "")
-			continue
-		}
-
-		for _, row := range dailyPreview.Rows {
-			lines = append(lines, fmt.Sprintf("### %s", sanitizeMarkdownLine(reportUserLabel(userLabels, row.UserID))))
-
-			for _, answer := range row.Answers {
-				if strings.TrimSpace(answer.ValueText) == "" {
-					continue
-				}
-
-				lines = append(
-					lines,
-					fmt.Sprintf(
-						"- **%s:** %s",
-						sanitizeMarkdownLine(answer.QuestionLabel),
-						sanitizeMarkdownLine(answer.ValueText),
-					),
-				)
-			}
-
-			lines = append(lines, "")
-		}
-	}
-
-	return strings.Join(lines, "\n")
+	return strings.TrimSpace(strings.Join(lines, "\n")) + "\n"
 }
 
-func buildDailyReportMarkdown(preview domain.DailyReportPreview, userLabels map[string]string) string {
+/*
+buildDailyReportMarkdown builds the Markdown daily report body.
+*/
+func buildDailyReportMarkdown(
+	preview domain.DailyReportPreview,
+	userLabels map[string]string,
+	workspace domain.Workspace,
+	calendarLabels map[string]string,
+	language domain.ReportLanguage,
+) string {
+	copy := reportCopyForLanguage(language)
 	lines := []string{
-		fmt.Sprintf("# Daily Standup — %s", preview.OccurrenceDate.String()),
+		fmt.Sprintf("# %s — %s", copy.DailyTitle, formatReportDate(preview.OccurrenceDate, calendarLabels)),
 		"",
-		fmt.Sprintf("- Submitted: %d", len(preview.SubmittedUserIDs)),
-		fmt.Sprintf("- Missing: %d", len(preview.MissingUserIDs)),
-		fmt.Sprintf("- On approved leave: %d", len(preview.OnLeaveUserIDs)),
+		fmt.Sprintf("**%s:** `%s`", copy.WorkspaceTimezone, reportTimezoneLabel(workspace.Timezone)),
 		"",
 	}
 
-	if len(preview.OnLeaveUserIDs) > 0 {
-		lines = append(lines, "## On approved leave")
-		for _, userID := range preview.OnLeaveUserIDs {
-			lines = append(lines, fmt.Sprintf("- %s", sanitizeMarkdownLine(reportUserLabel(userLabels, userID))))
-		}
+	appendDailyReportSections(&lines, preview, userLabels, workspace, calendarLabels, 2, true, copy)
 
-		lines = append(lines, "")
+	return strings.TrimSpace(strings.Join(lines, "\n")) + "\n"
+}
+
+/*
+appendDailyReportSections appends overview, attention, and submitted sections.
+*/
+func appendDailyReportSections(
+	lines *[]string,
+	preview domain.DailyReportPreview,
+	userLabels map[string]string,
+	workspace domain.Workspace,
+	calendarLabels map[string]string,
+	headingLevel int,
+	includeSubmittedHeading bool,
+	copy reportCopy,
+) {
+	appendReportMetricTable(lines, headingLevel, copy.Overview, []reportMetricRow{
+		{Label: "✅ " + copy.Submitted, Count: len(preview.SubmittedUserIDs)},
+		{Label: "🔴 " + copy.Missing, Count: len(preview.MissingUserIDs)},
+		{Label: "🟠 " + copy.OnApprovedLeave, Count: len(preview.OnLeaveUserIDs)},
+	})
+
+	appendReportUserTable(lines, headingLevel, copy.Missing, copy.User, preview.MissingUserIDs, userLabels, copy)
+	appendReportUserTable(lines, headingLevel, copy.OnApprovedLeave, copy.User, preview.OnLeaveUserIDs, userLabels, copy)
+	appendReportSubmittedSection(lines, preview, userLabels, workspace, calendarLabels, headingLevel, includeSubmittedHeading, copy)
+}
+
+/*
+appendReportMetricTable appends the compact count table Mattermost renders as Markdown.
+*/
+func appendReportMetricTable(lines *[]string, headingLevel int, title string, metrics []reportMetricRow) {
+	if len(metrics) == 0 {
+		return
 	}
 
-	if len(preview.MissingUserIDs) > 0 {
-		lines = append(lines, "## Missing")
-		for _, userID := range preview.MissingUserIDs {
-			lines = append(lines, fmt.Sprintf("- %s", sanitizeMarkdownLine(reportUserLabel(userLabels, userID))))
-		}
+	headers := make([]string, 0, len(metrics))
+	aligners := make([]string, 0, len(metrics))
+	counts := make([]string, 0, len(metrics))
 
-		lines = append(lines, "")
+	for _, metric := range metrics {
+		headers = append(headers, markdownTableCell(metric.Label))
+		aligners = append(aligners, "---:")
+		counts = append(counts, strconv.Itoa(metric.Count))
 	}
 
-	lines = append(lines, "## Submitted")
+	*lines = append(
+		*lines,
+		reportHeading(headingLevel, title),
+		"",
+		markdownTableRow(headers),
+		markdownTableRow(aligners),
+		markdownTableRow(counts),
+		"",
+	)
+}
+
+/*
+appendReportUserTable appends a one-user-per-row table for status lists.
+*/
+func appendReportUserTable(
+	lines *[]string,
+	headingLevel int,
+	title string,
+	userHeader string,
+	userIDs []string,
+	userLabels map[string]string,
+	copy reportCopy,
+) {
+	if len(userIDs) == 0 {
+		return
+	}
+
+	*lines = append(*lines, reportHeading(headingLevel, title), "", "| # | "+markdownTableCell(userHeader)+" |", "| ---: | --- |")
+
+	for index, userID := range userIDs {
+		*lines = append(
+			*lines,
+			fmt.Sprintf(
+				"| %d | %s |",
+				index+1,
+				markdownTableCell(reportUserLabelForLanguage(userLabels, userID, copy)),
+			),
+		)
+	}
+
+	*lines = append(*lines, "")
+}
+
+/*
+appendReportSubmittedSection appends submitted answers with readable local times.
+*/
+func appendReportSubmittedSection(
+	lines *[]string,
+	preview domain.DailyReportPreview,
+	userLabels map[string]string,
+	workspace domain.Workspace,
+	calendarLabels map[string]string,
+	headingLevel int,
+	includeHeading bool,
+	copy reportCopy,
+) {
+	userHeadingLevel := headingLevel
+	if includeHeading {
+		*lines = append(*lines, reportHeading(headingLevel, copy.Submitted), "")
+		userHeadingLevel = headingLevel + 1
+	} else {
+		userHeadingLevel = headingLevel + 1
+	}
 
 	if len(preview.Rows) == 0 {
-		lines = append(lines, "No submitted standups yet.", "")
-		return strings.Join(lines, "\n")
+		*lines = append(*lines, copy.NoSubmittedStandups, "")
+		return
 	}
 
 	for _, row := range preview.Rows {
-		lines = append(lines, fmt.Sprintf("### %s", sanitizeMarkdownLine(reportUserLabel(userLabels, row.UserID))))
-		lines = append(
-			lines,
-			fmt.Sprintf(
-				"_First submitted: %s · Last updated: %s_",
-				formatReportTime(row.FirstSubmittedAt),
-				formatReportTime(row.LastUpdatedAt),
-			),
+		*lines = append(
+			*lines,
+			reportHeading(userHeadingLevel, sanitizeMarkdownLine(reportUserLabelForLanguage(userLabels, row.UserID, copy))),
+			formatReportSubmissionMeta(row.FirstSubmittedAt, row.LastUpdatedAt, workspace.Timezone, calendarLabels, copy),
 			"",
 		)
 
 		if len(row.Answers) == 0 {
-			lines = append(lines, "- No report-visible answers.", "")
+			*lines = append(*lines, "- "+copy.NoReportVisibleAnswers, "")
 			continue
 		}
 
 		for _, answer := range row.Answers {
-			lines = append(
-				lines,
-				fmt.Sprintf(
-					"- **%s:** %s",
-					sanitizeMarkdownLine(answer.QuestionLabel),
-					sanitizeMarkdownLine(answer.ValueText),
-				),
-			)
+			appendReportAnswer(lines, userHeadingLevel+1, answer, copy)
 		}
 
-		lines = append(lines, "")
+		*lines = append(*lines, "")
+	}
+}
+
+/*
+appendReportTimeSummary appends the optional time-tracking section when enabled
+in the workspace report rule.
+*/
+func appendReportTimeSummary(
+	lines *[]string,
+	headingLevel int,
+	summary *domain.TimeReportSummary,
+	userLabels map[string]string,
+	calendarLabels map[string]string,
+	copy reportCopy,
+) {
+	if summary == nil {
+		return
 	}
 
-	return strings.TrimSpace(strings.Join(lines, "\n")) + "\n"
+	*lines = append(
+		*lines,
+		reportHeading(headingLevel, copy.TimeTracking),
+		"",
+		fmt.Sprintf("**%s:** %s", copy.TotalTracked, formatReportDuration(summary.TotalMinutes, copy)),
+		"",
+	)
+
+	if len(summary.Rows) == 0 {
+		*lines = append(*lines, copy.NoTimeEntries, "")
+		return
+	}
+
+	*lines = append(
+		*lines,
+		fmt.Sprintf("| # | %s | %s | %s |", markdownTableCell(copy.Person), markdownTableCell(copy.Time), markdownTableCell(copy.Entries)),
+		"| ---: | --- | ---: | ---: |",
+	)
+	for index, row := range summary.Rows {
+		*lines = append(
+			*lines,
+			fmt.Sprintf(
+				"| %d | %s | %s | %d |",
+				index+1,
+				markdownTableCell(timeReportPersonLabel(row, userLabels, copy)),
+				markdownTableCell(formatReportDuration(row.Minutes, copy)),
+				row.EntryCount,
+			),
+		)
+	}
+
+	if summary.StartDate != "" && summary.EndDate != "" {
+		*lines = append(
+			*lines,
+			"",
+			fmt.Sprintf(
+				"_%s: %s → %s_",
+				copy.Period,
+				formatReportDate(summary.StartDate, calendarLabels),
+				formatReportDate(summary.EndDate, calendarLabels),
+			),
+			"",
+		)
+		return
+	}
+
+	*lines = append(*lines, "")
+}
+
+/*
+timeReportPersonLabel resolves a person-grouped time-report row to display copy.
+*/
+func timeReportPersonLabel(row domain.TimeReportRow, userLabels map[string]string, copy reportCopy) string {
+	if strings.TrimSpace(row.UserID) != "" {
+		return reportUserLabelForLanguage(userLabels, row.UserID, copy)
+	}
+
+	return firstNonEmptyReportString(row.Label, row.Key, copy.UnknownUser)
+}
+
+/*
+formatReportDuration renders minutes as compact human-readable time.
+*/
+func formatReportDuration(minutes int, copy reportCopy) string {
+	if minutes <= 0 {
+		return "0" + copy.MinuteUnit
+	}
+
+	hours := minutes / 60
+	remainingMinutes := minutes % 60
+
+	if hours > 0 && remainingMinutes > 0 {
+		return fmt.Sprintf("%d%s %d%s", hours, copy.HourUnit, remainingMinutes, copy.MinuteUnit)
+	}
+
+	if hours > 0 {
+		return fmt.Sprintf("%d%s", hours, copy.HourUnit)
+	}
+
+	return fmt.Sprintf("%d%s", remainingMinutes, copy.MinuteUnit)
+}
+
+/*
+formatReportSubmissionMeta renders submission timestamps as small inline copy
+instead of a full table, keeping each submitted user section compact.
+*/
+func formatReportSubmissionMeta(
+	firstSubmittedAt time.Time,
+	lastUpdatedAt time.Time,
+	timezone string,
+	calendarLabels map[string]string,
+	copy reportCopy,
+) string {
+	first := formatReportTime(firstSubmittedAt, timezone, calendarLabels)
+	last := formatReportTime(lastUpdatedAt, timezone, calendarLabels)
+
+	parts := []string{}
+	if first != "" {
+		parts = append(parts, copy.FirstSubmitted+": "+first)
+	}
+	if last != "" {
+		parts = append(parts, copy.LastUpdated+": "+last)
+	}
+
+	if len(parts) == 0 {
+		return ""
+	}
+
+	return "_" + strings.Join(parts, " · ") + "_"
+}
+
+/*
+reportHeading builds a Markdown heading at a safe depth.
+*/
+func reportHeading(level int, title string) string {
+	if level < 1 {
+		level = 1
+	}
+
+	if level > 6 {
+		level = 6
+	}
+
+	return fmt.Sprintf("%s %s", strings.Repeat("#", level), sanitizeMarkdownLine(title))
+}
+
+/*
+appendReportAnswer appends one report-visible answer.
+*/
+func appendReportAnswer(lines *[]string, headingLevel int, answer domain.DailyReportAnswerRow, copy reportCopy) {
+	cleanLabel := sanitizeMarkdownLine(localizedReportQuestionLabel(answer.QuestionLabel, copy))
+	if cleanLabel == "" {
+		cleanLabel = copy.Answer
+	}
+
+	if reportAnswerIsBlocker(cleanLabel) {
+		appendReportBlockerAnswer(lines, headingLevel, answer, copy)
+		return
+	}
+
+	if len(answer.ValueItems) > 0 {
+		*lines = append(*lines, reportHeading(headingLevel, cleanLabel), "")
+		for index, item := range answer.ValueItems {
+			cleanItem := sanitizeMarkdownLine(item)
+			if cleanItem == "" {
+				continue
+			}
+
+			if answer.ShowItemTime && index < len(answer.ValueItemMinutes) && answer.ValueItemMinutes[index] > 0 {
+				*lines = append(
+					*lines,
+					fmt.Sprintf("- **%s** — %s", formatReportDuration(answer.ValueItemMinutes[index], copy), cleanItem),
+				)
+				continue
+			}
+
+			*lines = append(*lines, fmt.Sprintf("- %s", cleanItem))
+		}
+		*lines = append(*lines, "")
+		return
+	}
+
+	cleanValue := sanitizeMarkdownLine(answer.ValueText)
+	if cleanValue == "" {
+		return
+	}
+
+	*lines = append(*lines, fmt.Sprintf("- **%s:** %s", cleanLabel, cleanValue))
+}
+
+/*
+appendReportBlockerAnswer appends blockers as a visually separate warning block.
+*/
+func appendReportBlockerAnswer(lines *[]string, headingLevel int, answer domain.DailyReportAnswerRow, copy reportCopy) {
+	items := answer.ValueItems
+	if len(items) == 0 && strings.TrimSpace(answer.ValueText) != "" {
+		items = []string{answer.ValueText}
+	}
+
+	if len(items) == 0 {
+		return
+	}
+
+	*lines = append(*lines, "", reportHeading(headingLevel, "🚨 "+copy.Blockers), "")
+	for _, item := range items {
+		cleanItem := sanitizeMarkdownLine(item)
+		if cleanItem != "" {
+			*lines = append(*lines, fmt.Sprintf("> 🔴 %s", cleanItem))
+		}
+	}
+	*lines = append(*lines, "")
+}
+
+/*
+reportAnswerIsBlocker reports whether a question should be rendered as a
+separate blocker section instead of looking like a normal progress item.
+*/
+func reportAnswerIsBlocker(label string) bool {
+	return strings.Contains(strings.ToLower(strings.TrimSpace(label)), "blocker")
+}
+
+type reportMetricRow struct {
+	Label string
+	Count int
+}
+
+/*
+reportCopy contains generated report labels for one language.
+*/
+type reportCopy struct {
+	DailyTitle             string
+	WeeklyTitle            string
+	WorkspaceTimezone      string
+	Overview               string
+	Submitted              string
+	Missing                string
+	OnApprovedLeave        string
+	UniqueSubmitted        string
+	UniqueMissing          string
+	User                   string
+	UserLinePrefix         string
+	UnknownUser            string
+	YesterdayProgress      string
+	TodayPlan              string
+	TimeTracking           string
+	TotalTracked           string
+	NoDailyReportData      string
+	NoSubmittedStandups    string
+	NoReportVisibleAnswers string
+	NoTimeEntries          string
+	FirstSubmitted         string
+	LastUpdated            string
+	Period                 string
+	Person                 string
+	Time                   string
+	Entries                string
+	HourUnit               string
+	MinuteUnit             string
+	Blockers               string
+	Answer                 string
+}
+
+/*
+reportCopyForLanguage returns generated report labels in the selected language.
+*/
+func reportCopyForLanguage(language domain.ReportLanguage) reportCopy {
+	switch normalizeReportLanguage(language) {
+	case domain.ReportLanguagePersian:
+		return reportCopy{
+			DailyTitle:             "گزارش روزانه",
+			WeeklyTitle:            "گزارش هفتگی",
+			WorkspaceTimezone:      "منطقه زمانی کاری",
+			Overview:               "خلاصه",
+			Submitted:              "ارسال‌شده",
+			Missing:                "ارسال‌نشده",
+			OnApprovedLeave:        "مرخصی تأییدشده",
+			UniqueSubmitted:        "ارسال‌شده یکتا",
+			UniqueMissing:          "ارسال‌نشده یکتا",
+			User:                   "کاربر",
+			UserLinePrefix:         "کاربر:",
+			UnknownUser:            "کاربر ناشناس",
+			YesterdayProgress:      "روز کاری قبل چه کاری انجام دادی؟",
+			TodayPlan:              "امروز قرار است چه کاری انجام بدهی؟",
+			TimeTracking:           "گزارش زمان",
+			TotalTracked:           "زمان ثبت‌شده",
+			NoDailyReportData:      "برای این بازه داده‌ای برای گزارش روزانه وجود ندارد.",
+			NoSubmittedStandups:    "هنوز گزارشی ارسال نشده است.",
+			NoReportVisibleAnswers: "پاسخ قابل نمایش در گزارش وجود ندارد.",
+			NoTimeEntries:          "برای این بازه زمانی ثبت نشده است.",
+			FirstSubmitted:         "اولین ارسال",
+			LastUpdated:            "آخرین ویرایش",
+			Period:                 "بازه",
+			Person:                 "نفر",
+			Time:                   "زمان",
+			Entries:                "ثبت‌ها",
+			HourUnit:               "ساعت",
+			MinuteUnit:             "دقیقه",
+			Blockers:               "موانع",
+			Answer:                 "پاسخ",
+		}
+	case domain.ReportLanguageArabic:
+		return reportCopy{
+			DailyTitle:             "التقرير اليومي",
+			WeeklyTitle:            "التقرير الأسبوعي",
+			WorkspaceTimezone:      "المنطقة الزمنية",
+			Overview:               "الملخص",
+			Submitted:              "مُرسَل",
+			Missing:                "غير مُرسَل",
+			OnApprovedLeave:        "إجازة معتمدة",
+			UniqueSubmitted:        "مُرسَل فريد",
+			UniqueMissing:          "غير مُرسَل فريد",
+			User:                   "المستخدم",
+			UserLinePrefix:         "المستخدم:",
+			UnknownUser:            "مستخدم غير معروف",
+			YesterdayProgress:      "ماذا أنجزت في آخر يوم عمل؟",
+			TodayPlan:              "ماذا ستفعل اليوم؟",
+			TimeTracking:           "تتبع الوقت",
+			TotalTracked:           "إجمالي الوقت المسجل",
+			NoDailyReportData:      "لا توجد بيانات تقرير يومي لهذه الفترة.",
+			NoSubmittedStandups:    "لا توجد تحديثات مرسلة بعد.",
+			NoReportVisibleAnswers: "لا توجد إجابات ظاهرة في التقرير.",
+			NoTimeEntries:          "لا توجد إدخالات وقت لهذه الفترة.",
+			FirstSubmitted:         "أول إرسال",
+			LastUpdated:            "آخر تحديث",
+			Period:                 "الفترة",
+			Person:                 "الشخص",
+			Time:                   "الوقت",
+			Entries:                "الإدخالات",
+			HourUnit:               "س",
+			MinuteUnit:             "د",
+			Blockers:               "العوائق",
+			Answer:                 "الإجابة",
+		}
+	default:
+		return reportCopy{
+			DailyTitle:             "Daily Standup",
+			WeeklyTitle:            "Weekly Standup Summary",
+			WorkspaceTimezone:      "Workspace timezone",
+			Overview:               "Overview",
+			Submitted:              "Submitted",
+			Missing:                "Missing",
+			OnApprovedLeave:        "On approved leave",
+			UniqueSubmitted:        "Unique submitted",
+			UniqueMissing:          "Unique missing",
+			User:                   "User",
+			UserLinePrefix:         "",
+			UnknownUser:            "Unknown user",
+			YesterdayProgress:      "What did you do last working day?",
+			TodayPlan:              "What are you going to do today?",
+			TimeTracking:           "Time tracking",
+			TotalTracked:           "Total tracked",
+			NoDailyReportData:      "No daily report data for this period.",
+			NoSubmittedStandups:    "No submitted standups yet.",
+			NoReportVisibleAnswers: "No report-visible answers.",
+			NoTimeEntries:          "No time entries were logged for this period.",
+			FirstSubmitted:         "First submitted",
+			LastUpdated:            "Last updated",
+			Period:                 "Period",
+			Person:                 "Person",
+			Time:                   "Time",
+			Entries:                "Entries",
+			HourUnit:               "h",
+			MinuteUnit:             "m",
+			Blockers:               "Blockers",
+			Answer:                 "Answer",
+		}
+	}
 }
 
 /*
@@ -1238,49 +2155,205 @@ func questionsByID(questions []domain.StandupQuestion) map[string]domain.Standup
 }
 
 /*
-answerValueJSONToText converts stored JSON answers into readable report text.
+reportAnswerValue keeps both compact and itemized representations.
 */
-func answerValueJSONToText(valueJSON string) string {
+type reportAnswerValue struct {
+	Text  string
+	Items []string
+}
+
+/*
+answerValueJSONToReportValue converts stored JSON answers into report text.
+
+Text answers that contain Markdown list rows keep those rows as individual
+items, which lets posted Mattermost reports render real bullet lists instead of
+one concatenated blob.
+*/
+func answerValueJSONToReportValue(valueJSON string) reportAnswerValue {
 	cleanValueJSON := strings.TrimSpace(valueJSON)
 	if cleanValueJSON == "" || cleanValueJSON == "null" {
-		return ""
+		return reportAnswerValue{}
 	}
 
 	var stringValue string
 	if err := json.Unmarshal([]byte(cleanValueJSON), &stringValue); err == nil {
-		return stringValue
+		return reportAnswerValueFromString(stringValue)
 	}
 
 	var boolValue bool
 	if err := json.Unmarshal([]byte(cleanValueJSON), &boolValue); err == nil {
 		if boolValue {
-			return "Yes"
+			return reportAnswerValue{Text: "Yes"}
 		}
 
-		return "No"
+		return reportAnswerValue{Text: "No"}
 	}
 
 	var numberValue float64
 	if err := json.Unmarshal([]byte(cleanValueJSON), &numberValue); err == nil {
-		return strconv.FormatFloat(numberValue, 'f', -1, 64)
+		return reportAnswerValue{Text: strconv.FormatFloat(numberValue, 'f', -1, 64)}
 	}
 
 	var stringValues []string
 	if err := json.Unmarshal([]byte(cleanValueJSON), &stringValues); err == nil {
-		return strings.Join(stringValues, ", ")
+		return reportAnswerValueFromItems(stringValues)
 	}
 
 	var rawValues []json.RawMessage
 	if err := json.Unmarshal([]byte(cleanValueJSON), &rawValues); err == nil {
-		textValues := make([]string, 0, len(rawValues))
+		items := make([]string, 0, len(rawValues))
+		texts := make([]string, 0, len(rawValues))
+
 		for _, rawValue := range rawValues {
-			textValues = append(textValues, answerValueJSONToText(string(rawValue)))
+			parsed := answerValueJSONToReportValue(string(rawValue))
+			if len(parsed.Items) > 0 {
+				items = append(items, parsed.Items...)
+				continue
+			}
+
+			if strings.TrimSpace(parsed.Text) != "" {
+				texts = append(texts, parsed.Text)
+			}
 		}
 
-		return strings.Join(textValues, ", ")
+		if len(items) > 0 {
+			items = append(items, texts...)
+			return reportAnswerValueFromItems(items)
+		}
+
+		return reportAnswerValue{Text: strings.Join(texts, ", ")}
 	}
 
-	return cleanValueJSON
+	return reportAnswerValueFromString(cleanValueJSON)
+}
+
+/*
+reportAnswerValueFromString formats one string answer for reports.
+*/
+func reportAnswerValueFromString(value string) reportAnswerValue {
+	cleanValue := strings.TrimSpace(value)
+	if cleanValue == "" {
+		return reportAnswerValue{}
+	}
+
+	items := reportItemsFromText(cleanValue)
+	if len(items) > 1 || textLooksLikeMarkdownList(cleanValue) {
+		return reportAnswerValueFromItems(items)
+	}
+
+	return reportAnswerValue{Text: cleanValue}
+}
+
+/*
+reportAnswerValueFromItems normalizes item arrays without losing order.
+*/
+func reportAnswerValueFromItems(values []string) reportAnswerValue {
+	items := make([]string, 0, len(values))
+	for _, value := range values {
+		cleanValue := strings.TrimSpace(value)
+		if cleanValue != "" {
+			items = append(items, cleanValue)
+		}
+	}
+
+	return reportAnswerValue{
+		Text:  strings.Join(items, "\n"),
+		Items: items,
+	}
+}
+
+/*
+reportItemsFromText splits multiline answer text into clean report items.
+*/
+func reportItemsFromText(value string) []string {
+	lines := strings.Split(strings.ReplaceAll(value, "\r\n", "\n"), "\n")
+	items := make([]string, 0, len(lines))
+
+	for _, line := range lines {
+		item := cleanReportListItem(line)
+		if item != "" {
+			items = append(items, item)
+		}
+	}
+
+	return items
+}
+
+/*
+textLooksLikeMarkdownList reports whether answer text contains list prefixes.
+*/
+func textLooksLikeMarkdownList(value string) bool {
+	for _, line := range strings.Split(strings.ReplaceAll(value, "\r\n", "\n"), "\n") {
+		cleanLine := strings.TrimSpace(line)
+		if strings.HasPrefix(cleanLine, "- ") ||
+			strings.HasPrefix(cleanLine, "* ") ||
+			strings.HasPrefix(cleanLine, "• ") ||
+			lineStartsWithNumberedListPrefix(cleanLine) {
+			return true
+		}
+	}
+
+	return false
+}
+
+/*
+cleanReportListItem removes common Markdown list prefixes from one row.
+*/
+func cleanReportListItem(value string) string {
+	line := strings.TrimSpace(value)
+	line = strings.TrimLeft(line, "-*• ")
+
+	for index, char := range line {
+		if char == '.' || char == ')' {
+			prefix := line[:index]
+			if prefix != "" && allReportASCIIDigits(prefix) {
+				return strings.TrimSpace(line[index+1:])
+			}
+			break
+		}
+
+		if char < '0' || char > '9' {
+			break
+		}
+	}
+
+	return strings.TrimSpace(line)
+}
+
+/*
+lineStartsWithNumberedListPrefix reports whether a line starts with 1. or 1).
+*/
+func lineStartsWithNumberedListPrefix(value string) bool {
+	for index, char := range value {
+		if char != '.' && char != ')' {
+			if char < '0' || char > '9' {
+				return false
+			}
+
+			continue
+		}
+
+		return index > 0 && allReportASCIIDigits(value[:index])
+	}
+
+	return false
+}
+
+/*
+allReportASCIIDigits reports whether a string contains only ASCII digits.
+*/
+func allReportASCIIDigits(value string) bool {
+	if value == "" {
+		return false
+	}
+
+	for _, char := range value {
+		if char < '0' || char > '9' {
+			return false
+		}
+	}
+
+	return true
 }
 
 const reportAutomationActorUserID = "campfire-report-automation"
@@ -1289,21 +2362,33 @@ const reportAutomationActorUserID = "campfire-report-automation"
 requireReportWorkspace validates that a report workspace exists.
 */
 func (s *ReportService) requireReportWorkspace(ctx context.Context, workspaceID string) (domain.ID, error) {
+	workspace, err := s.loadReportWorkspace(ctx, workspaceID)
+	if err != nil {
+		return "", err
+	}
+
+	return workspace.ID, nil
+}
+
+/*
+loadReportWorkspace validates and loads one report workspace.
+*/
+func (s *ReportService) loadReportWorkspace(ctx context.Context, workspaceID string) (*domain.Workspace, error) {
 	cleanWorkspaceID := strings.TrimSpace(workspaceID)
 	if cleanWorkspaceID == "" {
-		return "", NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
+		return nil, NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
 	}
 
-	id := domain.ID(cleanWorkspaceID)
-	if _, err := s.workspaceStore.GetByID(ctx, id); err != nil {
+	workspace, err := s.workspaceStore.GetByID(ctx, domain.ID(cleanWorkspaceID))
+	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
-			return "", NewError(ErrorCodeNotFound, "Workspace was not found.")
+			return nil, NewError(ErrorCodeNotFound, "Workspace was not found.")
 		}
 
-		return "", NewError(ErrorCodeInternal, "Could not load workspace.")
+		return nil, NewError(ErrorCodeInternal, "Could not load workspace.")
 	}
 
-	return id, nil
+	return workspace, nil
 }
 
 /*
@@ -1319,6 +2404,60 @@ func isValidReportSortMode(sortMode domain.ReportSortMode) bool {
 	default:
 		return false
 	}
+}
+
+/*
+normalizeReportLanguage returns a safe report language value.
+*/
+func normalizeReportLanguage(language domain.ReportLanguage) domain.ReportLanguage {
+	switch language {
+	case domain.ReportLanguagePersian, domain.ReportLanguageArabic:
+		return language
+	default:
+		return domain.ReportLanguageEnglish
+	}
+}
+
+/*
+isValidReportLanguage returns true when Campfire can render generated report copy in the language.
+*/
+func isValidReportLanguage(language domain.ReportLanguage) bool {
+	switch language {
+	case domain.ReportLanguageEnglish,
+		domain.ReportLanguagePersian,
+		domain.ReportLanguageArabic:
+		return true
+	default:
+		return false
+	}
+}
+
+/*
+preferredReportRuleForKind returns a report rule for display settings.
+
+Enabled rules win because they are the active automation contract. If the rule is
+currently disabled, the first matching row still carries manual-preview display
+preferences such as report language.
+*/
+func preferredReportRuleForKind(rules []domain.ReportRule, reportKind domain.ReportKind) *domain.ReportRule {
+	var fallback *domain.ReportRule
+
+	for _, rule := range rules {
+		if rule.ReportKind != reportKind {
+			continue
+		}
+
+		candidate := rule
+		if candidate.Enabled {
+			return &candidate
+		}
+
+		if fallback == nil {
+			fallback = &candidate
+		}
+	}
+
+	return fallback
 }
 
 /*
@@ -1384,12 +2523,149 @@ func sanitizeMarkdownLine(value string) string {
 }
 
 /*
-formatReportTime formats report timestamps in UTC for deterministic previews.
+formatReportDate formats one canonical local date with a browser-provided alternate calendar hint.
 */
-func formatReportTime(value time.Time) string {
+func formatReportDate(date domain.LocalDate, calendarLabels map[string]string) string {
+	formatted := date.String()
+	if calendarLabel := reportCalendarLabelForDate(date, calendarLabels); calendarLabel != "" {
+		return fmt.Sprintf("%s (%s)", formatted, calendarLabel)
+	}
+
+	return formatted
+}
+
+/*
+reportTimezoneLabel returns the visible timezone label for Markdown reports.
+*/
+func reportTimezoneLabel(timezone string) string {
+	cleanTimezone := strings.TrimSpace(timezone)
+	if cleanTimezone == "" {
+		return "UTC"
+	}
+
+	return cleanTimezone
+}
+
+/*
+reportLocation loads the workspace location for timestamp rendering.
+*/
+func reportLocation(timezone string) *time.Location {
+	location, err := time.LoadLocation(reportTimezoneLabel(timezone))
+	if err != nil {
+		return time.UTC
+	}
+
+	return location
+}
+
+/*
+normalizeReportCalendarLabels sanitizes display-only browser-generated labels.
+
+These labels are deliberately untrusted: Campfire only uses them as Markdown
+decoration. All report filtering, schedule logic, and permission checks still use
+validated Gregorian YYYY-MM-DD values computed on the server.
+*/
+func normalizeReportCalendarLabels(labels map[string]string) map[string]string {
+	if len(labels) == 0 {
+		return map[string]string{}
+	}
+
+	normalized := map[string]string{}
+	for date, label := range labels {
+		if len(normalized) >= 32 {
+			break
+		}
+
+		cleanDate := domain.LocalDate(strings.TrimSpace(date))
+		if _, err := parseLocalDate(cleanDate); err != nil {
+			continue
+		}
+
+		cleanLabel := normalizeCalendarDisplayLabel(sanitizeMarkdownLine(label))
+		if cleanLabel == "" {
+			continue
+		}
+
+		if len([]rune(cleanLabel)) > 80 {
+			continue
+		}
+
+		normalized[cleanDate.String()] = cleanLabel
+	}
+
+	return normalized
+}
+
+/*
+normalizeCalendarDisplayLabel removes calendar-name prefixes from browser labels.
+
+The report already makes the alternate calendar obvious by putting the label in
+parentheses after the Gregorian date, so strings like "Persian:" or "Hijri:"
+only add visual noise.
+*/
+func normalizeCalendarDisplayLabel(label string) string {
+	cleanLabel := strings.TrimSpace(label)
+	prefixes := []string{
+		"Persian:",
+		"persian:",
+		"Hijri:",
+		"hijri:",
+		"Islamic:",
+		"islamic:",
+		"Arabic:",
+		"arabic:",
+	}
+
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(cleanLabel, prefix) {
+			return strings.TrimSpace(strings.TrimPrefix(cleanLabel, prefix))
+		}
+	}
+
+	return cleanLabel
+}
+
+/*
+reportCalendarLabelForDate returns one sanitized display-only label for a date.
+*/
+func reportCalendarLabelForDate(date domain.LocalDate, labels map[string]string) string {
+	if len(labels) == 0 {
+		return ""
+	}
+
+	return strings.TrimSpace(labels[date.String()])
+}
+
+/*
+markdownTableRow renders one Markdown table row from already-sanitized cells.
+*/
+func markdownTableRow(cells []string) string {
+	return "| " + strings.Join(cells, " | ") + " |"
+}
+
+func markdownTableCell(value string) string {
+	cleanValue := sanitizeMarkdownLine(value)
+	cleanValue = strings.ReplaceAll(cleanValue, "|", "\\|")
+
+	return cleanValue
+}
+
+/*
+formatReportTime formats a report timestamp in the workspace timezone.
+*/
+func formatReportTime(value time.Time, timezone string, calendarLabels map[string]string) string {
 	if value.IsZero() {
 		return ""
 	}
 
-	return value.UTC().Format(time.RFC3339)
+	location := reportLocation(timezone)
+	localTime := value.In(location)
+	localDate := domain.LocalDate(localTime.Format("2006-01-02"))
+	formatted := localTime.Format("2006-01-02 15:04")
+
+	if calendarLabel := reportCalendarLabelForDate(localDate, calendarLabels); calendarLabel != "" {
+		return fmt.Sprintf("%s (%s)", formatted, calendarLabel)
+	}
+
+	return formatted
 }

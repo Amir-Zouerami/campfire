@@ -1,0 +1,315 @@
+/*
+ * Standup form builder redesign.
+ *
+ * This replaces the crowded stacked template/question editor with a focused
+ * workbench: template rail on the left, one selected template in the main area,
+ * and only one question create/edit form visible at a time.
+ */
+
+.campfire-theme .campfire-standup-form-workbench {
+	display: grid;
+	gap: 1rem;
+}
+
+.campfire-theme .campfire-standup-form-workbench-intro {
+	background:
+		radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.11), transparent 18rem),
+		linear-gradient(135deg, rgba(34, 18, 10, 0.88), rgba(20, 14, 11, 0.96));
+	border-color: rgba(251, 146, 60, 0.2);
+}
+
+.campfire-theme .campfire-standup-form-workbench-intro-row,
+.campfire-theme .campfire-standup-template-library-header,
+.campfire-theme .campfire-standup-focused-header,
+.campfire-theme .campfire-question-library-header,
+.campfire-theme .campfire-question-editor-heading {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.campfire-theme .campfire-standup-form-workbench-grid {
+	display: grid;
+	grid-template-columns: minmax(16rem, 0.32fr) minmax(0, 1fr);
+	gap: 1rem;
+	align-items: start;
+}
+
+.campfire-theme .campfire-standup-template-library,
+.campfire-theme .campfire-standup-focused-editor,
+.campfire-theme .campfire-question-library-panel,
+.campfire-theme .campfire-question-focused-editor,
+.campfire-theme .campfire-standup-empty-workbench {
+	display: grid;
+	gap: 1rem;
+	border-color: rgba(255, 255, 255, 0.09);
+	background:
+		radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.055), transparent 14rem),
+		rgba(255, 255, 255, 0.026);
+}
+
+.campfire-theme .campfire-standup-template-library {
+	position: sticky;
+	top: 0.75rem;
+}
+
+.campfire-theme .campfire-standup-template-rail {
+	display: grid;
+	gap: 0.6rem;
+	max-height: min(34rem, 58vh);
+	overflow: auto;
+	padding-right: 0.25rem;
+}
+
+.campfire-theme .campfire-standup-template-rail-item {
+	display: grid;
+	gap: 0.45rem;
+	width: 100%;
+	min-width: 0;
+	padding: 0.85rem;
+	border: 1px solid rgba(255, 255, 255, 0.085);
+	border-radius: 1rem;
+	background: rgba(0, 0, 0, 0.16);
+	color: inherit;
+	text-align: left;
+	cursor: pointer;
+	transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.campfire-theme .campfire-standup-template-rail-item:hover,
+.campfire-theme .campfire-standup-template-rail-item--active {
+	border-color: rgba(253, 186, 116, 0.35);
+	background:
+		linear-gradient(90deg, rgba(249, 115, 22, 0.11), rgba(249, 115, 22, 0.03)),
+		rgba(0, 0, 0, 0.16);
+}
+
+.campfire-theme .campfire-standup-template-rail-item:hover {
+	transform: translateY(-1px);
+}
+
+.campfire-theme .campfire-standup-template-rail-title {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 0.98rem;
+	font-weight: 760;
+	letter-spacing: -0.02em;
+	color: rgba(255, 247, 237, 0.94);
+}
+
+.campfire-theme .campfire-standup-template-rail-meta {
+	font-size: 0.78rem;
+	font-weight: 650;
+	color: rgba(255, 247, 237, 0.62);
+}
+
+.campfire-theme .campfire-standup-template-rail-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+}
+
+.campfire-theme .campfire-standup-template-rail-badges span,
+.campfire-theme .campfire-question-row-badges span {
+	display: inline-flex;
+	align-items: center;
+	min-height: 1.45rem;
+	padding: 0.18rem 0.5rem;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.035);
+	font-size: 0.68rem;
+	font-weight: 760;
+	color: rgba(255, 247, 237, 0.66);
+}
+
+.campfire-theme .campfire-standup-form-workbench-main,
+.campfire-theme .campfire-selected-template-workbench,
+.campfire-theme .campfire-standup-focused-form {
+	display: grid;
+	gap: 1rem;
+	min-width: 0;
+}
+
+.campfire-theme .campfire-standup-template-metrics {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 0.6rem;
+}
+
+.campfire-theme .campfire-standup-template-metric {
+	display: grid;
+	gap: 0.18rem;
+	padding: 0.75rem;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 0.9rem;
+	background: rgba(0, 0, 0, 0.14);
+}
+
+.campfire-theme .campfire-standup-template-metric strong {
+	font-size: 1.05rem;
+	font-weight: 820;
+	line-height: 1;
+	color: rgba(255, 247, 237, 0.94);
+}
+
+.campfire-theme .campfire-standup-template-metric span {
+	font-size: 0.72rem;
+	font-weight: 700;
+	color: rgba(255, 247, 237, 0.58);
+}
+
+.campfire-theme .campfire-question-workbench-grid {
+	display: grid;
+	grid-template-columns: minmax(18rem, 0.42fr) minmax(0, 1fr);
+	gap: 1rem;
+	align-items: start;
+}
+
+.campfire-theme .campfire-question-table {
+	display: grid;
+	gap: 0.55rem;
+	max-height: min(40rem, 62vh);
+	overflow: auto;
+	padding-right: 0.25rem;
+}
+
+.campfire-theme .campfire-question-table-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto auto;
+	gap: 0.75rem;
+	align-items: center;
+	width: 100%;
+	padding: 0.8rem;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 1rem;
+	background: rgba(0, 0, 0, 0.15);
+	color: inherit;
+	text-align: left;
+	cursor: pointer;
+	transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.campfire-theme .campfire-question-table-row:hover,
+.campfire-theme .campfire-question-table-row--active {
+	border-color: rgba(253, 186, 116, 0.35);
+	background:
+		linear-gradient(90deg, rgba(249, 115, 22, 0.1), rgba(249, 115, 22, 0.025)),
+		rgba(0, 0, 0, 0.15);
+}
+
+.campfire-theme .campfire-question-table-row:hover {
+	transform: translateY(-1px);
+}
+
+.campfire-theme .campfire-question-row-main {
+	display: grid;
+	min-width: 0;
+	gap: 0.22rem;
+}
+
+.campfire-theme .campfire-question-row-title {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 0.94rem;
+	font-weight: 760;
+	letter-spacing: -0.015em;
+	color: rgba(255, 247, 237, 0.92);
+}
+
+.campfire-theme .campfire-question-row-meta {
+	font-size: 0.72rem;
+	font-weight: 680;
+	color: rgba(255, 247, 237, 0.56);
+}
+
+.campfire-theme .campfire-question-row-badges {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 0.3rem;
+	max-width: 14rem;
+}
+
+.campfire-theme .campfire-question-row-action {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.1rem;
+	height: 2.1rem;
+	border-radius: 0.75rem;
+	background: rgba(255, 255, 255, 0.05);
+	color: rgba(253, 186, 116, 0.9);
+}
+
+.campfire-theme .campfire-question-focused-editor {
+	align-self: start;
+}
+
+.campfire-theme .campfire-question-focused-editor--empty {
+	min-height: 18rem;
+	align-content: center;
+}
+
+.campfire-theme .campfire-question-behavior-grid {
+	display: grid;
+	grid-template-columns: minmax(16rem, 1fr) minmax(13rem, 0.75fr) minmax(13rem, 0.75fr);
+	gap: 0.8rem;
+	align-items: stretch;
+}
+
+.campfire-theme .campfire-form-actions--split {
+	justify-content: space-between;
+}
+
+.campfire-theme .campfire-question-empty-actions {
+	display: flex;
+	justify-content: center;
+}
+
+@media (max-width: 1280px) {
+	.campfire-theme .campfire-standup-form-workbench-grid,
+	.campfire-theme .campfire-question-workbench-grid,
+	.campfire-theme .campfire-question-behavior-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.campfire-theme .campfire-standup-template-library {
+		position: static;
+	}
+
+	.campfire-theme .campfire-standup-template-rail,
+	.campfire-theme .campfire-question-table {
+		max-height: 24rem;
+	}
+}
+
+@media (max-width: 760px) {
+	.campfire-theme .campfire-standup-form-workbench-intro-row,
+	.campfire-theme .campfire-standup-template-library-header,
+	.campfire-theme .campfire-standup-focused-header,
+	.campfire-theme .campfire-question-library-header,
+	.campfire-theme .campfire-question-editor-heading,
+	.campfire-theme .campfire-form-actions--split {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.campfire-theme .campfire-standup-template-metrics {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.campfire-theme .campfire-question-table-row {
+		grid-template-columns: 1fr;
+	}
+
+	.campfire-theme .campfire-question-row-badges {
+		justify-content: flex-start;
+		max-width: none;
+	}
+}

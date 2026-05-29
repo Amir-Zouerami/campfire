@@ -76,6 +76,15 @@ func (s *SQLWorkspaceCalendarStore) IsWorkingDay(
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			hasStoredRows, countErr := s.hasStoredWorkingDays(ctx, workspaceID)
+			if countErr != nil {
+				return false, countErr
+			}
+
+			if hasStoredRows {
+				return false, nil
+			}
+
 			return isDefaultWorkingDay(weekday), nil
 		}
 
@@ -83,6 +92,29 @@ func (s *SQLWorkspaceCalendarStore) IsWorkingDay(
 	}
 
 	return enabled, nil
+}
+
+/*
+hasStoredWorkingDays reports whether a workspace has explicit working-day rows.
+*/
+func (s *SQLWorkspaceCalendarStore) hasStoredWorkingDays(ctx context.Context, workspaceID domain.ID) (bool, error) {
+	var count int
+
+	err := s.db.GetContext(
+		ctx,
+		&count,
+		s.db.Rebind(`
+			SELECT COUNT(*)
+			FROM campfire_workspace_working_days
+			WHERE workspace_id = ?
+		`),
+		workspaceID.String(),
+	)
+	if err != nil {
+		return false, fmt.Errorf("count workspace working days: %w", err)
+	}
+
+	return count > 0, nil
 }
 
 /*

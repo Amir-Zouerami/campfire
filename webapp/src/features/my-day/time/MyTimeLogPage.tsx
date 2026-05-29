@@ -1,5 +1,5 @@
 import { useMemo, type ReactElement } from 'react';
-import { CalendarRange, Clock3, Inbox, ListChecks, Plus } from 'lucide-react';
+import { CalendarRange, Clock3, Inbox, ListChecks } from 'lucide-react';
 
 import {
 	CampfireBackButton,
@@ -44,12 +44,6 @@ export function MyTimeLogPage(props: MyTimeLogPageProps): ReactElement {
 			<CampfirePageHeader
 				title="Time Log"
 				description="Track and review the time you have spent on Campfire tasks."
-				actions={
-					<Button type="button" onClick={() => void timeLog.submitTimeEntry()} disabled={timeLog.isBusy}>
-						<Plus className="cf:size-4" />
-						Save entry
-					</Button>
-				}
 			/>
 
 			<div className="campfire-stat-grid campfire-stat-grid--three">

@@ -1,7 +1,7 @@
 -- +goose Up
 
 ALTER TABLE campfire_standup_questions
-    ADD COLUMN creates_tasks BOOLEAN NOT NULL DEFAULT FALSE;
+    ADD COLUMN IF NOT EXISTS creates_tasks BOOLEAN NOT NULL DEFAULT FALSE;
 
 UPDATE campfire_standup_questions
 SET creates_tasks = TRUE
@@ -24,4 +24,4 @@ WHERE
 -- +goose Down
 
 ALTER TABLE campfire_standup_questions
-    DROP COLUMN creates_tasks;
+    DROP COLUMN IF EXISTS creates_tasks;

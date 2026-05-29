@@ -1,6 +1,6 @@
 import { ApiClientError } from '@/api';
 import { cn } from '@/lib/utils';
-import type { ReportKind, ReportRule, ReportSortMode } from '@/types/domain';
+import type { ReportKind, ReportLanguage, ReportRule, ReportSortMode } from '@/types/domain';
 
 import type { ReportRuleDraft, ReportRuleDraftsByID, ReportRuleWithDraft } from './report-rules.types';
 
@@ -14,6 +14,11 @@ export const reportSortOptions: readonly ReportSortMode[] = [
 	'missing_first',
 	'blockers_first',
 ];
+
+/**
+ * reportLanguageOptions lists supported generated report languages.
+ */
+export const reportLanguageOptions: readonly ReportLanguage[] = ['english', 'persian', 'arabic'];
 
 /**
  * buildReportRuleDrafts maps report rules into editable drafts.
@@ -37,6 +42,7 @@ export function reportRuleToDraft(rule: ReportRule): ReportRuleDraft {
 		postToChannel: rule.postToChannel,
 		previewRequired: rule.previewRequired,
 		sortMode: rule.sortMode,
+		reportLanguage: normalizeReportLanguage(rule.reportLanguage),
 		includeOnLeave: rule.includeOnLeave,
 		includeMissing: rule.includeMissing,
 		includeTime: rule.includeTime,
@@ -96,6 +102,7 @@ export function reportRuleHasChanges(rule: ReportRule, draft: ReportRuleDraft): 
 		rule.postToChannel !== draft.postToChannel ||
 		rule.previewRequired !== draft.previewRequired ||
 		rule.sortMode !== draft.sortMode ||
+		normalizeReportLanguage(rule.reportLanguage) !== draft.reportLanguage ||
 		rule.includeOnLeave !== draft.includeOnLeave ||
 		rule.includeMissing !== draft.includeMissing ||
 		rule.includeTime !== draft.includeTime ||
@@ -115,10 +122,42 @@ export function toReportSortMode(value: string): ReportSortMode {
 }
 
 /**
+ * toReportLanguage narrows a select value to a report language.
+ */
+export function toReportLanguage(value: string | undefined): ReportLanguage {
+	if (value === 'persian' || value === 'arabic') {
+		return value;
+	}
+
+	return 'english';
+}
+
+/**
+ * normalizeReportLanguage makes older API rows safe before migration defaults exist.
+ */
+export function normalizeReportLanguage(value: string | undefined): ReportLanguage {
+	return toReportLanguage(value);
+}
+
+/**
  * formatReportSortMode returns a readable report sort label.
  */
 export function formatReportSortMode(sortMode: ReportSortMode): string {
 	return formatLabel(sortMode);
+}
+
+/**
+ * formatReportLanguage returns a readable report language label.
+ */
+export function formatReportLanguage(language: ReportLanguage): string {
+	switch (language) {
+		case 'persian':
+			return 'Persian';
+		case 'arabic':
+			return 'Arabic';
+		default:
+			return 'English';
+	}
 }
 
 /**

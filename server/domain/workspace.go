@@ -25,6 +25,12 @@ type Workspace struct {
 	*/
 	ApprovedLeaveNotificationChannelID string
 
+	/*
+		LeaveNotificationLanguage controls generated leave request, decision, and
+		team-facing availability notification copy.
+	*/
+	LeaveNotificationLanguage ReportLanguage
+
 	Timezone string
 
 	CreatedBy string

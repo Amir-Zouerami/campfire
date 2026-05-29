@@ -37,6 +37,13 @@ type ReportStore interface {
 		limit int,
 	) ([]domain.ReportRun, error)
 	CreateRun(ctx context.Context, run domain.ReportRun) (*domain.ReportRun, error)
+	PrepareRunForRepost(
+		ctx context.Context,
+		runID domain.ID,
+		postedBy string,
+		markdown string,
+		generatedAt time.Time,
+	) (*domain.ReportRun, error)
 	MarkRunPosted(ctx context.Context, runID domain.ID, mattermostPostID string, postedAt time.Time) (*domain.ReportRun, error)
 	MarkRunFailed(ctx context.Context, runID domain.ID, updatedAt time.Time) error
 }
@@ -79,6 +86,7 @@ func (s *SQLReportStore) ListRulesByWorkspaceID(
 				post_to_channel,
 				preview_required,
 				sort_mode,
+				report_language,
 				include_on_leave,
 				include_missing,
 				include_time,
@@ -117,6 +125,7 @@ func (s *SQLReportStore) UpdateRule(ctx context.Context, rule domain.ReportRule)
 				post_to_channel = ?,
 				preview_required = ?,
 				sort_mode = ?,
+				report_language = ?,
 				include_on_leave = ?,
 				include_missing = ?,
 				include_time = ?,
@@ -128,6 +137,7 @@ func (s *SQLReportStore) UpdateRule(ctx context.Context, rule domain.ReportRule)
 		rule.PostToChannel,
 		rule.PreviewRequired,
 		string(rule.SortMode),
+		string(rule.ReportLanguage),
 		rule.IncludeOnLeave,
 		rule.IncludeMissing,
 		rule.IncludeTime,
@@ -180,6 +190,7 @@ func (s *SQLReportStore) getRuleByID(
 				post_to_channel,
 				preview_required,
 				sort_mode,
+				report_language,
 				include_on_leave,
 				include_missing,
 				include_time,
@@ -230,6 +241,7 @@ func (s *SQLReportStore) GetEnabledRuleByWorkspaceIDAndKind(
 				post_to_channel,
 				preview_required,
 				sort_mode,
+				report_language,
 				include_on_leave,
 				include_missing,
 				include_time,
@@ -430,6 +442,58 @@ func (s *SQLReportStore) CreateRun(
 }
 
 /*
+PrepareRunForRepost reuses an existing manual report-run reservation.
+
+Campfire keeps one history row per report rule and period today because the
+original database migration created a uniqueness constraint for scheduler
+idempotency. Manual reposts must still be allowed, so the existing row is
+reserved again and then marked posted with the new Mattermost post ID.
+*/
+func (s *SQLReportStore) PrepareRunForRepost(
+	ctx context.Context,
+	runID domain.ID,
+	postedBy string,
+	markdown string,
+	generatedAt time.Time,
+) (*domain.ReportRun, error) {
+	result, err := s.db.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			UPDATE campfire_report_runs
+			SET
+				generated_at = ?,
+				posted_at = NULL,
+				posted_by = ?,
+				mattermost_post_id = '',
+				markdown = ?,
+				status = ?,
+				updated_at = ?
+			WHERE id = ?
+		`),
+		generatedAt,
+		postedBy,
+		markdown,
+		string(domain.ReportRunStatusPosting),
+		generatedAt,
+		runID.String(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("prepare report run for repost: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("read report repost result: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return nil, ErrNotFound
+	}
+
+	return s.getRunByID(ctx, runID)
+}
+
+/*
 MarkRunPosted updates a report run after a Mattermost post succeeds.
 */
 func (s *SQLReportStore) MarkRunPosted(
@@ -541,6 +605,7 @@ type reportRuleRecord struct {
 	PostToChannel   bool      `db:"post_to_channel"`
 	PreviewRequired bool      `db:"preview_required"`
 	SortMode        string    `db:"sort_mode"`
+	ReportLanguage  string    `db:"report_language"`
 	IncludeOnLeave  bool      `db:"include_on_leave"`
 	IncludeMissing  bool      `db:"include_missing"`
 	IncludeTime     bool      `db:"include_time"`
@@ -563,6 +628,7 @@ func (r reportRuleRecord) toDomain() domain.ReportRule {
 		PostToChannel:   r.PostToChannel,
 		PreviewRequired: r.PreviewRequired,
 		SortMode:        domain.ReportSortMode(r.SortMode),
+		ReportLanguage:  domain.ReportLanguage(r.ReportLanguage),
 		IncludeOnLeave:  r.IncludeOnLeave,
 		IncludeMissing:  r.IncludeMissing,
 		IncludeTime:     r.IncludeTime,

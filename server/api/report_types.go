@@ -52,6 +52,7 @@ type ReportRulePayload struct {
 	PostToChannel   bool   `json:"postToChannel"`
 	PreviewRequired bool   `json:"previewRequired"`
 	SortMode        string `json:"sortMode"`
+	ReportLanguage  string `json:"reportLanguage"`
 	IncludeOnLeave  bool   `json:"includeOnLeave"`
 	IncludeMissing  bool   `json:"includeMissing"`
 	IncludeTime     bool   `json:"includeTime"`
@@ -97,6 +98,7 @@ type UpdateReportRuleRequest struct {
 	PostToChannel   bool   `json:"postToChannel"`
 	PreviewRequired bool   `json:"previewRequired"`
 	SortMode        string `json:"sortMode"`
+	ReportLanguage  string `json:"reportLanguage"`
 	IncludeOnLeave  bool   `json:"includeOnLeave"`
 	IncludeMissing  bool   `json:"includeMissing"`
 	IncludeTime     bool   `json:"includeTime"`
@@ -150,17 +152,19 @@ type ListDailyReportRunsResponse struct {
 PostDailyReportPreviewRequest is accepted by POST /workspaces/{workspaceID}/reports/daily-preview/post.
 */
 type PostDailyReportPreviewRequest struct {
-	OccurrenceDate string `json:"occurrenceDate"`
-	SortMode       string `json:"sortMode"`
+	OccurrenceDate string            `json:"occurrenceDate"`
+	SortMode       string            `json:"sortMode"`
+	CalendarLabels map[string]string `json:"calendarLabels"`
 }
 
 /*
 PostWeeklyReportPreviewRequest is accepted by POST /workspaces/{workspaceID}/reports/weekly-preview/post.
 */
 type PostWeeklyReportPreviewRequest struct {
-	PeriodStart string `json:"periodStart"`
-	PeriodEnd   string `json:"periodEnd"`
-	SortMode    string `json:"sortMode"`
+	PeriodStart    string            `json:"periodStart"`
+	PeriodEnd      string            `json:"periodEnd"`
+	SortMode       string            `json:"sortMode"`
+	CalendarLabels map[string]string `json:"calendarLabels"`
 }
 
 /*
@@ -207,6 +211,7 @@ func ReportRuleToPayload(rule domain.ReportRule) ReportRulePayload {
 		PostToChannel:   rule.PostToChannel,
 		PreviewRequired: rule.PreviewRequired,
 		SortMode:        string(rule.SortMode),
+		ReportLanguage:  string(normalizeReportRulePayloadLanguage(rule.ReportLanguage)),
 		IncludeOnLeave:  rule.IncludeOnLeave,
 		IncludeMissing:  rule.IncludeMissing,
 		IncludeTime:     rule.IncludeTime,
@@ -214,6 +219,18 @@ func ReportRuleToPayload(rule domain.ReportRule) ReportRulePayload {
 		CreatedBy:       rule.CreatedBy,
 		CreatedAt:       formatAPITime(rule.CreatedAt),
 		UpdatedAt:       formatAPITime(rule.UpdatedAt),
+	}
+}
+
+/*
+normalizeReportRulePayloadLanguage keeps old rows readable before migration defaults are applied.
+*/
+func normalizeReportRulePayloadLanguage(language domain.ReportLanguage) domain.ReportLanguage {
+	switch language {
+	case domain.ReportLanguagePersian, domain.ReportLanguageArabic:
+		return language
+	default:
+		return domain.ReportLanguageEnglish
 	}
 }
 

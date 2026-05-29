@@ -85,6 +85,7 @@ func handleUpdateReportRule(
 			PostToChannel:   request.PostToChannel,
 			PreviewRequired: request.PreviewRequired,
 			SortMode:        request.SortMode,
+			ReportLanguage:  request.ReportLanguage,
 			IncludeOnLeave:  request.IncludeOnLeave,
 			IncludeMissing:  request.IncludeMissing,
 			IncludeTime:     request.IncludeTime,
@@ -123,11 +124,12 @@ func handleGetWeeklyReportPreview(
 		}
 
 		preview, err := reportService.BuildWeeklyPreview(r.Context(), service.BuildWeeklyReportPreviewInput{
-			ActorUserID: user.ID,
-			WorkspaceID: workspaceID,
-			PeriodStart: r.URL.Query().Get("periodStart"),
-			PeriodEnd:   r.URL.Query().Get("periodEnd"),
-			SortMode:    r.URL.Query().Get("sortMode"),
+			ActorUserID:    user.ID,
+			WorkspaceID:    workspaceID,
+			PeriodStart:    r.URL.Query().Get("periodStart"),
+			PeriodEnd:      r.URL.Query().Get("periodEnd"),
+			SortMode:       r.URL.Query().Get("sortMode"),
+			CalendarLabels: reportCalendarLabelsFromQuery(r),
 		})
 		if err != nil {
 			logServiceError(log, err)
@@ -166,6 +168,7 @@ func handleGetDailyReportPreview(
 			WorkspaceID:    workspaceID,
 			OccurrenceDate: r.URL.Query().Get("occurrenceDate"),
 			SortMode:       r.URL.Query().Get("sortMode"),
+			CalendarLabels: reportCalendarLabelsFromQuery(r),
 		})
 		if err != nil {
 			logServiceError(log, err)
@@ -239,13 +242,21 @@ func handlePostWeeklyReportPreview(
 			return
 		}
 
+		var request PostWeeklyReportPreviewRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			WriteError(w, http.StatusBadRequest, "invalid_request", "Request body must be valid JSON.")
+			return
+		}
+
 		result, err := reportService.PostWeeklyPreview(r.Context(), service.PostWeeklyReportPreviewInput{
-			ActorUserID:   user.ID,
-			IsSystemAdmin: user.IsSystemAdmin,
-			WorkspaceID:   workspaceID,
-			PeriodStart:   r.URL.Query().Get("periodStart"),
-			PeriodEnd:     r.URL.Query().Get("periodEnd"),
-			SortMode:      r.URL.Query().Get("sortMode"),
+			ActorUserID:    user.ID,
+			IsSystemAdmin:  user.IsSystemAdmin,
+			WorkspaceID:    workspaceID,
+			PeriodStart:    request.PeriodStart,
+			PeriodEnd:      request.PeriodEnd,
+			SortMode:       request.SortMode,
+			AllowRepost:    true,
+			CalendarLabels: request.CalendarLabels,
 		})
 		if err != nil {
 			logServiceError(log, err)
@@ -297,12 +308,20 @@ func handlePostDailyReportPreview(
 			return
 		}
 
+		var request PostDailyReportPreviewRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			WriteError(w, http.StatusBadRequest, "invalid_request", "Request body must be valid JSON.")
+			return
+		}
+
 		result, err := reportService.PostDailyPreview(r.Context(), service.PostDailyReportPreviewInput{
 			ActorUserID:    user.ID,
 			IsSystemAdmin:  user.IsSystemAdmin,
 			WorkspaceID:    workspaceID,
-			OccurrenceDate: r.URL.Query().Get("occurrenceDate"),
-			SortMode:       r.URL.Query().Get("sortMode"),
+			OccurrenceDate: request.OccurrenceDate,
+			SortMode:       request.SortMode,
+			AllowRepost:    true,
+			CalendarLabels: request.CalendarLabels,
 		})
 		if err != nil {
 			logServiceError(log, err)
@@ -330,6 +349,27 @@ func handlePostDailyReportPreview(
 			Posted:  result.Posted,
 		})
 	}
+}
+
+/*
+reportCalendarLabelsFromQuery decodes optional browser-rendered report date labels.
+
+The labels are display-only Markdown hints. The backend still validates and uses
+canonical Gregorian dates for every report decision. Invalid labels are ignored
+instead of failing report preview generation.
+*/
+func reportCalendarLabelsFromQuery(r *http.Request) map[string]string {
+	rawLabels := strings.TrimSpace(r.URL.Query().Get("calendarLabels"))
+	if rawLabels == "" {
+		return map[string]string{}
+	}
+
+	labels := map[string]string{}
+	if err := json.Unmarshal([]byte(rawLabels), &labels); err != nil {
+		return map[string]string{}
+	}
+
+	return labels
 }
 
 /*

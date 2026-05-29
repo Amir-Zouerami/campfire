@@ -18,6 +18,7 @@ type WorkspacePayload struct {
 	Description                        string `json:"description"`
 	BoardURL                           string `json:"boardUrl"`
 	ApprovedLeaveNotificationChannelID string `json:"approvedLeaveNotificationChannelId"`
+	LeaveNotificationLanguage          string `json:"leaveNotificationLanguage"`
 	Timezone                           string `json:"timezone"`
 	CreatedBy                          string `json:"createdBy"`
 	CreatedAt                          string `json:"createdAt"`
@@ -69,6 +70,7 @@ UpdateWorkspaceNotificationSettingsRequest updates workspace notification routin
 */
 type UpdateWorkspaceNotificationSettingsRequest struct {
 	ApprovedLeaveNotificationChannelID string `json:"approvedLeaveNotificationChannelId"`
+	LeaveNotificationLanguage          string `json:"leaveNotificationLanguage"`
 }
 
 /*
@@ -114,6 +116,7 @@ func WorkspaceToPayload(workspace domain.Workspace) WorkspacePayload {
 		Description:                        workspace.Description,
 		BoardURL:                           workspace.BoardURL,
 		ApprovedLeaveNotificationChannelID: workspace.ApprovedLeaveNotificationChannelID,
+		LeaveNotificationLanguage:          string(workspace.LeaveNotificationLanguage),
 		Timezone:                           workspace.Timezone,
 		CreatedBy:                          workspace.CreatedBy,
 		CreatedAt:                          formatAPITime(workspace.CreatedAt),
@@ -168,6 +171,7 @@ func (r UpdateWorkspaceNotificationSettingsRequest) ToServiceInput(
 		ActorUserID:                        actorUserID,
 		WorkspaceID:                        workspaceID,
 		ApprovedLeaveNotificationChannelID: r.ApprovedLeaveNotificationChannelID,
+		LeaveNotificationLanguage:          r.LeaveNotificationLanguage,
 	}
 }
 

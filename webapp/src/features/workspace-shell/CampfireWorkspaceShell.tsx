@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
-import { BarChart3, CalendarCheck, Flame, HelpCircle, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
+import { BarChart3, CalendarCheck, Flame, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
 
 import campfireLogoURL from '../../../../assets/campfire-logo.svg';
 
@@ -86,10 +86,6 @@ export function CampfireWorkspaceShell(props: WorkspaceShellProps): ReactElement
 						<Button type="button" variant="secondary" size="sm" onClick={props.onRefresh}>
 							<RefreshCw className="cf:size-4" />
 							Refresh
-						</Button>
-
-						<Button type="button" variant="ghost" size="icon-sm" aria-label="Campfire help">
-							<HelpCircle className="cf:size-4" />
 						</Button>
 
 						<Button type="button" variant="ghost" size="icon-sm" aria-label="Close Campfire" onClick={props.onClose}>

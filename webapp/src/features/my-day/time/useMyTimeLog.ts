@@ -245,7 +245,7 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 				categoryId: response.task.categoryId,
 			}));
 			setLoadState('ready');
-			setMessage('Task created.');
+			setMessage('');
 			toast.success('Task created');
 		} catch (error: unknown) {
 			const errorMessage = errorToMessage(error);
@@ -299,7 +299,7 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 				note: '',
 			}));
 			setLoadState('ready');
-			setMessage('Time logged.');
+			setMessage('');
 			toast.success('Time logged');
 		} catch (error: unknown) {
 			const errorMessage = errorToMessage(error);
@@ -336,7 +336,7 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 				current.map(candidate => (candidate.id === response.task.id ? response.task : candidate)),
 			);
 			setLoadState('ready');
-			setMessage('Task updated.');
+			setMessage('');
 		} catch (error: unknown) {
 			const errorMessage = errorToMessage(error);
 			setLoadState('error');

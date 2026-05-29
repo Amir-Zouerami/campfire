@@ -4,7 +4,7 @@ import { Rows3, UserRoundCheck, UserRoundX, Umbrella } from 'lucide-react';
 import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
 import { CampfireField } from '@/components/campfire/CampfireField';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
-import { CampfireStatCard, CampfireSurface } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireStatCard, CampfireWorkflowIntro } from '@/components/campfire/CampfireLayoutPrimitives';
 import type { Workspace } from '@/types/domain';
 
 import { dailyReportSortOptions, formatReportSortMode, toDailyReportSortMode } from './report-preview.helpers';
@@ -47,46 +47,41 @@ export function DailyReportPage(props: DailyReportPageProps): ReactElement {
 				<CampfireStatCard icon={Rows3} label="Markdown" value={String(report.markdownLines)} helper="Generated lines" />
 			</div>
 
-			<CampfireSurface className="campfire-control-surface">
-				<header className="campfire-flat-section-header">
-					<div>
-						<p className="campfire-page-eyebrow">Daily report</p>
-						<h3 className="campfire-surface-title">Preview controls</h3>
-						<p className="campfire-surface-description">
-							Pick a date and sort mode, then review the generated Markdown below.
-						</p>
+			<CampfireWorkflowIntro
+				eyebrow="Daily report"
+				title="Preview controls"
+				description="Pick a date and sort mode, then review the generated Markdown below."
+				controls={
+					<div className="campfire-control-grid campfire-control-grid--daily-report">
+						<CampfireField id="campfire-daily-report-date" label="Report date">
+							<CampfireDateInput
+								id="campfire-daily-report-date"
+								disabled={report.isBusy}
+								timezone={props.workspace.timezone}
+								value={report.occurrenceDate}
+								onValueChange={report.setOccurrenceDate}
+							/>
+						</CampfireField>
+
+						<CampfireField id="campfire-daily-report-sort" label="Sort mode">
+							<CampfireSelect
+								id="campfire-daily-report-sort"
+								disabled={report.isBusy}
+								value={report.sortMode}
+								onValueChange={value => report.setSortMode(toDailyReportSortMode(value))}
+							>
+								{dailyReportSortOptions.map(sortMode => (
+									<option key={sortMode} value={sortMode}>
+										{formatReportSortMode(sortMode)}
+									</option>
+								))}
+							</CampfireSelect>
+						</CampfireField>
 					</div>
-				</header>
-
+				}
+			>
 				<ReportPreviewFeedback state={report.loadState} message={report.message} />
-
-				<div className="campfire-control-grid campfire-control-grid--daily-report">
-					<CampfireField id="campfire-daily-report-date" label="Report date">
-						<CampfireDateInput
-							id="campfire-daily-report-date"
-							disabled={report.isBusy}
-							timezone={props.workspace.timezone}
-							value={report.occurrenceDate}
-							onValueChange={report.setOccurrenceDate}
-						/>
-					</CampfireField>
-
-					<CampfireField id="campfire-daily-report-sort" label="Sort mode">
-						<CampfireSelect
-							id="campfire-daily-report-sort"
-							disabled={report.isBusy}
-							value={report.sortMode}
-							onValueChange={value => report.setSortMode(toDailyReportSortMode(value))}
-						>
-							{dailyReportSortOptions.map(sortMode => (
-								<option key={sortMode} value={sortMode}>
-									{formatReportSortMode(sortMode)}
-								</option>
-							))}
-						</CampfireSelect>
-					</CampfireField>
-				</div>
-			</CampfireSurface>
+			</CampfireWorkflowIntro>
 
 			{report.loadState === 'loading' && <ReportPreviewLoading />}
 

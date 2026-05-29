@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent, type ReactElement } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactElement } from 'react';
 import { CheckCircle2, Plus, Trash2 } from 'lucide-react';
 
 import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
@@ -233,16 +233,29 @@ function TaskListQuestionControl(props: {
 		const items = parseTaskListItems(props.value);
 		return items.length > 0 ? editableTaskItems(items) : [''];
 	});
+	const lastEmittedValueRef = useRef(props.value);
+	const previousInputIDRef = useRef(props.inputID);
 
 	useEffect(() => {
+		const inputChanged = previousInputIDRef.current !== props.inputID;
+		previousInputIDRef.current = props.inputID;
+
+		if (!inputChanged && props.value === lastEmittedValueRef.current) {
+			return;
+		}
+
 		const items = parseTaskListItems(props.value);
+		lastEmittedValueRef.current = props.value;
 		setDraftItems(editableTaskItems(items));
 	}, [props.inputID, props.value]);
 
 	function commitItems(nextItems: readonly string[]): void {
 		const editableItems = editableTaskItems(nextItems);
+		const formattedValue = formatTaskListValue(editableItems);
+
+		lastEmittedValueRef.current = formattedValue;
 		setDraftItems(editableItems);
-		props.onChange(formatTaskListValue(editableItems));
+		props.onChange(formattedValue);
 	}
 
 	function updateItem(index: number, nextValue: string): void {
@@ -363,11 +376,13 @@ function TaskListQuestionControl(props: {
 }
 
 /**
- * editableTaskItems normalizes rows for editing: blank rows in the middle are
- * removed, and one empty trailing row is always kept for fast continuous entry.
+ * editableTaskItems removes blank draft rows while preserving the exact text a
+ * user is typing in non-empty rows. Task uniqueness still uses normalized title
+ * keys, but the editor must not trim an in-progress row because that prevents
+ * typing spaces between words.
  */
 function editableTaskItems(items: readonly string[]): readonly string[] {
-	const filledItems = items.map(item => item.trim()).filter(item => item !== '');
+	const filledItems = items.filter(item => item.trim() !== '');
 
 	return [...filledItems, ''];
 }

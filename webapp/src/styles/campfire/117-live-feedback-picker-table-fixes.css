@@ -1,0 +1,181 @@
+/*
+ * Live feedback picker and table fixes.
+ *
+ * Scope:
+ * - keep existing custom date/time picker scale while flipping popovers away
+ *   from the lower modal edge;
+ * - make searchable select menus flatter and less tall;
+ * - remove blue/slate empty-table surfaces;
+ * - soften task/time table surfaces and row borders;
+ * - align select and date controls in mixed filter rows.
+ */
+
+.campfire-theme .campfire-date-picker-popover,
+.campfire-theme .campfire-time-picker-popover {
+	inset-inline-start: var(--campfire-floating-left, auto) !important;
+	inset-inline-end: var(--campfire-floating-right, 0) !important;
+	top: var(--campfire-floating-top, calc(100% + 0.5rem)) !important;
+	bottom: var(--campfire-floating-bottom, auto) !important;
+}
+
+.campfire-theme .campfire-date-picker-popover {
+	max-height: none !important;
+	overflow: hidden !important;
+}
+
+.campfire-theme .campfire-date-picker-footer {
+	background: transparent !important;
+}
+
+.campfire-theme .campfire-select-menu {
+	border-color: rgba(253, 186, 116, 0.2) !important;
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.038), rgba(255, 255, 255, 0.016)),
+		rgba(11, 10, 9, 0.98) !important;
+	box-shadow: 0 24px 68px rgba(0, 0, 0, 0.74), inset 0 1px 0 rgba(255, 255, 255, 0.055) !important;
+}
+
+.campfire-theme .campfire-select-search {
+	min-height: 2.15rem !important;
+	gap: 0.45rem !important;
+	margin: 0.05rem 0.05rem 0.35rem !important;
+	padding: 0.32rem 0.55rem !important;
+	border-color: rgba(253, 186, 116, 0.14) !important;
+	border-radius: 0.7rem !important;
+	background: rgba(255, 255, 255, 0.028) !important;
+	box-shadow: none !important;
+}
+
+.campfire-theme .campfire-select-search svg {
+	width: 0.95rem !important;
+	height: 0.95rem !important;
+	min-width: 0.95rem !important;
+	min-height: 0.95rem !important;
+	color: rgba(253, 186, 116, 0.62) !important;
+}
+
+.campfire-theme .campfire-select-search input {
+	min-height: 0 !important;
+	height: 1.45rem !important;
+	padding: 0 !important;
+	border: 0 !important;
+	border-radius: 0 !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	color: rgba(255, 247, 237, 0.9) !important;
+	font-size: 0.86rem !important;
+	font-weight: 560 !important;
+	line-height: 1.2 !important;
+}
+
+.campfire-theme .campfire-select-search input::placeholder {
+	color: rgba(255, 237, 213, 0.42) !important;
+}
+
+.campfire-theme .campfire-select-option {
+	min-height: 2.35rem !important;
+	padding-block: 0.55rem !important;
+	border: 1px solid transparent !important;
+	border-radius: 0.72rem !important;
+	font-size: 0.95rem !important;
+	font-weight: 560 !important;
+}
+
+.campfire-theme .campfire-select-hidden-count {
+	margin: 0.32rem 0.25rem 0.1rem !important;
+	color: rgba(255, 237, 213, 0.58) !important;
+	font-size: 0.76rem !important;
+}
+
+.campfire-theme .campfire-table-surface {
+	border-color: rgba(255, 255, 255, 0.09) !important;
+	border-radius: 1.35rem !important;
+	background:
+		radial-gradient(circle at 0% 0%, rgba(251, 146, 60, 0.042), transparent 22rem),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.038), rgba(255, 255, 255, 0.014)),
+		rgba(9, 8, 7, 0.58) !important;
+}
+
+.campfire-theme .campfire-time-layout .campfire-table-surface,
+.campfire-theme .campfire-data-table,
+.campfire-theme .campfire-data-table-row {
+	background-color: transparent !important;
+}
+
+.campfire-theme .campfire-data-table {
+	gap: 0.34rem !important;
+	border-color: rgba(255, 255, 255, 0.07) !important;
+	border-radius: 1.18rem !important;
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0.01)),
+		rgba(0, 0, 0, 0.14) !important;
+	padding: 0.42rem !important;
+	overflow: visible !important;
+}
+
+.campfire-theme .campfire-data-table-row {
+	border: 1px solid rgba(255, 255, 255, 0.055) !important;
+	border-radius: 0.9rem !important;
+	background: rgba(255, 255, 255, 0.024) !important;
+}
+
+.campfire-theme .campfire-data-table-row:first-child {
+	border-top: 1px solid rgba(255, 255, 255, 0.055) !important;
+}
+
+.campfire-theme .campfire-data-table-row--head {
+	border-color: rgba(253, 186, 116, 0.12) !important;
+	background: rgba(253, 186, 116, 0.045) !important;
+	color: rgba(255, 237, 213, 0.68) !important;
+}
+
+.campfire-theme .campfire-data-table-empty {
+	padding: 0.85rem !important;
+}
+
+.campfire-theme .campfire-data-table-empty .campfire-empty-state,
+.campfire-theme .campfire-data-table-empty .campfire-empty {
+	border: 1px dashed rgba(253, 186, 116, 0.16) !important;
+	border-radius: 1.05rem !important;
+	background:
+		radial-gradient(circle at 50% 0%, rgba(251, 146, 60, 0.055), transparent 16rem),
+		rgba(255, 255, 255, 0.018) !important;
+}
+
+.campfire-theme .campfire-list-toolbar {
+	border: 1px solid rgba(255, 255, 255, 0.065) !important;
+	border-radius: 1rem !important;
+	background: rgba(255, 255, 255, 0.02) !important;
+	padding: 0.5rem !important;
+}
+
+.campfire-theme .campfire-search-field input {
+	border-color: rgba(255, 255, 255, 0.075) !important;
+	background: rgba(255, 255, 255, 0.024) !important;
+	box-shadow: none !important;
+}
+
+.campfire-theme .campfire-form-field > .cf\:relative,
+.campfire-theme .campfire-team-standups-controls > .cf\:grid {
+	display: grid !important;
+	align-content: end !important;
+}
+
+.campfire-theme .campfire-select-trigger {
+	min-height: 2.95rem !important;
+	align-items: center !important;
+	border-radius: 0.95rem !important;
+	background:
+		radial-gradient(circle at 12% 0%, rgba(251, 146, 60, 0.11), transparent 38%),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.02)),
+		rgba(8, 7, 6, 0.58) !important;
+}
+
+.campfire-theme .campfire-team-standups-controls {
+	align-items: end !important;
+}
+
+.campfire-theme .campfire-team-standups-controls .campfire-select-trigger,
+.campfire-theme .campfire-team-standups-controls .campfire-date-picker-trigger {
+	min-height: 3.1rem !important;
+}

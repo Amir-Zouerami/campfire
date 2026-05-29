@@ -283,7 +283,7 @@ export function validateScheduleDraft(draft: StandupScheduleDraft): string | nul
 	}
 
 	if (draft.timeOfDay.trim() === '') {
-		return 'Choose a schedule time.';
+		return 'Choose a report time.';
 	}
 
 	return null;

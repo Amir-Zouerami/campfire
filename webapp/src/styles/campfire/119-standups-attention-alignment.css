@@ -1,0 +1,337 @@
+/*
+ * Standup review alignment and attention-table cleanup.
+ *
+ * This pass keeps the existing Team Review APIs intact while making the
+ * workspace content area fill its shell, aligning mixed date/select controls,
+ * and replacing the one-line missing/on-leave strip with a readable table.
+ */
+
+.campfire-theme .campfire-workspace-main {
+	display: grid !important;
+	height: 100% !important;
+	max-height: 100% !important;
+	min-height: 0 !important;
+	grid-template-rows: auto minmax(0, 1fr) !important;
+	overflow: hidden !important;
+}
+
+.campfire-theme .campfire-workspace-content {
+	min-height: 0 !important;
+	height: 100% !important;
+	max-height: 100% !important;
+	overflow: auto !important;
+}
+
+.campfire-theme .campfire-control-surface,
+.campfire-theme .campfire-team-workflow-surface,
+.campfire-theme .campfire-standup-review-hero {
+	border-color: rgba(251, 191, 36, 0.13) !important;
+	border-radius: 1.45rem !important;
+	background:
+		radial-gradient(circle at 0% 0%, rgba(251, 146, 60, 0.105), transparent 22rem),
+		linear-gradient(135deg, rgba(31, 24, 17, 0.66), rgba(14, 12, 10, 0.78)),
+		rgba(12, 10, 8, 0.74) !important;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.055),
+		0 20px 70px rgba(0, 0, 0, 0.24) !important;
+}
+
+.campfire-theme .campfire-flat-section-header h3,
+.campfire-theme .campfire-team-workflow-surface .campfire-surface-title {
+	color: #fff7ed !important;
+	font-size: clamp(1.35rem, 0.7vw + 1.05rem, 1.8rem) !important;
+	font-weight: 760 !important;
+	letter-spacing: -0.045em !important;
+	line-height: 1.04 !important;
+}
+
+.campfire-theme .campfire-flat-section-header .campfire-page-eyebrow,
+.campfire-theme .campfire-team-workflow-surface .campfire-page-eyebrow {
+	color: #fbbf24 !important;
+	font-size: 0.76rem !important;
+	font-weight: 900 !important;
+	letter-spacing: 0.18em !important;
+	line-height: 1 !important;
+	text-transform: uppercase !important;
+}
+
+.campfire-theme .campfire-flat-section-header .campfire-surface-description,
+.campfire-theme .campfire-team-workflow-surface .campfire-surface-description {
+	color: rgba(255, 247, 237, 0.69) !important;
+	font-size: 0.96rem !important;
+	font-weight: 560 !important;
+	line-height: 1.55 !important;
+}
+
+.campfire-theme :is(.campfire-control-grid, .campfire-team-control-grid, .campfire-team-standups-controls) {
+	align-items: end !important;
+}
+
+.campfire-theme :is(.campfire-control-grid, .campfire-team-control-grid, .campfire-team-standups-controls) .campfire-field {
+	display: grid !important;
+	min-width: 0 !important;
+	height: 100% !important;
+	grid-template-rows: 1.08rem 3.35rem !important;
+	gap: 0.48rem !important;
+	align-content: end !important;
+	align-items: end !important;
+}
+
+.campfire-theme :is(.campfire-control-grid, .campfire-team-control-grid, .campfire-team-standups-controls) .campfire-field > label {
+	display: flex !important;
+	min-height: 1.08rem !important;
+	align-items: center !important;
+	align-self: end !important;
+	margin: 0 !important;
+	color: rgba(255, 231, 186, 0.86) !important;
+	font-size: 0.8rem !important;
+	font-weight: 900 !important;
+	letter-spacing: 0.12em !important;
+	line-height: 1 !important;
+	text-transform: none !important;
+}
+
+.campfire-theme :is(.campfire-control-grid, .campfire-team-control-grid, .campfire-team-standups-controls) .campfire-date-picker,
+.campfire-theme :is(.campfire-control-grid, .campfire-team-control-grid, .campfire-team-standups-controls) .campfire-field > .cf\:relative {
+	height: 3.35rem !important;
+	align-self: end !important;
+}
+
+.campfire-theme :is(.campfire-control-grid, .campfire-team-control-grid, .campfire-team-standups-controls) .campfire-date-picker-trigger,
+.campfire-theme :is(.campfire-control-grid, .campfire-team-control-grid, .campfire-team-standups-controls) .campfire-select-trigger {
+	height: 3.35rem !important;
+	min-height: 3.35rem !important;
+	align-items: center !important;
+}
+
+.campfire-theme .campfire-standup-review-hero {
+	grid-template-columns: minmax(18rem, 1fr) minmax(34rem, 44rem) !important;
+	align-items: center !important;
+}
+
+.campfire-theme .campfire-team-standups-controls {
+	grid-template-columns: minmax(14rem, 17rem) minmax(16rem, 1fr) !important;
+}
+
+.campfire-theme .campfire-team-standups-control-item,
+.campfire-theme .campfire-team-standups-control-item > .campfire-field {
+	min-width: 0 !important;
+	height: 100% !important;
+}
+
+.campfire-theme .campfire-standup-attention-panel {
+	display: grid;
+	gap: 0.85rem;
+	border: 1px solid rgba(255, 255, 255, 0.085);
+	border-radius: 1.35rem;
+	background:
+		radial-gradient(circle at 0% 0%, rgba(251, 146, 60, 0.035), transparent 18rem),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.034), rgba(255, 255, 255, 0.012)),
+		rgba(9, 8, 7, 0.52);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+	padding: 0.9rem;
+}
+
+.campfire-theme .campfire-standup-attention-header {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 1rem;
+	padding-inline: 0.15rem;
+}
+
+.campfire-theme .campfire-standup-attention-header h3,
+.campfire-theme .campfire-standup-attention-header p {
+	margin: 0;
+}
+
+.campfire-theme .campfire-standup-attention-eyebrow {
+	color: #fbbf24;
+	font-size: 0.72rem;
+	font-weight: 900;
+	letter-spacing: 0.16em;
+	line-height: 1;
+	text-transform: uppercase;
+}
+
+.campfire-theme .campfire-standup-attention-header h3 {
+	margin-top: 0.35rem;
+	color: #fff7ed;
+	font-size: 1.18rem;
+	font-weight: 760;
+	letter-spacing: -0.035em;
+	line-height: 1.08;
+}
+
+.campfire-theme .campfire-standup-attention-header > p {
+	max-width: 36rem;
+	color: rgba(255, 247, 237, 0.64);
+	font-size: 0.92rem;
+	font-weight: 560;
+	line-height: 1.45;
+	text-align: right;
+}
+
+.campfire-theme .campfire-standup-attention-table {
+	display: grid;
+	gap: 0.38rem;
+	border: 1px solid rgba(255, 255, 255, 0.07);
+	border-radius: 1.05rem;
+	background: rgba(0, 0, 0, 0.14);
+	padding: 0.42rem;
+}
+
+.campfire-theme .campfire-standup-attention-row {
+	display: grid;
+	grid-template-columns: minmax(13rem, 0.6fr) 5rem minmax(0, 1fr);
+	gap: 0.85rem;
+	align-items: center;
+	min-height: 3.75rem;
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	border-radius: 0.9rem;
+	background: rgba(255, 255, 255, 0.022);
+	padding: 0.65rem 0.75rem;
+}
+
+.campfire-theme .campfire-standup-attention-row--head {
+	min-height: 2.2rem;
+	border-color: rgba(253, 186, 116, 0.12);
+	background: rgba(253, 186, 116, 0.045);
+	color: rgba(255, 237, 213, 0.68);
+	font-size: 0.72rem;
+	font-weight: 900;
+	letter-spacing: 0.12em;
+	line-height: 1;
+	text-transform: uppercase;
+}
+
+.campfire-theme .campfire-standup-attention-row--red {
+	border-color: rgba(248, 113, 113, 0.12);
+	background: linear-gradient(90deg, rgba(248, 113, 113, 0.065), rgba(255, 255, 255, 0.018));
+}
+
+.campfire-theme .campfire-standup-attention-row--slate {
+	border-color: rgba(255, 255, 255, 0.07);
+	background: linear-gradient(90deg, rgba(255, 255, 255, 0.036), rgba(255, 255, 255, 0.014));
+}
+
+.campfire-theme .campfire-standup-attention-status {
+	display: flex;
+	min-width: 0;
+	align-items: center;
+	gap: 0.7rem;
+}
+
+.campfire-theme .campfire-standup-attention-icon {
+	display: grid;
+	width: 2.25rem;
+	height: 2.25rem;
+	flex: 0 0 auto;
+	place-items: center;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 0.78rem;
+	background: rgba(255, 255, 255, 0.035);
+}
+
+.campfire-theme .campfire-standup-attention-icon--red {
+	border-color: rgba(248, 113, 113, 0.26);
+	background: rgba(248, 113, 113, 0.1);
+	color: #fecaca;
+}
+
+.campfire-theme .campfire-standup-attention-icon--slate {
+	border-color: rgba(255, 255, 255, 0.14);
+	background: rgba(255, 255, 255, 0.055);
+	color: rgba(255, 247, 237, 0.8);
+}
+
+.campfire-theme .campfire-standup-attention-copy {
+	display: grid;
+	min-width: 0;
+	gap: 0.22rem;
+}
+
+.campfire-theme .campfire-standup-attention-copy strong {
+	color: #fff7ed;
+	font-size: 0.98rem;
+	font-weight: 760;
+	line-height: 1.1;
+}
+
+.campfire-theme .campfire-standup-attention-copy span {
+	color: rgba(255, 247, 237, 0.58);
+	font-size: 0.82rem;
+	font-weight: 590;
+	line-height: 1.2;
+}
+
+.campfire-theme .campfire-standup-attention-count {
+	color: #fff7ed;
+	font-size: 1.08rem;
+	font-weight: 820;
+	line-height: 1;
+}
+
+.campfire-theme .campfire-standup-attention-people {
+	display: flex;
+	min-width: 0;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 0.42rem;
+}
+
+.campfire-theme .campfire-standup-attention-empty,
+.campfire-theme .campfire-standup-attention-chip {
+	display: inline-flex;
+	align-items: center;
+	min-height: 1.65rem;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 999px;
+	padding: 0.25rem 0.58rem;
+	font-size: 0.78rem;
+	font-weight: 720;
+	line-height: 1;
+}
+
+.campfire-theme .campfire-standup-attention-empty {
+	background: rgba(255, 255, 255, 0.045);
+	color: rgba(255, 247, 237, 0.74);
+}
+
+.campfire-theme .campfire-standup-attention-chip--red {
+	border-color: rgba(248, 113, 113, 0.22);
+	background: rgba(248, 113, 113, 0.11);
+	color: #fecaca;
+}
+
+.campfire-theme .campfire-standup-attention-chip--slate {
+	border-color: rgba(255, 255, 255, 0.12);
+	background: rgba(255, 255, 255, 0.07);
+	color: rgba(255, 247, 237, 0.84);
+}
+
+@media (max-width: 1180px) {
+	.campfire-theme .campfire-standup-review-hero {
+		grid-template-columns: 1fr !important;
+	}
+
+	.campfire-theme .campfire-standup-attention-header {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+
+	.campfire-theme .campfire-standup-attention-header > p {
+		text-align: left;
+	}
+}
+
+@media (max-width: 820px) {
+	.campfire-theme .campfire-standup-attention-row {
+		grid-template-columns: 1fr;
+		align-items: start;
+	}
+
+	.campfire-theme .campfire-standup-attention-people {
+		justify-content: flex-start;
+	}
+}

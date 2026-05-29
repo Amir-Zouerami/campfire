@@ -38,7 +38,7 @@ export function TeamAvailabilitySummaryPanel(props: TeamAvailabilitySummaryPanel
 					description="Nobody is marked out for this window."
 				/>
 			) : (
-				<div className="cf:grid cf:gap-3">
+				<div className="campfire-bounded-result-list cf:grid cf:gap-3">
 					{props.rows.map(row => (
 						<SummaryLeaveRow key={row.leaveRequest.id} row={row} labelForUserID={props.labelForUserID} />
 					))}

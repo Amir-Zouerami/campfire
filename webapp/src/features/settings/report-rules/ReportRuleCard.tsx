@@ -11,10 +11,13 @@ import type { ReportRule } from '@/types/domain';
 import {
 	formatDateTime,
 	formatReportKind,
+	formatReportLanguage,
 	formatReportSortMode,
+	reportLanguageOptions,
 	reportRuleCardClassName,
 	reportRuleHasChanges,
 	reportSortOptions,
+	toReportLanguage,
 	toReportSortMode,
 } from './report-rules.helpers';
 import type { ReportRuleDraft, ReportRuleDraftPatch } from './report-rules.types';
@@ -137,20 +140,37 @@ export function ReportRuleCard(props: ReportRuleCardProps): ReactElement {
 				/>
 			</div>
 
-			<CampfireField id={`campfire-report-rule-sort-${props.rule.id}`} label="Sort mode">
-				<CampfireSelect
-					id={`campfire-report-rule-sort-${props.rule.id}`}
-					disabled={formDisabled}
-					value={props.draft.sortMode}
-					onValueChange={value => props.onDraftChange(props.rule.id, { sortMode: toReportSortMode(value) })}
-				>
-					{reportSortOptions.map(sortMode => (
-						<option key={sortMode} value={sortMode}>
-							{formatReportSortMode(sortMode)}
-						</option>
-					))}
-				</CampfireSelect>
-			</CampfireField>
+			<div className="campfire-report-rule-select-grid cf:grid cf:gap-3 cf:xl:grid-cols-2">
+				<CampfireField id={`campfire-report-rule-sort-${props.rule.id}`} label="Sort mode">
+					<CampfireSelect
+						id={`campfire-report-rule-sort-${props.rule.id}`}
+						disabled={formDisabled}
+						value={props.draft.sortMode}
+						onValueChange={value => props.onDraftChange(props.rule.id, { sortMode: toReportSortMode(value) })}
+					>
+						{reportSortOptions.map(sortMode => (
+							<option key={sortMode} value={sortMode}>
+								{formatReportSortMode(sortMode)}
+							</option>
+						))}
+					</CampfireSelect>
+				</CampfireField>
+
+				<CampfireField id={`campfire-report-rule-language-${props.rule.id}`} label="Report language">
+					<CampfireSelect
+						id={`campfire-report-rule-language-${props.rule.id}`}
+						disabled={formDisabled}
+						value={props.draft.reportLanguage}
+						onValueChange={value => props.onDraftChange(props.rule.id, { reportLanguage: toReportLanguage(value) })}
+					>
+						{reportLanguageOptions.map(language => (
+							<option key={language} value={language}>
+								{formatReportLanguage(language)}
+							</option>
+						))}
+					</CampfireSelect>
+				</CampfireField>
+			</div>
 
 			<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4">
 				<p className="cf:m-0 cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">

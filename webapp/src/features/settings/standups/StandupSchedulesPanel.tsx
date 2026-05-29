@@ -41,9 +41,9 @@ export function StandupSchedulesPanel(props: StandupSchedulesPanelProps): ReactE
 				<div className="campfire-surface-header campfire-surface-header--with-action">
 					<div>
 						<p className="campfire-surface-eyebrow">Schedules</p>
-						<h3 className="campfire-surface-title">When Campfire asks</h3>
+						<h3 className="campfire-surface-title">When reports post</h3>
 						<p className="campfire-surface-description">
-							Create one run, attach a template, and set its local time.
+							Create one report schedule, attach a template, and set the local report posting time.
 						</p>
 					</div>
 					<CampfireStatusPill tone="ember">{props.schedulesWithDrafts.length} schedules</CampfireStatusPill>
@@ -52,7 +52,7 @@ export function StandupSchedulesPanel(props: StandupSchedulesPanelProps): ReactE
 				<CampfireWorkflowNote
 					icon={CalendarClock}
 					title="Daily and weekly behavior stays explicit."
-					description="Daily schedules, weekly schedules, non-working-day skips, and weekly override behavior are separate controls."
+					description="Report time is when the summary posts. Reminder offsets run during the hour before this time."
 				/>
 
 				<form
@@ -77,7 +77,7 @@ export function StandupSchedulesPanel(props: StandupSchedulesPanelProps): ReactE
 							) : (
 								<Plus className="cf:size-4" />
 							)}
-							Create schedule
+							Create report schedule
 						</Button>
 					</div>
 				</form>
@@ -89,7 +89,7 @@ export function StandupSchedulesPanel(props: StandupSchedulesPanelProps): ReactE
 						<p className="campfire-surface-eyebrow">Saved runs</p>
 						<h3 className="campfire-surface-title">Existing schedules</h3>
 						<p className="campfire-surface-description">
-							Edit enabled state, cadence, time, and skip behavior in-place.
+							Edit enabled state, cadence, report time, and skip behavior in-place.
 						</p>
 					</div>
 					<CampfireStatusPill tone="slate">{props.schedulesWithDrafts.length}</CampfireStatusPill>

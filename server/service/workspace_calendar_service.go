@@ -284,21 +284,25 @@ func validateWorkspaceCalendarWorkingDays(workingDays []int) error {
 }
 
 /*
-buildWorkspaceCalendarWorkingDays creates enabled working-day rows from weekday numbers.
+buildWorkspaceCalendarWorkingDays creates explicit enabled/disabled rows for all seven weekdays.
 */
 func buildWorkspaceCalendarWorkingDays(
 	workspaceID domain.ID,
 	weekdays []int,
 	now time.Time,
 ) []domain.WorkspaceWorkingDay {
-	workingDays := make([]domain.WorkspaceWorkingDay, 0, len(weekdays))
-
+	enabledByWeekday := map[int]bool{}
 	for _, weekday := range weekdays {
+		enabledByWeekday[weekday] = true
+	}
+
+	workingDays := make([]domain.WorkspaceWorkingDay, 0, 7)
+	for weekday := int(time.Sunday); weekday <= int(time.Saturday); weekday++ {
 		workingDays = append(workingDays, domain.WorkspaceWorkingDay{
 			ID:          domain.ID(uuid.NewString()),
 			WorkspaceID: workspaceID,
 			Weekday:     time.Weekday(weekday),
-			Enabled:     true,
+			Enabled:     enabledByWeekday[weekday],
 			CreatedAt:   now,
 			UpdatedAt:   now,
 		})

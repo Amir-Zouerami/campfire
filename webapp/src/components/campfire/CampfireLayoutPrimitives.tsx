@@ -92,6 +92,20 @@ type CampfirePageHeaderProps = {
 };
 
 /**
+ * CampfireWorkflowIntroProps contains the shared hero/control surface used at
+ * the top of focused workflows.
+ */
+type CampfireWorkflowIntroProps = {
+	readonly eyebrow: string;
+	readonly title: string;
+	readonly description: string;
+	readonly controls?: ReactNode;
+	readonly children?: ReactNode;
+	readonly className?: string;
+	readonly id?: string;
+};
+
+/**
  * CampfireStatCardProps contains compact dashboard stat content.
  */
 type CampfireStatCardProps = {
@@ -288,6 +302,34 @@ export function CampfirePageHeader(props: CampfirePageHeaderProps): ReactElement
 
 			{props.actions !== undefined && <div className="campfire-page-actions">{props.actions}</div>}
 		</header>
+	);
+}
+
+/**
+ * CampfireWorkflowIntro renders the shared warm workflow intro/control surface.
+ *
+ * Use this for focused workflow cards such as review cockpit, report controls,
+ * and settings intros so spacing, typography, and color stay identical.
+ */
+export function CampfireWorkflowIntro(props: CampfireWorkflowIntroProps): ReactElement {
+	const titleID = props.id ?? `campfire-workflow-intro-${props.eyebrow.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+
+	return (
+		<section className={cn('campfire-workflow-intro', props.className)} aria-labelledby={titleID}>
+			<div className="campfire-workflow-intro-row">
+				<div className="campfire-workflow-intro-copy">
+					<p className="campfire-workflow-intro-eyebrow">{props.eyebrow}</p>
+					<h3 id={titleID}>{props.title}</h3>
+					<p>{props.description}</p>
+				</div>
+
+				{props.controls !== undefined && (
+					<div className="campfire-workflow-intro-controls">{props.controls}</div>
+				)}
+			</div>
+
+			{props.children !== undefined && <div className="campfire-workflow-intro-body">{props.children}</div>}
+		</section>
 	);
 }
 

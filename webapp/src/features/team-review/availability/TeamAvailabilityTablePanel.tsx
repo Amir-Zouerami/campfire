@@ -37,7 +37,7 @@ export function TeamAvailabilityTablePanel(props: TeamAvailabilityTablePanelProp
 					description="Approved leave requests will appear here when they overlap the selected date window."
 				/>
 			) : (
-				<div className="cf:grid cf:gap-3">
+				<div className="campfire-bounded-result-list campfire-bounded-result-list--tall cf:grid cf:gap-3">
 					{props.rows.map(row => (
 						<AvailabilityRow
 							key={row.leaveRequest.id}
