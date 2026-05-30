@@ -23,7 +23,7 @@ export async function requestJson<ResponseBody>(path: string, options: RequestOp
 	const response = await safeFetch(path, method, {
 		method,
 		credentials: 'include',
-		headers: buildHeaders(options.body),
+		headers: buildHeaders(method, options.body),
 		body: options.body === undefined ? undefined : JSON.stringify(options.body),
 	});
 
@@ -116,11 +116,16 @@ async function safeFetch(path: string, method: string, init: RequestInit): Promi
 /**
  * buildHeaders returns request headers for JSON API calls.
  */
-function buildHeaders(body: unknown): HeadersInit {
-	const baseHeaders: HeadersInit = {
+function buildHeaders(method: string, body: unknown): HeadersInit {
+	const baseHeaders: Record<string, string> = {
 		Accept: 'application/json',
 		'X-Requested-With': 'XMLHttpRequest',
 	};
+
+	const csrfToken = csrfTokenFromCookie();
+	if (requiresCSRFToken(method) && csrfToken !== '') {
+		baseHeaders['X-CSRF-Token'] = csrfToken;
+	}
 
 	if (body === undefined) {
 		return baseHeaders;
@@ -183,6 +188,37 @@ function getPluginAPIBaseURL(): string {
 	const baseName = typeof window.basename === 'string' ? window.basename : '';
 
 	return `${baseName}/plugins/dev.zouerami.campfire/api/v1`;
+}
+
+/**
+ * requiresCSRFToken reports whether a method mutates Mattermost/plugin state.
+ */
+function requiresCSRFToken(method: string): boolean {
+	return method !== 'GET';
+}
+
+/**
+ * csrfTokenFromCookie reads Mattermost's browser CSRF token cookie.
+ *
+ * Mattermost still accepts XMLHttpRequest today, but recent server versions log a
+ * migration warning unless plugin webapps send the explicit X-CSRF-Token header.
+ */
+function csrfTokenFromCookie(): string {
+	if (typeof document === 'undefined' || document.cookie.trim() === '') {
+		return '';
+	}
+
+	const cookies = document.cookie.split(';');
+	for (const cookie of cookies) {
+		const [rawName, ...rawValueParts] = cookie.split('=');
+		if (rawName.trim() !== 'MMCSRF') {
+			continue;
+		}
+
+		return decodeURIComponent(rawValueParts.join('=').trim());
+	}
+
+	return '';
 }
 
 /**

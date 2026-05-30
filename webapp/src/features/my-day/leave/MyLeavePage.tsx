@@ -91,6 +91,7 @@ export function MyLeavePage(props: MyLeavePageProps): ReactElement {
 						<MyActiveLeavePanel
 							leaveRequests={leave.myActiveLeaves}
 							disabled={leave.isBusy}
+							timezone={props.workspace.timezone}
 							onCancel={leave.cancelMyLeaveRequest}
 						/>
 					</div>

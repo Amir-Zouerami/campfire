@@ -103,7 +103,7 @@
 	--color-blue-950: #431407;
 }
 
-:root {
+.campfire-theme {
 	--background: oklch(1 0 0);
 	--foreground: oklch(0.145 0 0);
 	--card: oklch(1 0 0);
@@ -138,7 +138,7 @@
 	--sidebar-ring: oklch(0.708 0 0);
 }
 
-.dark {
+.campfire-theme.dark {
 	--background: oklch(0.145 0 0);
 	--foreground: oklch(0.985 0 0);
 	--card: oklch(0.205 0 0);
@@ -173,16 +173,12 @@
 }
 
 @layer base {
-	* {
+	.campfire-theme {
+		@apply cf:bg-background cf:text-foreground cf:font-sans;
+	}
+
+	.campfire-theme * {
 		@apply cf:border-border cf:outline-ring/50;
-	}
-
-	body {
-		@apply cf:bg-background cf:text-foreground;
-	}
-
-	html {
-		@apply cf:font-sans;
 	}
 }
 

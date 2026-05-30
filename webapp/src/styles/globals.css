@@ -1,6 +1,13 @@
-@import 'tailwindcss' prefix(cf);
-@import 'tw-animate-css';
-@import 'shadcn/tailwind.css';
+@layer theme, base, components, utilities;
+
+/*
+ * Campfire is loaded inside Mattermost, so global reset styles must never leak
+ * into the host app. Import Tailwind theme tokens and prefixed utilities only;
+ * intentionally omit Preflight, shadcn's global CSS, and unprefixed animation
+ * utilities that can mutate Mattermost's system console and icon layout.
+ */
+@import 'tailwindcss/theme.css' layer(theme) prefix(cf);
+@import 'tailwindcss/utilities.css' layer(utilities) prefix(cf);
 @import '@fontsource-variable/inter';
 
 @import './campfire.css';

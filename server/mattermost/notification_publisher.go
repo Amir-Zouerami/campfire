@@ -265,7 +265,7 @@ func formatStandupDMReminderMessage(api plugin.API, reminder service.StandupDMRe
 	channelReference := channelReferenceOrWorkspaceName(api, reminder.ChannelID, reminder.WorkspaceName)
 
 	lines := []string{
-		"🔥 **Standup reminder**",
+		formatNotificationHeading("🔥 **Standup reminder**"),
 		"",
 		fmt.Sprintf("%s, your standup for **%s** is still missing.", targetLabel, reminder.OccurrenceDate),
 		fmt.Sprintf("Please open %s and submit your update from that channel.", channelReference),
@@ -285,7 +285,7 @@ formatChannelMissingReminderMessage formats a channel reminder for missing stand
 */
 func formatChannelMissingReminderMessage(api plugin.API, reminder service.StandupChannelMissingReminder) string {
 	lines := []string{
-		"🔥 **Standup reminder**",
+		formatNotificationHeading("🔥 **Standup reminder**"),
 		"",
 		fmt.Sprintf("Missing standups for **%s**:", reminder.OccurrenceDate),
 	}
@@ -332,7 +332,7 @@ func formatLeaveRequestedMessage(api plugin.API, notification service.LeaveReque
 	workspaceLabel := channelReferenceOrWorkspaceName(api, notification.ChannelID, notification.WorkspaceName)
 
 	lines := []string{
-		copy.RequestTitle,
+		formatNotificationHeading(copy.RequestTitle),
 		"",
 		fmt.Sprintf(copy.RequestSummary, requesterLabel, notification.LeaveTypeName),
 		formatLabeledInlineValue(copy.WorkspaceLabel, workspaceLabel),
@@ -373,7 +373,7 @@ func formatLeaveDecidedMessage(api plugin.API, notification service.LeaveDecisio
 	}
 
 	lines := []string{
-		header,
+		formatNotificationHeading(header),
 		"",
 		summary,
 		formatLabeledInlineValue(copy.DatesLabel, formatDateRange(notification.StartDate, notification.EndDate)),
@@ -398,7 +398,7 @@ func formatApprovedLeaveChannelMessage(api plugin.API, notification service.Leav
 	workspaceLabel := channelReferenceOrWorkspaceName(api, notification.ChannelID, notification.WorkspaceName)
 
 	lines := []string{
-		copy.ChannelApprovedTitle,
+		formatNotificationHeading(copy.ChannelApprovedTitle),
 		"",
 		fmt.Sprintf(copy.ChannelApprovedSummary, requesterLabel, notification.LeaveTypeName),
 		formatLabeledInlineValue(copy.WorkspaceLabel, workspaceLabel),
@@ -438,7 +438,7 @@ func formatLeaveCancelledMessage(api plugin.API, notification service.LeaveCance
 	}
 
 	lines := []string{
-		copy.CancelledTitle,
+		formatNotificationHeading(copy.CancelledTitle),
 		"",
 		fmt.Sprintf(copy.CancelledSummary, requesterLabel, notification.LeaveTypeName, previousStatus),
 		formatLabeledInlineValue(copy.DatesLabel, formatDateRange(notification.StartDate, notification.EndDate)),
@@ -462,7 +462,7 @@ func formatApprovedLeaveCancelledChannelMessage(
 	requesterLabel := userMentionOrID(api, notification.RequesterUserID)
 
 	lines := []string{
-		copy.ChannelCancelledTitle,
+		formatNotificationHeading(copy.ChannelCancelledTitle),
 		"",
 		fmt.Sprintf(copy.ChannelCancelledSummary, requesterLabel, notification.LeaveTypeName),
 		formatLabeledInlineValue(copy.DatesLabel, formatDateRange(notification.StartDate, notification.EndDate)),
@@ -472,6 +472,24 @@ func formatApprovedLeaveCancelledChannelMessage(
 	lines = appendLeaveRequestDetails(lines, copy, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
 
 	return strings.Join(lines, "\n")
+}
+
+/*
+formatNotificationHeading returns a Mattermost Markdown h4 heading.
+
+Notification titles are always formatted through this helper so direct messages
+and channel announcements share the same readable heading treatment without
+duplicating Markdown prefixes in each translated copy string.
+*/
+func formatNotificationHeading(title string) string {
+	cleanTitle := strings.TrimSpace(title)
+	if cleanTitle == "" {
+		return ""
+	}
+
+	cleanTitle = strings.TrimLeft(cleanTitle, "# ")
+
+	return "#### " + cleanTitle
 }
 
 /*
@@ -628,18 +646,18 @@ func leaveNotificationCopyForLanguage(language domain.ReportLanguage) leaveNotif
 			DecisionTitle:           "به‌روزرسانی مرخصی 🔥",
 			DecisionSummary:         "درخواست مرخصی **%s** شما با وضعیت **%s** توسط کاربر %s ثبت شد.",
 			ApprovedTitle:           "مرخصی شما تایید شد ✅",
-			ApprovedSummary:         "درخواست مرخصی **%s** شما توسط کاربر %s تایید شد ✅",
+			ApprovedSummary:         "درخواست مرخصی **%s** شما توسط کاربر %s تایید شد",
 			RejectedTitle:           "مرخصی شما رد شد ❌",
-			RejectedSummary:         "درخواست مرخصی **%s** شما توسط کاربر %s رد شد ❌",
+			RejectedSummary:         "درخواست مرخصی **%s** شما توسط کاربر %s رد شد",
 			ChannelApprovedTitle:    "اعلام مرخصی تاییدشده ✅",
 			ChannelCancelledTitle:   "لغو مرخصی تاییدشده ↩️",
-			ChannelApprovedSummary:  "کاربر %s در مرخصی تاییدشده **%s** خواهد بود. ✅",
+			ChannelApprovedSummary:  "کاربر %s در مرخصی تاییدشده **%s** خواهد بود.",
 			ApprovedByLabel:         "تاییدکننده",
 			CommentLabel:            "یادداشت",
 			CancelledTitle:          "مرخصی لغو شد 🔥",
 			CancelledSummary:        "کاربر %s درخواست مرخصی **%s** خود با وضعیت قبلی %s را لغو کرد.",
-			ChannelCancelledSummary: "کاربر %s مرخصی تاییدشده **%s** خود را لغو کرد. ↩️",
-			NoLongerAwayMessage:     "این کاربر دیگر برای این بازه غایب محسوب نمی‌شود. ✅",
+			ChannelCancelledSummary: "کاربر %s مرخصی تاییدشده **%s** خود را لغو کرد.",
+			NoLongerAwayMessage:     "این کاربر دیگر برای این بازه غایب محسوب نمی‌شود.",
 			DurationLabel:           "مدت",
 			HalfDayDuration:         "نیم‌روز",
 			HourlyDuration:          "ساعتی",
@@ -664,18 +682,18 @@ func leaveNotificationCopyForLanguage(language domain.ReportLanguage) leaveNotif
 			DecisionTitle:           "تحديث الإجازة 🔥",
 			DecisionSummary:         "تم تحديث طلب إجازة **%s** الخاص بك إلى **%s** بواسطة المستخدم %s.",
 			ApprovedTitle:           "تمت الموافقة على إجازتك ✅",
-			ApprovedSummary:         "تمت الموافقة على طلب إجازة **%s** الخاص بك بواسطة المستخدم %s ✅",
+			ApprovedSummary:         "تمت الموافقة على طلب إجازة **%s** الخاص بك بواسطة المستخدم %s",
 			RejectedTitle:           "تم رفض إجازتك ❌",
-			RejectedSummary:         "تم رفض طلب إجازة **%s** الخاص بك بواسطة المستخدم %s ❌",
+			RejectedSummary:         "تم رفض طلب إجازة **%s** الخاص بك بواسطة المستخدم %s",
 			ChannelApprovedTitle:    "إعلان إجازة معتمدة ✅",
 			ChannelCancelledTitle:   "إلغاء إجازة معتمدة ↩️",
-			ChannelApprovedSummary:  "المستخدم %s سيكون في إجازة **%s** معتمدة. ✅",
+			ChannelApprovedSummary:  "المستخدم %s سيكون في إجازة **%s** معتمدة.",
 			ApprovedByLabel:         "تمت الموافقة بواسطة",
 			CommentLabel:            "ملاحظة",
 			CancelledTitle:          "تم إلغاء الإجازة 🔥",
 			CancelledSummary:        "المستخدم %s ألغى طلب إجازة **%s** الذي كان %s.",
-			ChannelCancelledSummary: "المستخدم %s ألغى إجازة **%s** المعتمدة. ↩️",
-			NoLongerAwayMessage:     "لم يعد هذا المستخدم مسجلاً كغائب خلال هذه الفترة. ✅",
+			ChannelCancelledSummary: "المستخدم %s ألغى إجازة **%s** المعتمدة.",
+			NoLongerAwayMessage:     "لم يعد هذا المستخدم مسجلاً كغائب خلال هذه الفترة.",
 			DurationLabel:           "المدة",
 			HalfDayDuration:         "نصف يوم",
 			HourlyDuration:          "بالساعة",
@@ -700,18 +718,18 @@ func leaveNotificationCopyForLanguage(language domain.ReportLanguage) leaveNotif
 			DecisionTitle:           "🔥 **Leave update**",
 			DecisionSummary:         "Your **%s** leave request was **%s** by %s.",
 			ApprovedTitle:           "✅ **Leave approved**",
-			ApprovedSummary:         "✅ Your **%s** leave request was **approved** by %s.",
+			ApprovedSummary:         "Your **%s** leave request was **approved** by %s.",
 			RejectedTitle:           "❌ **Leave rejected**",
-			RejectedSummary:         "❌ Your **%s** leave request was **rejected** by %s.",
+			RejectedSummary:         "Your **%s** leave request was **rejected** by %s.",
 			ChannelApprovedTitle:    "✅ **Approved leave**",
 			ChannelCancelledTitle:   "↩️ **Approved leave cancelled**",
-			ChannelApprovedSummary:  "✅ %s will be away on approved **%s** leave.",
+			ChannelApprovedSummary:  "%s will be away on approved **%s** leave.",
 			ApprovedByLabel:         "Approved by",
 			CommentLabel:            "Comment",
 			CancelledTitle:          "🔥 **Leave cancelled**",
 			CancelledSummary:        "%s cancelled their **%s** leave request that was %s.",
-			ChannelCancelledSummary: "↩️ %s cancelled their approved **%s** leave.",
-			NoLongerAwayMessage:     "✅ They are no longer marked as away for this period.",
+			ChannelCancelledSummary: "%s cancelled their approved **%s** leave.",
+			NoLongerAwayMessage:     "They are no longer marked as away for this period.",
 			DurationLabel:           "Duration",
 			HalfDayDuration:         "half day",
 			HourlyDuration:          "hourly",

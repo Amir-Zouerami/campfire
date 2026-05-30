@@ -592,7 +592,7 @@ func (s *SQLWorkspaceStore) insertStandupQuestion(
 				options_json,
 				created_at,
 				updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`),
 		question.ID.String(),
 		question.TemplateID.String(),
@@ -642,7 +642,7 @@ func (s *SQLWorkspaceStore) insertStandupSchedule(
 				created_by,
 				created_at,
 				updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`),
 		schedule.ID.String(),
 		schedule.WorkspaceID.String(),
@@ -687,7 +687,7 @@ func (s *SQLWorkspaceStore) insertReminderRule(
 				created_by,
 				created_at,
 				updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`),
 		rule.ID.String(),
 		rule.WorkspaceID.String(),
@@ -736,7 +736,7 @@ func (s *SQLWorkspaceStore) insertReportRule(
 				created_by,
 				created_at,
 				updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`),
 		rule.ID.String(),
 		rule.WorkspaceID.String(),

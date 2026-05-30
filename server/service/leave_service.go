@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -593,6 +594,17 @@ func (s *LeaveService) Cancel(ctx context.Context, input CancelLeaveInput) (*dom
 	}
 
 	now := time.Now().UTC()
+	if wasApproved {
+		locked, err := approvedLeaveCancellationLocked(now, workspace.Timezone, *existingRequest)
+		if err != nil {
+			return nil, NewError(ErrorCodeInternal, "Could not validate leave cancellation window.")
+		}
+
+		if locked {
+			return nil, NewError(ErrorCodeConflict, "Approved leave can no longer be cancelled after its start time has passed.")
+		}
+	}
+
 	cancelledRequest, err := s.leaveStore.CancelRequest(ctx, store.CancelLeaveRequestParams{
 		LeaveRequestID: existingRequest.ID,
 		CancelledAt:    now,
@@ -637,6 +649,64 @@ func (s *LeaveService) Cancel(ctx context.Context, input CancelLeaveInput) (*dom
 	}
 
 	return cancelledRequest, nil
+}
+
+/*
+approvedLeaveCancellationLocked returns true when an approved leave request has
+already started in the workspace timezone.
+
+Approved leave cancellation is only allowed before the actual leave interval
+begins. This keeps historical attendance and availability records stable after
+the user has entered the approved leave window.
+*/
+func approvedLeaveCancellationLocked(
+	nowUTC time.Time,
+	workspaceTimezone string,
+	request domain.LeaveRequest,
+) (bool, error) {
+	startAt, err := leaveStartInstant(workspaceTimezone, request)
+	if err != nil {
+		return false, err
+	}
+
+	return !nowUTC.Before(startAt.UTC()), nil
+}
+
+/*
+leaveStartInstant returns the first instant covered by a leave request in the
+workspace timezone. Full-day and morning half-day requests begin at local
+midnight, afternoon half-day requests begin at local noon, and hourly requests
+begin at their configured start time.
+*/
+func leaveStartInstant(workspaceTimezone string, request domain.LeaveRequest) (time.Time, error) {
+	cleanTimezone := strings.TrimSpace(workspaceTimezone)
+	if cleanTimezone == "" {
+		cleanTimezone = "UTC"
+	}
+
+	location, err := time.LoadLocation(cleanTimezone)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	timeOfDay := "00:00"
+	switch request.DurationMode {
+	case domain.LeaveDurationHourly:
+		if strings.TrimSpace(request.StartTime.String()) != "" {
+			timeOfDay = strings.TrimSpace(request.StartTime.String())
+		}
+
+	case domain.LeaveDurationHalfDay:
+		if request.HalfDayPart == domain.LeaveHalfDayAfternoon {
+			timeOfDay = "12:00"
+		}
+	}
+
+	return time.ParseInLocation(
+		"2006-01-02 15:04",
+		fmt.Sprintf("%s %s", request.StartDate.String(), timeOfDay),
+		location,
+	)
 }
 
 /*
