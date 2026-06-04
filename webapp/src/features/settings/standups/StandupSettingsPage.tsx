@@ -4,11 +4,11 @@ import { CalendarClock, FileQuestion, ListChecks, Route, ShieldCheck } from 'luc
 
 import {
 	CampfirePageHeader,
-	CampfireSectionTabs,
 	CampfireStatCard,
 	CampfireSurface,
 	CampfireWorkflowNote,
 } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireSegmentedTabs } from '@/components/campfire/CampfireSegmentedTabs';
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
 
 import { StandupConfigurationOverviewPanel } from './StandupConfigurationOverviewPanel';
@@ -124,7 +124,7 @@ export function StandupSettingsPage(props: WorkspaceShellProps): ReactElement {
 				{standups.loadState === 'loading' && <StandupSettingsLoading />}
 
 				{standups.loadState !== 'loading' && (
-					<CampfireSectionTabs
+					<CampfireSegmentedTabs
 						label="Standup settings sections"
 						activeValue={activeSectionID}
 						tabs={standupSettingsSections.map(section => ({

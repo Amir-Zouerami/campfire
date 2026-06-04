@@ -2,8 +2,8 @@ import type { FormEvent, ReactElement } from 'react';
 import { Plus } from 'lucide-react';
 
 import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
+import { CampfireResponsiveInput } from '@/components/campfire/CampfireResponsiveInput';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 import type { GlobalOffDayDraft, GlobalOffDayDraftPatch } from './global-off-days.types';
@@ -58,12 +58,12 @@ export function GlobalOffDayCreatePanel(props: GlobalOffDayCreatePanelProps): Re
 
 				<div className="cf:grid cf:gap-2">
 					<Label htmlFor="campfire-global-off-day-label">Label</Label>
-					<Input
+					<CampfireResponsiveInput
 						id="campfire-global-off-day-label"
 						disabled={props.disabled || !props.isSystemAdmin}
 						placeholder="Company-wide holiday"
 						value={props.draft.label}
-						onChange={event => props.onChange({ label: event.currentTarget.value })}
+						onValueChange={value => props.onChange({ label: value })}
 					/>
 				</div>
 			</div>

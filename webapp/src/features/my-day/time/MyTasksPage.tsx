@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactElement } from 'react';
+import { useDeferredValue, useMemo, useState, type ReactElement } from 'react';
 import { CheckCircle2, Inbox, ListChecks, Plus, Search, Workflow } from 'lucide-react';
 
 import {
@@ -13,8 +13,7 @@ import {
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { CampfireInlineCheckbox } from '@/components/campfire/CampfireCheckboxField';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { CampfireResponsiveInput, CampfireResponsiveTextarea } from '@/components/campfire/CampfireResponsiveInput';
 import type { Task, TaskStatus, Workspace } from '@/types/domain';
 
 import { formatTaskStatus, statusTone, taskStatusOptions } from './my-time.helpers';
@@ -42,10 +41,11 @@ export function MyTasksPage(props: MyTasksPageProps): ReactElement {
 	const [query, setQuery] = useState('');
 	const [statusFilter, setStatusFilter] = useState<TaskStatusFilter>('all');
 	const [createOpen, setCreateOpen] = useState(false);
+	const deferredQuery = useDeferredValue(query);
 
 	const visibleTasks = useMemo(() => {
-		return filterTasks(timeLog.tasks, query, statusFilter);
-	}, [timeLog.tasks, query, statusFilter]);
+		return filterTasks(timeLog.tasks, deferredQuery, statusFilter);
+	}, [timeLog.tasks, deferredQuery, statusFilter]);
 
 	return (
 		<div className="campfire-page-stack">
@@ -88,34 +88,34 @@ export function MyTasksPage(props: MyTasksPageProps): ReactElement {
 					<div className="campfire-form-grid campfire-form-grid--task">
 						<label className="campfire-form-field">
 							<span>Title</span>
-							<Input
+							<CampfireResponsiveInput
 								value={timeLog.taskDraft.title}
 								disabled={timeLog.isBusy}
 								placeholder="Add a concrete task title"
 								aria-invalid={timeLog.taskDraftErrors.title !== undefined}
 								aria-describedby={timeLog.taskDraftErrors.title !== undefined ? 'campfire-task-title-error' : undefined}
-								onChange={event => timeLog.updateTaskDraft({ title: event.currentTarget.value })}
+								onValueChange={value => timeLog.updateTaskDraft({ title: value })}
 							/>
 							<CampfireFieldError id="campfire-task-title-error" message={timeLog.taskDraftErrors.title} />
 						</label>
 
 						<label className="campfire-form-field campfire-form-field--wide">
 							<span>Description</span>
-							<Textarea
+							<CampfireResponsiveTextarea
 								value={timeLog.taskDraft.description}
 								disabled={timeLog.isBusy}
 								placeholder="Optional context for this task"
-								onChange={event => timeLog.updateTaskDraft({ description: event.currentTarget.value })}
+								onValueChange={value => timeLog.updateTaskDraft({ description: value })}
 							/>
 						</label>
 
 						<label className="campfire-form-field">
 							<span>Board URL</span>
-							<Input
+							<CampfireResponsiveInput
 								value={timeLog.taskDraft.boardUrl}
 								disabled={timeLog.isBusy}
 								placeholder="https://…"
-								onChange={event => timeLog.updateTaskDraft({ boardUrl: event.currentTarget.value })}
+								onValueChange={value => timeLog.updateTaskDraft({ boardUrl: value })}
 							/>
 						</label>
 					</div>
@@ -132,7 +132,7 @@ export function MyTasksPage(props: MyTasksPageProps): ReactElement {
 				<div className="campfire-list-toolbar">
 					<label className="campfire-search-field">
 						<Search className="cf:size-4" />
-						<Input value={query} placeholder="Search tasks…" onChange={event => setQuery(event.currentTarget.value)} />
+						<CampfireResponsiveInput value={query} placeholder="Search tasks…" onValueChange={setQuery} />
 					</label>
 
 					<CampfireSelect

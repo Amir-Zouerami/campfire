@@ -151,7 +151,7 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 				disabled={props.disabled}
 				aria-haspopup="dialog"
 				aria-expanded={open}
-				className={cn('campfire-date-picker-trigger', open && 'campfire-date-picker-trigger--open')}
+				className={cn('campfire-control-trigger campfire-date-picker-trigger', open && 'campfire-date-picker-trigger--open')}
 				onClick={() => setOpen(current => !current)}
 				onKeyDown={handleKeyDown}
 			>

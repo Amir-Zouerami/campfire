@@ -35,9 +35,6 @@ type WorkspaceSetupCardProps = {
  * WorkspaceSetupFormState contains controlled setup form values.
  */
 type WorkspaceSetupFormState = {
-	readonly name: string;
-	readonly description: string;
-	readonly boardURL: string;
 	readonly timezone: string;
 	readonly workingDays: readonly number[];
 	readonly channelAdminsAreLeads: boolean;
@@ -115,9 +112,6 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 	const [saveState, setSaveState] = useState<SaveState>('idle');
 	const [message, setMessage] = useState('');
 	const [form, setForm] = useState<WorkspaceSetupFormState>({
-		name: defaultName,
-		description: '',
-		boardURL: '',
 		timezone: getBrowserTimezone(),
 		workingDays: defaultWorkingDays,
 		channelAdminsAreLeads: true,
@@ -127,7 +121,12 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 	async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
 		event.preventDefault();
 
-		if (form.name.trim() === '') {
+		const formData = new FormData(event.currentTarget);
+		const name = formDataString(formData, 'workspace-name');
+		const description = formDataString(formData, 'workspace-description');
+		const boardURL = formDataString(formData, 'workspace-board-url');
+
+		if (name === '') {
 			setSaveState('error');
 			setMessage('Workspace name is required.');
 			return;
@@ -152,9 +151,9 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 			const response = await createWorkspace({
 				teamId: props.teamID,
 				channelId: props.channelID,
-				name: form.name.trim(),
-				description: form.description.trim(),
-				boardUrl: form.boardURL.trim(),
+				name,
+				description,
+				boardUrl: boardURL,
 				timezone: form.timezone.trim(),
 				workingDays: [...form.workingDays],
 				channelAdminsAreLeads: form.channelAdminsAreLeads,
@@ -252,8 +251,8 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 							</Label>
 							<Input
 								id="campfire-workspace-name"
-								value={form.name}
-								onChange={event => updateForm({ name: event.currentTarget.value })}
+								name="workspace-name"
+								defaultValue={defaultName}
 								disabled={isBusy}
 								className="campfire-input"
 							/>
@@ -278,9 +277,8 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 						</Label>
 						<Input
 							id="campfire-workspace-board-url"
-							value={form.boardURL}
+							name="workspace-board-url"
 							placeholder="Optional board, Jira, Linear, GitHub project, or task source URL"
-							onChange={event => updateForm({ boardURL: event.currentTarget.value })}
 							disabled={isBusy}
 							className="campfire-input"
 						/>
@@ -292,9 +290,8 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 						</Label>
 						<Textarea
 							id="campfire-workspace-description"
-							value={form.description}
+							name="workspace-description"
 							placeholder="Optional workspace note…"
-							onChange={event => updateForm({ description: event.currentTarget.value })}
 							disabled={isBusy}
 							className="campfire-textarea"
 						/>
@@ -396,6 +393,19 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 			{message !== '' && <div className={messageClassName(saveState)}>{message}</div>}
 		</form>
 	);
+}
+
+/**
+ * formDataString reads an uncontrolled setup field on submit.
+ */
+function formDataString(formData: FormData, fieldName: string): string {
+	const value = formData.get(fieldName);
+
+	if (typeof value !== 'string') {
+		return '';
+	}
+
+	return value.trim();
 }
 
 /**

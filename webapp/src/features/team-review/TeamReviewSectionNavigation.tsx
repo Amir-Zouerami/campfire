@@ -1,9 +1,6 @@
 import type { ReactElement } from 'react';
 
-import {
-	CampfireSectionTabs,
-	type CampfireSectionTab,
-} from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireSegmentedTabs, type CampfireSegmentedTab } from '@/components/campfire/CampfireSegmentedTabs';
 
 import type { TeamReviewSection, TeamReviewSectionID } from './team-review.types';
 
@@ -18,17 +15,17 @@ type TeamReviewSectionNavigationProps = {
 
 /**
  * TeamReviewSectionNavigation renders Team Review sub-page navigation using the
- * shared Campfire pill-tab primitive.
+ * shared Campfire segmented-tab primitive.
  */
 export function TeamReviewSectionNavigation(props: TeamReviewSectionNavigationProps): ReactElement {
-	const tabs: CampfireSectionTab<TeamReviewSectionID>[] = props.sections.map(section => ({
+	const tabs: CampfireSegmentedTab<TeamReviewSectionID>[] = props.sections.map(section => ({
 		value: section.id,
 		label: section.label,
 		description: section.description,
 	}));
 
 	return (
-		<CampfireSectionTabs
+		<CampfireSegmentedTabs
 			tabs={tabs}
 			activeValue={props.activeSection}
 			label="Team Review sections"

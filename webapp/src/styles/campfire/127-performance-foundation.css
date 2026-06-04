@@ -1,0 +1,54 @@
+/*
+ * Campfire CSS module: 127-performance-foundation.css
+ *
+ * These rules reduce style/layout work inside the Mattermost modal without
+ * changing the warm Campfire visual language. They intentionally avoid paint
+ * containment on picker/popover parents so date/time menus remain visible.
+ */
+
+.campfire-theme .campfire-workspace-content {
+	contain: layout style;
+}
+
+.campfire-theme .campfire-page-stack,
+.campfire-theme .campfire-standup-body,
+.campfire-theme .campfire-settings-standup-workbench,
+.campfire-theme .campfire-standup-builder-workbench {
+	contain: layout style;
+}
+
+.campfire-theme .campfire-audit-log-entry,
+.campfire-theme .campfire-time-entry-row,
+.campfire-theme .campfire-task-row,
+.campfire-theme .campfire-role-group,
+.campfire-theme .campfire-leave-approval-card,
+.campfire-theme .campfire-availability-table-row,
+.campfire-theme .campfire-report-row,
+.campfire-theme .campfire-saved-filter-card,
+.campfire-theme .campfire-standup-submission-card {
+	content-visibility: auto;
+	contain-intrinsic-size: 1px 7rem;
+}
+
+.campfire-theme .campfire-user-picker-results,
+.campfire-theme .campfire-channel-picker-results,
+.campfire-theme .campfire-task-suggestion-list,
+.campfire-theme .campfire-audit-log-list,
+.campfire-theme .campfire-scroll-panel {
+	overscroll-behavior: contain;
+}
+
+.campfire-theme .campfire-logo-ember,
+.campfire-theme .campfire-toast-spinner {
+	backface-visibility: hidden;
+	transform: translateZ(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.campfire-theme .campfire-logo-ember,
+	.campfire-theme .campfire-sidebar-logo-embers,
+	.campfire-theme .campfire-toast-spinner {
+		animation-duration: 0.001ms !important;
+		animation-iteration-count: 1 !important;
+	}
+}

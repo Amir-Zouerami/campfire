@@ -1,9 +1,6 @@
 import type { ReactElement } from 'react';
 
-import {
-	CampfireSectionTabs,
-	type CampfireSectionTab,
-} from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireSegmentedTabs, type CampfireSegmentedTab } from '@/components/campfire/CampfireSegmentedTabs';
 
 import type { SettingsSection, SettingsSectionID } from './settings.types';
 
@@ -18,17 +15,17 @@ type SettingsSectionNavigationProps = {
 
 /**
  * SettingsSectionNavigation renders Settings sub-page navigation with the same
- * matte pill-tab system used by Reports and Team Review.
+ * matte segmented-tab system used by Reports and Team Review.
  */
 export function SettingsSectionNavigation(props: SettingsSectionNavigationProps): ReactElement {
-	const tabs: CampfireSectionTab<SettingsSectionID>[] = props.sections.map(section => ({
+	const tabs: CampfireSegmentedTab<SettingsSectionID>[] = props.sections.map(section => ({
 		value: section.id,
 		label: section.label,
 		description: section.description,
 	}));
 
 	return (
-		<CampfireSectionTabs
+		<CampfireSegmentedTabs
 			tabs={tabs}
 			activeValue={props.activeSection}
 			label="Settings sections"

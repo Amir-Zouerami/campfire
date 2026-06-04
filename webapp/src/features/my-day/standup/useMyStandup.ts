@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from '@/components/campfire/campfire-toast';
 
 import { evaluateStandupDay, getMyStandupSubmission, listMyTasks, listStandupConfiguration, submitStandup } from '@/api';
@@ -243,30 +243,36 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 	 * handleDateChange lets members correct previous standups while still keeping
 	 * future/off-day/non-working-day submissions blocked.
 	 */
-	function handleDateChange(date: string): void {
+	const handleDateChange = useCallback((date: string): void => {
 		setOccurrenceDate(date);
 		setMessage('');
-	}
+	}, []);
 
 	/**
 	 * handleScheduleChange changes selected schedule and rebuilds answer drafts.
 	 */
-	function handleScheduleChange(scheduleID: string): void {
+	const handleScheduleChange = useCallback((scheduleID: string): void => {
 		const nextSchedule = availableSchedules.find(schedule => schedule.id === scheduleID) ?? null;
 
 		setSelectedScheduleID(scheduleID);
 		setAnswers(nextSchedule === null ? {} : buildInitialAnswers(questions, nextSchedule.templateId));
-	}
+	}, [availableSchedules, questions]);
 
 	/**
 	 * updateAnswer updates one answer draft.
 	 */
-	function updateAnswer(questionID: string, value: AnswerDraftValue): void {
-		setAnswers(current => ({
-			...current,
-			[questionID]: value,
-		}));
-	}
+	const updateAnswer = useCallback((questionID: string, value: AnswerDraftValue): void => {
+		setAnswers(current => {
+			if (answerDraftValuesEqual(current[questionID], value)) {
+				return current;
+			}
+
+			return {
+				...current,
+				[questionID]: value,
+			};
+		});
+	}, []);
 
 	/**
 	 * submitCurrentStandup validates and submits the current answer draft.
@@ -350,6 +356,22 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 		updateAnswer,
 		submitCurrentStandup,
 	};
+}
+
+/**
+ * answerDraftValuesEqual compares editable answer values without forcing a
+ * whole-form re-render when a control emits the same value it already holds.
+ */
+function answerDraftValuesEqual(left: AnswerDraftValue | undefined, right: AnswerDraftValue): boolean {
+	if (Array.isArray(left) || Array.isArray(right)) {
+		if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) {
+			return false;
+		}
+
+		return left.every((value, index) => value === right[index]);
+	}
+
+	return left === right;
 }
 
 /**

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 
-import { CampfireSectionTabs } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireSegmentedTabs } from '@/components/campfire/CampfireSegmentedTabs';
 
 import { GlobalLeaveReportPanel } from './GlobalLeaveReportPanel';
 import { GlobalTimeReportPanel } from './GlobalTimeReportPanel';
@@ -35,7 +35,7 @@ export function GlobalReportsPage(props: GlobalReportsPageProps): ReactElement {
 
 	return (
 		<div className="campfire-page-stack">
-			<CampfireSectionTabs
+			<CampfireSegmentedTabs
 				tabs={globalReportTabs}
 				activeValue={activeTab}
 				label="Global report type"

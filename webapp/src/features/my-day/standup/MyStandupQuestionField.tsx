@@ -1,13 +1,13 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactElement } from 'react';
+import { memo, startTransition, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactElement } from 'react';
 import { CheckCircle2, Plus, Trash2 } from 'lucide-react';
 
 import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { CampfireResponsiveInput, CampfireResponsiveTextarea } from '@/components/campfire/CampfireResponsiveInput';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/types/domain';
 
@@ -23,7 +23,7 @@ import { formatTaskListValue, isTaskListQuestion, parseTaskListItems } from './s
 /**
  * MyStandupQuestionField renders one dynamic standup question.
  */
-export function MyStandupQuestionField(props: MyStandupQuestionFieldProps): ReactElement {
+export const MyStandupQuestionField = memo(function MyStandupQuestionField(props: MyStandupQuestionFieldProps): ReactElement {
 	const inputID = `campfire-standup-question-${props.question.id}`;
 
 	return (
@@ -44,7 +44,7 @@ export function MyStandupQuestionField(props: MyStandupQuestionFieldProps): Reac
 			<QuestionControl {...props} inputID={inputID} />
 		</div>
 	);
-}
+});
 
 /**
  * QuestionControl renders the input control for a question type.
@@ -66,12 +66,12 @@ function QuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID
 	switch (props.question.type) {
 		case 'long_text':
 			return (
-				<Textarea
+				<CampfireResponsiveTextarea
 					id={props.inputID}
 					disabled={props.disabled}
 					placeholder={props.question.placeholder}
 					value={questionValueAsString(props.value)}
-					onChange={event => props.onChange(event.currentTarget.value)}
+					onValueChange={value => props.onChange(value)}
 				/>
 			);
 
@@ -110,19 +110,19 @@ function QuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID
 
 		case 'number':
 			return (
-				<Input
+				<CampfireResponsiveInput
 					id={props.inputID}
 					type="number"
 					disabled={props.disabled}
 					placeholder={props.question.placeholder}
 					value={questionValueAsString(props.value)}
-					onChange={event => props.onChange(event.currentTarget.value)}
+					onValueChange={value => props.onChange(value)}
 				/>
 			);
 
 		case 'duration':
 			return (
-				<Input
+				<CampfireResponsiveInput
 					id={props.inputID}
 					type="number"
 					min="0"
@@ -130,19 +130,19 @@ function QuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID
 					disabled={props.disabled}
 					placeholder={props.question.placeholder || 'Minutes'}
 					value={questionValueAsString(props.value)}
-					onChange={event => props.onChange(event.currentTarget.value)}
+					onValueChange={value => props.onChange(value)}
 				/>
 			);
 
 		case 'text':
 		default:
 			return (
-				<Input
+				<CampfireResponsiveInput
 					id={props.inputID}
 					disabled={props.disabled}
 					placeholder={props.question.placeholder}
 					value={questionValueAsString(props.value)}
-					onChange={event => props.onChange(event.currentTarget.value)}
+					onValueChange={value => props.onChange(value)}
 				/>
 			);
 	}
@@ -219,6 +219,14 @@ function MultiSelectQuestionControl(props: MyStandupQuestionFieldProps & { reado
 }
 
 /**
+ * TaskSearchEntry stores one active task and its normalized title key.
+ */
+type TaskSearchEntry = {
+	readonly task: Task;
+	readonly key: string;
+};
+
+/**
  * TaskListQuestionControl renders standup work items as editable list rows.
  */
 function TaskListQuestionControl(props: {
@@ -235,6 +243,8 @@ function TaskListQuestionControl(props: {
 	});
 	const lastEmittedValueRef = useRef(props.value);
 	const previousInputIDRef = useRef(props.inputID);
+	const taskSearchEntries = useMemo(() => buildTaskSearchEntries(props.tasks), [props.tasks]);
+	const exactTaskByKey = useMemo(() => buildExactTaskByKey(taskSearchEntries), [taskSearchEntries]);
 
 	useEffect(() => {
 		const inputChanged = previousInputIDRef.current !== props.inputID;
@@ -255,7 +265,9 @@ function TaskListQuestionControl(props: {
 
 		lastEmittedValueRef.current = formattedValue;
 		setDraftItems(editableItems);
-		props.onChange(formattedValue);
+		startTransition(() => {
+			props.onChange(formattedValue);
+		});
 	}
 
 	function updateItem(index: number, nextValue: string): void {
@@ -297,8 +309,8 @@ function TaskListQuestionControl(props: {
 		<div className="cf:grid cf:gap-3">
 			<div className="cf:grid cf:gap-2">
 				{draftItems.map((item, index) => {
-					const suggestions = matchingTasks(props.tasks, item);
-					const exactMatch = exactMatchingTask(props.tasks, item);
+					const suggestions = matchingTasks(taskSearchEntries, item);
+					const exactMatch = exactMatchingTask(exactTaskByKey, item);
 
 					return (
 						<div
@@ -388,30 +400,69 @@ function editableTaskItems(items: readonly string[]): readonly string[] {
 }
 
 /**
+ * buildTaskSearchEntries pre-normalizes active task titles once per task list.
+ */
+function buildTaskSearchEntries(tasks: readonly Task[]): readonly TaskSearchEntry[] {
+	return tasks
+		.filter(task => task.status !== 'archived')
+		.map(task => ({
+			task,
+			key: normalizeTaskTitleKey(task.title),
+		}))
+		.filter(entry => entry.key !== '');
+}
+
+/**
+ * buildExactTaskByKey builds O(1) exact-match lookup for task suggestions.
+ */
+function buildExactTaskByKey(entries: readonly TaskSearchEntry[]): ReadonlyMap<string, Task> {
+	const tasksByKey = new Map<string, Task>();
+
+	for (const entry of entries) {
+		if (!tasksByKey.has(entry.key)) {
+			tasksByKey.set(entry.key, entry.task);
+		}
+	}
+
+	return tasksByKey;
+}
+
+/**
  * matchingTasks returns a small list of active matching task suggestions.
  */
-function matchingTasks(tasks: readonly Task[], value: string): readonly Task[] {
+function matchingTasks(entries: readonly TaskSearchEntry[], value: string): readonly Task[] {
 	const query = normalizeTaskTitleKey(value);
 	if (query.length < 2) {
 		return [];
 	}
 
-	return tasks
-		.filter(task => task.status !== 'archived')
-		.filter(task => normalizeTaskTitleKey(task.title).includes(query))
-		.slice(0, 6);
+	const matches: Task[] = [];
+
+	for (const entry of entries) {
+		if (!entry.key.includes(query)) {
+			continue;
+		}
+
+		matches.push(entry.task);
+
+		if (matches.length >= 6) {
+			break;
+		}
+	}
+
+	return matches;
 }
 
 /**
  * exactMatchingTask returns the task whose title matches the current row exactly.
  */
-function exactMatchingTask(tasks: readonly Task[], value: string): Task | null {
+function exactMatchingTask(tasksByKey: ReadonlyMap<string, Task>, value: string): Task | null {
 	const key = normalizeTaskTitleKey(value);
 	if (key === '') {
 		return null;
 	}
 
-	return tasks.find(task => normalizeTaskTitleKey(task.title) === key) ?? null;
+	return tasksByKey.get(key) ?? null;
 }
 
 /**

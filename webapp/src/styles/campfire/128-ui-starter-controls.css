@@ -1,0 +1,258 @@
+/*
+ * Campfire CSS module: 128-ui-starter-controls.css
+ * Focused starter pass for modern segmented tabs, unified control heights, and
+ * modal-only Persian/user-input font handling.
+ */
+
+@font-face {
+	font-family: 'CampfireVazir';
+	src:
+		local('Vazirmatn'),
+		local('Vazir'),
+		url('/plugins/dev.zouerami.campfire/assets/fonts/Vazirmatn-Variable.woff2') format('woff2'),
+		url('/plugins/dev.zouerami.campfire/assets/fonts/Vazirmatn-Variable.woff') format('woff');
+	font-display: swap;
+	font-style: normal;
+	font-weight: 100 900;
+}
+
+.campfire-overlay.campfire-theme {
+	--campfire-control-height: 3.5rem;
+	--campfire-control-radius: 1rem;
+	--campfire-control-border: rgba(253, 186, 116, 0.2);
+	--campfire-control-border-hover: rgba(253, 186, 116, 0.36);
+	--campfire-control-border-focus: rgba(253, 186, 116, 0.62);
+	--campfire-control-bg: rgba(255, 255, 255, 0.045);
+	--campfire-control-bg-hover: rgba(255, 255, 255, 0.07);
+	--campfire-persian-font: 'CampfireVazir', 'Vazirmatn', 'Vazir', 'Inter Variable', Inter, system-ui, sans-serif;
+}
+
+.campfire-theme .campfire-segmented-tabs {
+	display: grid;
+	width: 100%;
+	grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+	gap: 0.65rem;
+	align-items: stretch;
+	border: 1px solid rgba(253, 186, 116, 0.16);
+	border-radius: 1.35rem;
+	background:
+		radial-gradient(circle at 10% 0%, rgba(251, 146, 60, 0.11), transparent 30%),
+		linear-gradient(135deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018)),
+		rgba(8, 7, 6, 0.58);
+	padding: 0.55rem;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.07),
+		0 20px 60px rgba(0, 0, 0, 0.22);
+}
+
+.campfire-theme .campfire-segmented-tab {
+	position: relative;
+	display: flex;
+	min-width: 0;
+	min-height: 4rem;
+	align-items: center;
+	gap: 0.78rem;
+	overflow: hidden;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 1rem;
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.018)),
+		rgba(18, 16, 14, 0.78);
+	color: rgba(245, 245, 244, 0.78);
+	padding: 0.78rem 0.95rem;
+	text-align: left;
+	cursor: pointer;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+	transition:
+		background 170ms ease,
+		border-color 170ms ease,
+		box-shadow 170ms ease,
+		color 170ms ease,
+		transform 170ms ease;
+}
+
+.campfire-theme .campfire-segmented-tab::before {
+	position: absolute;
+	inset: 0 auto 0 0;
+	width: 0.18rem;
+	content: '';
+	background: linear-gradient(180deg, rgba(251, 146, 60, 0), rgba(251, 146, 60, 0.78), rgba(253, 186, 116, 0));
+	opacity: 0;
+	transition: opacity 170ms ease;
+}
+
+.campfire-theme .campfire-segmented-tab:hover {
+	border-color: rgba(253, 186, 116, 0.24);
+	background:
+		radial-gradient(circle at 15% 0%, rgba(251, 146, 60, 0.11), transparent 42%),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025)),
+		rgba(23, 19, 16, 0.86);
+	color: #fff7ed;
+	transform: translateY(-1px);
+}
+
+.campfire-theme .campfire-segmented-tab:focus-visible {
+	outline: none;
+	border-color: var(--campfire-control-border-focus);
+	box-shadow:
+		0 0 0 3px rgba(253, 186, 116, 0.16),
+		inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.campfire-theme .campfire-segmented-tab--active {
+	border-color: rgba(253, 186, 116, 0.36);
+	background:
+		radial-gradient(circle at 18% 0%, rgba(251, 146, 60, 0.22), transparent 44%),
+		linear-gradient(135deg, rgba(251, 146, 60, 0.16), rgba(245, 158, 11, 0.065)),
+		rgba(28, 19, 13, 0.92);
+	color: #ffedd5;
+	box-shadow:
+		0 14px 42px rgba(251, 146, 60, 0.12),
+		inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.campfire-theme .campfire-segmented-tab--active::before {
+	opacity: 1;
+}
+
+.campfire-theme .campfire-segmented-tab-icon {
+	display: grid;
+	width: 2.25rem;
+	height: 2.25rem;
+	flex: 0 0 auto;
+	place-items: center;
+	border: 1px solid rgba(255, 255, 255, 0.09);
+	border-radius: 0.78rem;
+	background: rgba(255, 255, 255, 0.055);
+	color: rgba(253, 186, 116, 0.78);
+}
+
+.campfire-theme .campfire-segmented-tab--active .campfire-segmented-tab-icon {
+	border-color: rgba(253, 186, 116, 0.34);
+	background: rgba(251, 146, 60, 0.14);
+	color: #fed7aa;
+}
+
+.campfire-theme .campfire-segmented-tab-copy {
+	display: grid;
+	min-width: 0;
+	gap: 0.16rem;
+}
+
+.campfire-theme .campfire-segmented-tab-label {
+	overflow: hidden;
+	font-size: 0.98rem;
+	font-weight: 820;
+	letter-spacing: -0.018em;
+	line-height: 1.15;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.campfire-theme .campfire-segmented-tab-description {
+	overflow: hidden;
+	color: rgba(214, 211, 209, 0.68);
+	font-size: 0.78rem;
+	font-weight: 620;
+	line-height: 1.25;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.campfire-theme .campfire-segmented-tab--active .campfire-segmented-tab-description {
+	color: rgba(255, 237, 213, 0.72);
+}
+
+.campfire-theme .campfire-select,
+.campfire-theme .campfire-date-picker {
+	width: 100%;
+}
+
+.campfire-theme .campfire-control-trigger,
+.campfire-theme .campfire-select-trigger,
+.campfire-theme .campfire-date-picker-trigger,
+.campfire-theme input.campfire-input,
+.campfire-theme input[type='text']:not(.campfire-unstyled-input),
+.campfire-theme input[type='search']:not(.campfire-unstyled-input),
+.campfire-theme input[type='number']:not(.campfire-unstyled-input),
+.campfire-theme input[type='time']:not(.campfire-unstyled-input),
+.campfire-theme input[type='date']:not(.campfire-unstyled-input),
+.campfire-theme select:not(.campfire-unstyled-input) {
+	min-height: var(--campfire-control-height) !important;
+	height: var(--campfire-control-height) !important;
+	border-radius: var(--campfire-control-radius) !important;
+}
+
+.campfire-theme .campfire-select-trigger,
+.campfire-theme .campfire-date-picker-trigger {
+	border-color: var(--campfire-control-border) !important;
+	background: var(--campfire-control-bg) !important;
+	padding-block: 0 !important;
+}
+
+.campfire-theme .campfire-select-trigger:hover,
+.campfire-theme .campfire-date-picker-trigger:hover {
+	border-color: var(--campfire-control-border-hover) !important;
+	background: var(--campfire-control-bg-hover) !important;
+}
+
+.campfire-theme .campfire-select-trigger:focus-visible,
+.campfire-theme .campfire-date-picker-trigger:focus-visible,
+.campfire-theme .campfire-date-picker-trigger--open {
+	border-color: var(--campfire-control-border-focus) !important;
+	box-shadow: 0 0 0 3px rgba(253, 186, 116, 0.16) !important;
+}
+
+.campfire-theme .campfire-date-picker-trigger {
+	align-items: center;
+	padding-inline: 0.82rem 0.72rem !important;
+}
+
+.campfire-theme .campfire-date-picker-value-stack {
+	gap: 0.08rem;
+}
+
+.campfire-theme .campfire-date-picker-value {
+	font-size: 0.98rem !important;
+	line-height: 1.12;
+}
+
+.campfire-theme .campfire-date-picker-hint {
+	max-width: 11.25rem;
+	font-size: 0.74rem !important;
+	line-height: 1.15;
+}
+
+.campfire-theme .campfire-date-picker-hint-calendar {
+	font-family: var(--campfire-persian-font);
+	font-feature-settings: 'ss01';
+	font-weight: 650;
+}
+
+.campfire-theme :is(input, textarea, .campfire-select-search input) {
+	font-family: var(--campfire-persian-font);
+}
+
+.campfire-theme textarea {
+	line-height: 1.7;
+}
+
+.campfire-theme .campfire-standup-controls-grid,
+.campfire-theme .campfire-control-grid,
+.campfire-theme .campfire-team-control-grid,
+.campfire-theme .campfire-team-standups-controls {
+	align-items: end;
+}
+
+.campfire-theme .campfire-standup-controls-grid .campfire-field,
+.campfire-theme .campfire-control-grid .campfire-field,
+.campfire-theme .campfire-team-control-grid .campfire-field,
+.campfire-theme .campfire-team-standups-controls .campfire-field {
+	align-self: end;
+}
+
+@media (max-width: 760px) {
+	.campfire-theme .campfire-segmented-tabs {
+		grid-template-columns: 1fr;
+	}
+}

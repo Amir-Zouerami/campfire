@@ -1,5 +1,5 @@
 import { useMemo, type ReactElement } from 'react';
-import { CalendarRange, Clock3, Inbox, ListChecks } from 'lucide-react';
+import { CalendarRange, Clock3, Inbox, ListChecks, Plus } from 'lucide-react';
 
 import {
 	CampfireBackButton,
@@ -12,8 +12,7 @@ import {
 import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { CampfireResponsiveInput, CampfireResponsiveTextarea } from '@/components/campfire/CampfireResponsiveInput';
 import type { TimeEntry, Workspace } from '@/types/domain';
 
 import { formatMinutes, taskLabelForID } from './my-time.helpers';
@@ -44,6 +43,12 @@ export function MyTimeLogPage(props: MyTimeLogPageProps): ReactElement {
 			<CampfirePageHeader
 				title="Time Log"
 				description="Track and review the time you have spent on Campfire tasks."
+				actions={
+					<Button type="button" onClick={() => void timeLog.submitTimeEntry()} disabled={timeLog.isBusy}>
+						<Plus className="cf:size-4" />
+						Save entry
+					</Button>
+				}
 			/>
 
 			<div className="campfire-stat-grid campfire-stat-grid--three">
@@ -133,25 +138,25 @@ export function MyTimeLogPage(props: MyTimeLogPageProps): ReactElement {
 
 						<label className="campfire-form-field">
 							<span>Minutes</span>
-							<Input
+							<CampfireResponsiveInput
 								type="number"
 								min="1"
 								step="5"
 								value={timeLog.timeDraft.minutes}
 								disabled={timeLog.isBusy}
 								aria-invalid={timeLog.timeDraftErrors.minutes !== undefined}
-								onChange={event => timeLog.updateTimeDraft({ minutes: event.currentTarget.value })}
+								onValueChange={value => timeLog.updateTimeDraft({ minutes: value })}
 							/>
 							<CampfireFieldError message={timeLog.timeDraftErrors.minutes} />
 						</label>
 
 						<label className="campfire-form-field">
 							<span>Note</span>
-							<Textarea
+							<CampfireResponsiveTextarea
 								value={timeLog.timeDraft.note}
 								disabled={timeLog.isBusy}
 								placeholder="Optional note for this entry"
-								onChange={event => timeLog.updateTimeDraft({ note: event.currentTarget.value })}
+								onValueChange={value => timeLog.updateTimeDraft({ note: value })}
 							/>
 						</label>
 					</div>

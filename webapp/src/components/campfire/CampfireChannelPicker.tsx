@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 import { Hash, Loader2, Search, XCircle } from 'lucide-react';
 
@@ -30,6 +30,7 @@ export function CampfireChannelPicker(props: CampfireChannelPickerProps): ReactE
 	const [selectedChannel, setSelectedChannel] = useState<ChannelProfile | null>(null);
 	const [loadState, setLoadState] = useState<LoadState>('idle');
 	const [message, setMessage] = useState('');
+	const deferredQuery = useDeferredValue(query);
 
 	useEffect(() => {
 		let active = true;
@@ -69,7 +70,7 @@ export function CampfireChannelPicker(props: CampfireChannelPickerProps): ReactE
 
 	useEffect(() => {
 		let active = true;
-		const cleanQuery = query.trim();
+		const cleanQuery = deferredQuery.trim();
 
 		if (cleanQuery === '') {
 			setResults([]);
@@ -114,7 +115,7 @@ export function CampfireChannelPicker(props: CampfireChannelPickerProps): ReactE
 			active = false;
 			window.clearTimeout(timeoutID);
 		};
-	}, [props.teamID, query]);
+	}, [deferredQuery, props.teamID]);
 
 	const disabled = props.disabled === true || props.teamID.trim() === '';
 	const showResults = query.trim() !== '' && results.length > 0;

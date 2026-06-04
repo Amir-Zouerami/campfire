@@ -2,8 +2,7 @@ import type { ReactElement } from 'react';
 
 import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { CampfireResponsiveInput, CampfireResponsiveTextarea } from '@/components/campfire/CampfireResponsiveInput';
 
 import { formatLabel, STANDUP_KINDS, toStandupKind } from './standup-settings.helpers';
 import type { StandupTemplateDraft, StandupTemplateDraftPatch } from './standup-settings.types';
@@ -28,12 +27,12 @@ export function StandupTemplateFields(props: StandupTemplateFieldsProps): ReactE
 		<div className="cf:grid cf:gap-4">
 			<div className="cf:grid cf:gap-4 cf:xl:grid-cols-[1fr_14rem]">
 				<StandupField htmlFor={`${props.idPrefix}-name`} label="Template name">
-					<Input
+					<CampfireResponsiveInput
 						id={`${props.idPrefix}-name`}
 						disabled={props.disabled}
 						placeholder="Daily standup"
 						value={props.draft.name}
-						onChange={event => props.onChange({ name: event.currentTarget.value })}
+						onValueChange={value => props.onChange({ name: value })}
 					/>
 				</StandupField>
 
@@ -54,13 +53,13 @@ export function StandupTemplateFields(props: StandupTemplateFieldsProps): ReactE
 			</div>
 
 			<StandupField htmlFor={`${props.idPrefix}-description`} label="Description">
-				<Textarea
+				<CampfireResponsiveTextarea
 					id={`${props.idPrefix}-description`}
 					className="cf:min-h-24"
 					disabled={props.disabled}
 					placeholder="Explain when this form should be used."
 					value={props.draft.description}
-					onChange={event => props.onChange({ description: event.currentTarget.value })}
+					onValueChange={value => props.onChange({ description: value })}
 				/>
 			</StandupField>
 

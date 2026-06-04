@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import { MessageSquareText, ThumbsDown, ThumbsUp, Umbrella } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { CampfireResponsiveTextarea } from '@/components/campfire/CampfireResponsiveInput';
 import type { PendingLeaveRequest } from '@/types/domain';
 
 import {
@@ -117,12 +117,12 @@ function TeamLeaveApprovalCard(props: {
 					<span>Approver comment</span>
 				</label>
 
-				<Textarea
+				<CampfireResponsiveTextarea
 					id={`campfire-approval-comment-${request.id}`}
 					disabled={props.disabled}
 					placeholder="Optional comment. Strongly recommended when rejecting."
 					value={props.comment}
-					onChange={event => props.onCommentChange(event.currentTarget.value)}
+					onValueChange={props.onCommentChange}
 				/>
 			</section>
 

@@ -2,8 +2,8 @@ import type { FormEvent, ReactElement } from 'react';
 import { Plus } from 'lucide-react';
 
 import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
+import { CampfireResponsiveInput } from '@/components/campfire/CampfireResponsiveInput';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 import type { WorkspaceOffDayDraft, WorkspaceOffDayDraftPatch } from './working-calendar.types';
@@ -60,12 +60,12 @@ export function WorkspaceOffDayCreatePanel(props: WorkspaceOffDayCreatePanelProp
 
 				<div className="cf:grid cf:gap-2">
 					<Label htmlFor="campfire-workspace-off-day-label">Label</Label>
-					<Input
+					<CampfireResponsiveInput
 						id="campfire-workspace-off-day-label"
 						disabled={props.disabled || !props.canManageCalendar}
 						placeholder="Company holiday"
 						value={props.draft.label}
-						onChange={event => props.onChange({ label: event.currentTarget.value })}
+						onValueChange={value => props.onChange({ label: value })}
 					/>
 				</div>
 			</div>

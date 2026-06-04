@@ -1,9 +1,6 @@
 import type { ReactElement } from 'react';
 
-import {
-	CampfireSectionTabs,
-	type CampfireSectionTab,
-} from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireSegmentedTabs, type CampfireSegmentedTab } from '@/components/campfire/CampfireSegmentedTabs';
 
 import type { ReportsSection, ReportsSectionID } from './reports.types';
 
@@ -18,17 +15,17 @@ type ReportsSectionNavigationProps = {
 
 /**
  * ReportsSectionNavigation renders Reports sub-page navigation using the shared
- * Campfire pill-tab primitive instead of the older card-like section grid.
+ * Campfire segmented-tab primitive instead of the older card-like section grid.
  */
 export function ReportsSectionNavigation(props: ReportsSectionNavigationProps): ReactElement {
-	const tabs: CampfireSectionTab<ReportsSectionID>[] = props.sections.map(section => ({
+	const tabs: CampfireSegmentedTab<ReportsSectionID>[] = props.sections.map(section => ({
 		value: section.id,
 		label: section.label,
 		description: section.description,
 	}));
 
 	return (
-		<CampfireSectionTabs
+		<CampfireSegmentedTabs
 			tabs={tabs}
 			activeValue={props.activeSection}
 			label="Reports sections"

@@ -1,12 +1,9 @@
 import { useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
-import { CalendarDays, ClipboardCheck, Clock3 } from 'lucide-react';
+import { CalendarDays, CalendarOff, ClipboardCheck, Clock3, Flame, ListTodo } from 'lucide-react';
 
-import {
-	CampfirePageHeader,
-	CampfireSectionTabs,
-	CampfireStatCard,
-} from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfirePageHeader, CampfireStatCard } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireSegmentedTabs, type CampfireSegmentedTab } from '@/components/campfire/CampfireSegmentedTabs';
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
 
 import { MyLeavePage } from './leave/MyLeavePage';
@@ -22,28 +19,32 @@ type MyDayViewID = 'overview' | 'tasks' | 'time' | 'leave';
 /**
  * myDayTabs defines the personal workflow navigation inside My Day.
  */
-const myDayTabs = [
+const myDayTabs: readonly CampfireSegmentedTab<MyDayViewID>[] = [
 	{
 		value: 'overview',
 		label: 'Standup',
+		icon: Flame,
 		description: 'Submit or update a valid working-day standup.',
 	},
 	{
 		value: 'tasks',
 		label: 'My Tasks',
+		icon: ListTodo,
 		description: 'Review and manage your Campfire tasks.',
 	},
 	{
 		value: 'time',
 		label: 'Time Log',
+		icon: Clock3,
 		description: 'Log time against active tasks.',
 	},
 	{
 		value: 'leave',
 		label: 'My Leave',
+		icon: CalendarOff,
 		description: 'Request leave and review active requests.',
 	},
-] as const;
+];
 
 /**
  * MyDayPage renders the current user's flattened daily workflow.
@@ -56,7 +57,7 @@ export function MyDayPage(props: WorkspaceShellProps): ReactElement {
 		<div className="campfire-page-stack campfire-my-day-page">
 			<CampfirePageHeader title="My Day" description="Standup, tasks, time, and personal leave." />
 
-			<CampfireSectionTabs
+			<CampfireSegmentedTabs
 				label="My Day workflows"
 				activeValue={activeView}
 				tabs={myDayTabs}

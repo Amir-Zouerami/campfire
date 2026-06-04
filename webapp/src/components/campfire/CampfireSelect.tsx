@@ -2,6 +2,7 @@ import {
 	Children,
 	isValidElement,
 	useEffect,
+	useDeferredValue,
 	useMemo,
 	useRef,
 	useState,
@@ -46,10 +47,11 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 	const buttonRef = useRef<HTMLButtonElement | null>(null);
 	const [open, setOpen] = useState(false);
 	const [query, setQuery] = useState('');
+	const deferredQuery = useDeferredValue(query);
 
 	const options = useMemo(() => extractOptions(props.children), [props.children]);
 	const selectedOption = options.find(option => option.value === props.value) ?? null;
-	const filteredOptions = useMemo(() => filterOptions(options, query, props.searchable === true), [options, props.searchable, query]);
+	const filteredOptions = useMemo(() => filterOptions(options, deferredQuery, props.searchable === true), [deferredQuery, options, props.searchable]);
 	const visibleOptions = props.maxVisibleOptions === undefined ? filteredOptions : filteredOptions.slice(0, props.maxVisibleOptions);
 	const hiddenOptionCount = Math.max(0, filteredOptions.length - visibleOptions.length);
 	const menuID = `${props.id}-menu`;
@@ -156,7 +158,7 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 	}
 
 	return (
-		<div ref={rootRef} className={cn('cf:relative cf:w-full', open ? 'cf:z-9999' : 'cf:z-0', props.className)}>
+		<div ref={rootRef} className={cn('campfire-select cf:relative cf:w-full', open ? 'cf:z-9999' : 'cf:z-0', props.className)}>
 			<button
 				ref={buttonRef}
 				id={props.id}
@@ -166,7 +168,7 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 				aria-expanded={open}
 				aria-controls={menuID}
 				className={cn(
-					'campfire-select-trigger cf:flex cf:h-11 cf:w-full cf:items-center cf:justify-between cf:gap-3 cf:rounded-xl cf:border cf:px-3.5',
+					'campfire-control-trigger campfire-select-trigger cf:flex cf:w-full cf:items-center cf:justify-between cf:gap-3 cf:rounded-xl cf:border cf:px-3.5',
 					'cf:bg-white/[0.045] cf:text-left cf:text-base cf:font-medium cf:text-foreground cf:shadow-none cf:outline-none',
 					'cf:border-amber-200/18 cf:transition-[background-color,border-color,box-shadow,transform]',
 					'hover:cf:border-amber-200/35 hover:cf:bg-white/[0.065] hover:cf:shadow-none',
@@ -193,7 +195,7 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 					role="listbox"
 					aria-labelledby={props.id}
 					className={cn(
-						'campfire-select-menu cf:absolute cf:left-0 cf:right-0 cf:top-[calc(100%+0.35rem)] cf:z-10000',
+						'cf:absolute cf:left-0 cf:right-0 cf:top-[calc(100%+0.35rem)] cf:z-10000',
 						'cf:max-h-72 cf:overflow-y-auto cf:rounded-xl cf:border cf:border-amber-200/22',
 						'cf:bg-[#17130f] cf:p-1.5 cf:shadow-[0_24px_80px_rgba(0,0,0,0.70)] cf:ring-1 cf:ring-white/10',
 					)}
@@ -222,7 +224,7 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 								aria-selected={selected}
 								disabled={option.disabled}
 								className={cn(
-									'campfire-select-option cf:flex cf:w-full cf:items-center cf:justify-between cf:gap-3 cf:rounded-lg cf:px-3.5 cf:py-2.5',
+									'cf:flex cf:w-full cf:items-center cf:justify-between cf:gap-3 cf:rounded-lg cf:px-3.5 cf:py-2.5',
 									'cf:text-left cf:text-base cf:font-medium cf:text-slate-200 cf:outline-none',
 									'cf:transition-[background-color,color,box-shadow,transform]',
 									'hover:cf:bg-white/[0.075] hover:cf:text-amber-50 hover:cf:shadow-none',

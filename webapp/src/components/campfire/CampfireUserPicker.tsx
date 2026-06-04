@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 import { Loader2, Search, UserRoundCheck } from 'lucide-react';
 
@@ -29,6 +29,7 @@ export function CampfireUserPicker(props: CampfireUserPickerProps): ReactElement
 	const [query, setQuery] = useState('');
 	const [loadState, setLoadState] = useState<LoadState>('idle');
 	const [message, setMessage] = useState('');
+	const deferredQuery = useDeferredValue(query);
 
 	useEffect(() => {
 		let active = true;
@@ -62,8 +63,9 @@ export function CampfireUserPicker(props: CampfireUserPickerProps): ReactElement
 		};
 	}, [props.workspaceID]);
 
+	const searchIndex = useMemo(() => buildMemberSearchIndex(members), [members]);
 	const selectedUser = useMemo(() => members.find(member => member.id === props.value) ?? null, [members, props.value]);
-	const visibleMembers = useMemo(() => filterMembers(members, query).slice(0, 8), [members, query]);
+	const visibleMembers = useMemo(() => filterMembers(searchIndex, deferredQuery).slice(0, 8), [deferredQuery, searchIndex]);
 	const disabled = props.disabled === true || loadState === 'loading';
 
 	return (
@@ -131,15 +133,47 @@ function profileLabel(profile: UserProfile): string {
 }
 
 /**
- * filterMembers searches user identity fields locally.
+ * MemberSearchEntry stores one member with pre-normalized search text.
  */
-function filterMembers(members: readonly UserProfile[], query: string): readonly UserProfile[] {
+type MemberSearchEntry = {
+	readonly member: UserProfile;
+	readonly searchText: string;
+};
+
+/**
+ * buildMemberSearchIndex pre-normalizes member identity fields once per load.
+ */
+function buildMemberSearchIndex(members: readonly UserProfile[]): readonly MemberSearchEntry[] {
+	return members.map(member => ({
+		member,
+		searchText: [member.id, member.username, member.displayName, member.email].join(' ').toLowerCase(),
+	}));
+}
+
+/**
+ * filterMembers searches pre-indexed user identity fields locally.
+ */
+function filterMembers(entries: readonly MemberSearchEntry[], query: string): readonly UserProfile[] {
 	const cleanQuery = query.trim().toLowerCase();
 	if (cleanQuery === '') {
 		return [];
 	}
 
-	return members.filter(member => [member.id, member.username, member.displayName, member.email].join(' ').toLowerCase().includes(cleanQuery));
+	const matches: UserProfile[] = [];
+
+	for (const entry of entries) {
+		if (!entry.searchText.includes(cleanQuery)) {
+			continue;
+		}
+
+		matches.push(entry.member);
+
+		if (matches.length >= 8) {
+			break;
+		}
+	}
+
+	return matches;
 }
 
 /**

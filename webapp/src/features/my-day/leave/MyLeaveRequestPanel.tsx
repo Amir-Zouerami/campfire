@@ -5,9 +5,8 @@ import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
 import { CampfireField } from '@/components/campfire/CampfireField';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { CampfireTimeInput } from '@/components/campfire/CampfireTimeInput';
+import { CampfireResponsiveInput, CampfireResponsiveTextarea } from '@/components/campfire/CampfireResponsiveInput';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import type { LeaveDurationMode, LeaveHalfDayPart, LeaveType } from '@/types/domain';
 
 import { formatDurationMode, formatLeaveOptionLabel, leaveDurationModes, leaveHalfDayParts } from './my-leave.helpers';
@@ -146,22 +145,22 @@ export function MyLeaveRequestPanel(props: MyLeaveRequestPanelProps): ReactEleme
 				)}
 
 				<CampfireField id="campfire-my-leave-backup" label="Backup person ID">
-					<Input
+					<CampfireResponsiveInput
 						id="campfire-my-leave-backup"
 						disabled={props.disabled}
 						placeholder="Optional Mattermost user ID"
 						value={props.draft.backupUserId}
-						onChange={event => props.onChange({ backupUserId: event.currentTarget.value })}
+						onValueChange={value => props.onChange({ backupUserId: value })}
 					/>
 				</CampfireField>
 
 				<CampfireField id="campfire-my-leave-reason" label="Reason">
-					<Textarea
+					<CampfireResponsiveTextarea
 						id="campfire-my-leave-reason"
 						disabled={props.disabled}
 						placeholder="Optional note for approvers."
 						value={props.draft.reason}
-						onChange={event => props.onChange({ reason: event.currentTarget.value })}
+						onValueChange={value => props.onChange({ reason: value })}
 					/>
 				</CampfireField>
 			</div>

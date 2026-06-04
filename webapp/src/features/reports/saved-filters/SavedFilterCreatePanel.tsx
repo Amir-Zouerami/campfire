@@ -3,9 +3,8 @@ import { Plus } from 'lucide-react';
 
 import { CampfireField } from '@/components/campfire/CampfireField';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
+import { CampfireResponsiveInput, CampfireResponsiveTextarea } from '@/components/campfire/CampfireResponsiveInput';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 
 import { formatReportKind, savedFilterReportKinds, toReportKind } from './saved-filters.helpers';
 import type { SavedFilterDraft, SavedFilterDraftPatch } from './saved-filters.types';
@@ -48,12 +47,12 @@ export function SavedFilterCreatePanel(props: SavedFilterCreatePanelProps): Reac
 
 			<div className="cf:grid cf:gap-4">
 				<CampfireField id="campfire-saved-filter-name" label="Name">
-					<Input
+					<CampfireResponsiveInput
 						id="campfire-saved-filter-name"
 						disabled={props.disabled}
 						placeholder="Daily missing-first review"
 						value={props.draft.name}
-						onChange={event => props.onChange({ name: event.currentTarget.value })}
+						onValueChange={value => props.onChange({ name: value })}
 					/>
 				</CampfireField>
 
@@ -77,11 +76,11 @@ export function SavedFilterCreatePanel(props: SavedFilterCreatePanelProps): Reac
 					label="Filter JSON"
 					description="The JSON is intentionally visible for MVP. Later we can add a guided builder for each report type."
 				>
-					<Textarea
+					<CampfireResponsiveTextarea
 						id="campfire-saved-filter-json"
 						disabled={props.disabled}
 						value={props.draft.filterJson}
-						onChange={event => props.onChange({ filterJson: event.currentTarget.value })}
+						onValueChange={value => props.onChange({ filterJson: value })}
 					/>
 				</CampfireField>
 			</div>

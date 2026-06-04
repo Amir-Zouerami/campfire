@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ApiClientError, lookupUsers } from '@/api';
 import type { UserProfile } from '@/types/api';
@@ -19,11 +19,27 @@ type UseUserProfilesResult = {
 };
 
 /**
+ * profileCache keeps user profile lookups warm across Campfire pages.
+ *
+ * Many pages render the same Mattermost users in approvals, reports, roles, and
+ * availability. Without a tiny module cache, switching sections repeats lookup
+ * POSTs and forces every consumer through loading state again.
+ */
+const profileCache = new Map<string, UserProfile>();
+
+/**
+ * pendingLookupByKey coalesces concurrent identical lookup batches.
+ */
+const pendingLookupByKey = new Map<string, Promise<readonly UserProfile[]>>();
+
+/**
  * useUserProfiles resolves Mattermost user IDs for display.
  */
 export function useUserProfiles(userIDs: readonly string[]): UseUserProfilesResult {
-	const normalizedUserIDs = useMemo(() => normalizeUserIDs(userIDs), [userIDs.join('|')]);
-	const [profilesByID, setProfilesByID] = useState<UserProfilesByID>({});
+	const userIDKey = userIDs.join('|');
+	const normalizedUserIDs = useMemo(() => normalizeUserIDs(userIDs), [userIDKey]);
+	const normalizedUserIDKey = normalizedUserIDs.join('|');
+	const [profilesByID, setProfilesByID] = useState<UserProfilesByID>(() => cachedProfilesByID(normalizedUserIDs));
 	const [loading, setLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState('');
 
@@ -41,17 +57,28 @@ export function useUserProfiles(userIDs: readonly string[]): UseUserProfilesResu
 				return;
 			}
 
+			const cachedProfiles = cachedProfilesByID(normalizedUserIDs);
+			setProfilesByID(current => sameProfileMap(current, cachedProfiles) ? current : cachedProfiles);
+
+			const missingIDs = missingCachedUserIDs(normalizedUserIDs);
+			if (missingIDs.length === 0) {
+				setLoading(false);
+				setErrorMessage('');
+				return;
+			}
+
 			setLoading(true);
 			setErrorMessage('');
 
 			try {
-				const response = await lookupUsers(normalizedUserIDs);
+				await lookupMissingProfiles(missingIDs);
 
 				if (!isActive) {
 					return;
 				}
 
-				setProfilesByID(indexProfiles(response.users));
+				const nextProfiles = cachedProfilesByID(normalizedUserIDs);
+				setProfilesByID(current => sameProfileMap(current, nextProfiles) ? current : nextProfiles);
 				setLoading(false);
 			} catch (error: unknown) {
 				if (!isActive) {
@@ -68,12 +95,12 @@ export function useUserProfiles(userIDs: readonly string[]): UseUserProfilesResu
 		return () => {
 			isActive = false;
 		};
-	}, [normalizedUserIDs]);
+	}, [normalizedUserIDKey]);
 
 	/**
 	 * labelForUserID returns the best available user label.
 	 */
-	function labelForUserID(userID: string): string {
+	const labelForUserID = useCallback((userID: string): string => {
 		const cleanUserID = userID.trim();
 		const profile = profilesByID[cleanUserID];
 
@@ -82,14 +109,14 @@ export function useUserProfiles(userIDs: readonly string[]): UseUserProfilesResu
 		}
 
 		return profileLabel(profile);
-	}
+	}, [profilesByID]);
 
-	return {
+	return useMemo(() => ({
 		profilesByID,
 		loading,
 		errorMessage,
 		labelForUserID,
-	};
+	}), [errorMessage, labelForUserID, loading, profilesByID]);
 }
 
 /**
@@ -112,6 +139,75 @@ export function profileLabel(profile: UserProfile): string {
 }
 
 /**
+ * lookupMissingProfiles loads uncached users and stores them in profileCache.
+ */
+async function lookupMissingProfiles(userIDs: readonly string[]): Promise<readonly UserProfile[]> {
+	const missingIDs = missingCachedUserIDs(userIDs);
+	if (missingIDs.length === 0) {
+		return [];
+	}
+
+	const lookupKey = missingIDs.join('|');
+	const pendingLookup = pendingLookupByKey.get(lookupKey);
+	if (pendingLookup !== undefined) {
+		return pendingLookup;
+	}
+
+	const lookupPromise = lookupUsers(missingIDs)
+		.then(response => {
+			for (const profile of response.users) {
+				profileCache.set(profile.id, profile);
+			}
+
+			return response.users;
+		})
+		.finally(() => {
+			pendingLookupByKey.delete(lookupKey);
+		});
+
+	pendingLookupByKey.set(lookupKey, lookupPromise);
+
+	return lookupPromise;
+}
+
+/**
+ * cachedProfilesByID returns cached profiles for the requested IDs.
+ */
+function cachedProfilesByID(userIDs: readonly string[]): UserProfilesByID {
+	const profiles: Record<string, UserProfile> = {};
+
+	for (const userID of userIDs) {
+		const profile = profileCache.get(userID);
+		if (profile !== undefined) {
+			profiles[userID] = profile;
+		}
+	}
+
+	return profiles;
+}
+
+/**
+ * missingCachedUserIDs returns user IDs that are not in the module cache yet.
+ */
+function missingCachedUserIDs(userIDs: readonly string[]): readonly string[] {
+	return userIDs.filter(userID => !profileCache.has(userID));
+}
+
+/**
+ * sameProfileMap avoids state updates when cache hydration returns the same profiles.
+ */
+function sameProfileMap(left: UserProfilesByID, right: UserProfilesByID): boolean {
+	const leftKeys = Object.keys(left);
+	const rightKeys = Object.keys(right);
+
+	if (leftKeys.length !== rightKeys.length) {
+		return false;
+	}
+
+	return leftKeys.every(key => left[key] === right[key]);
+}
+
+/**
  * normalizeUserIDs trims, de-duplicates, and preserves user ID order.
  */
 function normalizeUserIDs(userIDs: readonly string[]): readonly string[] {
@@ -130,19 +226,6 @@ function normalizeUserIDs(userIDs: readonly string[]): readonly string[] {
 	}
 
 	return normalized;
-}
-
-/**
- * indexProfiles returns profiles by user ID.
- */
-function indexProfiles(profiles: readonly UserProfile[]): UserProfilesByID {
-	const indexed: Record<string, UserProfile> = {};
-
-	for (const profile of profiles) {
-		indexed[profile.id] = profile;
-	}
-
-	return indexed;
 }
 
 /**
