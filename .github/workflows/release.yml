@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install webapp dependencies
+        working-directory: webapp
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install --no-audit --no-fund
+          fi
+
+      - name: Verify tag matches plugin version
+        run: |
+          plugin_version=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' plugin.json | head -n 1)
+          tag_version="${GITHUB_REF_NAME#v}"
+          if [ "$plugin_version" != "$tag_version" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match plugin.json version $plugin_version" >&2
+            exit 1
+          fi
+
+      - name: Build and validate bundle
+        run: make bundle-check
+
+      - name: Show release artifact
+        run: ls -lh dist/*.tar.gz
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: dist/*.tar.gz
+          fail_on_unmatched_files: true
+          generate_release_notes: true

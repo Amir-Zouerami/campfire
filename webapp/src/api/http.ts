@@ -210,12 +210,15 @@ function csrfTokenFromCookie(): string {
 
 	const cookies = document.cookie.split(';');
 	for (const cookie of cookies) {
-		const [rawName, ...rawValueParts] = cookie.split('=');
+		const cookieParts = cookie.split('=');
+		const rawName = cookieParts[0] ?? '';
+		const rawValue = cookieParts.slice(1).join('=');
+
 		if (rawName.trim() !== 'MMCSRF') {
 			continue;
 		}
 
-		return decodeURIComponent(rawValueParts.join('=').trim());
+		return decodeURIComponent(rawValue.trim());
 	}
 
 	return '';

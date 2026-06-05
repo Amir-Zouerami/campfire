@@ -1,9 +1,10 @@
 /*
- * Round 20 / Part 1: Floating UI + bidi/font foundation.
+ * Floating/bidi foundation.
  *
  * These rules intentionally sit after the earlier local-anchor experiments.
- * The actual coordinates now come from @floating-ui/dom through inline styles
- * and CSS variables, so old local `top/bottom/left/right` rules must not win.
+ * Popover coordinates come from Campfire's shared floating-position hooks through
+ * inline styles and CSS variables, so old local `top/bottom/left/right` rules
+ * must not win. This file does not require @floating-ui/dom.
  */
 
 .campfire-theme .campfire-floating-popover {

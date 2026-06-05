@@ -126,7 +126,7 @@ export function CampfireUserPicker(
   const disabled = props.disabled === true || loadState === "loading";
   const generatedID = useId();
   const menuID = `${generatedID}-campfire-user-picker-menu`;
-  const menuStyle = useCampfireFloatingPopover({
+  const floatingPopover = useCampfireFloatingPopover({
     open,
     triggerRef,
     popoverRef: menuRef,
@@ -224,7 +224,7 @@ export function CampfireUserPicker(
           className="campfire-user-picker-menu campfire-floating-popover"
           role="listbox"
           aria-label="Matching workspace members"
-          style={menuStyle}
+          style={floatingPopover.style}
         >
           <label className="campfire-user-picker-search">
             <Search className="cf:size-4" aria-hidden="true" />
