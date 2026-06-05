@@ -1,17 +1,21 @@
 import {
 	Children,
 	isValidElement,
-	useEffect,
 	useDeferredValue,
+	useEffect,
+	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
+	type CSSProperties,
 	type KeyboardEvent,
 	type ReactElement,
 	type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Search } from 'lucide-react';
 
+import { CampfireBidiText } from '@/components/campfire/CampfireBidiText';
 import { cn } from '@/lib/utils';
 
 /**
@@ -39,27 +43,91 @@ type CampfireSelectOption = {
 	readonly disabled: boolean;
 };
 
+type SelectMenuPlacement = {
+	readonly top: number;
+	readonly left: number;
+	readonly width: number;
+	readonly maxHeight: number;
+};
+
+const SELECT_MENU_GAP = 8;
+const SELECT_VIEWPORT_PADDING = 14;
+const SELECT_MIN_MENU_HEIGHT = 124;
+const SELECT_DEFAULT_MENU_HEIGHT = 320;
+const SELECT_MIN_MENU_WIDTH = 180;
+
 /**
- * CampfireSelect renders a Mattermost-safe dropdown anchored directly to its trigger.
+ * CampfireSelect renders the shared Campfire dropdown.
+ *
+ * The menu is portaled to the active Campfire overlay, not to the local card and
+ * not to an opaque full-screen layer. That keeps the menu above question cards
+ * without clipping the rest of the modal or breaking the application styles.
  */
 export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 	const rootRef = useRef<HTMLDivElement | null>(null);
 	const buttonRef = useRef<HTMLButtonElement | null>(null);
+	const menuRef = useRef<HTMLDivElement | null>(null);
+	const searchRef = useRef<HTMLInputElement | null>(null);
 	const [open, setOpen] = useState(false);
 	const [query, setQuery] = useState('');
+	const [menuPlacement, setMenuPlacement] = useState<SelectMenuPlacement | null>(null);
+	const [portalHost, setPortalHost] = useState<HTMLElement | null>(null);
 	const deferredQuery = useDeferredValue(query);
 
 	const options = useMemo(() => extractOptions(props.children), [props.children]);
 	const selectedOption = options.find(option => option.value === props.value) ?? null;
-	const filteredOptions = useMemo(() => filterOptions(options, deferredQuery, props.searchable === true), [deferredQuery, options, props.searchable]);
+	const filteredOptions = useMemo(
+		() => filterOptions(options, deferredQuery, props.searchable === true),
+		[deferredQuery, options, props.searchable],
+	);
 	const visibleOptions = props.maxVisibleOptions === undefined ? filteredOptions : filteredOptions.slice(0, props.maxVisibleOptions);
 	const hiddenOptionCount = Math.max(0, filteredOptions.length - visibleOptions.length);
 	const menuID = `${props.id}-menu`;
+
+	useLayoutEffect(() => {
+		if (!open) {
+			setMenuPlacement(null);
+			setPortalHost(null);
+			return;
+		}
+
+		setPortalHost(findPortalHost(buttonRef.current));
+
+		let animationFrame = window.requestAnimationFrame(updateMenuPlacement);
+
+		function handleWindowUpdate(): void {
+			window.cancelAnimationFrame(animationFrame);
+			animationFrame = window.requestAnimationFrame(updateMenuPlacement);
+		}
+
+		window.addEventListener('resize', handleWindowUpdate);
+		document.addEventListener('scroll', handleWindowUpdate, true);
+
+		return () => {
+			window.cancelAnimationFrame(animationFrame);
+			window.removeEventListener('resize', handleWindowUpdate);
+			document.removeEventListener('scroll', handleWindowUpdate, true);
+		};
+	}, [open, visibleOptions.length]);
+
+	useLayoutEffect(() => {
+		if (!open || portalHost === null) {
+			return;
+		}
+
+		const animationFrame = window.requestAnimationFrame(updateMenuPlacement);
+
+		return () => window.cancelAnimationFrame(animationFrame);
+	}, [open, portalHost, deferredQuery, visibleOptions.length]);
 
 	useEffect(() => {
 		if (!open) {
 			setQuery('');
 			return;
+		}
+
+		if (props.searchable === true) {
+			window.setTimeout(() => searchRef.current?.focus(), 0);
 		}
 
 		function handlePointerDown(event: MouseEvent): void {
@@ -68,6 +136,10 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 			}
 
 			if (rootRef.current !== null && rootRef.current.contains(event.target)) {
+				return;
+			}
+
+			if (menuRef.current !== null && menuRef.current.contains(event.target)) {
 				return;
 			}
 
@@ -88,7 +160,41 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 			document.removeEventListener('mousedown', handlePointerDown, true);
 			document.removeEventListener('keydown', handleEscape, true);
 		};
-	}, [open]);
+	}, [open, props.searchable]);
+
+	/**
+	 * updateMenuPlacement measures the trigger and positions the menu inside the
+	 * viewport. Width is locked to the trigger width and not narrowed by page CSS.
+	 */
+	function updateMenuPlacement(): void {
+		const trigger = buttonRef.current;
+		if (trigger === null || typeof window === 'undefined') {
+			return;
+		}
+
+		const triggerRect = trigger.getBoundingClientRect();
+		const viewportWidth = window.innerWidth;
+		const viewportHeight = window.innerHeight;
+		const width = Math.max(SELECT_MIN_MENU_WIDTH, Math.round(triggerRect.width));
+		const left = clamp(
+			Math.round(triggerRect.left),
+			SELECT_VIEWPORT_PADDING,
+			Math.max(SELECT_VIEWPORT_PADDING, viewportWidth - width - SELECT_VIEWPORT_PADDING),
+		);
+
+		const renderedHeight = menuRef.current?.offsetHeight ?? SELECT_DEFAULT_MENU_HEIGHT;
+		const desiredHeight = Math.max(SELECT_MIN_MENU_HEIGHT, Math.min(renderedHeight, SELECT_DEFAULT_MENU_HEIGHT));
+		const spaceBelow = viewportHeight - triggerRect.bottom - SELECT_MENU_GAP - SELECT_VIEWPORT_PADDING;
+		const spaceAbove = triggerRect.top - SELECT_MENU_GAP - SELECT_VIEWPORT_PADDING;
+		const openAbove = spaceBelow < Math.min(desiredHeight, SELECT_MIN_MENU_HEIGHT) && spaceAbove > spaceBelow;
+		const availableHeight = Math.max(SELECT_MIN_MENU_HEIGHT, openAbove ? spaceAbove : spaceBelow);
+		const maxHeight = Math.max(SELECT_MIN_MENU_HEIGHT, Math.min(desiredHeight, availableHeight));
+		const top = openAbove
+			? Math.max(SELECT_VIEWPORT_PADDING, triggerRect.top - SELECT_MENU_GAP - maxHeight)
+			: Math.min(triggerRect.bottom + SELECT_MENU_GAP, viewportHeight - SELECT_VIEWPORT_PADDING - maxHeight);
+
+		setMenuPlacement({ top, left, width, maxHeight });
+	}
 
 	function toggleOpen(): void {
 		if (props.disabled === true) {
@@ -158,7 +264,7 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 	}
 
 	return (
-		<div ref={rootRef} className={cn('campfire-select cf:relative cf:w-full', open ? 'cf:z-9999' : 'cf:z-0', props.className)}>
+		<div ref={rootRef} className={cn('campfire-select-root cf:relative cf:w-full', open && 'campfire-select-root--open', props.className)}>
 			<button
 				ref={buttonRef}
 				id={props.id}
@@ -168,91 +274,141 @@ export function CampfireSelect(props: CampfireSelectProps): ReactElement {
 				aria-expanded={open}
 				aria-controls={menuID}
 				className={cn(
-					'campfire-control-trigger campfire-select-trigger cf:flex cf:w-full cf:items-center cf:justify-between cf:gap-3 cf:rounded-xl cf:border cf:px-3.5',
-					'cf:bg-white/[0.045] cf:text-left cf:text-base cf:font-medium cf:text-foreground cf:shadow-none cf:outline-none',
-					'cf:border-amber-200/18 cf:transition-[background-color,border-color,box-shadow,transform]',
-					'hover:cf:border-amber-200/35 hover:cf:bg-white/[0.065] hover:cf:shadow-none',
-					'focus-visible:cf:border-amber-300/70 focus-visible:cf:ring-2 focus-visible:cf:ring-amber-200/18',
+					'campfire-select-trigger cf:flex cf:h-11 cf:w-full cf:items-center cf:justify-between cf:gap-3 cf:rounded-xl cf:border cf:px-3.5',
+					'cf:text-left cf:text-base cf:font-medium cf:text-foreground cf:shadow-none cf:outline-none',
+					'cf:transition-[background-color,border-color,box-shadow,transform]',
 					'disabled:cf:cursor-not-allowed disabled:cf:opacity-50',
-					open && 'cf:border-amber-200/45 cf:bg-white/[0.07] cf:ring-2 cf:ring-amber-200/14',
+					open && 'campfire-select-trigger--open',
 				)}
 				onClick={toggleOpen}
 				onKeyDown={handleButtonKeyDown}
 			>
-				<span className="cf:min-w-0 cf:truncate">{selectedOption?.label ?? 'Choose option'}</span>
+				<CampfireBidiText className="campfire-select-trigger-label cf:min-w-0 cf:truncate">
+					{selectedOption?.label ?? 'Choose option'}
+				</CampfireBidiText>
 				<ChevronDown
 					className={cn(
-						'cf:size-4 cf:flex-none cf:text-amber-200 cf:transition-transform',
+						'campfire-select-chevron cf:size-4 cf:flex-none cf:transition-transform',
 						open && 'cf:rotate-180',
 					)}
 					aria-hidden="true"
 				/>
 			</button>
 
-			{open && (
+			{open && portalHost !== null && createPortal(
 				<div
+					ref={menuRef}
 					id={menuID}
 					role="listbox"
 					aria-labelledby={props.id}
-					className={cn(
-						'cf:absolute cf:left-0 cf:right-0 cf:top-[calc(100%+0.35rem)] cf:z-10000',
-						'cf:max-h-72 cf:overflow-y-auto cf:rounded-xl cf:border cf:border-amber-200/22',
-						'cf:bg-[#17130f] cf:p-1.5 cf:shadow-[0_24px_80px_rgba(0,0,0,0.70)] cf:ring-1 cf:ring-white/10',
-					)}
+					className="campfire-select-menu"
+					style={placementToStyle(menuPlacement)}
 				>
 					{props.searchable === true && (
 						<label className="campfire-select-search">
 							<Search className="cf:size-4" aria-hidden="true" />
 							<input
+								ref={searchRef}
 								type="search"
 								placeholder={props.searchPlaceholder ?? 'Search…'}
 								value={query}
 								onChange={event => setQuery(event.currentTarget.value)}
 								onKeyDown={event => event.stopPropagation()}
+							dir="auto"
 							/>
 						</label>
 					)}
 
-					{visibleOptions.map(option => {
-						const selected = option.value === props.value;
+					<div className="campfire-select-options">
+						{visibleOptions.map(option => {
+							const selected = option.value === props.value;
 
-						return (
-							<button
-								key={option.value}
-								type="button"
-								role="option"
-								aria-selected={selected}
-								disabled={option.disabled}
-								className={cn(
-									'cf:flex cf:w-full cf:items-center cf:justify-between cf:gap-3 cf:rounded-lg cf:px-3.5 cf:py-2.5',
-									'cf:text-left cf:text-base cf:font-medium cf:text-slate-200 cf:outline-none',
-									'cf:transition-[background-color,color,box-shadow,transform]',
-									'hover:cf:bg-white/[0.075] hover:cf:text-amber-50 hover:cf:shadow-none',
-									'focus:cf:bg-white/[0.075] focus:cf:text-amber-50 focus:cf:shadow-none',
-									selected && 'cf:bg-amber-200/10 cf:text-amber-50',
-									option.disabled && 'cf:pointer-events-none cf:opacity-45',
-								)}
-								onClick={() => selectOption(option)}
-							>
-								<span className="cf:min-w-0 cf:truncate">{option.content}</span>
-								{selected && (
-									<Check className="cf:size-4 cf:flex-none cf:text-amber-200" aria-hidden="true" />
-								)}
-							</button>
-						);
-					})}
+							return (
+								<button
+									key={option.value}
+									type="button"
+									role="option"
+									aria-selected={selected}
+									disabled={option.disabled}
+									className={cn(
+										'campfire-select-option',
+										selected && 'campfire-select-option--selected',
+										option.disabled && 'campfire-select-option--disabled',
+									)}
+									onClick={() => selectOption(option)}
+								>
+									<CampfireBidiText className="campfire-select-option-label cf:min-w-0 cf:truncate">
+										{option.content}
+									</CampfireBidiText>
+									{selected && !option.disabled && (
+										<Check className="campfire-select-check cf:size-4 cf:flex-none" aria-hidden="true" />
+									)}
+								</button>
+							);
+						})}
+					</div>
 
 					{hiddenOptionCount > 0 && (
 						<p className="campfire-select-hidden-count">
 							Showing {visibleOptions.length} of {filteredOptions.length}. Search to narrow the list.
 						</p>
 					)}
-				</div>
+				</div>,
+				portalHost,
 			)}
 		</div>
 	);
 }
 
+/**
+ * placementToStyle maps measured placement to fixed menu CSS.
+ */
+function placementToStyle(placement: SelectMenuPlacement | null): CSSProperties {
+	if (placement === null) {
+		return {
+			position: 'fixed',
+			top: -9999,
+			left: -9999,
+			width: 240,
+			minWidth: 240,
+			maxWidth: 240,
+			maxHeight: SELECT_DEFAULT_MENU_HEIGHT,
+			visibility: 'hidden',
+			'--campfire-select-menu-width': '240px',
+		} as CSSProperties;
+	}
+
+	return {
+		position: 'fixed',
+		top: placement.top,
+		left: placement.left,
+		width: placement.width,
+		minWidth: placement.width,
+		maxWidth: placement.width,
+		maxHeight: placement.maxHeight,
+		'--campfire-select-menu-width': `${placement.width}px`,
+	} as CSSProperties;
+}
+
+/**
+ * findPortalHost returns the active Campfire overlay so the menu stays within
+ * the dialog style scope but outside overflow-hidden cards.
+ */
+function findPortalHost(trigger: HTMLElement | null): HTMLElement {
+	const host = trigger?.closest('.campfire-overlay');
+	if (host instanceof HTMLElement) {
+		return host;
+	}
+
+	return document.body;
+}
+
+/**
+ * clamp keeps a number inside a safe range.
+ */
+function clamp(value: number, min: number, max: number): number {
+	return Math.min(Math.max(value, min), max);
+}
 
 /**
  * filterOptions applies local text search when enabled.
@@ -295,11 +451,13 @@ function extractOptions(children: ReactNode): readonly CampfireSelectOption[] {
 			return;
 		}
 
+		const label = textFromNode(childProps.children) || childProps.value;
+
 		options.push({
 			value: childProps.value,
-			label: textFromNode(childProps.children) || childProps.value,
+			label,
 			content: childProps.children ?? childProps.value,
-			disabled: childProps.disabled === true,
+			disabled: childProps.disabled === true || childProps.value.trim() === '',
 		});
 	});
 

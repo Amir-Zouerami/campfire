@@ -635,6 +635,7 @@ func (s *SQLWorkspaceStore) insertStandupSchedule(
 				template_id,
 				kind,
 				enabled,
+				opens_at,
 				time_of_day,
 				skip_non_working_days,
 				weekly_mode,
@@ -642,13 +643,14 @@ func (s *SQLWorkspaceStore) insertStandupSchedule(
 				created_by,
 				created_at,
 				updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`),
 		schedule.ID.String(),
 		schedule.WorkspaceID.String(),
 		schedule.TemplateID.String(),
 		string(schedule.Kind),
 		schedule.Enabled,
+		schedule.OpensAt.String(),
 		schedule.TimeOfDay.String(),
 		schedule.SkipNonWorkingDays,
 		string(schedule.WeeklyMode),

@@ -11,11 +11,13 @@ import (
 const (
 	emptyQuestionOptionsJSON = "[]"
 
-	defaultDailyStandupTime  = "09:00"
-	defaultWeeklySummaryTime = "16:00"
+	defaultDailyStandupOpenTime  = "09:30"
+	defaultDailyStandupTime      = "10:00"
+	defaultWeeklySummaryOpenTime = "15:30"
+	defaultWeeklySummaryTime     = "16:00"
 
-	defaultDailyReminderOffsetsJSON  = "[0,30,45,55]"
-	defaultWeeklyReminderOffsetsJSON = "[0]"
+	defaultDailyReminderOffsetsJSON  = "[0,15,25]"
+	defaultWeeklyReminderOffsetsJSON = "[15]"
 )
 
 /*
@@ -96,6 +98,7 @@ func buildDefaultWorkspaceSetup(
 				TemplateID:              dailyTemplateID,
 				Kind:                    domain.StandupKindDaily,
 				Enabled:                 true,
+				OpensAt:                 domain.TimeOfDay(defaultDailyStandupOpenTime),
 				TimeOfDay:               domain.TimeOfDay(defaultDailyStandupTime),
 				SkipNonWorkingDays:      true,
 				WeeklyMode:              "",
@@ -110,6 +113,7 @@ func buildDefaultWorkspaceSetup(
 				TemplateID:              weeklyTemplateID,
 				Kind:                    domain.StandupKindWeekly,
 				Enabled:                 true,
+				OpensAt:                 domain.TimeOfDay(defaultWeeklySummaryOpenTime),
 				TimeOfDay:               domain.TimeOfDay(defaultWeeklySummaryTime),
 				SkipNonWorkingDays:      true,
 				WeeklyMode:              domain.WeeklyModeLastWorkingDay,
@@ -215,9 +219,9 @@ func buildDefaultDailyTemplate(
 				workspaceID,
 				now,
 				1,
-				"Progress",
-				"Yesterday / Progress",
-				"What did you finish or make progress on?",
+				"Today",
+				"What did you do today?",
+				"Share the work you completed or moved forward.",
 				"Finished login refactor, reviewed dashboard PRs...",
 				domain.QuestionLongText,
 				true,
@@ -229,9 +233,9 @@ func buildDefaultDailyTemplate(
 				workspaceID,
 				now,
 				2,
-				"Plan",
-				"Today / Plan",
-				"What are you focusing on next?",
+				"Next",
+				"What will you do next?",
+				"Share your next focus and planned work.",
 				"Continue dashboard work, pair on API contract...",
 				domain.QuestionLongText,
 				true,
@@ -244,8 +248,8 @@ func buildDefaultDailyTemplate(
 				now,
 				3,
 				"Blockers",
-				"Blockers",
-				"Anything blocking you?",
+				"Are you blocked?",
+				"Share blockers, dependencies, or risks that need help.",
 				"Waiting on API contract...",
 				domain.QuestionLongText,
 				false,

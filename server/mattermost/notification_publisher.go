@@ -267,10 +267,10 @@ func formatStandupDMReminderMessage(api plugin.API, reminder service.StandupDMRe
 	lines := []string{
 		formatNotificationHeading("🔥 **Standup reminder**"),
 		"",
-		fmt.Sprintf("%s, your standup for **%s** is still missing.", targetLabel, reminder.OccurrenceDate),
-		fmt.Sprintf("Please open %s and submit your update from that channel.", channelReference),
+		fmt.Sprintf("Hey %s, your Campfire standup for **%s** is still missing.", targetLabel, reminder.OccurrenceDate),
+		fmt.Sprintf("Please open %s and submit it before the standup closes.", channelReference),
 		"",
-		"_Standups are tied to the workspace channel, so this DM is only a reminder._",
+		"_This DM only goes to people who have not submitted yet._",
 	}
 
 	if reminder.SequenceNumber > 0 {
@@ -287,7 +287,7 @@ func formatChannelMissingReminderMessage(api plugin.API, reminder service.Standu
 	lines := []string{
 		formatNotificationHeading("🔥 **Standup reminder**"),
 		"",
-		fmt.Sprintf("Missing standups for **%s**:", reminder.OccurrenceDate),
+		fmt.Sprintf("These standups are still missing for **%s**. Please submit before the standup closes:", reminder.OccurrenceDate),
 	}
 
 	if reminder.MissingUserCount == 0 {

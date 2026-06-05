@@ -289,6 +289,7 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 			const scheduleMessage = 'Choose a standup schedule before submitting.';
 			setMessage(scheduleMessage);
 			setLoadState('error');
+			toast.error(scheduleMessage);
 			return;
 		}
 
@@ -296,6 +297,7 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 		if (validationMessage !== null) {
 			setMessage(validationMessage);
 			setLoadState('error');
+			toast.error(validationMessage);
 			return;
 		}
 

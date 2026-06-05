@@ -1,11 +1,12 @@
 import type { ReactElement } from 'react';
-import { FileText, Save } from 'lucide-react';
+import { FileText, Loader2, Save } from 'lucide-react';
 
 import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
+import { CampfireControlButton } from '@/components/campfire/CampfireControlButton';
 import { CampfireField } from '@/components/campfire/CampfireField';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
+import { CampfireSettingsPanel } from '@/components/campfire/CampfireSettingsPanel';
 import { reportRuleTitle, type StandupScheduleLabel } from '@/features/settings/standup-schedule-labels';
-import { Button } from '@/components/ui/button';
 import type { ReportRule } from '@/types/domain';
 
 import {
@@ -14,14 +15,12 @@ import {
 	formatReportLanguage,
 	formatReportSortMode,
 	reportLanguageOptions,
-	reportRuleCardClassName,
 	reportRuleHasChanges,
 	reportSortOptions,
 	toReportLanguage,
 	toReportSortMode,
 } from './report-rules.helpers';
 import type { ReportRuleDraft, ReportRuleDraftPatch } from './report-rules.types';
-import { CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * ReportRuleCardProps contains one report rule and its editable draft.
@@ -46,43 +45,21 @@ export function ReportRuleCard(props: ReportRuleCardProps): ReactElement {
 	const reportKindLabel = formatReportKind(props.rule.reportKind);
 
 	return (
-		<article className={reportRuleCardClassName(props.draft.enabled)}>
-			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
-				<div className="cf:min-w-0">
-					<p className="cf:flex cf:flex-wrap cf:items-center cf:gap-2 cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
-						<FileText className="cf:size-5" />
-						{reportKindLabel}
-					</p>
-
-					<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
-						{reportRuleTitle(props.scheduleLabel, props.rule.reportKind)}
-					</h3>
-
-					<p className="cf:mt-2 cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
-						{props.scheduleLabel.subtitle}
-					</p>
-
-					<ScheduleContextChips label={props.scheduleLabel} />
-
-					<p className="cf:mt-3 cf:text-xs cf:font-bold cf:text-muted-foreground">
-						Updated {formatDateTime(props.rule.updatedAt)}
-					</p>
+		<CampfireSettingsPanel
+			className={props.draft.enabled ? 'campfire-rule-panel' : 'campfire-rule-panel campfire-rule-panel--disabled'}
+			title={reportRuleTitle(props.scheduleLabel, props.rule.reportKind)}
+			description={`${reportKindLabel}. Window ${props.scheduleLabel.opensAt}–${props.scheduleLabel.timeOfDay}.`}
+			icon={FileText}
+			meta={
+				<div className="campfire-rule-meta-stack">
+					<span>{props.draft.enabled ? 'Enabled' : 'Disabled'}</span>
+					<span>{changed ? 'Unsaved changes' : 'Saved'}</span>
+					<span>Updated {formatDateTime(props.rule.updatedAt)}</span>
+					{props.scheduleLabel.unavailable && <span>Missing schedule</span>}
 				</div>
-
-				<div className="cf:flex cf:flex-wrap cf:gap-2">
-					<CampfireStatusPill tone={props.draft.enabled ? 'green' : 'slate'}>
-						{props.draft.enabled ? 'Enabled' : 'Disabled'}
-					</CampfireStatusPill>
-					<CampfireStatusPill tone={changed ? 'ember' : 'green'}>
-						{changed ? 'Unsaved' : 'Saved'}
-					</CampfireStatusPill>
-					{props.scheduleLabel.unavailable && (
-						<CampfireStatusPill tone="red">Missing schedule</CampfireStatusPill>
-					)}
-				</div>
-			</div>
-
-			<div className="cf:grid cf:gap-3 cf:xl:grid-cols-2">
+			}
+		>
+			<div className="campfire-settings-choice-grid">
 				<CampfireCheckboxField
 					checked={props.draft.enabled}
 					disabled={formDisabled}
@@ -95,7 +72,7 @@ export function ReportRuleCard(props: ReportRuleCardProps): ReactElement {
 					checked={props.draft.postToChannel}
 					disabled={formDisabled}
 					label="Post to channel"
-					description="Automatically post the generated report to the workspace channel."
+					description="Post automatically when the report is ready."
 					onCheckedChange={checked => props.onDraftChange(props.rule.id, { postToChannel: checked })}
 				/>
 
@@ -103,7 +80,7 @@ export function ReportRuleCard(props: ReportRuleCardProps): ReactElement {
 					checked={props.draft.previewRequired}
 					disabled={formDisabled}
 					label="Preview required"
-					description="Require manual review before posting when supported by the workflow."
+					description="Require review before posting when supported."
 					onCheckedChange={checked => props.onDraftChange(props.rule.id, { previewRequired: checked })}
 				/>
 
@@ -111,7 +88,7 @@ export function ReportRuleCard(props: ReportRuleCardProps): ReactElement {
 					checked={props.draft.includeMissing}
 					disabled={formDisabled}
 					label="Include missing users"
-					description="Show users who did not submit when the report type supports it."
+					description="Show users who did not submit."
 					onCheckedChange={checked => props.onDraftChange(props.rule.id, { includeMissing: checked })}
 				/>
 
@@ -119,7 +96,7 @@ export function ReportRuleCard(props: ReportRuleCardProps): ReactElement {
 					checked={props.draft.includeOnLeave}
 					disabled={formDisabled}
 					label="Include on-leave users"
-					description="Show approved leave context in generated reports."
+					description="Include approved leave context."
 					onCheckedChange={checked => props.onDraftChange(props.rule.id, { includeOnLeave: checked })}
 				/>
 
@@ -127,7 +104,7 @@ export function ReportRuleCard(props: ReportRuleCardProps): ReactElement {
 					checked={props.draft.includeTime}
 					disabled={formDisabled}
 					label="Include time"
-					description="Include time-tracking summaries when the report supports it."
+					description="Include time-tracking summaries."
 					onCheckedChange={checked => props.onDraftChange(props.rule.id, { includeTime: checked })}
 				/>
 
@@ -135,12 +112,12 @@ export function ReportRuleCard(props: ReportRuleCardProps): ReactElement {
 					checked={props.draft.includeBlockers}
 					disabled={formDisabled}
 					label="Include blockers"
-					description="Highlight blocker-related answers and sections."
+					description="Highlight blocker-related answers."
 					onCheckedChange={checked => props.onDraftChange(props.rule.id, { includeBlockers: checked })}
 				/>
 			</div>
 
-			<div className="campfire-report-rule-select-grid cf:grid cf:gap-3 cf:xl:grid-cols-2">
+			<div className="campfire-settings-control-grid campfire-settings-control-grid--two">
 				<CampfireField id={`campfire-report-rule-sort-${props.rule.id}`} label="Sort mode">
 					<CampfireSelect
 						id={`campfire-report-rule-sort-${props.rule.id}`}
@@ -172,34 +149,12 @@ export function ReportRuleCard(props: ReportRuleCardProps): ReactElement {
 				</CampfireField>
 			</div>
 
-			<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4">
-				<p className="cf:m-0 cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
-					Report rules control scheduled generation. Manual report review and posting stays in Reports.
-				</p>
-
-				<Button type="button" disabled={formDisabled || !changed} onClick={() => void props.onSave(props.rule)}>
-					<Save className="cf:size-4" />
+			<div className="campfire-settings-form-actions">
+				<CampfireControlButton type="button" disabled={formDisabled || !changed} onClick={() => void props.onSave(props.rule)}>
+					{props.saving ? <Loader2 className="cf:size-4 cf:animate-spin" /> : <Save className="cf:size-4" />}
 					{props.saving ? 'Saving…' : 'Save report'}
-				</Button>
+				</CampfireControlButton>
 			</div>
-		</article>
-	);
-}
-
-/**
- * ScheduleContextChips renders readable schedule context.
- */
-function ScheduleContextChips(props: { readonly label: StandupScheduleLabel }): ReactElement {
-	return (
-		<div className="cf:mt-3 cf:flex cf:flex-wrap cf:gap-2">
-			{props.label.chips.map(chip => (
-				<span
-					key={chip}
-					className="cf:rounded-full cf:border cf:border-white/10 cf:bg-black/20 cf:px-2.5 cf:py-1 cf:text-xs cf:font-semibold cf:text-amber-100"
-				>
-					{chip}
-				</span>
-			))}
-		</div>
+		</CampfireSettingsPanel>
 	);
 }

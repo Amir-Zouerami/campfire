@@ -42,6 +42,7 @@ type ReminderService struct {
 	workspaceStore     store.WorkspaceStore
 	workspaceRoleStore store.WorkspaceRoleStore
 	reminderStore      store.ReminderStore
+	standupStore       store.StandupStore
 }
 
 /*
@@ -51,11 +52,13 @@ func NewReminderService(
 	workspaceStore store.WorkspaceStore,
 	workspaceRoleStore store.WorkspaceRoleStore,
 	reminderStore store.ReminderStore,
+	standupStore store.StandupStore,
 ) *ReminderService {
 	return &ReminderService{
 		workspaceStore:     workspaceStore,
 		workspaceRoleStore: workspaceRoleStore,
 		reminderStore:      reminderStore,
+		standupStore:       standupStore,
 	}
 }
 
@@ -110,16 +113,6 @@ func (s *ReminderService) Update(
 		return nil, NewError(ErrorCodeValidationFailed, "Reminder rule ID is required.")
 	}
 
-	offsets, err := normalizeReminderOffsets(input.ReminderOffsets)
-	if err != nil {
-		return nil, err
-	}
-
-	offsetsJSON, err := encodeReminderOffsets(offsets)
-	if err != nil {
-		return nil, NewError(ErrorCodeInternal, "Could not encode reminder offsets.")
-	}
-
 	existingRules, err := s.reminderStore.ListByWorkspaceID(ctx, workspaceID)
 	if err != nil {
 		return nil, NewError(ErrorCodeInternal, "Could not load reminder settings.")
@@ -128,6 +121,25 @@ func (s *ReminderService) Update(
 	existingRule := findReminderRule(existingRules, reminderRuleID)
 	if existingRule == nil {
 		return nil, NewError(ErrorCodeNotFound, "Reminder rule was not found.")
+	}
+
+	schedule, err := s.standupStore.GetScheduleByID(ctx, workspaceID, existingRule.ScheduleID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "The schedule linked to this reminder rule was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load the linked standup schedule.")
+	}
+
+	offsets, err := normalizeReminderOffsets(input.ReminderOffsets, schedule.OpensAt, schedule.TimeOfDay)
+	if err != nil {
+		return nil, err
+	}
+
+	offsetsJSON, err := encodeReminderOffsets(offsets)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not encode reminder offsets.")
 	}
 
 	updatedRule := *existingRule
@@ -203,11 +215,30 @@ func (s *ReminderService) requireReminderManagement(
 
 /*
 normalizeReminderOffsets validates, de-duplicates, and sorts reminder offsets.
-Offsets are minutes after the one-hour reminder window opens before report time.
+Offsets are minute marks inside the pre-close reminder window. The UI exposes these as up to three HH:mm reminder times before the standup closes.
 */
-func normalizeReminderOffsets(offsets []int) ([]int, error) {
+func normalizeReminderOffsets(offsets []int, opensAt domain.TimeOfDay, closesAt domain.TimeOfDay) ([]int, error) {
 	if len(offsets) == 0 {
-		return nil, NewError(ErrorCodeValidationFailed, "At least one reminder offset is required.")
+		return nil, NewError(ErrorCodeValidationFailed, "At least one reminder time is required.")
+	}
+
+	if len(offsets) > 3 {
+		return nil, NewError(ErrorCodeValidationFailed, "At most three reminder times are supported.")
+	}
+
+	openMinutes, ok := localTimeMinutes(opensAt)
+	if !ok {
+		return nil, NewError(ErrorCodeValidationFailed, "Standup open time is invalid.")
+	}
+
+	closeMinutes, ok := localTimeMinutes(closesAt)
+	if !ok {
+		return nil, NewError(ErrorCodeValidationFailed, "Standup close time is invalid.")
+	}
+
+	windowMinutes := closeMinutes - openMinutes
+	if windowMinutes <= 0 {
+		return nil, NewError(ErrorCodeValidationFailed, "Standup open time must be before close time.")
 	}
 
 	seen := map[int]bool{}
@@ -215,11 +246,11 @@ func normalizeReminderOffsets(offsets []int) ([]int, error) {
 
 	for _, offset := range offsets {
 		if offset < 0 {
-			return nil, NewError(ErrorCodeValidationFailed, "Reminder offsets cannot be negative.")
+			return nil, NewError(ErrorCodeValidationFailed, "Reminder times cannot be before the standup opens.")
 		}
 
-		if offset > 59 {
-			return nil, NewError(ErrorCodeValidationFailed, "Reminder offsets cannot be more than 59 minutes after the reminder window opens.")
+		if offset >= windowMinutes {
+			return nil, NewError(ErrorCodeValidationFailed, "Reminder times must be after the standup opens and before it closes.")
 		}
 
 		if seen[offset] {
@@ -233,6 +264,18 @@ func normalizeReminderOffsets(offsets []int) ([]int, error) {
 	sort.Ints(normalized)
 
 	return normalized, nil
+}
+
+/*
+localTimeMinutes parses an HH:mm value into minutes after local midnight.
+*/
+func localTimeMinutes(value domain.TimeOfDay) (int, bool) {
+	parsed, err := time.Parse("15:04", value.String())
+	if err != nil {
+		return 0, false
+	}
+
+	return parsed.Hour()*60 + parsed.Minute(), true
 }
 
 /*

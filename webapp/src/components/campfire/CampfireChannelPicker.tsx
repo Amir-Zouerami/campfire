@@ -4,7 +4,6 @@ import { Hash, Loader2, Search, XCircle } from 'lucide-react';
 
 import { ApiClientError, lookupChannels, searchChannels } from '@/api';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import type { ChannelProfile } from '@/types/api';
 
 /**
@@ -21,8 +20,8 @@ type CampfireChannelPickerProps = {
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
 /**
- * CampfireChannelPicker lets admins search Mattermost channels by readable name
- * while still saving the stable channel ID required by the backend.
+ * CampfireChannelPicker lets admins search readable Mattermost channels and
+ * still fall back to pasting a raw channel ID for private/unlisted channels.
  */
 export function CampfireChannelPicker(props: CampfireChannelPickerProps): ReactElement {
 	const [query, setQuery] = useState('');
@@ -35,9 +34,6 @@ export function CampfireChannelPicker(props: CampfireChannelPickerProps): ReactE
 	useEffect(() => {
 		let active = true;
 
-		/**
-		 * loadSelectedChannel resolves the saved channel ID into a readable label.
-		 */
 		async function loadSelectedChannel(): Promise<void> {
 			const cleanChannelID = props.value.trim();
 			if (cleanChannelID === '') {
@@ -57,6 +53,7 @@ export function CampfireChannelPicker(props: CampfireChannelPickerProps): ReactE
 					return;
 				}
 
+				setSelectedChannel(null);
 				setMessage(errorToMessage(error));
 			}
 		}
@@ -82,9 +79,6 @@ export function CampfireChannelPicker(props: CampfireChannelPickerProps): ReactE
 		}
 
 		const timeoutID = window.setTimeout(() => {
-			/**
-			 * runSearch loads matching channels after a small debounce.
-			 */
 			async function runSearch(): Promise<void> {
 				setLoadState('loading');
 				setMessage('');
@@ -118,7 +112,9 @@ export function CampfireChannelPicker(props: CampfireChannelPickerProps): ReactE
 	}, [deferredQuery, props.teamID]);
 
 	const disabled = props.disabled === true || props.teamID.trim() === '';
-	const showResults = query.trim() !== '' && results.length > 0;
+	const cleanQuery = query.trim();
+	const showResults = cleanQuery !== '' && results.length > 0;
+	const canUseTypedChannelID = cleanQuery !== '' && cleanQuery !== props.value.trim();
 	const selectedLabel = useMemo(() => {
 		if (props.value.trim() === '') {
 			return '';
@@ -127,14 +123,33 @@ export function CampfireChannelPicker(props: CampfireChannelPickerProps): ReactE
 		return selectedChannel === null ? props.value : channelLabel(selectedChannel);
 	}, [props.value, selectedChannel]);
 
+	function chooseChannel(channel: ChannelProfile): void {
+		props.onChange(channel.id);
+		setSelectedChannel(channel);
+		setQuery('');
+		setResults([]);
+	}
+
+	function useTypedChannelID(): void {
+		const rawValue = query.trim().replace(/^#/, '');
+		if (rawValue === '') {
+			return;
+		}
+
+		props.onChange(rawValue);
+		setSelectedChannel(null);
+		setQuery('');
+		setResults([]);
+	}
+
 	return (
 		<div className="campfire-channel-picker">
 			<label className="campfire-channel-picker-search">
 				<Search className="cf:size-4" aria-hidden="true" />
-				<Input
+				<input
 					type="search"
 					disabled={disabled}
-					placeholder={props.placeholder ?? 'Search channels by display name or URL name'}
+					placeholder={props.placeholder ?? 'Search channels by name, or paste a channel ID'}
 					value={query}
 					onChange={event => setQuery(event.currentTarget.value)}
 				/>
@@ -162,11 +177,7 @@ export function CampfireChannelPicker(props: CampfireChannelPickerProps): ReactE
 							key={channel.id}
 							type="button"
 							disabled={disabled}
-							onClick={() => {
-								props.onChange(channel.id);
-								setSelectedChannel(channel);
-								setQuery('');
-							}}
+							onClick={() => chooseChannel(channel)}
 						>
 							<span>{channelLabel(channel)}</span>
 							<small>{channel.id}</small>
@@ -175,8 +186,23 @@ export function CampfireChannelPicker(props: CampfireChannelPickerProps): ReactE
 				</div>
 			)}
 
-			{query.trim() !== '' && loadState === 'ready' && results.length === 0 && (
-				<p className="campfire-channel-picker-message">No matching channels.</p>
+			{canUseTypedChannelID && (
+				<button
+					type="button"
+					className="campfire-channel-picker-manual"
+					disabled={disabled}
+					onClick={useTypedChannelID}
+				>
+					<Hash className="cf:size-4" aria-hidden="true" />
+					<span>
+						Use “{cleanQuery}” as channel ID
+						<small>Fallback for private channels that do not appear in search.</small>
+					</span>
+				</button>
+			)}
+
+			{cleanQuery !== '' && loadState === 'ready' && results.length === 0 && (
+				<p className="campfire-channel-picker-message">No matching public or visible channels. Paste the channel ID and use the fallback row.</p>
 			)}
 
 			{message !== '' && <p className="campfire-channel-picker-message campfire-channel-picker-message--error">{message}</p>}

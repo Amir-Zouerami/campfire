@@ -1,21 +1,18 @@
 import type { ReactElement } from 'react';
-import { BellRing, Save, Timer } from 'lucide-react';
+import { BellRing, Loader2, Save } from 'lucide-react';
 
 import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
+import { CampfireControlButton } from '@/components/campfire/CampfireControlButton';
+import { CampfireReminderTimeFields } from '@/components/campfire/CampfireReminderTimeFields';
+import { CampfireSettingsPanel } from '@/components/campfire/CampfireSettingsPanel';
 import { reminderRuleTitle, type StandupScheduleLabel } from '@/features/settings/standup-schedule-labels';
-import { Button } from '@/components/ui/button';
-import { CampfireResponsiveInput } from '@/components/campfire/CampfireResponsiveInput';
-import { Label } from '@/components/ui/label';
 import type { ReminderRule } from '@/types/domain';
 
 import {
-	formatDateTime,
-	parseReminderOffsets,
-	reminderRuleCardClassName,
 	reminderRuleHasChanges,
+	reminderTimeValidationMessage,
 } from './reminders.helpers';
 import type { ReminderRuleDraft, ReminderRuleDraftPatch } from './reminders.types';
-import { CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * ReminderRuleCardProps contains one reminder rule and its editable draft.
@@ -35,69 +32,47 @@ type ReminderRuleCardProps = {
  * ReminderRuleCard renders one editable reminder rule.
  */
 export function ReminderRuleCard(props: ReminderRuleCardProps): ReactElement {
-	const parsedOffsets = parseReminderOffsets(props.draft.reminderOffsetsText);
-	const changed = reminderRuleHasChanges(props.rule, props.draft);
+	const changed = reminderRuleHasChanges(props.rule, props.draft, props.scheduleLabel.opensAt, props.scheduleLabel.timeOfDay);
 	const formDisabled = props.disabled || !props.canManageReminders;
+	const validationMessage = reminderTimeValidationMessage(props.draft.reminderTimes, props.scheduleLabel.opensAt, props.scheduleLabel.timeOfDay);
 
 	return (
-		<article className={reminderRuleCardClassName(props.draft.enabled)}>
-			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
-				<div className="cf:min-w-0">
-					<p className="cf:flex cf:items-center cf:gap-2 cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
-						<BellRing className="cf:size-5" />
-						{reminderDeliveryLabel(props.draft)}
-					</p>
-
-					<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
-						{reminderRuleTitle(props.scheduleLabel)}
-					</h3>
-
-					<p className="cf:mt-2 cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
-						{props.scheduleLabel.subtitle}
-					</p>
-
-					<ScheduleContextChips label={props.scheduleLabel} />
-
-					<p className="cf:mt-3 cf:text-xs cf:font-bold cf:text-muted-foreground">
-						Updated {formatDateTime(props.rule.updatedAt)}
-					</p>
+		<CampfireSettingsPanel
+			className={props.draft.enabled ? 'campfire-rule-panel' : 'campfire-rule-panel campfire-rule-panel--disabled'}
+			title={reminderRuleTitle(props.scheduleLabel)}
+			description={`Window ${props.scheduleLabel.opensAt}–${props.scheduleLabel.timeOfDay}. Reminders only go to missing submitters.`}
+			icon={BellRing}
+			meta={
+				<div className="campfire-rule-meta-stack">
+					<span>{reminderDeliveryLabel(props.draft)}</span>
+					<span>{props.draft.enabled ? 'Enabled' : 'Disabled'}</span>
+					<span>{changed ? 'Unsaved changes' : 'Saved'}</span>
+					{props.scheduleLabel.unavailable && <span>Missing schedule</span>}
 				</div>
-
-				<div className="cf:flex cf:flex-wrap cf:gap-2">
-					<CampfireStatusPill tone={props.draft.enabled ? 'green' : 'slate'}>
-						{props.draft.enabled ? 'Enabled' : 'Disabled'}
-					</CampfireStatusPill>
-					<CampfireStatusPill tone={changed ? 'ember' : 'green'}>
-						{changed ? 'Unsaved' : 'Saved'}
-					</CampfireStatusPill>
-					{props.scheduleLabel.unavailable && (
-						<CampfireStatusPill tone="red">Missing schedule</CampfireStatusPill>
-					)}
-				</div>
-			</div>
-
-			<div className="cf:grid cf:gap-3 cf:xl:grid-cols-2">
+			}
+		>
+			<div className="campfire-settings-choice-grid">
 				<CampfireCheckboxField
 					checked={props.draft.enabled}
 					disabled={formDisabled}
 					label="Enable reminders"
-					description="Allow this schedule to send reminders."
+					description="Allow this schedule to send reminder nudges."
 					onCheckedChange={checked => props.onDraftChange(props.rule.id, { enabled: checked })}
 				/>
 
 				<CampfireCheckboxField
 					checked={props.draft.dmReminderEnabled}
 					disabled={formDisabled}
-					label="DM reminders"
-					description="Send private reminders to users who have not submitted."
+					label="DM missing users"
+					description="Private reminder for each missing submitter."
 					onCheckedChange={checked => props.onDraftChange(props.rule.id, { dmReminderEnabled: checked })}
 				/>
 
 				<CampfireCheckboxField
 					checked={props.draft.channelReminderEnabled}
 					disabled={formDisabled}
-					label="Channel reminders"
-					description="Post a channel reminder when users are still missing."
+					label="Channel reminder"
+					description="Post a shared reminder when people are still missing."
 					onCheckedChange={checked => props.onDraftChange(props.rule.id, { channelReminderEnabled: checked })}
 				/>
 
@@ -105,62 +80,38 @@ export function ReminderRuleCard(props: ReminderRuleCardProps): ReactElement {
 					checked={props.draft.mentionMissingInChannel}
 					disabled={formDisabled}
 					label="Mention missing users"
-					description="Mention at most the last 50 missing users so large channels stay readable."
+					description="Mention missing users in the channel reminder."
 					onCheckedChange={checked =>
 						props.onDraftChange(props.rule.id, { mentionMissingInChannel: checked })
 					}
 				/>
 			</div>
 
-			<div className="cf:grid cf:gap-2">
-				<Label htmlFor={`campfire-reminder-offsets-${props.rule.id}`}>Reminder offsets</Label>
-				<CampfireResponsiveInput
-					id={`campfire-reminder-offsets-${props.rule.id}`}
-					disabled={formDisabled}
-					placeholder="0, 30, 45, 55"
-					value={props.draft.reminderOffsetsText}
-					onValueChange={value =>
-						props.onDraftChange(props.rule.id, { reminderOffsetsText: value })
-					}
-				/>
-				<p className="cf:flex cf:flex-wrap cf:items-center cf:gap-2 cf:text-xs cf:font-semibold cf:leading-5 cf:text-muted-foreground">
-					<Timer className="cf:size-4 cf:text-amber-200" />
-					Minute offsets from schedule time. Parsed as:{' '}
-					<span className="cf:font-semibold cf:text-amber-100">
-						{parsedOffsets.length === 0 ? 'none' : parsedOffsets.join(', ')}
-					</span>
-				</p>
-			</div>
+			<CampfireReminderTimeFields
+				idPrefix={`campfire-reminder-${props.rule.id}`}
+				openTime={props.scheduleLabel.opensAt}
+				closeTime={props.scheduleLabel.timeOfDay}
+				reminderTimes={props.draft.reminderTimes}
+				disabled={formDisabled}
+				validationMessage={validationMessage}
+				onReminderTimeChange={(index, value) =>
+					props.onDraftChange(props.rule.id, {
+						reminderTimes: replaceReminderTime(props.draft.reminderTimes, index, value),
+					})
+				}
+			/>
 
-			<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4">
-				<p className="cf:m-0 cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
-					Users on approved leave and users who already submitted should be skipped by the scheduler.
-				</p>
-
-				<Button type="button" disabled={formDisabled || !changed} onClick={() => void props.onSave(props.rule)}>
-					<Save className="cf:size-4" />
-					{props.saving ? 'Saving…' : 'Save reminders'}
-				</Button>
-			</div>
-		</article>
-	);
-}
-
-/**
- * ScheduleContextChips renders readable schedule context.
- */
-function ScheduleContextChips(props: { readonly label: StandupScheduleLabel }): ReactElement {
-	return (
-		<div className="cf:mt-3 cf:flex cf:flex-wrap cf:gap-2">
-			{props.label.chips.map(chip => (
-				<span
-					key={chip}
-					className="cf:rounded-full cf:border cf:border-white/10 cf:bg-black/20 cf:px-2.5 cf:py-1 cf:text-xs cf:font-semibold cf:text-amber-100"
+			<div className="campfire-settings-form-actions">
+				<CampfireControlButton
+					type="button"
+					disabled={formDisabled || !changed}
+					onClick={() => void props.onSave(props.rule)}
 				>
-					{chip}
-				</span>
-			))}
-		</div>
+					{props.saving ? <Loader2 className="cf:size-4 cf:animate-spin" /> : <Save className="cf:size-4" />}
+					{props.saving ? 'Saving…' : 'Save reminders'}
+				</CampfireControlButton>
+			</div>
+		</CampfireSettingsPanel>
 	);
 }
 
@@ -169,16 +120,26 @@ function ScheduleContextChips(props: { readonly label: StandupScheduleLabel }): 
  */
 function reminderDeliveryLabel(draft: ReminderRuleDraft): string {
 	if (draft.dmReminderEnabled && draft.channelReminderEnabled) {
-		return 'DM and channel reminders';
+		return 'DM + channel';
 	}
 
 	if (draft.dmReminderEnabled) {
-		return 'DM reminders';
+		return 'DM only';
 	}
 
 	if (draft.channelReminderEnabled) {
-		return 'Channel reminders';
+		return 'Channel only';
 	}
 
-	return 'Reminders disabled';
+	return 'No delivery';
+}
+
+/**
+ * replaceReminderTime replaces one reminder time slot while preserving three slots.
+ */
+function replaceReminderTime(times: readonly string[], index: number, value: string): readonly string[] {
+	const nextTimes = [times[0] ?? '', times[1] ?? '', times[2] ?? ''];
+	nextTimes[index] = value;
+
+	return nextTimes;
 }

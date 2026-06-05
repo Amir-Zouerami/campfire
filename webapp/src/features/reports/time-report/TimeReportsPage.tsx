@@ -1,8 +1,8 @@
 import type { ReactElement } from 'react';
-import { Clock3, ListChecks, Rows3, Users } from 'lucide-react';
 
 import { useUserProfiles } from '@/app/useUserProfiles';
-import { CampfireStatCard, CampfireWorkflowIntro } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireControlsPanel } from '@/components/campfire/CampfireControlsPanel';
+import { CampfireReportSummaryBar } from '@/components/campfire/CampfireReportSummaryBar';
 import type { Workspace } from '@/types/domain';
 
 import { TimeReportControls } from './TimeReportControls';
@@ -19,7 +19,7 @@ type TimeReportsPageProps = {
 };
 
 /**
- * TimeReportsPage renders the rewritten workspace time report workflow.
+ * TimeReportsPage renders the workspace time report workflow.
  */
 export function TimeReportsPage(props: TimeReportsPageProps): ReactElement {
 	const report = useTimeReport({
@@ -29,25 +29,13 @@ export function TimeReportsPage(props: TimeReportsPageProps): ReactElement {
 	const profiles = useUserProfiles(report.userIDsForProfiles);
 
 	return (
-		<div className="campfire-page-stack">
-			<div className="campfire-stat-grid campfire-stat-grid--four">
-				<CampfireStatCard icon={Clock3} label="Total time" value={formatMinutes(report.totalMinutes)} helper="Selected range" />
-				<CampfireStatCard icon={Rows3} label="Rows" value={String(report.rowCount)} helper="Grouped results" tone="slate" />
-				<CampfireStatCard icon={ListChecks} label="Entries" value={String(report.entryCount)} helper="Time logs" />
-				<CampfireStatCard
-					icon={Users}
-					label="Group by"
-					value={formatTimeReportGroupBy(report.filter.groupBy)}
-					helper={profiles.loading ? 'Profiles loading' : 'Profiles ready'}
-					tone="green"
-				/>
-			</div>
+		<div className="campfire-page-stack campfire-report-page-stack">
 
-			<CampfireWorkflowIntro
-				eyebrow="Time report"
-				title="Report controls"
-				description="Load grouped time totals for the selected range."
-				controls={
+			<CampfireControlsPanel
+				eyebrow="Filters"
+				title="Time report filters"
+				description="Choose a range and one grouping dimension."
+				controls={(
 					<TimeReportControls
 						filter={report.filter}
 						disabled={report.isBusy}
@@ -55,16 +43,23 @@ export function TimeReportsPage(props: TimeReportsPageProps): ReactElement {
 						onChange={report.updateFilter}
 						onLoad={report.loadReport}
 					/>
-				}
+				)}
 			>
-				<TimeReportFeedback
-					state={report.loadState}
-					message={report.message}
-					profileErrorMessage={profiles.errorMessage}
-				/>
-			</CampfireWorkflowIntro>
+				<TimeReportFeedback state={report.loadState} message={report.message} profileErrorMessage={profiles.errorMessage} />
+			</CampfireControlsPanel>
 
 			{report.loadState === 'loading' && <TimeReportLoading />}
+
+			{report.summary !== null && (
+				<CampfireReportSummaryBar
+					items={[
+						{ label: 'Total time', value: formatMinutes(report.totalMinutes), tone: 'success' },
+						{ label: 'Rows', value: String(report.rowCount), tone: 'neutral' },
+						{ label: 'Entries', value: String(report.entryCount), tone: 'neutral' },
+						{ label: 'Grouped by', value: formatTimeReportGroupBy(report.filter.groupBy), tone: 'neutral' },
+					]}
+				/>
+			)}
 
 			{report.loadState !== 'loading' && report.summary !== null && (
 				<TimeReportRowsPanel

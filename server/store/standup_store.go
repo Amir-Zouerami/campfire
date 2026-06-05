@@ -619,6 +619,7 @@ func (s *SQLStandupStore) GetScheduleByID(
 				template_id,
 				kind,
 				enabled,
+				opens_at,
 				time_of_day,
 				skip_non_working_days,
 				weekly_mode,
@@ -662,6 +663,7 @@ func (s *SQLStandupStore) CreateSchedule(
 				template_id,
 				kind,
 				enabled,
+				opens_at,
 				time_of_day,
 				skip_non_working_days,
 				weekly_mode,
@@ -669,13 +671,14 @@ func (s *SQLStandupStore) CreateSchedule(
 				created_by,
 				created_at,
 				updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`),
 		schedule.ID.String(),
 		schedule.WorkspaceID.String(),
 		schedule.TemplateID.String(),
 		string(schedule.Kind),
 		schedule.Enabled,
+		schedule.OpensAt.String(),
 		schedule.TimeOfDay.String(),
 		schedule.SkipNonWorkingDays,
 		string(schedule.WeeklyMode),
@@ -711,6 +714,7 @@ func (s *SQLStandupStore) UpdateSchedule(
 				template_id = ?,
 				kind = ?,
 				enabled = ?,
+				opens_at = ?,
 				time_of_day = ?,
 				skip_non_working_days = ?,
 				weekly_mode = ?,
@@ -721,6 +725,7 @@ func (s *SQLStandupStore) UpdateSchedule(
 		schedule.TemplateID.String(),
 		string(schedule.Kind),
 		schedule.Enabled,
+		schedule.OpensAt.String(),
 		schedule.TimeOfDay.String(),
 		schedule.SkipNonWorkingDays,
 		string(schedule.WeeklyMode),
@@ -769,6 +774,7 @@ func (s *SQLStandupStore) ListSchedulesByWorkspaceID(
 				template_id,
 				kind,
 				enabled,
+				opens_at,
 				time_of_day,
 				skip_non_working_days,
 				weekly_mode,
@@ -1355,6 +1361,7 @@ type standupScheduleRecord struct {
 	TemplateID              string    `db:"template_id"`
 	Kind                    string    `db:"kind"`
 	Enabled                 bool      `db:"enabled"`
+	OpensAt                 string    `db:"opens_at"`
 	TimeOfDay               string    `db:"time_of_day"`
 	SkipNonWorkingDays      bool      `db:"skip_non_working_days"`
 	WeeklyMode              string    `db:"weekly_mode"`
@@ -1374,6 +1381,7 @@ func (r standupScheduleRecord) toDomain() domain.StandupSchedule {
 		TemplateID:              domain.ID(r.TemplateID),
 		Kind:                    domain.StandupKind(r.Kind),
 		Enabled:                 r.Enabled,
+		OpensAt:                 domain.TimeOfDay(r.OpensAt),
 		TimeOfDay:               domain.TimeOfDay(r.TimeOfDay),
 		SkipNonWorkingDays:      r.SkipNonWorkingDays,
 		WeeklyMode:              domain.WeeklyMode(r.WeeklyMode),

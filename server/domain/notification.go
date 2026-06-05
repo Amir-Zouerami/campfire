@@ -5,15 +5,15 @@ import "time"
 /*
 ReminderRule defines DM and channel reminders for a standup schedule.
 
-ReminderOffsetsJSON stores exact minute offsets from the schedule time.
+ReminderOffsetsJSON stores scheduler minute marks inside the pre-close reminder
+window. The webapp converts those marks into user-facing HH:mm reminder times.
 
 Example:
-  - schedule time: 09:00
-  - offsets JSON: [0,30,45,55]
-  - reminders: 09:00, 09:30, 09:45, 09:55
+  - close/report time: 10:00
+  - offsets JSON: [30,45,55]
+  - reminders: 09:30, 09:45, 09:55
 
-This is more flexible than fixed count + interval and supports Campfire's
-morning reminder window UX.
+Campfire keeps this JSON storage simple while the UI stays time-based.
 */
 type ReminderRule struct {
 	ID          ID

@@ -31,7 +31,7 @@ export const settingsSections: readonly SettingsSection[] = [
 	{
 		id: 'reminders',
 		label: 'Reminders',
-		description: 'DM reminders, channel reminders, and exact reminder offsets.',
+		description: 'DM reminders, channel reminders, and reminder times before standups close.',
 		adminOnly: false,
 	},
 	{

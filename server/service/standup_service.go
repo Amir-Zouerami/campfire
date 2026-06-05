@@ -169,6 +169,7 @@ type CreateStandupScheduleInput struct {
 	TemplateID              string
 	Kind                    string
 	Enabled                 bool
+	OpensAt                 string
 	TimeOfDay               string
 	SkipNonWorkingDays      bool
 	WeeklyMode              string
@@ -186,6 +187,7 @@ type UpdateStandupScheduleInput struct {
 	TemplateID              string
 	Kind                    string
 	Enabled                 bool
+	OpensAt                 string
 	TimeOfDay               string
 	SkipNonWorkingDays      bool
 	WeeklyMode              string
@@ -551,6 +553,7 @@ func (s *StandupService) CreateSchedule(
 		domain.ID(uuid.NewString()),
 		input.Kind,
 		input.Enabled,
+		input.OpensAt,
 		input.TimeOfDay,
 		input.SkipNonWorkingDays,
 		input.WeeklyMode,
@@ -624,6 +627,7 @@ func (s *StandupService) UpdateSchedule(
 		scheduleID,
 		input.Kind,
 		input.Enabled,
+		input.OpensAt,
 		input.TimeOfDay,
 		input.SkipNonWorkingDays,
 		input.WeeklyMode,
@@ -1475,6 +1479,7 @@ func buildStandupScheduleFromInput(
 	scheduleID domain.ID,
 	kindValue string,
 	enabled bool,
+	opensAtValue string,
 	timeOfDayValue string,
 	skipNonWorkingDays bool,
 	weeklyModeValue string,
@@ -1487,9 +1492,18 @@ func buildStandupScheduleFromInput(
 		return nil, NewError(ErrorCodeValidationFailed, "Standup schedule kind is not supported.")
 	}
 
+	opensAt, err := parseStandupTimeOfDay(opensAtValue)
+	if err != nil {
+		return nil, err
+	}
+
 	timeOfDay, err := parseStandupTimeOfDay(timeOfDayValue)
 	if err != nil {
 		return nil, err
+	}
+
+	if !standupOpenIsBeforeClose(opensAt, timeOfDay) {
+		return nil, NewError(ErrorCodeValidationFailed, "Standup open time must be before the close/report time.")
 	}
 
 	weeklyMode := domain.WeeklyMode(strings.TrimSpace(weeklyModeValue))
@@ -1508,6 +1522,7 @@ func buildStandupScheduleFromInput(
 		TemplateID:              templateID,
 		Kind:                    kind,
 		Enabled:                 enabled,
+		OpensAt:                 opensAt,
 		TimeOfDay:               timeOfDay,
 		SkipNonWorkingDays:      skipNonWorkingDays,
 		WeeklyMode:              weeklyMode,
@@ -1532,6 +1547,20 @@ func parseStandupTimeOfDay(value string) (domain.TimeOfDay, error) {
 	}
 
 	return domain.TimeOfDay(cleanValue), nil
+}
+
+/*
+standupOpenIsBeforeClose reports whether the configured open time is before the close/report time on the same local day.
+*/
+func standupOpenIsBeforeClose(opensAt domain.TimeOfDay, closesAt domain.TimeOfDay) bool {
+	openTime, openErr := time.Parse("15:04", opensAt.String())
+	closeTime, closeErr := time.Parse("15:04", closesAt.String())
+
+	if openErr != nil || closeErr != nil {
+		return false
+	}
+
+	return openTime.Before(closeTime)
 }
 
 /*

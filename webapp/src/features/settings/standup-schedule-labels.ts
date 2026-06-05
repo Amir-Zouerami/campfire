@@ -7,6 +7,7 @@ export type StandupScheduleLabel = {
 	readonly scheduleId: string;
 	readonly templateName: string;
 	readonly kindLabel: string;
+	readonly opensAt: string;
 	readonly timeOfDay: string;
 	readonly enabledLabel: string;
 	readonly title: string;
@@ -40,11 +41,12 @@ export function buildStandupScheduleLabelLookup(
 			scheduleId: schedule.id,
 			templateName,
 			kindLabel,
+			opensAt: schedule.opensAt,
 			timeOfDay: schedule.timeOfDay,
 			enabledLabel,
 			title: templateName,
-			subtitle: `${kindLabel} schedule for ${templateName}`,
-			chips: [kindLabel, `Report time: ${schedule.timeOfDay}`, enabledLabel, `Template: ${templateName}`],
+			subtitle: `${kindLabel} standup window for ${templateName}`,
+			chips: [`Opens ${schedule.opensAt}`, `Closes ${schedule.timeOfDay}`],
 			unavailable: false,
 		};
 	}
@@ -66,6 +68,7 @@ export function scheduleLabelForRule(lookup: StandupScheduleLabelLookup, schedul
 		scheduleId,
 		templateName: 'Unknown schedule',
 		kindLabel: 'Unknown',
+		opensAt: 'Unknown time',
 		timeOfDay: 'Unknown time',
 		enabledLabel: 'Unavailable',
 		title: 'Unknown schedule',

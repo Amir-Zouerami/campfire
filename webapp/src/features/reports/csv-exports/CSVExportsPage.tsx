@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
-import { CalendarRange, Download, SlidersHorizontal } from 'lucide-react';
 
-import { CampfireStatCard, CampfireWorkflowIntro } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireControlsPanel } from '@/components/campfire/CampfireControlsPanel';
+import { CampfireReportSummaryBar } from '@/components/campfire/CampfireReportSummaryBar';
 import type { Workspace } from '@/types/domain';
 
 import { CSVExportActionsPanel } from './CSVExportActionsPanel';
@@ -18,7 +18,7 @@ type CSVExportsPageProps = {
 };
 
 /**
- * CSVExportsPage renders the rewritten workspace CSV export center.
+ * CSVExportsPage renders the workspace CSV export center.
  */
 export function CSVExportsPage(props: CSVExportsPageProps): ReactElement {
 	const exports = useCSVExports({
@@ -26,34 +26,32 @@ export function CSVExportsPage(props: CSVExportsPageProps): ReactElement {
 	});
 
 	return (
-		<div className="campfire-page-stack">
-			<div className="campfire-stat-grid campfire-stat-grid--four">
-				<CampfireStatCard icon={Download} label="Exports" value={String(csvExportActions.length)} helper="Available CSV files" />
-				<CampfireStatCard icon={CalendarRange} label="Start" value={exports.filter.startDate} helper="Date range" tone="slate" />
-				<CampfireStatCard icon={CalendarRange} label="End" value={exports.filter.endDate} helper="Date range" tone="slate" />
-				<CampfireStatCard
-					icon={SlidersHorizontal}
-					label="Sort"
-					value={formatCSVExportSortMode(exports.filter.sortMode)}
-					helper="Standup exports"
-				/>
-			</div>
+		<div className="campfire-page-stack campfire-report-page-stack">
 
-			<CampfireWorkflowIntro
-				eyebrow="CSV exports"
-				title="Export controls"
-				description="Choose one range, then download the exact dataset you need."
-				controls={
+			<CampfireControlsPanel
+				eyebrow="Filters"
+				title="Export range"
+				description="These filters apply to every CSV action below."
+				controls={(
 					<CSVExportControls
 						filter={exports.filter}
 						disabled={exports.isBusy}
 						timezone={props.workspace.timezone}
 						onChange={exports.updateFilter}
 					/>
-				}
+				)}
 			>
 				<CSVExportFeedback state={exports.loadState} message={exports.message} />
-			</CampfireWorkflowIntro>
+			</CampfireControlsPanel>
+
+			<CampfireReportSummaryBar
+				items={[
+					{ label: 'Available exports', value: String(csvExportActions.length), tone: 'neutral' },
+					{ label: 'Start', value: exports.filter.startDate, tone: 'neutral' },
+					{ label: 'End', value: exports.filter.endDate, tone: 'neutral' },
+					{ label: 'Standup sort', value: formatCSVExportSortMode(exports.filter.sortMode), tone: 'neutral' },
+				]}
+			/>
 
 			{exports.loadState === 'exporting' && <CSVExportLoading />}
 

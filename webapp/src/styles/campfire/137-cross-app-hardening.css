@@ -1,0 +1,212 @@
+/*
+ * Cross-app hardening after the focused page redesigns.
+ *
+ * This file intentionally contains scoped, low-specificity safety rules for
+ * places where older feature files still render data-heavy rows, metadata,
+ * notices, and mixed-language text. Keep it below the page-specific cleanup
+ * files so it can normalize legacy surfaces without leaking into Mattermost.
+ */
+
+.campfire-theme {
+	--campfire-readable-row-min-height: 3.75rem;
+	--campfire-readable-row-padding-y: 0.95rem;
+	--campfire-readable-row-padding-x: 1.05rem;
+	--campfire-readable-cell-size: 0.98rem;
+	--campfire-readable-cell-line-height: 1.55;
+	--campfire-muted-cell-size: 0.9rem;
+}
+
+/* Mixed Persian/English text must remain readable and isolated everywhere in the modal. */
+.campfire-theme :where(.campfire-bidi-text, .campfire-ellipsis-text, bdi[dir='auto']) {
+	unicode-bidi: isolate;
+	font-family: var(--campfire-vazir-font), var(--campfire-font-sans), Inter, system-ui, sans-serif;
+	line-height: 1.5;
+}
+
+.campfire-theme :where(.campfire-ellipsis-text) {
+	display: inline-block;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	vertical-align: middle;
+}
+
+/* Readable tables/lists. This targets new CampfireDataTable plus remaining older row classes. */
+.campfire-theme :where(
+	.campfire-data-table,
+	.campfire-report-row-list,
+	.campfire-global-report-row-list,
+	.campfire-team-standup-list,
+	.campfire-availability-table,
+	.campfire-runtime-list,
+	.campfire-audit-log-list,
+	.campfire-leave-list,
+	.campfire-time-entry-list,
+	.campfire-task-list
+) {
+	font-size: var(--campfire-readable-cell-size);
+}
+
+.campfire-theme :where(
+	.campfire-data-table-row,
+	.campfire-report-row,
+	.campfire-global-report-row,
+	.campfire-team-standup-row,
+	.campfire-availability-row,
+	.campfire-runtime-row,
+	.campfire-audit-log-row,
+	.campfire-leave-row,
+	.campfire-time-entry-row,
+	.campfire-task-row
+) {
+	min-height: var(--campfire-readable-row-min-height);
+	align-items: center;
+	padding-block: var(--campfire-readable-row-padding-y);
+	line-height: var(--campfire-readable-cell-line-height);
+}
+
+.campfire-theme :where(
+	.campfire-data-table-row > *,
+	.campfire-report-row > *,
+	.campfire-global-report-row > *,
+	.campfire-team-standup-row > *,
+	.campfire-availability-row > *,
+	.campfire-runtime-row > *,
+	.campfire-audit-log-row > *,
+	.campfire-leave-row > *,
+	.campfire-time-entry-row > *,
+	.campfire-task-row > *
+) {
+	min-width: 0;
+	align-self: center;
+}
+
+.campfire-theme :where(.campfire-data-table-row--head, .campfire-table-head, .campfire-list-head) {
+	min-height: 2.5rem;
+	padding-block: 0.55rem;
+	font-size: 0.82rem;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: rgba(255, 244, 226, 0.58);
+}
+
+.campfire-theme :where(.campfire-table-footer, .campfire-row-meta, .campfire-muted-cell, .campfire-report-row-meta) {
+	font-size: var(--campfire-muted-cell-size);
+	line-height: 1.55;
+	color: rgba(255, 244, 226, 0.64);
+}
+
+/* Compact metadata should not become giant pill boxes again. */
+.campfire-theme :where(.campfire-status-pill, .campfire-meta-pill, .campfire-report-chip, .campfire-summary-chip) {
+	display: inline-flex;
+	min-height: 1.8rem;
+	align-items: center;
+	justify-content: center;
+	gap: 0.35rem;
+	border-radius: 999px;
+	padding: 0.28rem 0.7rem;
+	font-size: 0.78rem;
+	font-weight: 700;
+	line-height: 1;
+	white-space: nowrap;
+}
+
+/* Notices and explanatory rows stay centered, spacious, and never stuck to controls. */
+.campfire-theme :where(.campfire-notice-row) {
+	min-height: 3.5rem;
+	align-items: center;
+	gap: 0.85rem;
+	padding: 0.85rem 1rem;
+	line-height: 1.55;
+}
+
+.campfire-theme :where(.campfire-notice-row p) {
+	margin: 0;
+	font-size: 0.95rem;
+	line-height: 1.55;
+}
+
+.campfire-theme :where(.campfire-notice-row-action) {
+	align-self: center;
+}
+
+/* Form rows need breathing room after the minimal redesign. */
+.campfire-theme :where(.campfire-control-grid, .campfire-controls-panel-grid, .campfire-form-grid, .campfire-settings-panel-grid) {
+	row-gap: 1.15rem;
+}
+
+.campfire-theme :where(.campfire-field, .campfire-form-field, .campfire-filter-field) label,
+.campfire-theme :where(.campfire-field-label) {
+	margin-bottom: 0.42rem;
+}
+
+/* Time/date/select controls should share the same visual baseline. */
+.campfire-theme :where(.campfire-select-trigger, .campfire-date-input, .campfire-time-input, .campfire-search-input, .campfire-control-button) {
+	min-height: var(--campfire-control-height, 3rem);
+	align-items: center;
+}
+
+.campfire-theme :where(.campfire-select-trigger-text, .campfire-select-option-text) {
+	display: inline-flex;
+	min-height: 1.35rem;
+	align-items: center;
+	line-height: 1.35;
+	font-family: var(--campfire-vazir-font), var(--campfire-font-sans), Inter, system-ui, sans-serif;
+}
+
+/* Date labels: Gregorian and Persian/Arabic should look like two equal values, not parenthetical help text. */
+.campfire-theme :where(.campfire-date-display, .campfire-date-value-stack) {
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+	justify-content: center;
+}
+
+.campfire-theme :where(.campfire-date-secondary, .campfire-local-calendar-label, .campfire-persian-date-label) {
+	font-family: var(--campfire-vazir-font), var(--campfire-font-sans), Inter, system-ui, sans-serif;
+	font-size: 0.96rem;
+	font-weight: 700;
+	line-height: 1.45;
+	color: rgba(255, 219, 163, 0.92);
+}
+
+/* Floating menus must stay readable even when Mattermost injects menu styles. */
+.campfire-theme :where(.campfire-floating-popover, .campfire-select-menu, .campfire-date-popover, .campfire-time-popover, .campfire-user-picker-menu) {
+	max-width: min(42rem, calc(100vw - 3rem));
+	box-shadow: 0 28px 70px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255, 190, 110, 0.18);
+}
+
+.campfire-theme :where(.campfire-select-option, .campfire-user-picker-option, .campfire-time-option) {
+	min-height: 2.7rem;
+	align-items: center;
+	font-size: 0.96rem;
+	line-height: 1.35;
+}
+
+/* Large document/help modals should use the available modal space. */
+.campfire-theme :where(.campfire-info-modal, .campfire-help-modal, .campfire-document-modal) {
+	width: min(94vw, 78rem);
+	max-width: min(94vw, 78rem);
+	height: min(88vh, 56rem);
+	max-height: min(88vh, 56rem);
+}
+
+.campfire-theme :where(.campfire-info-modal-body, .campfire-help-modal-body, .campfire-document-modal-body) {
+	font-size: 1rem;
+	line-height: 1.7;
+}
+
+/* Old nested surfaces should visually flatten instead of stacking boxes inside boxes. */
+.campfire-theme :where(.campfire-nested-card, .campfire-inner-card, .campfire-mini-card, .campfire-card-body .campfire-card) {
+	border-radius: 1.05rem;
+	background: rgba(24, 18, 14, 0.38);
+	box-shadow: none;
+}
+
+/* Keep reduced-motion users safe after adding more floating interactions. */
+@media (prefers-reduced-motion: reduce) {
+	.campfire-theme :where(.campfire-floating-popover, .campfire-select-menu, .campfire-date-popover, .campfire-time-popover) {
+		transition: none !important;
+	}
+}

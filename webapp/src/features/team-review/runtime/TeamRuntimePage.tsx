@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
-import { CalendarCheck2, CalendarX2, Globe2, Umbrella, Users } from 'lucide-react';
 
-import { CampfireSurface, CampfireStatCard } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireControlsPanel } from '@/components/campfire/CampfireControlsPanel';
+import { CampfireReportSummaryBar } from '@/components/campfire/CampfireReportSummaryBar';
 import { useUserProfiles } from '@/app/useUserProfiles';
 import type { Workspace } from '@/types/domain';
 
@@ -10,7 +10,7 @@ import { TeamRuntimeDecisionPanel } from './TeamRuntimeDecisionPanel';
 import { TeamRuntimeFeedback, TeamRuntimeLoading } from './TeamRuntimeFeedback';
 import { TeamRuntimeLeavePanel } from './TeamRuntimeLeavePanel';
 import { TeamRuntimeOffDaysPanel } from './TeamRuntimeOffDaysPanel';
-import { runtimeDecisionLabel, runtimeDecisionTone, runtimeReasonLabel } from './team-runtime.helpers';
+import { runtimeDecisionLabel, runtimeReasonLabel } from './team-runtime.helpers';
 import { useTeamRuntime } from './useTeamRuntime';
 
 /**
@@ -27,76 +27,59 @@ type TeamRuntimePageProps = {
 export function TeamRuntimePage(props: TeamRuntimePageProps): ReactElement {
 	const runtime = useTeamRuntime(props);
 	const profiles = useUserProfiles(runtime.userIDsForProfiles);
-	const DecisionIcon = runtime.decision?.shouldRun === false ? CalendarX2 : CalendarCheck2;
-	const decisionTone = runtimeDecisionTone(runtime.decision);
 
 	return (
-		<div className="campfire-team-workflow">
-			<div className="campfire-stat-grid campfire-stat-grid--four">
-				<CampfireStatCard
-					icon={DecisionIcon}
-					label="Decision"
-					value={runtimeDecisionLabel(runtime.decision)}
-					helper={runtime.decision === null ? runtime.date : runtimeReasonLabel(runtime.decision.reason)}
-					tone={decisionTone}
+		<div className="campfire-team-workflow campfire-team-review-clean-page">
+			<CampfireControlsPanel
+				eyebrow="Runtime check"
+				title="Evaluate one standup date"
+				description="Check whether Campfire should run or skip standup automation for a specific date."
+				controls={
+					<TeamRuntimeControls
+						date={runtime.date}
+						disabled={runtime.isBusy}
+						timezone={props.workspace.timezone}
+						onDateChange={runtime.setDate}
+						onTodayClick={runtime.resetToToday}
+					/>
+				}
+			>
+				<CampfireReportSummaryBar
+					items={[
+						{ label: 'Decision', value: runtimeDecisionLabel(runtime.decision), tone: runtime.decision?.shouldRun === false ? 'danger' : 'success' },
+						{ label: 'Reason', value: runtime.decision === null ? 'Not evaluated' : runtimeReasonLabel(runtime.decision.reason) },
+						{ label: 'Members', value: String(runtime.decision?.memberCount ?? 0) },
+						{ label: 'On leave', value: String(runtime.decision?.onLeaveMemberCount ?? 0) },
+						{ label: 'Profiles', value: profiles.loading ? 'Loading' : 'Ready' },
+					]}
 				/>
-				<CampfireStatCard
-					icon={Users}
-					label="Members"
-					value={String(runtime.decision?.memberCount ?? 0)}
-					helper="Workspace members"
-				/>
-				<CampfireStatCard
-					icon={Umbrella}
-					label="On leave"
-					value={String(runtime.decision?.onLeaveMemberCount ?? 0)}
-					helper="Approved leave"
-					tone="blue"
-				/>
-				<CampfireStatCard
-					icon={Globe2}
-					label="Profiles"
-					value={profiles.loading ? 'Loading' : 'Ready'}
-					helper="Leave user labels"
-					tone="slate"
-				/>
-			</div>
+			</CampfireControlsPanel>
 
-			<CampfireSurface className="campfire-team-workflow-surface">
-				<TeamRuntimeFeedback
-					state={runtime.loadState}
-					message={runtime.message}
-					profileErrorMessage={profiles.errorMessage}
-				/>
+			<TeamRuntimeFeedback
+				state={runtime.loadState}
+				message={runtime.message}
+				profileErrorMessage={profiles.errorMessage}
+			/>
 
-				<TeamRuntimeControls
-					date={runtime.date}
-					disabled={runtime.isBusy}
-					timezone={props.workspace.timezone}
-					onDateChange={runtime.setDate}
-					onTodayClick={runtime.resetToToday}
-				/>
+			{runtime.loadState === 'loading' && <TeamRuntimeLoading />}
 
-				{runtime.loadState === 'loading' && <TeamRuntimeLoading />}
+			{runtime.loadState !== 'loading' && runtime.decision !== null && (
+				<>
+					<TeamRuntimeDecisionPanel decision={runtime.decision} />
 
-				{runtime.loadState !== 'loading' && runtime.decision !== null && (
-					<>
-						<TeamRuntimeDecisionPanel decision={runtime.decision} />
+					<div className="campfire-team-detail-grid campfire-team-detail-grid--flat">
+						<TeamRuntimeOffDaysPanel
+							globalOffDays={runtime.decision.globalOffDays}
+							workspaceOffDays={runtime.decision.workspaceOffDays}
+						/>
 
-						<div className="campfire-team-detail-grid">
-							<TeamRuntimeOffDaysPanel
-								globalOffDays={runtime.decision.globalOffDays}
-								workspaceOffDays={runtime.decision.workspaceOffDays}
-							/>
-
-							<TeamRuntimeLeavePanel
-								approvedLeaves={runtime.decision.approvedLeaves}
-								labelForUserID={profiles.labelForUserID}
-							/>
-						</div>
-					</>
-				)}
-			</CampfireSurface>
+						<TeamRuntimeLeavePanel
+							approvedLeaves={runtime.decision.approvedLeaves}
+							labelForUserID={profiles.labelForUserID}
+						/>
+					</div>
+				</>
+			)}
 		</div>
 	);
 }

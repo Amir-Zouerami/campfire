@@ -1,8 +1,9 @@
 import type { ReactElement } from 'react';
 import { Clock3, Rows3 } from 'lucide-react';
 
+import { CampfireEllipsisText } from '@/components/campfire/CampfireBidiText';
+import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
 import type { TimeReportGroupBy, TimeReportRow } from '@/types/domain';
-import { CampfireEmpty, CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 import {
 	formatMinutes,
@@ -21,29 +22,29 @@ type TimeReportRowsPanelProps = {
 };
 
 /**
- * TimeReportRowsPanel renders grouped workspace time report rows.
+ * TimeReportRowsPanel renders grouped workspace time report rows in a readable flat list.
  */
 export function TimeReportRowsPanel(props: TimeReportRowsPanelProps): ReactElement {
-	return (
-		<section className="campfire-flat-work-panel">
-			<div>
-				<p className="campfire-page-eyebrow">
-					Grouped results
-				</p>
-				<h3 className="campfire-surface-title">
-					Time report rows
-				</h3>
-			</div>
+	const rows = sortReportRowsNewestFirst(props.rows);
 
-			{props.rows.length === 0 ? (
+	return (
+		<section className="campfire-report-list-panel">
+			<header className="campfire-report-section-header">
+				<div>
+					<p className="campfire-page-eyebrow">Grouped results</p>
+					<h3 className="campfire-surface-title">Time rows</h3>
+				</div>
+			</header>
+
+			{rows.length === 0 ? (
 				<CampfireEmpty
 					icon={Rows3}
 					title="No time entries in this range"
 					description="Try another date range or log time against tasks first."
 				/>
 			) : (
-				<div className="cf:grid cf:gap-3">
-					{props.rows.map(row => (
+				<div className="campfire-report-row-list">
+					{rows.map(row => (
 						<TimeReportRowCard
 							key={`${row.key}-${row.periodStart}-${row.periodEnd}`}
 							row={row}
@@ -66,48 +67,58 @@ function TimeReportRowCard(props: {
 	readonly labelForUserID: (userID: string) => string;
 }): ReactElement {
 	const metaChips = timeReportRowMetaChips(props.row);
+	const title = timeReportRowTitle(props.row, props.groupBy, props.labelForUserID);
 
 	return (
-		<article className="campfire-flat-list-row campfire-flat-list-row--with-action">
-			<div className="cf:min-w-0">
-				<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
-					<h4 className="cf:min-w-0 cf:truncate cf:text-base cf:font-semibold cf:text-foreground">
-						{timeReportRowTitle(props.row, props.groupBy, props.labelForUserID)}
-					</h4>
-					<CampfireStatusPill tone="green">
-						<Clock3 className="cf:size-3.5" />
+		<article className="campfire-report-row-card">
+			<div className="campfire-report-row-main">
+				<div className="campfire-report-row-title-line">
+					<CampfireEllipsisText value={title} className="campfire-report-row-title" />
+					<span className="campfire-report-duration">
+						<Clock3 className="cf:size-4" />
 						{formatMinutes(props.row.minutes)}
-					</CampfireStatusPill>
+					</span>
 				</div>
 
-				<p className="cf:mt-2 cf:text-sm cf:font-semibold cf:text-muted-foreground">
-					{timeReportRowSubtitle(props.row)}
-				</p>
+				<p className="campfire-report-row-subtitle">{timeReportRowSubtitle(props.row)}</p>
 
 				{metaChips.length > 0 && (
-					<div className="cf:mt-3 cf:flex cf:flex-wrap cf:gap-2">
+					<div className="campfire-report-row-meta">
 						{metaChips.map(chip => (
-							<TimeReportChip key={`${chip.label}-${chip.value}`} label={chip.label} value={chip.value} />
+							<TimeReportMeta key={`${chip.label}-${chip.value}`} label={chip.label} value={chip.value} />
 						))}
 					</div>
 				)}
 			</div>
 
-			<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-3 cf:text-right">
-				<p className="cf:text-xs cf:font-semibold cf:uppercase cf:tracking-widest cf:text-amber-200">Entries</p>
-				<p className="cf:mt-1 cf:text-2xl cf:font-semibold cf:text-foreground">{props.row.entryCount}</p>
+			<div className="campfire-report-row-count" aria-label={`${props.row.entryCount} entries`}>
+				<strong>{props.row.entryCount}</strong>
+				<span>{props.row.entryCount === 1 ? 'entry' : 'entries'}</span>
 			</div>
 		</article>
 	);
 }
 
 /**
- * TimeReportChip renders compact row metadata.
+ * TimeReportMeta renders compact report row metadata with bidi-safe text.
  */
-function TimeReportChip(props: { readonly label: string; readonly value: string }): ReactElement {
+function TimeReportMeta(props: { readonly label: string; readonly value: string }): ReactElement {
 	return (
-		<span className="cf:max-w-full cf:truncate cf:rounded-full cf:border cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:px-2.5 cf:py-1 cf:text-xs cf:font-semibold cf:text-emerald-100">
-			{props.label}: {props.value}
+		<span className="campfire-report-meta-chip">
+			<span>{props.label}</span>
+			<CampfireEllipsisText value={props.value} />
 		</span>
 	);
+}
+
+/**
+ * sortReportRowsNewestFirst sorts report rows by their newest covered period.
+ */
+function sortReportRowsNewestFirst(rows: readonly TimeReportRow[]): readonly TimeReportRow[] {
+	return [...rows].sort((left, right) => {
+		const rightDate = right.periodEnd || right.periodStart;
+		const leftDate = left.periodEnd || left.periodStart;
+
+		return rightDate.localeCompare(leftDate);
+	});
 }

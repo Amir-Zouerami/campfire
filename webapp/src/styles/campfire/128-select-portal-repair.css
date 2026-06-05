@@ -1,0 +1,173 @@
+/*
+ * Campfire select portal repair.
+ *
+ * This is the canonical select styling layer for CampfireSelect. The menu is
+ * rendered in a portal so question cards and dense settings panels cannot clip
+ * it. Keep this file after the older control cleanup files.
+ */
+
+.campfire-theme .campfire-select-root {
+	isolation: isolate;
+}
+
+.campfire-theme .campfire-select-trigger {
+	min-height: 2.75rem !important;
+	border-color: rgba(255, 255, 255, 0.12) !important;
+	background: rgba(27, 26, 24, 0.96) !important;
+	color: rgba(255, 255, 255, 0.9) !important;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.045),
+		0 0 0 0 rgba(0, 0, 0, 0) !important;
+}
+
+.campfire-theme .campfire-select-trigger:hover {
+	border-color: rgba(255, 255, 255, 0.18) !important;
+	background: rgba(31, 30, 28, 0.98) !important;
+}
+
+.campfire-theme .campfire-select-trigger:focus-visible,
+.campfire-theme .campfire-select-trigger--open {
+	border-color: rgba(218, 146, 53, 0.56) !important;
+	background: rgba(31, 30, 28, 0.98) !important;
+	box-shadow:
+		0 0 0 2px rgba(218, 146, 53, 0.12),
+		inset 0 1px 0 rgba(255, 255, 255, 0.055) !important;
+}
+
+.campfire-theme .campfire-select-chevron,
+.campfire-theme .campfire-select-check {
+	color: #da9235 !important;
+}
+
+.campfire-select-layer {
+	position: fixed;
+	inset: 0;
+	z-index: 2147483646;
+	pointer-events: none;
+}
+
+.campfire-select-layer .campfire-select-menu {
+	z-index: 2147483647 !important;
+	box-sizing: border-box !important;
+	overflow: auto !important;
+	overscroll-behavior: contain;
+	pointer-events: auto;
+	border: 1px solid rgba(255, 255, 255, 0.12) !important;
+	border-radius: 0.95rem !important;
+	background: rgba(22, 21, 19, 0.985) !important;
+	padding: 0.45rem !important;
+	box-shadow:
+		0 22px 64px rgba(0, 0, 0, 0.58),
+		inset 0 1px 0 rgba(255, 255, 255, 0.055) !important;
+	backdrop-filter: blur(14px);
+	scrollbar-width: thin;
+	scrollbar-color: rgba(218, 146, 53, 0.62) rgba(255, 255, 255, 0.035);
+}
+
+.campfire-select-layer .campfire-select-options {
+	display: grid;
+	gap: 0.25rem;
+}
+
+.campfire-select-layer .campfire-select-option {
+	display: flex;
+	width: 100%;
+	min-height: 2.55rem;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	border: 1px solid transparent;
+	border-radius: 0.72rem;
+	background: transparent !important;
+	padding: 0.62rem 0.75rem;
+	color: rgba(255, 255, 255, 0.88) !important;
+	font-size: 0.96rem;
+	font-weight: 650;
+	line-height: 1.25;
+	text-align: left;
+	outline: none;
+	transition:
+		background-color 120ms ease,
+		border-color 120ms ease,
+		color 120ms ease;
+}
+
+.campfire-select-layer .campfire-select-option:hover,
+.campfire-select-layer .campfire-select-option:focus-visible {
+	border-color: rgba(255, 255, 255, 0.11);
+	background: rgba(255, 255, 255, 0.055) !important;
+	color: #ffffff !important;
+}
+
+.campfire-select-layer .campfire-select-option--selected {
+	border-color: rgba(218, 146, 53, 0.34) !important;
+	background: rgba(255, 255, 255, 0.075) !important;
+	color: #ffffff !important;
+}
+
+.campfire-select-layer .campfire-select-option--disabled {
+	cursor: not-allowed;
+	opacity: 0.5;
+}
+
+.campfire-select-layer .campfire-select-option--disabled:hover,
+.campfire-select-layer .campfire-select-option--disabled:focus-visible {
+	border-color: transparent !important;
+	background: transparent !important;
+	color: rgba(255, 255, 255, 0.74) !important;
+}
+
+.campfire-select-layer .campfire-select-search {
+	display: flex;
+	min-height: 2.7rem;
+	align-items: center;
+	gap: 0.65rem;
+	margin: 0 0 0.4rem;
+	border: 1px solid rgba(255, 255, 255, 0.1) !important;
+	border-radius: 0.82rem;
+	background: rgba(12, 12, 11, 0.62) !important;
+	padding: 0 0.75rem;
+	color: #da9235;
+	box-shadow: none !important;
+}
+
+.campfire-select-layer .campfire-select-search:focus-within {
+	border-color: rgba(218, 146, 53, 0.42) !important;
+	box-shadow: 0 0 0 2px rgba(218, 146, 53, 0.1) !important;
+}
+
+.campfire-select-layer .campfire-select-search input {
+	width: 100%;
+	min-width: 0;
+	border: 0 !important;
+	background: transparent !important;
+	color: rgba(255, 255, 255, 0.88) !important;
+	font: inherit;
+	outline: none !important;
+	box-shadow: none !important;
+}
+
+.campfire-select-layer .campfire-select-search input::placeholder {
+	color: rgba(255, 255, 255, 0.38) !important;
+}
+
+.campfire-select-layer .campfire-select-hidden-count {
+	margin: 0.4rem 0.2rem 0;
+	color: rgba(255, 255, 255, 0.52);
+	font-size: 0.78rem;
+	font-weight: 650;
+}
+
+.campfire-select-layer .campfire-select-menu::-webkit-scrollbar {
+	width: 0.6rem;
+}
+
+.campfire-select-layer .campfire-select-menu::-webkit-scrollbar-track {
+	background: rgba(255, 255, 255, 0.035);
+	border-radius: 999px;
+}
+
+.campfire-select-layer .campfire-select-menu::-webkit-scrollbar-thumb {
+	background: rgba(218, 146, 53, 0.58);
+	border-radius: 999px;
+}

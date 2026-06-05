@@ -13,7 +13,7 @@ import {
 	enabledReminderRuleCount,
 	errorToMessage,
 	pairRulesWithDrafts,
-	parseReminderOffsets,
+	parseReminderTimes,
 	reminderRuleToDraft,
 	replaceReminderRule,
 	sortReminderRules,
@@ -86,11 +86,14 @@ export function useReminderSettings(input: UseReminderSettingsInput): UseReminde
 					return;
 				}
 
-				setRules(rulesResponse.reminderRules);
-				setDrafts(buildReminderDrafts(rulesResponse.reminderRules));
-				setScheduleLabels(
-					buildStandupScheduleLabelLookup(configurationResponse.templates, configurationResponse.schedules),
+				const nextScheduleLabels = buildStandupScheduleLabelLookup(
+					configurationResponse.templates,
+					configurationResponse.schedules,
 				);
+
+				setRules(rulesResponse.reminderRules);
+				setDrafts(buildReminderDrafts(rulesResponse.reminderRules, nextScheduleLabels));
+				setScheduleLabels(nextScheduleLabels);
 				setLoadState('ready');
 			} catch (error: unknown) {
 				if (!isActive) {
@@ -156,7 +159,15 @@ export function useReminderSettings(input: UseReminderSettingsInput): UseReminde
 			return;
 		}
 
-		const parsedOffsets = parseReminderOffsets(draft.reminderOffsetsText);
+		const scheduleLabel = scheduleLabels[rule.scheduleId];
+		const opensAt = scheduleLabel?.opensAt ?? '09:30';
+		const closeTime = scheduleLabel?.timeOfDay ?? '10:00';
+		const parsedOffsets = parseReminderTimes(draft.reminderTimes, opensAt, closeTime);
+		if (parsedOffsets.length === 0) {
+			setLoadState('error');
+			setMessage('Choose at least one reminder time before saving.');
+			return;
+		}
 
 		setLoadState('saving');
 		setSavingRuleID(rule.id);
@@ -174,7 +185,7 @@ export function useReminderSettings(input: UseReminderSettingsInput): UseReminde
 			setRules(current => replaceReminderRule(current, response.reminderRule));
 			setDrafts(current => ({
 				...current,
-				[response.reminderRule.id]: reminderRuleToDraft(response.reminderRule),
+				[response.reminderRule.id]: reminderRuleToDraft(response.reminderRule, opensAt, closeTime),
 			}));
 			setLoadState('ready');
 			setMessage('Reminder rule updated.');

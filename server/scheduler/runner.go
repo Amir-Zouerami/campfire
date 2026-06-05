@@ -329,10 +329,7 @@ func (r *Runner) tickWorkspace(ctx context.Context, workspace domain.Workspace, 
 /*
 executeDueReminderSequences executes reminder sequences due in the current local minute.
 
-A schedule's TimeOfDay is the report/posting time. Reminder offsets are minutes
-after the one-hour reminder window opens, not minutes after the schedule time.
-For example, report time 09:00 and offsets [0, 15, 30, 55] send reminders
-at 08:00, 08:15, 08:30, and 08:55.
+A schedule's OpensAt is the standup opening time and TimeOfDay is the close/report-posting time. Reminder offsets are minute marks after OpensAt.
 */
 func (r *Runner) executeDueReminderSequences(
 	ctx context.Context,
@@ -359,12 +356,36 @@ func (r *Runner) executeDueReminderSequences(
 		return
 	}
 
-	reminderWindowStart := reportTime.Add(-time.Hour)
+	openTime, err := scheduleTimeForDate(localNow, schedule.OpensAt)
+	if err != nil {
+		r.logger.Warn(
+			"scheduler could not parse standup open time",
+			logger.String("workspace_id", workspace.ID.String()),
+			logger.String("schedule_id", schedule.ID.String()),
+			logger.String("opens_at", schedule.OpensAt.String()),
+			logger.String("error", err.Error()),
+		)
+		return
+	}
+
+	if !openTime.Before(reportTime) {
+		r.logger.Warn(
+			"scheduler skipped reminder rule because standup open time is not before close time",
+			logger.String("workspace_id", workspace.ID.String()),
+			logger.String("schedule_id", schedule.ID.String()),
+			logger.String("opens_at", schedule.OpensAt.String()),
+			logger.String("time_of_day", schedule.TimeOfDay.String()),
+		)
+		return
+	}
+
+	reminderWindowStart := openTime
+	reminderWindowMinutes := int(reportTime.Sub(openTime).Minutes())
 
 	for sequenceNumber, offsetMinutes := range offsets {
-		if offsetMinutes < 0 || offsetMinutes > 59 {
+		if offsetMinutes < 0 || offsetMinutes >= reminderWindowMinutes {
 			r.logger.Warn(
-				"scheduler skipped reminder offset outside the pre-report reminder window",
+				"scheduler skipped reminder time outside the standup window",
 				logger.String("workspace_id", workspace.ID.String()),
 				logger.String("schedule_id", schedule.ID.String()),
 				logger.String("sequence_number", fmt.Sprintf("%d", sequenceNumber)),

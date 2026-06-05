@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { ClipboardList, FileQuestion } from 'lucide-react';
 
+import { CampfireBidiText } from '@/components/campfire/CampfireBidiText';
 import { CampfireStatusPill, CampfireSurface } from '@/components/campfire/CampfireLayoutPrimitives';
 
 import { formatLabel } from './standup-settings.helpers';
@@ -53,7 +54,7 @@ export function StandupConfigurationOverviewPanel(props: StandupConfigurationOve
 
 								<div className="cf:min-w-0">
 									<div className="campfire-standup-overview-title-row">
-										<h4>{detail.template.name}</h4>
+										<h4><CampfireBidiText>{detail.template.name}</CampfireBidiText></h4>
 										<CampfireStatusPill tone={detail.template.isActive ? 'green' : 'slate'}>
 											{detail.template.isActive ? 'Active' : 'Inactive'}
 										</CampfireStatusPill>
@@ -61,7 +62,7 @@ export function StandupConfigurationOverviewPanel(props: StandupConfigurationOve
 									</div>
 
 									{detail.template.description.trim() !== '' && (
-										<p className="campfire-standup-overview-description">{detail.template.description}</p>
+										<p className="campfire-standup-overview-description"><CampfireBidiText>{detail.template.description}</CampfireBidiText></p>
 									)}
 								</div>
 							</div>
@@ -74,7 +75,7 @@ export function StandupConfigurationOverviewPanel(props: StandupConfigurationOve
 							{detail.questions.length > 0 && (
 								<div className="campfire-standup-question-chip-list">
 									{detail.questions.slice(0, 6).map(question => (
-										<span key={question.id}>{question.label}</span>
+										<span key={question.id}><CampfireBidiText>{question.label}</CampfireBidiText></span>
 									))}
 
 									{detail.questions.length > 6 && <span>+{detail.questions.length - 6} more</span>}

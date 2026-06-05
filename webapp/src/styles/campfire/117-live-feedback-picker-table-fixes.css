@@ -28,10 +28,8 @@
 }
 
 .campfire-theme .campfire-select-menu {
-	border-color: rgba(253, 186, 116, 0.2) !important;
-	background:
-		linear-gradient(180deg, rgba(255, 255, 255, 0.038), rgba(255, 255, 255, 0.016)),
-		rgba(11, 10, 9, 0.98) !important;
+	border-color: rgba(255, 255, 255, 0.10) !important;
+	background: rgba(16, 17, 20, 0.98) !important;
 	box-shadow: 0 24px 68px rgba(0, 0, 0, 0.74), inset 0 1px 0 rgba(255, 255, 255, 0.055) !important;
 }
 
@@ -40,9 +38,9 @@
 	gap: 0.45rem !important;
 	margin: 0.05rem 0.05rem 0.35rem !important;
 	padding: 0.32rem 0.55rem !important;
-	border-color: rgba(253, 186, 116, 0.14) !important;
+	border-color: rgba(255, 255, 255, 0.10) !important;
 	border-radius: 0.7rem !important;
-	background: rgba(255, 255, 255, 0.028) !important;
+	background: rgba(255, 255, 255, 0.03) !important;
 	box-shadow: none !important;
 }
 
@@ -51,7 +49,7 @@
 	height: 0.95rem !important;
 	min-width: 0.95rem !important;
 	min-height: 0.95rem !important;
-	color: rgba(253, 186, 116, 0.62) !important;
+	color: rgba(216, 161, 90, 0.85) !important;
 }
 
 .campfire-theme .campfire-select-search input {
@@ -165,10 +163,7 @@
 	min-height: 2.95rem !important;
 	align-items: center !important;
 	border-radius: 0.95rem !important;
-	background:
-		radial-gradient(circle at 12% 0%, rgba(251, 146, 60, 0.11), transparent 38%),
-		linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.02)),
-		rgba(8, 7, 6, 0.58) !important;
+	background: rgba(20, 21, 24, 0.96) !important;
 }
 
 .campfire-theme .campfire-team-standups-controls {

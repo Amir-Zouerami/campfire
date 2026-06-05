@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { KeyboardEvent, ReactElement } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -88,13 +89,19 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 		 * handlePointerDown closes the picker when clicking outside.
 		 */
 		function handlePointerDown(event: PointerEvent): void {
-			if (rootRef.current === null || event.target === null) {
+			if (!(event.target instanceof Node)) {
 				return;
 			}
 
-			if (!rootRef.current.contains(event.target as Node)) {
-				setOpen(false);
+			if (rootRef.current !== null && rootRef.current.contains(event.target)) {
+				return;
 			}
+
+			if (popoverRef.current !== null && popoverRef.current.contains(event.target)) {
+				return;
+			}
+
+			setOpen(false);
 		}
 
 		document.addEventListener('pointerdown', handlePointerDown);
@@ -112,7 +119,7 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 		return splitAlternateCalendarHint(formatWorkspaceDateHint(props.value, props.timezone));
 	}, [props.value, props.timezone]);
 
-	const popoverStyle = useCampfireFloatingPopover({
+	const floatingPopover = useCampfireFloatingPopover({
 		open,
 		triggerRef: buttonRef,
 		popoverRef,
@@ -142,6 +149,83 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 		setOpen(false);
 	}
 
+	const popover = (
+		<div
+			ref={popoverRef}
+			role="dialog"
+			aria-label="Choose date"
+			className="campfire-picker-portal-scope campfire-date-picker-popover campfire-floating-popover"
+			style={floatingPopover.style}
+		>
+			<div className="campfire-date-picker-glow" />
+
+			<div className="campfire-date-picker-header">
+				<button
+					type="button"
+					className="campfire-date-picker-nav-button"
+					aria-label="Previous month"
+					onClick={() => setVisibleMonth(month => addMonths(month, -1))}
+				>
+					<ChevronLeft className="cf:size-5" />
+				</button>
+
+				<div className="campfire-date-picker-heading">
+					<p className="campfire-date-picker-month">{MONTH_NAMES[visibleMonth.getMonth()]}</p>
+					<p className="campfire-date-picker-year">{visibleMonth.getFullYear()}</p>
+				</div>
+
+				<button
+					type="button"
+					className="campfire-date-picker-nav-button"
+					aria-label="Next month"
+					onClick={() => setVisibleMonth(month => addMonths(month, 1))}
+				>
+					<ChevronRight className="cf:size-5" />
+				</button>
+			</div>
+
+			<div className="campfire-date-picker-weekdays">
+				{WEEKDAY_NAMES.map(day => (
+					<div key={day} className="campfire-date-picker-weekday">
+						{day}
+					</div>
+				))}
+			</div>
+
+			<div className="campfire-date-picker-grid">
+				{cells.map(cell => (
+					<button
+						key={cell.key}
+						type="button"
+						className={calendarDayClassName(cell)}
+						aria-pressed={cell.selected}
+						onClick={() => selectDate(cell.dateValue)}
+					>
+						<span>{cell.dayNumber}</span>
+					</button>
+				))}
+			</div>
+
+			<div className="campfire-date-picker-footer">
+				<button
+					type="button"
+					className="campfire-date-picker-footer-button campfire-date-picker-footer-button--primary"
+					onClick={() => selectDate(formatDateValue(new Date()))}
+				>
+					Today
+				</button>
+
+				<button
+					type="button"
+					className="campfire-date-picker-footer-button"
+					onClick={() => setOpen(false)}
+				>
+					Close
+				</button>
+			</div>
+		</div>
+	);
+
 	return (
 		<div ref={rootRef} className={cn('campfire-date-picker', props.className)}>
 			<button
@@ -151,7 +235,7 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 				disabled={props.disabled}
 				aria-haspopup="dialog"
 				aria-expanded={open}
-				className={cn('campfire-control-trigger campfire-date-picker-trigger', open && 'campfire-date-picker-trigger--open')}
+				className={cn('campfire-date-picker-trigger', open && 'campfire-date-picker-trigger--open')}
 				onClick={() => setOpen(current => !current)}
 				onKeyDown={handleKeyDown}
 			>
@@ -166,11 +250,10 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 					</span>
 
 					{alternateCalendarHintParts !== null && (
-						<span className="campfire-date-picker-hint" dir="ltr">
-							(<span className="campfire-date-picker-hint-label">{alternateCalendarHintParts.label}: </span>
+						<span className="campfire-date-picker-hint" dir="rtl">
 							<bdi className="campfire-date-picker-hint-calendar" dir="rtl">
 								{alternateCalendarHintParts.calendarDate}
-							</bdi>)
+							</bdi>
 						</span>
 					)}
 				</span>
@@ -180,82 +263,7 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 				</span>
 			</button>
 
-			{open && (
-				<div
-					ref={popoverRef}
-					role="dialog"
-					aria-label="Choose date"
-					className="campfire-date-picker-popover campfire-floating-popover"
-					style={popoverStyle}
-				>
-					<div className="campfire-date-picker-glow" />
-
-					<div className="campfire-date-picker-header">
-						<button
-							type="button"
-							className="campfire-date-picker-nav-button"
-							aria-label="Previous month"
-							onClick={() => setVisibleMonth(month => addMonths(month, -1))}
-						>
-							<ChevronLeft className="cf:size-5" />
-						</button>
-
-						<div className="campfire-date-picker-heading">
-							<p className="campfire-date-picker-month">{MONTH_NAMES[visibleMonth.getMonth()]}</p>
-							<p className="campfire-date-picker-year">{visibleMonth.getFullYear()}</p>
-						</div>
-
-						<button
-							type="button"
-							className="campfire-date-picker-nav-button"
-							aria-label="Next month"
-							onClick={() => setVisibleMonth(month => addMonths(month, 1))}
-						>
-							<ChevronRight className="cf:size-5" />
-						</button>
-					</div>
-
-					<div className="campfire-date-picker-weekdays">
-						{WEEKDAY_NAMES.map(day => (
-							<div key={day} className="campfire-date-picker-weekday">
-								{day}
-							</div>
-						))}
-					</div>
-
-					<div className="campfire-date-picker-grid">
-						{cells.map(cell => (
-							<button
-								key={cell.key}
-								type="button"
-								className={calendarDayClassName(cell)}
-								aria-pressed={cell.selected}
-								onClick={() => selectDate(cell.dateValue)}
-							>
-								<span>{cell.dayNumber}</span>
-							</button>
-						))}
-					</div>
-
-					<div className="campfire-date-picker-footer">
-						<button
-							type="button"
-							className="campfire-date-picker-footer-button campfire-date-picker-footer-button--primary"
-							onClick={() => selectDate(formatDateValue(new Date()))}
-						>
-							Today
-						</button>
-
-						<button
-							type="button"
-							className="campfire-date-picker-footer-button"
-							onClick={() => setOpen(false)}
-						>
-							Close
-						</button>
-					</div>
-				</div>
-			)}
+			{open && floatingPopover.portalHost !== null && createPortal(popover, floatingPopover.portalHost)}
 		</div>
 	);
 }

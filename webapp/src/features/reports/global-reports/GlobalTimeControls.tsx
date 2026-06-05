@@ -1,13 +1,16 @@
 import type { ReactElement } from 'react';
 import { Download, Search } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-
+import { CampfireControlButton } from '@/components/campfire/CampfireControlButton';
 import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
 import { CampfireField } from '@/components/campfire/CampfireField';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 
-import { formatGroupBy, globalTimeGroupByOptions, toTimeReportGroupBy } from './global-reports.helpers';
+import {
+	formatGroupBy,
+	globalTimeGroupByOptions,
+	toTimeReportGroupBy,
+} from './global-reports.helpers';
 import type { GlobalTimeReportFilter, GlobalTimeReportFilterPatch } from './global-reports.types';
 
 /**
@@ -26,7 +29,7 @@ type GlobalTimeControlsProps = {
  */
 export function GlobalTimeControls(props: GlobalTimeControlsProps): ReactElement {
 	return (
-		<div className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5 cf:xl:grid-cols-[1fr_1fr_1.2fr_auto_auto] cf:xl:items-end">
+		<div className="campfire-control-grid campfire-control-grid--global-time-report">
 			<CampfireField id="campfire-global-time-start" label="Start date">
 				<CampfireDateInput
 					id="campfire-global-time-start"
@@ -60,15 +63,15 @@ export function GlobalTimeControls(props: GlobalTimeControlsProps): ReactElement
 				</CampfireSelect>
 			</CampfireField>
 
-			<Button type="button" disabled={props.disabled} onClick={() => void props.onLoad()}>
+			<CampfireControlButton type="button" disabled={props.disabled} onClick={() => void props.onLoad()}>
 				<Search className="cf:size-4" />
 				Load
-			</Button>
+			</CampfireControlButton>
 
-			<Button type="button" variant="secondary" disabled={props.disabled} onClick={() => void props.onExport()}>
+			<CampfireControlButton type="button" variant="secondary" disabled={props.disabled} onClick={() => void props.onExport()}>
 				<Download className="cf:size-4" />
 				CSV
-			</Button>
+			</CampfireControlButton>
 		</div>
 	);
 }

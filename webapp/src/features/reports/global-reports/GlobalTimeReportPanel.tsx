@@ -1,8 +1,11 @@
 import type { ReactElement } from 'react';
-import { Clock3, Globe2, Rows3, Users } from 'lucide-react';
+import { Globe2 } from 'lucide-react';
 
 import { useUserProfiles } from '@/app/useUserProfiles';
-import { CampfireEmpty, CampfireStatCard, CampfireSurface } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireControlsPanel } from '@/components/campfire/CampfireControlsPanel';
+import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfirePageIntro } from '@/components/campfire/CampfirePageIntro';
+import { CampfireReportSummaryBar } from '@/components/campfire/CampfireReportSummaryBar';
 
 import { formatGroupBy, formatMinutes } from './global-reports.helpers';
 import { GlobalReportsFeedback, GlobalReportsLoading } from './GlobalReportsFeedback';
@@ -26,56 +29,46 @@ export function GlobalTimeReportPanel(props: GlobalTimeReportPanelProps): ReactE
 	const profiles = useUserProfiles(report.userIDsForProfiles);
 
 	return (
-		<div className="campfire-page-stack">
-			<div className="campfire-stat-grid campfire-stat-grid--four">
-				<CampfireStatCard
-					icon={Clock3}
-					label="Total time"
-					value={formatMinutes(report.summary?.totalMinutes ?? 0)}
-					helper="Selected range"
-				/>
-				<CampfireStatCard icon={Rows3} label="Entries" value={String(report.summary?.entryCount ?? 0)} helper="Time logs" />
-				<CampfireStatCard
-					icon={Globe2}
-					label="Workspaces"
-					value={String(report.summary?.workspaceCount ?? 0)}
-					helper="Active workspaces"
-					tone="blue"
-				/>
-				<CampfireStatCard
-					icon={Users}
-					label="Group by"
-					value={formatGroupBy(report.filter.groupBy)}
-					helper={profiles.loading ? 'Profiles loading' : 'Profiles ready'}
-					tone="green"
-				/>
-			</div>
+		<div className="campfire-page-stack campfire-report-page-stack">
+			<CampfirePageIntro
+				eyebrow="Global time"
+				title="Cross-workspace time"
+				description="System admins can load and export time totals across active Campfire workspaces."
+			/>
 
-			<CampfireSurface className="campfire-control-surface">
-				<header className="campfire-flat-section-header">
-					<div>
-						<p className="campfire-page-eyebrow">Global time</p>
-						<h3 className="campfire-surface-title">System-wide time controls</h3>
-						<p className="campfire-surface-description">Load and export time totals across active workspaces.</p>
-					</div>
-				</header>
-
+			<CampfireControlsPanel
+				eyebrow="Filters"
+				title="Global time filters"
+				description="Choose a date range and grouping dimension."
+				controls={(
+					<GlobalTimeControls
+						filter={report.filter}
+						disabled={report.isBusy}
+						onChange={report.updateFilter}
+						onLoad={report.loadReport}
+						onExport={report.exportCSV}
+					/>
+				)}
+			>
 				<GlobalReportsFeedback
 					state={report.loadState}
 					message={report.message}
 					profileErrorMessage={profiles.errorMessage}
 				/>
-
-				<GlobalTimeControls
-					filter={report.filter}
-					disabled={report.isBusy}
-					onChange={report.updateFilter}
-					onLoad={report.loadReport}
-					onExport={report.exportCSV}
-				/>
-			</CampfireSurface>
+			</CampfireControlsPanel>
 
 			{report.loadState === 'loading' || report.loadState === 'exporting' ? <GlobalReportsLoading /> : null}
+
+			{report.summary !== null && (
+				<CampfireReportSummaryBar
+					items={[
+						{ label: 'Total time', value: formatMinutes(report.summary.totalMinutes), tone: 'success' },
+						{ label: 'Entries', value: String(report.summary.entryCount), tone: 'neutral' },
+						{ label: 'Workspaces', value: String(report.summary.workspaceCount), tone: 'neutral' },
+						{ label: 'Grouped by', value: formatGroupBy(report.filter.groupBy), tone: 'neutral' },
+					]}
+				/>
+			)}
 
 			{report.loadState !== 'loading' && report.summary === null && (
 				<CampfireEmpty

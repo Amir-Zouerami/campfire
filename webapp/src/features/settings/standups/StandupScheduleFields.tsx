@@ -28,7 +28,7 @@ export function StandupScheduleFields(props: StandupScheduleFieldsProps): ReactE
 
 	return (
 		<div className="cf:grid cf:gap-4">
-			<div className="cf:grid cf:gap-4 cf:xl:grid-cols-[1fr_12rem_12rem]">
+			<div className="campfire-standup-schedule-field-grid">
 				<StandupField htmlFor={`${props.idPrefix}-template`} label="Template">
 					<CampfireSelect
 						id={`${props.idPrefix}-template`}
@@ -66,7 +66,16 @@ export function StandupScheduleFields(props: StandupScheduleFieldsProps): ReactE
 					</CampfireSelect>
 				</StandupField>
 
-				<StandupField htmlFor={`${props.idPrefix}-time`} label="Report time">
+				<StandupField htmlFor={`${props.idPrefix}-opens`} label="Opens">
+					<CampfireTimeInput
+						id={`${props.idPrefix}-opens`}
+						disabled={props.disabled}
+						value={props.draft.opensAt}
+						onValueChange={value => props.onChange({ opensAt: value })}
+					/>
+				</StandupField>
+
+				<StandupField htmlFor={`${props.idPrefix}-time`} label="Closes / report">
 					<CampfireTimeInput
 						id={`${props.idPrefix}-time`}
 						disabled={props.disabled}
@@ -90,7 +99,7 @@ export function StandupScheduleFields(props: StandupScheduleFieldsProps): ReactE
 						checked={props.draft.enabled}
 						disabled={props.disabled}
 						label="Enabled"
-						description="Allow this report schedule to run."
+						description="Allow this standup and report schedule to run."
 						onCheckedChange={checked => props.onChange({ enabled: checked })}
 					/>
 

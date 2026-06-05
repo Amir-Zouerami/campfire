@@ -49,7 +49,7 @@ export function CampfireResponsiveInput(props: CampfireResponsiveInputProps): Re
 		});
 	}
 
-	return <Input {...inputProps} value={draftValue} onChange={handleChange} />;
+	return <Input {...inputProps} dir={inputProps.dir ?? 'auto'} value={draftValue} onChange={handleChange} />;
 }
 
 /**
@@ -76,5 +76,5 @@ export function CampfireResponsiveTextarea(props: CampfireResponsiveTextareaProp
 		});
 	}
 
-	return <Textarea {...textareaProps} value={draftValue} onChange={handleChange} />;
+	return <Textarea {...textareaProps} dir={textareaProps.dir ?? 'auto'} value={draftValue} onChange={handleChange} />;
 }

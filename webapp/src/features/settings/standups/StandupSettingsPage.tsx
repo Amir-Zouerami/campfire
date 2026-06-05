@@ -1,13 +1,7 @@
 import { useState } from 'react';
 import type { ReactElement } from 'react';
-import { CalendarClock, FileQuestion, ListChecks, Route, ShieldCheck } from 'lucide-react';
 
-import {
-	CampfirePageHeader,
-	CampfireStatCard,
-	CampfireSurface,
-	CampfireWorkflowNote,
-} from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireSurface } from '@/components/campfire/CampfireLayoutPrimitives';
 import { CampfireSegmentedTabs } from '@/components/campfire/CampfireSegmentedTabs';
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
 
@@ -43,7 +37,7 @@ const standupSettingsSections: readonly StandupSettingsSection[] = [
 	{
 		id: 'schedules',
 		label: 'Schedules',
-		description: 'Control when daily and weekly forms run.',
+		description: 'Control when daily and weekly forms close.',
 	},
 	{
 		id: 'forms',
@@ -69,48 +63,6 @@ export function StandupSettingsPage(props: WorkspaceShellProps): ReactElement {
 
 	return (
 		<div className="campfire-page-stack campfire-standup-settings-page">
-			<CampfirePageHeader
-				eyebrow="Settings"
-				title="Standup Forms"
-				description="Manage templates, schedules, and task-creating questions without nesting the whole setup inside another dashboard."
-			/>
-
-			<div className="campfire-stat-grid campfire-stat-grid--four">
-				<CampfireStatCard
-					icon={FileQuestion}
-					label="Templates"
-					value={String(standups.templates.length)}
-					helper={`${standups.activeTemplateCount} active`}
-				/>
-				<CampfireStatCard
-					icon={ListChecks}
-					label="Questions"
-					value={String(standups.questions.length)}
-					helper={`${standups.reportQuestionCount} in reports`}
-					tone="blue"
-				/>
-				<CampfireStatCard
-					icon={CalendarClock}
-					label="Schedules"
-					value={String(standups.schedules.length)}
-					helper={`${standups.enabledScheduleCount} enabled`}
-					tone="green"
-				/>
-				<CampfireStatCard
-					icon={ShieldCheck}
-					label="Access"
-					value={canManageStandups ? 'Editable' : 'Read only'}
-					helper="Lead/system admin controlled"
-					tone={canManageStandups ? 'green' : 'slate'}
-				/>
-			</div>
-
-			<CampfireWorkflowNote
-				icon={Route}
-				title="Template rules are enforced server-side."
-				description="Names are unique per workspace, and activating a daily template automatically deactivates the previous active daily template."
-			/>
-
 			<CampfireSurface className="campfire-standup-settings-nav-surface">
 				<StandupSettingsFeedback state={standups.loadState} message={standups.message} />
 

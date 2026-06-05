@@ -1,14 +1,19 @@
 import type { ReactElement } from 'react';
-import { CalendarDays, RotateCcw, Rows3, UserRoundCheck, UserRoundX, Umbrella } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 
+import { CampfireControlButton } from '@/components/campfire/CampfireControlButton';
+import { CampfireControlsPanel } from '@/components/campfire/CampfireControlsPanel';
 import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
 import { CampfireField } from '@/components/campfire/CampfireField';
+import { CampfireReportSummaryBar } from '@/components/campfire/CampfireReportSummaryBar';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
-import { CampfireStatCard, CampfireWorkflowIntro } from '@/components/campfire/CampfireLayoutPrimitives';
-import { Button } from '@/components/ui/button';
 import type { Workspace } from '@/types/domain';
 
-import { formatReportSortMode, toWeeklyReportSortMode, weeklyReportSortOptions } from './report-preview.helpers';
+import {
+	formatReportSortMode,
+	toWeeklyReportSortMode,
+	weeklyReportSortOptions,
+} from './report-preview.helpers';
 import { ReportMarkdownPreview } from './ReportMarkdownPreview';
 import { ReportPreviewFeedback, ReportPreviewLoading } from './ReportPreviewFeedback';
 import { useWeeklyReportPreview } from './useWeeklyReportPreview';
@@ -26,34 +31,16 @@ type WeeklyReportPageProps = {
  */
 export function WeeklyReportPage(props: WeeklyReportPageProps): ReactElement {
 	const report = useWeeklyReportPreview(props);
+	const missingCount = report.preview?.missingCount ?? 0;
 
 	return (
-		<div className="campfire-page-stack">
-			<div className="campfire-stat-grid campfire-stat-grid--five">
-				<CampfireStatCard
-					icon={UserRoundCheck}
-					label="Submitted"
-					value={String(report.preview?.submittedCount ?? 0)}
-					helper="Unique users"
-					tone="green"
-				/>
-				<CampfireStatCard
-					icon={UserRoundX}
-					label="Missing"
-					value={String(report.preview?.missingCount ?? 0)}
-					helper="Across period"
-					tone={(report.preview?.missingCount ?? 0) > 0 ? 'red' : 'slate'}
-				/>
-				<CampfireStatCard icon={Umbrella} label="On leave" value={String(report.preview?.onLeaveCount ?? 0)} helper="Leave-aware" />
-				<CampfireStatCard icon={CalendarDays} label="Days" value={String(report.dailyPreviewCount)} helper="Daily previews" />
-				<CampfireStatCard icon={Rows3} label="Markdown" value={String(report.markdownLines)} helper="Generated lines" />
-			</div>
+		<div className="campfire-page-stack campfire-report-page-stack">
 
-			<CampfireWorkflowIntro
-				eyebrow="Weekly report"
-				title="Preview controls"
-				description="Choose the report period and review one generated Markdown output."
-				controls={
+			<CampfireControlsPanel
+				eyebrow="Filters"
+				title="Weekly preview"
+				description="The report uses the selected range and workspace working-day rules."
+				controls={(
 					<div className="campfire-control-grid campfire-control-grid--weekly-report">
 						<CampfireField id="campfire-weekly-report-start" label="Period start">
 							<CampfireDateInput
@@ -90,17 +77,29 @@ export function WeeklyReportPage(props: WeeklyReportPageProps): ReactElement {
 							</CampfireSelect>
 						</CampfireField>
 
-						<Button type="button" variant="outline" disabled={report.isBusy} onClick={report.resetToCurrentWeek}>
+						<CampfireControlButton type="button" variant="outline" disabled={report.isBusy} onClick={report.resetToCurrentWeek}>
 							<RotateCcw className="cf:size-4" />
 							This week
-						</Button>
+						</CampfireControlButton>
 					</div>
-				}
+				)}
 			>
 				<ReportPreviewFeedback state={report.loadState} message={report.message} />
-			</CampfireWorkflowIntro>
+			</CampfireControlsPanel>
 
 			{report.loadState === 'loading' && <ReportPreviewLoading />}
+
+			{report.preview !== null && (
+				<CampfireReportSummaryBar
+					items={[
+						{ label: 'Submitted', value: String(report.preview.submittedCount), tone: 'success' },
+						{ label: 'Missing', value: String(missingCount), tone: missingCount > 0 ? 'danger' : 'neutral' },
+						{ label: 'On leave', value: String(report.preview.onLeaveCount), tone: 'neutral' },
+						{ label: 'Days', value: String(report.dailyPreviewCount), tone: 'neutral' },
+						{ label: 'Markdown lines', value: String(report.markdownLines), tone: 'neutral' },
+					]}
+				/>
+			)}
 
 			<ReportMarkdownPreview
 				markdown={report.preview?.markdown ?? ''}

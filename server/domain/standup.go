@@ -67,6 +67,7 @@ type StandupSchedule struct {
 	Kind    StandupKind
 	Enabled bool
 
+	OpensAt   TimeOfDay
 	TimeOfDay TimeOfDay
 
 	SkipNonWorkingDays      bool

@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
-import { CalendarCheck2, Hourglass, Umbrella } from 'lucide-react';
 
-import { CampfireEmpty, CampfireStatCard, CampfireSurface } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfirePageIntro } from '@/components/campfire/CampfirePageIntro';
 import type { Workspace } from '@/types/domain';
 
 import { MyActiveLeavePanel } from './MyActiveLeavePanel';
@@ -29,43 +29,15 @@ export function MyLeavePage(props: MyLeavePageProps): ReactElement {
 	});
 
 	return (
-		<div className="campfire-page-stack">
-			<div className="campfire-stat-grid campfire-stat-grid--three">
-				<CampfireStatCard
-					icon={Umbrella}
-					label="Active leave"
-					value={String(leave.activeLeaveCount)}
-					helper="Pending and approved"
-				/>
-				<CampfireStatCard
-					icon={Hourglass}
-					label="Pending"
-					value={String(leave.pendingLeaveCount)}
-					helper="Awaiting approval"
-				/>
-				<CampfireStatCard
-					icon={CalendarCheck2}
-					label="Approved"
-					value={String(leave.approvedLeaveCount)}
-					helper="Ready on calendar"
-					tone="green"
-				/>
-			</div>
+		<div className="campfire-page-stack campfire-my-leave-page">
+			<CampfirePageIntro
+				eyebrow="My leave"
+				title="Request and manage leave"
+				description="Create a request, review active leave, and cancel requests when allowed."
+			/>
 
-			<CampfireSurface className="campfire-control-surface">
-				<header className="campfire-flat-section-header">
-					<div>
-						<p className="campfire-page-eyebrow">My leave</p>
-						<h3 className="campfire-surface-title">Request and manage leave</h3>
-						<p className="campfire-surface-description">
-							Create a leave request and keep active requests visible without opening extra nested panels.
-						</p>
-					</div>
-				</header>
-
-				<MyLeaveFeedback state={leave.loadState} message={leave.message} />
-				{leave.loadState === 'loading' && <MyLeaveLoading />}
-			</CampfireSurface>
+			<MyLeaveFeedback state={leave.loadState} message={leave.message} />
+			{leave.loadState === 'loading' && <MyLeaveLoading />}
 
 			{leave.loadState !== 'loading' && leave.leaveTypes.length === 0 && (
 				<CampfireEmpty

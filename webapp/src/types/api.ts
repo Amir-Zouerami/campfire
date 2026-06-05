@@ -489,6 +489,7 @@ export type CreateStandupScheduleRequest = {
 	readonly templateId: string;
 	readonly kind: StandupKind;
 	readonly enabled: boolean;
+	readonly opensAt: TimeOfDay;
 	readonly timeOfDay: TimeOfDay;
 	readonly skipNonWorkingDays: boolean;
 	readonly weeklyMode: WeeklyMode | 'none';

@@ -12,7 +12,7 @@ export type ReminderRuleDraft = {
 	readonly enabled: boolean;
 	readonly channelReminderEnabled: boolean;
 	readonly dmReminderEnabled: boolean;
-	readonly reminderOffsetsText: string;
+	readonly reminderTimes: readonly string[];
 	readonly mentionMissingInChannel: boolean;
 };
 

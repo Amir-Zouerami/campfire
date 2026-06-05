@@ -1,0 +1,157 @@
+/*
+ * Round 10 / Part 3: My Day cleanup.
+ * Scope: remove dashboard-stat clutter from personal pages, normalize focused
+ * title cards, make standup questions spacious, and increase readable list text.
+ */
+
+.campfire-theme .campfire-my-day-page--minimal {
+	gap: clamp(1.35rem, 1.8vw, 2.15rem) !important;
+}
+
+.campfire-theme .campfire-my-day-page--minimal > .campfire-stat-grid,
+.campfire-theme .campfire-my-leave-page > .campfire-stat-grid,
+.campfire-theme .campfire-my-standup-page > .campfire-stat-grid {
+	display: none !important;
+}
+
+.campfire-theme .campfire-my-day-page--minimal .campfire-segmented-tabs,
+.campfire-theme .campfire-my-day-page--minimal .campfire-section-tabs {
+	margin-bottom: 0.35rem !important;
+}
+
+.campfire-theme .campfire-my-standup-page,
+.campfire-theme .campfire-my-leave-page {
+	gap: clamp(1.15rem, 1.65vw, 1.9rem) !important;
+}
+
+.campfire-theme .campfire-standup-surface--minimal {
+	padding: clamp(1.15rem, 1.65vw, 1.75rem) !important;
+}
+
+.campfire-theme .campfire-standup-surface--minimal .campfire-standup-body,
+.campfire-theme .campfire-standup-surface--minimal .campfire-standup-form {
+	display: grid;
+	gap: clamp(1.15rem, 1.45vw, 1.7rem) !important;
+}
+
+.campfire-theme .campfire-standup-controls-grid {
+	align-items: end !important;
+	gap: clamp(1rem, 1.3vw, 1.45rem) !important;
+}
+
+.campfire-theme .campfire-form-question-card {
+	display: grid;
+	gap: 0.9rem;
+	border: 1px solid rgba(255, 255, 255, 0.09);
+	border-radius: 1.15rem;
+	background: rgba(255, 255, 255, 0.026);
+	padding: clamp(1rem, 1.35vw, 1.45rem);
+}
+
+.campfire-theme .campfire-form-question-card-header {
+	display: grid;
+	gap: 0.35rem;
+}
+
+.campfire-theme .campfire-form-question-card-label {
+	display: inline-flex;
+	align-items: baseline;
+	gap: 0.35rem;
+	min-width: 0;
+	color: #fff7ed !important;
+	font-family: var(--campfire-persian-font), var(--campfire-font-sans), sans-serif !important;
+	font-size: clamp(1.08rem, 0.45vw + 1rem, 1.32rem) !important;
+	font-weight: 780 !important;
+	letter-spacing: -0.02em !important;
+	line-height: 1.25 !important;
+}
+
+.campfire-theme .campfire-form-question-card-label > span[aria-label='required'] {
+	color: rgba(253, 186, 116, 0.96) !important;
+}
+
+.campfire-theme .campfire-form-question-card-description {
+	max-width: 64rem;
+	margin: 0 !important;
+	color: rgba(231, 229, 228, 0.66) !important;
+	font-size: 1rem !important;
+	font-weight: 610 !important;
+	line-height: 1.55 !important;
+}
+
+.campfire-theme .campfire-form-question-card-control {
+	min-width: 0;
+}
+
+.campfire-theme .campfire-work-item-row {
+	align-items: center !important;
+	gap: 0.85rem !important;
+}
+
+.campfire-theme .campfire-work-item-index {
+	height: 2.75rem !important;
+	width: 2.75rem !important;
+	border-radius: 0.85rem !important;
+	font-size: 1rem !important;
+}
+
+.campfire-theme .campfire-work-item-input-wrap input {
+	height: 2.75rem !important;
+	font-family: var(--campfire-persian-font), var(--campfire-font-sans), sans-serif !important;
+	font-size: 1.04rem !important;
+	font-weight: 650 !important;
+}
+
+.campfire-theme .campfire-task-match-hint {
+	margin: 0.45rem 0 0 !important;
+	font-family: var(--campfire-persian-font), var(--campfire-font-sans), sans-serif !important;
+	font-size: 0.95rem !important;
+	font-weight: 650 !important;
+}
+
+.campfire-theme .campfire-task-suggestion-list {
+	margin-top: 0.5rem !important;
+}
+
+.campfire-theme .campfire-submit-strip--actions-only {
+	justify-content: flex-end !important;
+	padding-top: 0.3rem !important;
+}
+
+.campfire-theme .campfire-readable-table-surface .campfire-data-table-row:not(.campfire-data-table-row--head) > span,
+.campfire-theme .campfire-readable-table-surface .campfire-data-table-row:not(.campfire-data-table-row--head) strong,
+.campfire-theme .campfire-readable-table-surface .campfire-data-table-row:not(.campfire-data-table-row--head) small,
+.campfire-theme .campfire-readable-table-surface .campfire-ellipsis-text {
+	font-size: 1.08rem !important;
+	line-height: 1.4 !important;
+}
+
+.campfire-theme .campfire-readable-table-surface .campfire-data-table-row:not(.campfire-data-table-row--head) {
+	min-height: 5rem !important;
+}
+
+.campfire-theme .campfire-task-title-cell strong .campfire-ellipsis-text,
+.campfire-theme .campfire-task-title-cell strong {
+	font-size: 1.12rem !important;
+	font-weight: 780 !important;
+}
+
+.campfire-theme .campfire-muted-cell .campfire-ellipsis-text {
+	color: rgba(231, 229, 228, 0.75) !important;
+}
+
+.campfire-theme .campfire-page-intro-card .campfire-status-pill {
+	min-height: 2.5rem;
+	align-self: flex-start;
+	font-size: 0.98rem !important;
+}
+
+@media (max-width: 880px) {
+	.campfire-theme .campfire-work-item-row {
+		grid-template-columns: minmax(0, 1fr) !important;
+	}
+
+	.campfire-theme .campfire-work-item-index {
+		display: none !important;
+	}
+}

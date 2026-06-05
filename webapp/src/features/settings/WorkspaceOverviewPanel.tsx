@@ -21,6 +21,7 @@ import { CampfireSurface, CampfireWorkflowNote } from '@/components/campfire/Cam
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/campfire/campfire-toast';
 import { CampfireResponsiveInput } from '@/components/campfire/CampfireResponsiveInput';
+import { CampfireChannelPicker } from '@/components/campfire/CampfireChannelPicker';
 import { Button } from '@/components/ui/button';
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
 
@@ -48,7 +49,7 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 	const draftNotificationChannelID = notificationChannelID.trim();
 	const notificationDirty = draftNotificationChannelID !== savedNotificationChannelID;
 	const notificationTargetLabel =
-		savedNotificationChannelID === '' ? 'Workspace channel' : `Fixed channel ${savedNotificationChannelID}`;
+		savedNotificationChannelID === '' ? 'Workspace channel' : `Custom channel ${savedNotificationChannelID}`;
 
 	useEffect(() => {
 		setNotificationChannelID(props.workspace.approvedLeaveNotificationChannelId);
@@ -165,23 +166,22 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 
 				<div className="campfire-workspace-route-summary">
 					<OverviewFact icon={BellRing} label="Current target" value={notificationTargetLabel} helper="Approved and cancelled approved leave" />
-					<OverviewFact icon={Hash} label="Fallback" value="Workspace channel" helper="Used when no fixed channel is set" />
+					<OverviewFact icon={Hash} label="Fallback" value="Workspace channel" helper="Used when no custom channel is set" />
 				</div>
 
 				<div className="campfire-field-stack">
 					<label htmlFor="campfire-approved-leave-notification-channel" className="campfire-field-label">
-						Fixed notification channel ID
+						Announcement channel
 					</label>
-					<CampfireResponsiveInput
-						id="campfire-approved-leave-notification-channel"
+					<CampfireChannelPicker
+						teamID={props.workspace.teamId}
 						disabled={!canEditNotifications || isSavingNotifications}
-						placeholder={`Empty = workspace channel (${props.workspace.channelId})`}
+						placeholder="Search channel name, or paste channel ID"
 						value={notificationChannelID}
-						onValueChange={setNotificationChannelID}
+						onChange={setNotificationChannelID}
 					/>
 					<p>
-						Leave this empty to post announcements in the Campfire workspace channel. Paste a
-						Mattermost channel or group conversation ID to route them to a fixed place.
+						Leave this empty to post announcements in the Campfire workspace channel. Use the search results for visible channels, or use the channel-ID fallback for private channels that search cannot list.
 					</p>
 				</div>
 

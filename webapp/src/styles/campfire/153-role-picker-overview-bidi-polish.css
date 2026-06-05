@@ -1,0 +1,200 @@
+/*
+ * Round 41: role picker sizing/placement and standup overview bidi polish.
+ * Keep this as a narrow design-system layer: no page-specific color rewrites.
+ */
+
+.campfire-theme {
+	--cf-control-bg: #171717;
+	--cf-control-bg-hover: #1b1b1a;
+	--cf-control-panel: #151515;
+	--cf-control-panel-soft: #1a1a19;
+	--cf-control-border: rgba(255, 255, 255, 0.12);
+	--cf-control-border-strong: rgba(255, 255, 255, 0.18);
+	--cf-control-text: rgba(255, 255, 255, 0.91);
+	--cf-control-muted: rgba(255, 255, 255, 0.56);
+	--cf-control-accent: #a9744d;
+	--cf-control-accent-strong: #bd865f;
+	--cf-control-accent-soft: rgba(169, 116, 77, 0.20);
+	--cf-control-accent-faint: rgba(169, 116, 77, 0.075);
+}
+
+/* Persian-capable form typography everywhere user-entered/admin-entered text is shown. */
+.campfire-theme :is(
+	.campfire-bidi-text,
+	.campfire-form-question-card,
+	.campfire-form-question-card *,
+	.campfire-standup-option-list,
+	.campfire-standup-option-list *,
+	.campfire-boolean-answer-control,
+	.campfire-boolean-answer-control *,
+	.campfire-standup-overview-row,
+	.campfire-standup-overview-row *,
+	.campfire-standup-question-chip-list,
+	.campfire-standup-question-chip-list *,
+	.campfire-user-picker,
+	.campfire-user-picker *,
+	.campfire-channel-picker,
+	.campfire-channel-picker *
+) {
+	font-family: Vazirmatn, Vazir, Inter, system-ui, sans-serif !important;
+}
+
+.campfire-theme :is(.campfire-bidi-text, .campfire-standup-option-label, .campfire-boolean-answer-label) {
+	direction: auto;
+	unicode-bidi: isolate;
+	text-align: start;
+}
+
+/* Boolean / checkbox / multiselect question options. */
+.campfire-theme .campfire-boolean-answer-control {
+	max-width: 38rem !important;
+	gap: 0.75rem !important;
+}
+
+.campfire-theme .campfire-boolean-answer-control--rtl,
+.campfire-theme .campfire-standup-option-list--rtl {
+	direction: rtl;
+}
+
+.campfire-theme .campfire-standup-option-list {
+	display: grid;
+	gap: 0.75rem;
+}
+
+.campfire-theme .campfire-boolean-answer-option {
+	min-height: 3.25rem !important;
+	border-color: var(--cf-control-border) !important;
+	background: var(--cf-control-bg) !important;
+	font-size: 1.08rem !important;
+	font-weight: 780 !important;
+	line-height: 1.45 !important;
+}
+
+.campfire-theme .campfire-boolean-answer-option--selected {
+	border-color: var(--cf-control-accent-soft) !important;
+	background: rgba(255, 255, 255, 0.052) !important;
+	box-shadow: inset 3px 0 0 var(--cf-control-accent) !important;
+}
+
+.campfire-theme .campfire-boolean-answer-control--rtl .campfire-boolean-answer-option--selected {
+	box-shadow: inset -3px 0 0 var(--cf-control-accent) !important;
+}
+
+.campfire-theme .campfire-standup-option-label {
+	font-size: 1.08rem !important;
+	font-weight: 760 !important;
+	line-height: 1.55 !important;
+}
+
+/* Role user picker: larger text and results below the input, never over it. */
+.campfire-theme .campfire-user-picker {
+	position: relative;
+	display: grid;
+	gap: 0.8rem !important;
+}
+
+.campfire-theme .campfire-user-picker-search {
+	min-height: 3.35rem !important;
+	align-items: center !important;
+	border-color: var(--cf-control-border) !important;
+	background: var(--cf-control-bg) !important;
+	box-shadow: none !important;
+}
+
+.campfire-theme .campfire-user-picker-search:focus-within {
+	border-color: var(--cf-control-border-strong) !important;
+	background: var(--cf-control-bg-hover) !important;
+	box-shadow: 0 0 0 2px var(--cf-control-accent-faint) !important;
+}
+
+.campfire-theme .campfire-user-picker-search input {
+	font-size: 1.08rem !important;
+	font-weight: 700 !important;
+	line-height: 1.35 !important;
+}
+
+.campfire-theme .campfire-user-picker-results {
+	position: absolute !important;
+	top: calc(100% + 0.65rem) !important;
+	left: 0 !important;
+	z-index: 2200 !important;
+	width: min(34rem, 100%) !important;
+	max-height: 16rem !important;
+	margin-top: 0 !important;
+	border-color: var(--cf-control-border) !important;
+	background: var(--cf-control-panel) !important;
+	padding: 0.55rem !important;
+	box-shadow:
+		0 22px 60px rgba(0, 0, 0, 0.52),
+		inset 0 1px 0 rgba(255, 255, 255, 0.035) !important;
+}
+
+.campfire-theme .campfire-user-picker-results button {
+	min-height: 3.05rem !important;
+	padding: 0.78rem 0.9rem !important;
+	font-size: 1.02rem !important;
+	font-weight: 720 !important;
+	line-height: 1.35 !important;
+}
+
+.campfire-theme .campfire-user-picker-results button:hover,
+.campfire-theme .campfire-user-picker-results button:focus-visible {
+	border-color: var(--cf-control-accent-soft) !important;
+	background: rgba(255, 255, 255, 0.052) !important;
+}
+
+.campfire-theme .campfire-user-picker-results small,
+.campfire-theme .campfire-user-picker-selected small {
+	font-size: 0.84rem !important;
+	font-weight: 680 !important;
+}
+
+/* Current standup setup overview: readable bilingual text and larger question chips. */
+.campfire-theme .campfire-standup-overview-title-row h4 {
+	font-size: 1.08rem !important;
+	line-height: 1.45 !important;
+}
+
+.campfire-theme .campfire-standup-overview-description {
+	font-size: 1rem !important;
+	line-height: 1.6 !important;
+}
+
+.campfire-theme .campfire-standup-question-chip-list {
+	gap: 0.55rem !important;
+}
+
+.campfire-theme .campfire-standup-question-chip-list > span {
+	display: inline-flex !important;
+	min-height: 2.05rem !important;
+	align-items: center !important;
+	border-radius: 999px !important;
+	padding: 0.38rem 0.78rem !important;
+	font-size: 0.94rem !important;
+	font-weight: 760 !important;
+	line-height: 1.35 !important;
+	color: rgba(255, 255, 255, 0.82) !important;
+}
+
+/* Keep select backgrounds flat. Selected rows get only a muted accent rail. */
+.campfire-theme .campfire-select-trigger,
+.campfire-theme .campfire-select-menu,
+.campfire-theme .campfire-select-search {
+	background: var(--cf-control-bg) !important;
+}
+
+.campfire-theme .campfire-select-menu {
+	background: var(--cf-control-panel) !important;
+}
+
+.campfire-theme .campfire-select-option--selected,
+.campfire-theme .campfire-select-menu :is([role='option'][aria-selected='true'], button[aria-selected='true']) {
+	border-color: var(--cf-control-accent-soft) !important;
+	background: rgba(255, 255, 255, 0.052) !important;
+	box-shadow: inset 3px 0 0 var(--cf-control-accent) !important;
+}
+
+.campfire-theme .campfire-select-check,
+.campfire-theme .campfire-select-chevron {
+	color: var(--cf-control-accent-strong) !important;
+}

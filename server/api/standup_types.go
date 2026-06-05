@@ -54,6 +54,7 @@ type StandupSchedulePayload struct {
 	TemplateID              string `json:"templateId"`
 	Kind                    string `json:"kind"`
 	Enabled                 bool   `json:"enabled"`
+	OpensAt                 string `json:"opensAt"`
 	TimeOfDay               string `json:"timeOfDay"`
 	SkipNonWorkingDays      bool   `json:"skipNonWorkingDays"`
 	WeeklyMode              string `json:"weeklyMode"`
@@ -220,6 +221,7 @@ type CreateStandupScheduleRequest struct {
 	TemplateID              string `json:"templateId"`
 	Kind                    string `json:"kind"`
 	Enabled                 bool   `json:"enabled"`
+	OpensAt                 string `json:"opensAt"`
 	TimeOfDay               string `json:"timeOfDay"`
 	SkipNonWorkingDays      bool   `json:"skipNonWorkingDays"`
 	WeeklyMode              string `json:"weeklyMode"`
@@ -240,6 +242,7 @@ type UpdateStandupScheduleRequest struct {
 	TemplateID              string `json:"templateId"`
 	Kind                    string `json:"kind"`
 	Enabled                 bool   `json:"enabled"`
+	OpensAt                 string `json:"opensAt"`
 	TimeOfDay               string `json:"timeOfDay"`
 	SkipNonWorkingDays      bool   `json:"skipNonWorkingDays"`
 	WeeklyMode              string `json:"weeklyMode"`
@@ -521,6 +524,7 @@ func StandupScheduleToPayload(schedule domain.StandupSchedule) StandupSchedulePa
 		TemplateID:              schedule.TemplateID.String(),
 		Kind:                    string(schedule.Kind),
 		Enabled:                 schedule.Enabled,
+		OpensAt:                 schedule.OpensAt.String(),
 		TimeOfDay:               schedule.TimeOfDay.String(),
 		SkipNonWorkingDays:      schedule.SkipNonWorkingDays,
 		WeeklyMode:              string(schedule.WeeklyMode),

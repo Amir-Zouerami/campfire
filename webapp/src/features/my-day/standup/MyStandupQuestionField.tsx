@@ -1,13 +1,13 @@
 import { memo, startTransition, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactElement } from 'react';
 import { CheckCircle2, Plus, Trash2 } from 'lucide-react';
 
-import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
+import { CampfireBidiText } from '@/components/campfire/CampfireBidiText';
+import { CampfireFormQuestionCard } from '@/components/campfire/CampfireFormQuestionCard';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CampfireResponsiveInput, CampfireResponsiveTextarea } from '@/components/campfire/CampfireResponsiveInput';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/types/domain';
 
@@ -25,26 +25,66 @@ import { formatTaskListValue, isTaskListQuestion, parseTaskListItems } from './s
  */
 export const MyStandupQuestionField = memo(function MyStandupQuestionField(props: MyStandupQuestionFieldProps): ReactElement {
 	const inputID = `campfire-standup-question-${props.question.id}`;
+	const direction = textDirectionFor([
+		props.question.label,
+		props.question.helpText,
+		props.question.placeholder,
+		...props.question.options,
+	]);
 
 	return (
-		<div className="cf:grid cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-4">
-			<div className="cf:grid cf:gap-1">
-				<Label htmlFor={inputID} className="cf:text-base cf:font-semibold">
-					{props.question.label}
-					{props.question.required && <span className="cf:ml-1 cf:text-amber-200">*</span>}
-				</Label>
-
-				{props.question.helpText.trim() !== '' && (
-					<p className="cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
-						{props.question.helpText}
-					</p>
-				)}
-			</div>
-
+		<CampfireFormQuestionCard
+			id={inputID}
+			label={props.question.label}
+			required={props.question.required}
+			description={visibleQuestionHelpText(props.question.helpText)}
+			className={cn(direction === 'rtl' && 'campfire-form-question-card--rtl')}
+		>
 			<QuestionControl {...props} inputID={inputID} />
-		</div>
+		</CampfireFormQuestionCard>
 	);
 });
+
+
+/**
+ * visibleQuestionHelpText removes legacy noisy helper copy from default task-list questions.
+ */
+function visibleQuestionHelpText(value: string): string {
+	const cleanValue = value.trim();
+	const normalized = cleanValue.toLowerCase();
+
+	if (normalized.includes('start typing') && normalized.includes('campfire opens')) {
+		return '';
+	}
+
+	if (normalized.includes('use suggestions') && normalized.includes('reuse existing tasks')) {
+		return '';
+	}
+
+	return cleanValue;
+}
+
+
+/**
+ * textDirectionFor returns rtl only when Persian/Arabic content is the dominant
+ * user-facing text. Mixed content still uses dir=auto on the text node itself.
+ */
+function textDirectionFor(values: readonly string[]): 'ltr' | 'rtl' {
+	let rtlCount = 0;
+	let latinCount = 0;
+
+	for (const value of values) {
+		for (const character of value) {
+			if (/\p{Script=Arabic}/u.test(character)) {
+				rtlCount += 1;
+			} else if (/[A-Za-z]/u.test(character)) {
+				latinCount += 1;
+			}
+		}
+	}
+
+	return rtlCount > 0 && rtlCount >= latinCount ? 'rtl' : 'ltr';
+}
 
 /**
  * QuestionControl renders the input control for a question type.
@@ -63,7 +103,9 @@ function QuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID
 		);
 	}
 
-	switch (props.question.type) {
+	const questionType = normalizedQuestionType(props.question.type);
+
+	switch (questionType) {
 		case 'long_text':
 			return (
 				<CampfireResponsiveTextarea
@@ -79,14 +121,7 @@ function QuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID
 			return <CheckboxQuestionControl {...props} />;
 
 		case 'boolean':
-			return (
-				<CampfireCheckboxField
-					checked={questionValueAsBoolean(props.value)}
-					label={props.question.placeholder.trim() === '' ? 'Yes' : props.question.placeholder}
-					disabled={props.disabled}
-					onCheckedChange={checked => props.onChange(checked)}
-				/>
-			);
+			return <BooleanQuestionControl {...props} />;
 
 		case 'dropdown':
 			return (
@@ -99,7 +134,7 @@ function QuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID
 					<option value="">Choose…</option>
 					{props.question.options.map(option => (
 						<option key={option} value={option}>
-							{option}
+							<CampfireBidiText className="campfire-standup-option-label">{option}</CampfireBidiText>
 						</option>
 					))}
 				</CampfireSelect>
@@ -149,13 +184,118 @@ function QuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID
 }
 
 /**
+ * normalizedQuestionType accepts API-safe values and protects the runtime from
+ * older rows or UI drafts that accidentally store display labels such as
+ * "Boolean" instead of the lowercase enum value.
+ */
+function normalizedQuestionType(value: string): string {
+	switch (value.trim().toLowerCase()) {
+		case 'long_text':
+		case 'long text':
+			return 'long_text';
+
+		case 'multi_select':
+		case 'multi select':
+			return 'multi_select';
+
+		case 'checkbox':
+		case 'boolean':
+		case 'dropdown':
+		case 'number':
+		case 'duration':
+		case 'text':
+			return value.trim().toLowerCase();
+
+		default:
+			return 'text';
+	}
+}
+
+/**
+ * BooleanQuestionControl renders true/false questions as a first-class answer
+ * control. It intentionally does not use CampfireSelect; a boolean question is
+ * not an option picker and must not show a fake "Choose option" row.
+ */
+function BooleanQuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID: string }): ReactElement {
+	const selectedValue = questionValueAsBoolean(props.value);
+	const labels = booleanOptionLabels(props.question.options);
+	const direction = textDirectionFor([props.question.label, labels.falseLabel, labels.trueLabel]);
+
+	return (
+		<div
+			className={cn('campfire-boolean-answer-control', direction === 'rtl' && 'campfire-boolean-answer-control--rtl')}
+			role="radiogroup"
+			aria-labelledby={props.inputID}
+			dir={direction}
+		>
+			<BooleanAnswerButton
+				label={labels.falseLabel}
+				selected={!selectedValue}
+				disabled={props.disabled}
+				onClick={() => props.onChange(false)}
+			/>
+			<BooleanAnswerButton
+				label={labels.trueLabel}
+				selected={selectedValue}
+				disabled={props.disabled}
+				onClick={() => props.onChange(true)}
+			/>
+		</div>
+	);
+}
+
+/**
+ * BooleanAnswerButton is one option in the true/false segmented control.
+ */
+function BooleanAnswerButton(props: {
+	readonly label: string;
+	readonly selected: boolean;
+	readonly disabled: boolean;
+	readonly onClick: () => void;
+}): ReactElement {
+	return (
+		<button
+			type="button"
+			role="radio"
+			aria-checked={props.selected}
+			disabled={props.disabled}
+			className={cn(
+				'campfire-boolean-answer-option',
+				props.selected && 'campfire-boolean-answer-option--selected',
+			)}
+			onClick={props.onClick}
+		>
+			<CampfireBidiText className="campfire-boolean-answer-label">{props.label}</CampfireBidiText>
+			{props.selected && <CheckCircle2 className="cf:size-4" aria-hidden="true" />}
+		</button>
+	);
+}
+
+/**
+ * booleanOptionLabels lets admins localize boolean labels by entering exactly
+ * two options on the question. Otherwise Campfire keeps a clear default.
+ */
+function booleanOptionLabels(options: readonly string[]): { readonly falseLabel: string; readonly trueLabel: string } {
+	const cleanOptions = options.map(option => option.trim()).filter(Boolean);
+
+	if (cleanOptions.length >= 2) {
+		return {
+			falseLabel: cleanOptions[0] ?? 'No',
+			trueLabel: cleanOptions[1] ?? 'Yes',
+		};
+	}
+
+	return { falseLabel: 'No', trueLabel: 'Yes' };
+}
+
+/**
  * CheckboxQuestionControl renders checkbox option questions.
  */
 function CheckboxQuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID: string }): ReactElement {
 	const options = props.question.options.length > 0 ? props.question.options : ['Yes'];
 
 	return (
-		<div className="cf:grid cf:gap-2">
+		<div className={cn('campfire-standup-option-list', textDirectionFor([props.question.label, ...options]) === 'rtl' && 'campfire-standup-option-list--rtl')}>
 			{options.map(option => {
 				const selected = questionValueAsList(props.value).includes(option);
 
@@ -176,7 +316,7 @@ function CheckboxQuestionControl(props: MyStandupQuestionFieldProps & { readonly
 								props.onChange(nextMultiSelectValue(props.value, option, checked === true));
 							}}
 						/>
-						<span className="cf:text-sm cf:font-semibold cf:text-foreground">{option}</span>
+						<CampfireBidiText className="campfire-standup-option-label cf:text-sm cf:font-semibold cf:text-foreground">{option}</CampfireBidiText>
 					</label>
 				);
 			})}
@@ -189,7 +329,7 @@ function CheckboxQuestionControl(props: MyStandupQuestionFieldProps & { readonly
  */
 function MultiSelectQuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID: string }): ReactElement {
 	return (
-		<div className="cf:grid cf:gap-2">
+		<div className={cn('campfire-standup-option-list', textDirectionFor([props.question.label, ...props.question.options]) === 'rtl' && 'campfire-standup-option-list--rtl')}>
 			{props.question.options.map(option => {
 				const selected = questionValueAsList(props.value).includes(option);
 
@@ -210,7 +350,7 @@ function MultiSelectQuestionControl(props: MyStandupQuestionFieldProps & { reado
 								props.onChange(nextMultiSelectValue(props.value, option, checked === true));
 							}}
 						/>
-						<span className="cf:text-sm cf:font-semibold cf:text-foreground">{option}</span>
+						<CampfireBidiText className="campfire-standup-option-label cf:text-sm cf:font-semibold cf:text-foreground">{option}</CampfireBidiText>
 					</label>
 				);
 			})}
@@ -373,11 +513,7 @@ function TaskListQuestionControl(props: {
 				})}
 			</div>
 
-			<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-3">
-				<p className="cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
-					Start typing and Campfire opens the next row automatically. Use suggestions to reuse existing tasks.
-				</p>
-
+			<div className="cf:flex cf:justify-end">
 				<Button type="button" variant="secondary" disabled={props.disabled} onClick={() => addItem()}>
 					<Plus className="cf:size-4" />
 					Add item

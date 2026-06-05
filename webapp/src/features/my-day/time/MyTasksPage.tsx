@@ -1,18 +1,20 @@
 import { useDeferredValue, useMemo, useState, type ReactElement } from 'react';
-import { CheckCircle2, Inbox, ListChecks, Plus, Search, Workflow } from 'lucide-react';
+import { Inbox, Plus } from 'lucide-react';
 
+import { CampfireDataTable, CampfireDataTableCell, CampfireDataTableRow } from '@/components/campfire/CampfireDataTable';
 import {
 	CampfireBackButton,
 	CampfireEmptyState,
 	CampfireFieldError,
-	CampfirePageHeader,
-	CampfireStatCard,
 	CampfireStatusPill,
 	CampfireSurface,
 } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfirePageIntro } from '@/components/campfire/CampfirePageIntro';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { CampfireInlineCheckbox } from '@/components/campfire/CampfireCheckboxField';
+import { CampfireSearchInput } from '@/components/campfire/CampfireSearchInput';
 import { Button } from '@/components/ui/button';
+import { CampfireBidiText, CampfireEllipsisText } from '@/components/campfire/CampfireBidiText';
 import { CampfireResponsiveInput, CampfireResponsiveTextarea } from '@/components/campfire/CampfireResponsiveInput';
 import type { Task, TaskStatus, Workspace } from '@/types/domain';
 
@@ -53,9 +55,10 @@ export function MyTasksPage(props: MyTasksPageProps): ReactElement {
 				<CampfireBackButton onClick={props.onBack}>Back to My Day</CampfireBackButton>
 			)}
 
-			<CampfirePageHeader
-				title="My Tasks"
-				description="A focused list of your Campfire tasks. No priority or due-date fields are shown because the current API does not expose them."
+			<CampfirePageIntro
+				eyebrow="My tasks"
+				title="Review active work"
+				description="Search, create, and update your Campfire tasks."
 				actions={
 					<Button type="button" onClick={() => setCreateOpen(current => !current)}>
 						<Plus className="cf:size-4" />
@@ -63,12 +66,6 @@ export function MyTasksPage(props: MyTasksPageProps): ReactElement {
 					</Button>
 				}
 			/>
-
-			<div className="campfire-stat-grid campfire-stat-grid--three">
-				<CampfireStatCard icon={ListChecks} label="Visible tasks" value={String(visibleTasks.length)} helper="Current filters" />
-				<CampfireStatCard icon={Workflow} label="Active" value={String(timeLog.activeTaskCount)} helper="Active or blocked" tone="green" />
-				<CampfireStatCard icon={CheckCircle2} label="Total" value={String(timeLog.tasks.length)} helper="Loaded from API" tone="blue" />
-			</div>
 
 			<MyTimeFeedback state={timeLog.loadState} message={timeLog.message} />
 			{timeLog.loadState === 'loading' && <MyTimeLoading />}
@@ -78,7 +75,7 @@ export function MyTasksPage(props: MyTasksPageProps): ReactElement {
 					<div className="campfire-surface-header campfire-surface-header--with-action">
 						<div>
 							<h3 className="campfire-surface-title">Create task</h3>
-							<p className="campfire-surface-description">Tasks created here use the existing Campfire task API.</p>
+							<p className="campfire-surface-description">Add one clear work item to track from My Day.</p>
 						</div>
 						<Button type="button" variant="ghost" size="sm" onClick={() => setCreateOpen(false)}>
 							Close
@@ -128,12 +125,9 @@ export function MyTasksPage(props: MyTasksPageProps): ReactElement {
 				</CampfireSurface>
 			)}
 
-			<CampfireSurface className="campfire-table-surface">
+			<CampfireSurface className="campfire-table-surface campfire-readable-table-surface">
 				<div className="campfire-list-toolbar">
-					<label className="campfire-search-field">
-						<Search className="cf:size-4" />
-						<CampfireResponsiveInput value={query} placeholder="Search tasks…" onValueChange={setQuery} />
-					</label>
+					<CampfireSearchInput value={query} placeholder="Search tasks…" onValueChange={setQuery} />
 
 					<CampfireSelect
 						id="campfire-my-task-status-filter"
@@ -156,15 +150,18 @@ export function MyTasksPage(props: MyTasksPageProps): ReactElement {
 					/>
 				</div>
 
-				<div className="campfire-data-table" role="table" aria-label="My tasks">
-					<div className="campfire-data-table-row campfire-data-table-row--head" role="row">
-						<span role="columnheader">Task</span>
-						<span role="columnheader">Status</span>
-						<span role="columnheader">Source</span>
-						<span role="columnheader">Updated</span>
-						<span role="columnheader">Change status</span>
-					</div>
-
+				<CampfireDataTable
+					label="My tasks"
+					columns={['Task', 'Status', 'Source', 'Updated', 'Change status']}
+					empty={visibleTasks.length === 0 ? (
+						<CampfireEmptyState
+							icon={Inbox}
+							title="No tasks match this view"
+							description="Clear the filters or create a task to start tracking work."
+						/>
+					) : undefined}
+					footer={<>Showing {visibleTasks.length} of {timeLog.tasks.length} tasks</>}
+				>
 					{visibleTasks.map(task => (
 						<TaskRow
 							key={task.id}
@@ -175,19 +172,7 @@ export function MyTasksPage(props: MyTasksPageProps): ReactElement {
 							}}
 						/>
 					))}
-
-					{visibleTasks.length === 0 && (
-						<div className="campfire-data-table-empty">
-							<CampfireEmptyState
-								icon={Inbox}
-								title="No tasks match this view"
-								description="Clear the filters or create a task to start tracking work."
-							/>
-						</div>
-					)}
-				</div>
-
-				<p className="campfire-table-footer">Showing {visibleTasks.length} of {timeLog.tasks.length} tasks</p>
+				</CampfireDataTable>
 			</CampfireSurface>
 		</div>
 	);
@@ -202,30 +187,33 @@ function TaskRow(props: {
 	readonly onStatusChange: (status: TaskStatus) => void;
 }): ReactElement {
 	return (
-		<div className="campfire-data-table-row" role="row">
-			<span className="campfire-task-title-cell" role="cell">
-				<strong>{props.task.title}</strong>
-				{props.task.description.trim() !== '' && <small>{props.task.description}</small>}
+		<CampfireDataTableRow>
+			<CampfireDataTableCell className="campfire-task-title-cell campfire-task-title-cell--compact">
+				<strong>
+					<CampfireEllipsisText value={props.task.title} />
+				</strong>
 				{props.task.boardUrl.trim() !== '' && (
 					<a href={props.task.boardUrl} target="_blank" rel="noreferrer">
 						Open board
 					</a>
 				)}
-			</span>
+			</CampfireDataTableCell>
 
-			<span role="cell">
-				<CampfireStatusPill tone={statusTone(props.task.status)}>{formatTaskStatus(props.task.status)}</CampfireStatusPill>
-			</span>
+			<CampfireDataTableCell>
+				<CampfireStatusPill tone={statusTone(props.task.status)}>
+					<CampfireBidiText title={formatTaskStatus(props.task.status)}>{formatTaskStatus(props.task.status)}</CampfireBidiText>
+				</CampfireStatusPill>
+			</CampfireDataTableCell>
 
-			<span className="campfire-muted-cell" role="cell">
-				{props.task.sourceSubmissionId.trim() === '' ? 'Manual' : 'Standup'}
-			</span>
+			<CampfireDataTableCell className="campfire-muted-cell">
+				<CampfireEllipsisText value={props.task.sourceSubmissionId.trim() === '' ? 'Manual' : 'Standup'} />
+			</CampfireDataTableCell>
 
-			<span className="campfire-muted-cell" role="cell">
-				{formatDateTime(props.task.updatedAt)}
-			</span>
+			<CampfireDataTableCell className="campfire-muted-cell">
+				<CampfireEllipsisText value={formatDateTime(props.task.updatedAt)} />
+			</CampfireDataTableCell>
 
-			<span role="cell">
+			<CampfireDataTableCell>
 				<CampfireSelect
 					id={`campfire-task-status-${props.task.id}`}
 					value={props.task.status}
@@ -238,8 +226,8 @@ function TaskRow(props: {
 						</option>
 					))}
 				</CampfireSelect>
-			</span>
-		</div>
+			</CampfireDataTableCell>
+		</CampfireDataTableRow>
 	);
 }
 

@@ -1,42 +1,48 @@
-import type { ReactElement } from 'react';
-import { Search } from 'lucide-react';
+import type { ReactElement } from "react";
+import { Search } from "lucide-react";
 
-import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { CampfireControlButton } from "@/components/campfire/CampfireControlButton";
+import { CampfireDateInput } from "@/components/campfire/CampfireDateInput";
+import { CampfireField } from "@/components/campfire/CampfireField";
 
 /**
  * TeamRuntimeControlsProps contains runtime date controls.
  */
 type TeamRuntimeControlsProps = {
-	readonly date: string;
-	readonly disabled: boolean;
-	readonly timezone: string;
-	readonly onDateChange: (date: string) => void;
-	readonly onTodayClick: () => void;
+  readonly date: string;
+  readonly disabled: boolean;
+  readonly timezone: string;
+  readonly onDateChange: (date: string) => void;
+  readonly onTodayClick: () => void;
 };
 
 /**
  * TeamRuntimeControls renders the runtime date picker.
  */
-export function TeamRuntimeControls(props: TeamRuntimeControlsProps): ReactElement {
-	return (
-		<div className="campfire-team-control-grid campfire-team-control-grid--runtime">
-			<div className="cf:grid cf:gap-2">
-				<Label htmlFor="campfire-team-runtime-date">Runtime date</Label>
-				<CampfireDateInput
-					id="campfire-team-runtime-date"
-					disabled={props.disabled}
-					timezone={props.timezone}
-					value={props.date}
-					onValueChange={props.onDateChange}
-				/>
-			</div>
+export function TeamRuntimeControls(
+  props: TeamRuntimeControlsProps,
+): ReactElement {
+  return (
+    <div className="campfire-team-control-grid campfire-team-control-grid--runtime">
+      <CampfireField id="campfire-team-runtime-date" label="Runtime date">
+        <CampfireDateInput
+          id="campfire-team-runtime-date"
+          disabled={props.disabled}
+          timezone={props.timezone}
+          value={props.date}
+          onValueChange={props.onDateChange}
+        />
+      </CampfireField>
 
-			<Button type="button" variant="secondary" disabled={props.disabled} onClick={props.onTodayClick}>
-				<Search className="cf:size-4" />
-				Today
-			</Button>
-		</div>
-	);
+      <CampfireControlButton
+        type="button"
+        variant="secondary"
+        disabled={props.disabled}
+        onClick={props.onTodayClick}
+      >
+        <Search className="cf:size-4" />
+        Today
+      </CampfireControlButton>
+    </div>
+  );
 }

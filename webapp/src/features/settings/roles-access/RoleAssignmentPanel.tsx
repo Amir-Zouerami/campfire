@@ -1,9 +1,9 @@
 import type { ReactElement } from 'react';
 import { Loader2, UserPlus } from 'lucide-react';
 
+import { CampfireControlButton } from '@/components/campfire/CampfireControlButton';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { CampfireUserPicker } from '@/components/campfire/CampfireUserPicker';
-import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 
 import { ASSIGNABLE_WORKSPACE_ROLES, roleLabel, toAssignableWorkspaceRole } from './roles-access.helpers';
@@ -24,7 +24,7 @@ type RoleAssignmentPanelProps = {
 };
 
 /**
- * RoleAssignmentPanel renders minimal real role assignment controls.
+ * RoleAssignmentPanel renders role assignment through fixed-height controls.
  */
 export function RoleAssignmentPanel(props: RoleAssignmentPanelProps): ReactElement {
 	const formDisabled = props.disabled || !props.canManageRoles;
@@ -41,7 +41,7 @@ export function RoleAssignmentPanel(props: RoleAssignmentPanelProps): ReactEleme
 						Add named access
 					</h3>
 					<p className="cf:mt-2 cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
-						Search a channel member by username, display name, or email, then choose the exact Campfire role.
+						Choose a channel member with search, then assign the exact Campfire role.
 					</p>
 				</div>
 
@@ -51,13 +51,13 @@ export function RoleAssignmentPanel(props: RoleAssignmentPanelProps): ReactEleme
 			</div>
 
 			<form
-				className="cf:grid cf:items-start cf:gap-4 cf:xl:grid-cols-[1fr_14rem_auto]"
+				className="campfire-role-assignment-form"
 				onSubmit={event => {
 					event.preventDefault();
 					void props.onAssign();
 				}}
 			>
-				<div className="cf:grid cf:gap-2">
+				<div className="campfire-role-assignment-field">
 					<Label>User</Label>
 					<CampfireUserPicker
 						workspaceID={props.workspaceID}
@@ -67,7 +67,7 @@ export function RoleAssignmentPanel(props: RoleAssignmentPanelProps): ReactEleme
 					/>
 				</div>
 
-				<div className="cf:grid cf:gap-2 cf:xl:self-start">
+				<div className="campfire-role-assignment-field">
 					<Label htmlFor="campfire-role-select">Role</Label>
 					<CampfireSelect
 						id="campfire-role-select"
@@ -83,15 +83,15 @@ export function RoleAssignmentPanel(props: RoleAssignmentPanelProps): ReactEleme
 					</CampfireSelect>
 				</div>
 
-				<div className="cf:flex cf:items-end cf:xl:self-start cf:xl:pt-[1.7rem]">
-					<Button type="submit" disabled={formDisabled}>
+				<div className="campfire-role-assignment-action">
+					<CampfireControlButton type="submit" disabled={formDisabled}>
 						{props.saving ? (
 							<Loader2 className="cf:size-4 cf:animate-spin" />
 						) : (
 							<UserPlus className="cf:size-4" />
 						)}
 						Add role
-					</Button>
+					</CampfireControlButton>
 				</div>
 			</form>
 		</section>

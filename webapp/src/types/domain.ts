@@ -310,6 +310,7 @@ export type StandupSchedule = {
 	readonly templateId: string;
 	readonly kind: StandupKind;
 	readonly enabled: boolean;
+	readonly opensAt: TimeOfDay;
 	readonly timeOfDay: TimeOfDay;
 	readonly skipNonWorkingDays: boolean;
 	readonly weeklyMode: WeeklyMode | 'none' | '';
@@ -381,9 +382,8 @@ export type StandupOccurrenceSummary = {
 /**
  * ReminderRule defines DM and channel reminder behavior.
  *
- * reminderOffsets are minute offsets from the schedule time.
- * Example: schedule 09:00 with [0, 30, 45, 55] reminds at
- * 09:00, 09:30, 09:45, and 09:55.
+ * reminderOffsets are scheduler minute marks inside the pre-close reminder window.
+ * The UI exposes these as up to three HH:mm reminder times before the standup closes.
  */
 export type ReminderRule = {
 	readonly id: string;

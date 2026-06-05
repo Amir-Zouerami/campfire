@@ -160,10 +160,8 @@
 
 .campfire-theme .cf\:bg-\[\#050505\],
 .campfire-theme [role='listbox'] {
-	background:
-		radial-gradient(circle at 12% 0%, rgba(251, 146, 60, 0.16), transparent 36%),
-		linear-gradient(180deg, rgba(34, 24, 17, 0.98), rgba(13, 10, 8, 0.985)) !important;
-	border-color: rgba(253, 186, 116, 0.24) !important;
+	background: rgba(16, 17, 20, 0.98) !important;
+	border-color: rgba(255, 255, 255, 0.10) !important;
 }
 
 .campfire-theme [role='option'] {
@@ -173,9 +171,9 @@
 .campfire-theme [role='option']:hover,
 .campfire-theme [role='option']:focus-visible,
 .campfire-theme [role='option'][aria-selected='true'] {
-	background: rgba(251, 146, 60, 0.18) !important;
-	box-shadow: inset 0 0 0 1px rgba(253, 186, 116, 0.12) !important;
-	color: #fff7ed !important;
+	background: rgba(255, 255, 255, 0.06) !important;
+	box-shadow: inset 0 0 0 1px rgba(216, 161, 90, 0.18) !important;
+	color: #ffffff !important;
 }
 
 .campfire-theme [data-sonner-toast].campfire-toast,

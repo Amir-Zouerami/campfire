@@ -189,6 +189,7 @@ func New(config Config) (*App, error) {
 		workspaceStore,
 		workspaceRoleStore,
 		reminderStore,
+		standupStore,
 	)
 
 	reminderExecutionService := service.NewReminderExecutionService(

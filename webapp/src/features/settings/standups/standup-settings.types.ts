@@ -29,6 +29,7 @@ export type StandupScheduleDraft = {
 	readonly templateId: string;
 	readonly kind: StandupKind;
 	readonly enabled: boolean;
+	readonly opensAt: string;
 	readonly timeOfDay: string;
 	readonly skipNonWorkingDays: boolean;
 	readonly weeklyMode: WeeklyMode | 'none' | '';

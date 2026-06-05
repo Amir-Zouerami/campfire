@@ -23,6 +23,7 @@ type StandupQuestionFieldsProps = {
 	readonly draft: StandupQuestionDraft;
 	readonly disabled: boolean;
 	readonly allowTemplateChange: boolean;
+	readonly hideTemplateField?: boolean;
 	readonly onChange: (patch: StandupQuestionDraftPatch) => void;
 };
 
@@ -33,24 +34,28 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 	const needsOptions = questionTypeNeedsOptions(props.draft.type);
 	const taskCreationSupported = props.draft.type === 'text' || props.draft.type === 'long_text';
 
+	const showTemplateField = props.hideTemplateField !== true;
+
 	return (
-		<div className="cf:grid cf:gap-4">
-			<div className="cf:grid cf:gap-4 cf:xl:grid-cols-[1fr_14rem_10rem]">
-				<StandupField htmlFor={`${props.idPrefix}-template`} label="Template">
-					<CampfireSelect
-						id={`${props.idPrefix}-template`}
-						disabled={props.disabled || !props.allowTemplateChange}
-						value={props.draft.templateId}
-						onValueChange={(value) => props.onChange({ templateId: value })}
-					>
-						<option value="">Choose template</option>
-						{props.templates.map((template) => (
-							<option key={template.id} value={template.id}>
-								{template.name}
-							</option>
-						))}
-					</CampfireSelect>
-				</StandupField>
+		<div className="campfire-standup-question-field-grid">
+			<div className={showTemplateField ? 'campfire-standup-question-primary-grid' : 'campfire-standup-question-primary-grid campfire-standup-question-primary-grid--no-template'}>
+				{showTemplateField && (
+					<StandupField htmlFor={`${props.idPrefix}-template`} label="Template">
+						<CampfireSelect
+							id={`${props.idPrefix}-template`}
+							disabled={props.disabled || !props.allowTemplateChange}
+							value={props.draft.templateId}
+							onValueChange={(value) => props.onChange({ templateId: value })}
+						>
+							<option value="">Choose template</option>
+							{props.templates.map((template) => (
+								<option key={template.id} value={template.id}>
+									{template.name}
+								</option>
+							))}
+						</CampfireSelect>
+					</StandupField>
+				)}
 
 				<StandupField htmlFor={`${props.idPrefix}-type`} label="Type">
 					<CampfireSelect
@@ -90,7 +95,7 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 				</StandupField>
 			</div>
 
-			<div className="cf:grid cf:gap-4 cf:xl:grid-cols-[1fr_18rem]">
+			<div className="campfire-standup-question-label-grid">
 				<StandupField htmlFor={`${props.idPrefix}-label`} label="Question label">
 					<CampfireResponsiveInput
 						id={`${props.idPrefix}-label`}
@@ -112,7 +117,7 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 				</StandupField>
 			</div>
 
-			<div className="cf:grid cf:gap-4 cf:xl:grid-cols-2">
+			<div className="campfire-standup-question-helper-grid">
 				<StandupField htmlFor={`${props.idPrefix}-help`} label="Help text">
 					<CampfireResponsiveInput
 						id={`${props.idPrefix}-help`}
@@ -151,7 +156,7 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 				</StandupField>
 			)}
 
-			<div className="cf:grid cf:gap-3 cf:xl:grid-cols-4">
+			<div className="campfire-standup-question-behavior-grid">
 				<CampfireCheckboxField
 					checked={props.draft.required}
 					disabled={props.disabled}

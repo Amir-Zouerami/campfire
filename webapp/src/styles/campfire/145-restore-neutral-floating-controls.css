@@ -1,0 +1,231 @@
+/*
+ * Round 23: restore the agreed neutral dark-grey floating-control language.
+ * This file intentionally sits last in the import order so page cleanup layers
+ * cannot accidentally push date/time/select/user-picker surfaces back into the
+ * orange-brown treatment.
+ */
+
+.campfire-theme {
+	--campfire-neutral-popover-bg: #161616;
+	--campfire-neutral-popover-bg-strong: #1b1b1b;
+	--campfire-neutral-popover-bg-hover: #242424;
+	--campfire-neutral-popover-bg-selected: #2b2b2b;
+	--campfire-neutral-popover-border: rgba(255, 255, 255, 0.14);
+	--campfire-neutral-popover-border-strong: rgba(255, 255, 255, 0.2);
+	--campfire-neutral-popover-text: rgba(247, 247, 247, 0.92);
+	--campfire-neutral-popover-muted: rgba(214, 214, 214, 0.68);
+	--campfire-neutral-popover-accent: #e7b46a;
+	--campfire-neutral-popover-accent-soft: rgba(231, 180, 106, 0.18);
+}
+
+/* Shared floating/control shell: select, searchable user picker, date picker, time picker. */
+.campfire-theme :where(
+	.campfire-select-menu,
+	.campfire-select-menu--local,
+	.campfire-user-picker-menu,
+	.campfire-date-picker-popover,
+	.campfire-time-picker-popover
+) {
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.062), rgba(255, 255, 255, 0.024)),
+		var(--campfire-neutral-popover-bg) !important;
+	border: 1px solid var(--campfire-neutral-popover-border) !important;
+	box-shadow:
+		0 28px 72px rgba(0, 0, 0, 0.7),
+		0 0 0 1px rgba(255, 255, 255, 0.045),
+		inset 0 1px 0 rgba(255, 255, 255, 0.055) !important;
+	color: var(--campfire-neutral-popover-text) !important;
+}
+
+/* Date picker internals must inherit the grey surface instead of older orange panels. */
+.campfire-theme :where(
+	.campfire-date-picker-header,
+	.campfire-date-picker-weekdays,
+	.campfire-date-picker-grid,
+	.campfire-date-picker-day,
+	.campfire-date-picker-nav-button
+) {
+	color: var(--campfire-neutral-popover-text) !important;
+}
+
+.campfire-theme .campfire-date-picker-glow,
+.campfire-theme .campfire-time-picker-glow {
+	opacity: 0.12 !important;
+	background:
+		radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.14), transparent 38%),
+		radial-gradient(circle at 80% 10%, rgba(231, 180, 106, 0.1), transparent 35%) !important;
+}
+
+.campfire-theme .campfire-date-picker-header,
+.campfire-theme .campfire-time-picker-header,
+.campfire-theme .campfire-time-picker-option-list {
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.022)),
+		var(--campfire-neutral-popover-bg-strong) !important;
+	border-color: rgba(255, 255, 255, 0.11) !important;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.046) !important;
+}
+
+.campfire-theme .campfire-date-picker-month,
+.campfire-theme .campfire-date-picker-year,
+.campfire-theme .campfire-time-picker-title {
+	color: #f4f4f4 !important;
+}
+
+.campfire-theme .campfire-time-picker-eyebrow,
+.campfire-theme .campfire-time-picker-column-label,
+.campfire-theme .campfire-date-picker-weekday {
+	color: var(--campfire-neutral-popover-muted) !important;
+}
+
+/* Neutral option/button states. Warm accent is only a small signal, not the whole surface. */
+.campfire-theme :where(
+	.campfire-select-option,
+	.campfire-user-picker-option,
+	.campfire-time-picker-option,
+	.campfire-date-picker-day
+) {
+	background: transparent !important;
+	border-color: transparent !important;
+	color: var(--campfire-neutral-popover-text) !important;
+}
+
+.campfire-theme :where(
+	.campfire-select-option,
+	.campfire-user-picker-option,
+	.campfire-time-picker-option,
+	.campfire-date-picker-day
+):hover,
+.campfire-theme :where(
+	.campfire-select-option,
+	.campfire-user-picker-option,
+	.campfire-time-picker-option,
+	.campfire-date-picker-day
+):focus,
+.campfire-theme :where(
+	.campfire-select-option,
+	.campfire-user-picker-option,
+	.campfire-time-picker-option,
+	.campfire-date-picker-day
+):focus-visible {
+	background: var(--campfire-neutral-popover-bg-hover) !important;
+	border-color: rgba(255, 255, 255, 0.13) !important;
+	box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.055) !important;
+	color: #ffffff !important;
+}
+
+.campfire-theme :where(
+	.campfire-select-option--selected,
+	.campfire-select-option[aria-selected='true'],
+	.campfire-user-picker-option--selected,
+	.campfire-user-picker-option[aria-selected='true'],
+	.campfire-time-picker-option--selected,
+	.campfire-time-picker-option[aria-pressed='true'],
+	.campfire-date-picker-day--selected,
+	.campfire-date-picker-day[aria-pressed='true']
+) {
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.052)),
+		var(--campfire-neutral-popover-bg-selected) !important;
+	border-color: rgba(231, 180, 106, 0.24) !important;
+	box-shadow:
+		inset 0 0 0 1px var(--campfire-neutral-popover-accent-soft),
+		0 8px 22px rgba(0, 0, 0, 0.24) !important;
+	color: #fff7ec !important;
+}
+
+.campfire-theme .campfire-date-picker-day--today:not(.campfire-date-picker-day--selected) {
+	border-color: rgba(231, 180, 106, 0.32) !important;
+	box-shadow: inset 0 0 0 1px rgba(231, 180, 106, 0.12) !important;
+}
+
+.campfire-theme .campfire-date-picker-day--outside,
+.campfire-theme .campfire-date-picker-day[aria-disabled='true'] {
+	color: rgba(210, 210, 210, 0.38) !important;
+}
+
+/* Search fields inside floating menus. */
+.campfire-theme :where(.campfire-select-search, .campfire-user-picker-search) {
+	background: rgba(0, 0, 0, 0.26) !important;
+	border-color: rgba(255, 255, 255, 0.12) !important;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+	color: var(--campfire-neutral-popover-text) !important;
+}
+
+.campfire-theme :where(.campfire-select-search, .campfire-user-picker-search):focus {
+	border-color: rgba(231, 180, 106, 0.38) !important;
+	box-shadow:
+		0 0 0 2px rgba(231, 180, 106, 0.12),
+		inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
+}
+
+/* Trigger surfaces also stay grey, not brown. */
+.campfire-theme :where(
+	.campfire-select-trigger,
+	.campfire-date-picker-trigger,
+	.campfire-time-picker-trigger,
+	.campfire-user-picker-trigger
+) {
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.066), rgba(255, 255, 255, 0.036)),
+		#202020 !important;
+	border-color: rgba(255, 255, 255, 0.15) !important;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.052) !important;
+	color: rgba(247, 247, 247, 0.94) !important;
+}
+
+.campfire-theme :where(
+	.campfire-select-trigger:hover,
+	.campfire-date-picker-trigger:hover,
+	.campfire-time-picker-trigger:hover,
+	.campfire-user-picker-trigger:hover,
+	.campfire-select--open .campfire-select-trigger,
+	.campfire-date-picker-trigger--open,
+	.campfire-time-picker-trigger--open,
+	.campfire-user-picker--open .campfire-user-picker-trigger
+) {
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.084), rgba(255, 255, 255, 0.046)),
+		#242424 !important;
+	border-color: rgba(255, 255, 255, 0.22) !important;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.07),
+		0 0 0 1px rgba(231, 180, 106, 0.08) !important;
+}
+
+/* Icons can remain warm, but muted. */
+.campfire-theme :where(
+	.campfire-select-trigger svg,
+	.campfire-date-picker-trigger-icon svg,
+	.campfire-time-picker-trigger-icons svg,
+	.campfire-user-picker-trigger svg,
+	.campfire-date-picker-nav-button svg,
+	.campfire-time-picker-header svg
+) {
+	color: rgba(231, 180, 106, 0.78) !important;
+}
+
+.campfire-theme .campfire-time-picker-footer {
+	background: rgba(0, 0, 0, 0.18) !important;
+	border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.campfire-theme .campfire-time-picker-footer-button {
+	background: rgba(255, 255, 255, 0.075) !important;
+	border-color: rgba(255, 255, 255, 0.12) !important;
+	color: rgba(247, 247, 247, 0.9) !important;
+}
+
+.campfire-theme .campfire-time-picker-footer-button:hover,
+.campfire-theme .campfire-time-picker-footer-button:focus {
+	background: rgba(255, 255, 255, 0.11) !important;
+	border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+.campfire-theme .campfire-time-picker-footer-button--primary {
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.06)),
+		#2d2d2d !important;
+	border-color: rgba(231, 180, 106, 0.22) !important;
+	color: #fff5e8 !important;
+}

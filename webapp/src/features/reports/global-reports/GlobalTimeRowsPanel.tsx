@@ -1,8 +1,9 @@
 import type { ReactElement } from 'react';
 import { Clock3, Rows3 } from 'lucide-react';
 
+import { CampfireEllipsisText } from '@/components/campfire/CampfireBidiText';
+import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
 import type { TimeReportGroupBy, TimeReportRow } from '@/types/domain';
-import { CampfireEmpty, CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 import {
 	formatMinutes,
@@ -24,26 +25,26 @@ type GlobalTimeRowsPanelProps = {
  * GlobalTimeRowsPanel renders grouped global time report rows.
  */
 export function GlobalTimeRowsPanel(props: GlobalTimeRowsPanelProps): ReactElement {
-	return (
-		<section className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5">
-			<div>
-				<p className="cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
-					Grouped rows
-				</p>
-				<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
-					Global time breakdown
-				</h3>
-			</div>
+	const rows = sortGlobalRowsNewestFirst(props.rows);
 
-			{props.rows.length === 0 ? (
+	return (
+		<section className="campfire-report-list-panel">
+			<header className="campfire-report-section-header">
+				<div>
+					<p className="campfire-page-eyebrow">Grouped rows</p>
+					<h3 className="campfire-surface-title">Global time breakdown</h3>
+				</div>
+			</header>
+
+			{rows.length === 0 ? (
 				<CampfireEmpty
 					icon={Rows3}
 					title="No grouped rows"
 					description="No time entries matched this grouping and date range."
 				/>
 			) : (
-				<div className="cf:grid cf:gap-3">
-					{props.rows.map(row => (
+				<div className="campfire-report-row-list">
+					{rows.map(row => (
 						<GlobalTimeRow
 							key={`${row.key}-${row.periodStart}-${row.periodEnd}`}
 							row={row}
@@ -66,42 +67,49 @@ function GlobalTimeRow(props: {
 	readonly labelForUserID: (userID: string) => string;
 }): ReactElement {
 	const metaChips = globalTimeRowMetaChips(props.row);
+	const title = globalTimeRowTitle(props.row, props.groupBy, props.labelForUserID);
 
 	return (
-		<article className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-black/20 cf:p-4 cf:lg:grid-cols-[1fr_auto]">
-			<div className="cf:min-w-0">
-				<div className="cf:flex cf:flex-wrap cf:items-center cf:gap-2">
-					<h4 className="cf:min-w-0 cf:truncate cf:text-base cf:font-semibold cf:text-foreground">
-						{globalTimeRowTitle(props.row, props.groupBy, props.labelForUserID)}
-					</h4>
-					<CampfireStatusPill tone="green">
-						<Clock3 className="cf:size-3.5" />
+		<article className="campfire-report-row-card">
+			<div className="campfire-report-row-main">
+				<div className="campfire-report-row-title-line">
+					<CampfireEllipsisText value={title} className="campfire-report-row-title" />
+					<span className="campfire-report-duration">
+						<Clock3 className="cf:size-4" />
 						{formatMinutes(props.row.minutes)}
-					</CampfireStatusPill>
+					</span>
 				</div>
 
-				<p className="cf:mt-2 cf:text-sm cf:font-semibold cf:text-muted-foreground">
-					{globalTimeRowSubtitle(props.row)}
-				</p>
+				<p className="campfire-report-row-subtitle">{globalTimeRowSubtitle(props.row)}</p>
 
 				{metaChips.length > 0 && (
-					<div className="cf:mt-3 cf:flex cf:flex-wrap cf:gap-2">
+					<div className="campfire-report-row-meta">
 						{metaChips.map(chip => (
-							<span
-								key={`${chip.label}-${chip.value}`}
-								className="cf:max-w-full cf:truncate cf:rounded-full cf:border cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:px-2.5 cf:py-1 cf:text-xs cf:font-semibold cf:text-emerald-100"
-							>
-								{chip.label}: {chip.value}
+							<span key={`${chip.label}-${chip.value}`} className="campfire-report-meta-chip">
+								<span>{chip.label}</span>
+								<CampfireEllipsisText value={chip.value} />
 							</span>
 						))}
 					</div>
 				)}
 			</div>
 
-			<div className="cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-3 cf:text-right">
-				<p className="cf:text-xs cf:font-semibold cf:uppercase cf:tracking-widest cf:text-amber-200">Entries</p>
-				<p className="cf:mt-1 cf:text-2xl cf:font-semibold cf:text-foreground">{props.row.entryCount}</p>
+			<div className="campfire-report-row-count" aria-label={`${props.row.entryCount} entries`}>
+				<strong>{props.row.entryCount}</strong>
+				<span>{props.row.entryCount === 1 ? 'entry' : 'entries'}</span>
 			</div>
 		</article>
 	);
+}
+
+/**
+ * sortGlobalRowsNewestFirst sorts global rows by period date descending.
+ */
+function sortGlobalRowsNewestFirst(rows: readonly TimeReportRow[]): readonly TimeReportRow[] {
+	return [...rows].sort((left, right) => {
+		const rightDate = right.periodEnd || right.periodStart;
+		const leftDate = left.periodEnd || left.periodStart;
+
+		return rightDate.localeCompare(leftDate);
+	});
 }

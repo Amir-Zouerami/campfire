@@ -1,0 +1,128 @@
+/*
+ * Round 19: experiment with a calmer dark-grey select menu and anchor date
+ * pickers locally so they do not drift outside the visible modal area.
+ */
+
+.campfire-theme .campfire-select-trigger {
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.038)),
+		#202020 !important;
+	border-color: rgba(255, 255, 255, 0.15) !important;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055) !important;
+}
+
+.campfire-theme .campfire-select-trigger:hover,
+.campfire-theme .campfire-select--open .campfire-select-trigger {
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.085), rgba(255, 255, 255, 0.048)),
+		#242424 !important;
+	border-color: rgba(245, 230, 190, 0.28) !important;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.07),
+		0 0 0 1px rgba(245, 180, 92, 0.08) !important;
+}
+
+.campfire-theme .campfire-select-trigger:focus-visible {
+	border-color: rgba(245, 194, 120, 0.54) !important;
+	box-shadow:
+		0 0 0 2px rgba(245, 180, 92, 0.16),
+		inset 0 1px 0 rgba(255, 255, 255, 0.07) !important;
+}
+
+.campfire-theme .campfire-select-menu,
+.campfire-theme .campfire-select-menu--local {
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025)),
+		#171717 !important;
+	border-color: rgba(255, 255, 255, 0.13) !important;
+	box-shadow:
+		0 26px 72px rgba(0, 0, 0, 0.68),
+		0 0 0 1px rgba(255, 255, 255, 0.045) !important;
+}
+
+.campfire-theme .campfire-select-search {
+	background: rgba(0, 0, 0, 0.24) !important;
+	border-color: rgba(255, 255, 255, 0.11) !important;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
+}
+
+.campfire-theme .campfire-select-option {
+	background: transparent !important;
+	color: rgba(245, 245, 245, 0.88) !important;
+	min-height: 40px !important;
+}
+
+.campfire-theme .campfire-select-option:hover,
+.campfire-theme .campfire-select-option:focus {
+	background: rgba(255, 255, 255, 0.075) !important;
+	color: #ffffff !important;
+}
+
+.campfire-theme .campfire-select-option--selected,
+.campfire-theme .campfire-select-option[aria-selected='true'] {
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.055)),
+		#2d2d2d !important;
+	color: #fff8ed !important;
+	box-shadow:
+		inset 0 0 0 1px rgba(245, 190, 110, 0.22),
+		0 8px 22px rgba(0, 0, 0, 0.24) !important;
+}
+
+.campfire-theme .campfire-select-option svg,
+.campfire-theme .campfire-select-trigger svg {
+	color: rgba(247, 214, 142, 0.92) !important;
+}
+
+.campfire-theme .campfire-date-picker--local {
+	position: relative !important;
+}
+
+.campfire-theme .campfire-date-picker--open {
+	z-index: 10020 !important;
+}
+
+.campfire-theme .campfire-date-picker-popover--local {
+	position: absolute !important;
+	width: min(22rem, calc(100vw - 2rem)) !important;
+	max-height: var(--campfire-date-popover-max-height, 26.875rem) !important;
+	z-index: 10030 !important;
+	inset: auto !important;
+	margin: 0 !important;
+	transform: none !important;
+	overflow-y: auto !important;
+}
+
+.campfire-theme .campfire-date-picker-popover--below {
+	top: calc(100% + 8px) !important;
+	bottom: auto !important;
+}
+
+.campfire-theme .campfire-date-picker-popover--above {
+	top: auto !important;
+	bottom: calc(100% + 8px) !important;
+}
+
+.campfire-theme .campfire-date-picker-popover--align-start {
+	left: 0 !important;
+	right: auto !important;
+}
+
+.campfire-theme .campfire-date-picker-popover--align-end {
+	left: auto !important;
+	right: 0 !important;
+}
+
+.campfire-theme .campfire-date-picker-popover {
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025)),
+		#171717 !important;
+	border-color: rgba(255, 255, 255, 0.13) !important;
+	box-shadow:
+		0 26px 72px rgba(0, 0, 0, 0.68),
+		0 0 0 1px rgba(255, 255, 255, 0.045) !important;
+}
+
+.campfire-theme .campfire-date-picker-glow {
+	opacity: 0.28 !important;
+}

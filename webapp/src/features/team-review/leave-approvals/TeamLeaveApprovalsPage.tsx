@@ -1,7 +1,9 @@
 import type { ReactElement } from 'react';
-import { ClipboardCheck, Hourglass, MessageSquare, Users } from 'lucide-react';
+import { ClipboardCheck } from 'lucide-react';
 
-import { CampfireEmpty, CampfireStatCard, CampfireSurface } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireReportSummaryBar } from '@/components/campfire/CampfireReportSummaryBar';
+import { CampfireSettingsPanel } from '@/components/campfire/CampfireSettingsPanel';
 import { useUserProfiles } from '@/app/useUserProfiles';
 import type { Workspace } from '@/types/domain';
 
@@ -30,60 +32,48 @@ export function TeamLeaveApprovalsPage(props: TeamLeaveApprovalsPageProps): Reac
 	}
 
 	return (
-		<div className="campfire-team-workflow">
-			<div className="campfire-stat-grid campfire-stat-grid--four">
-				<CampfireStatCard icon={Hourglass} label="Pending" value={String(approvals.pendingCount)} helper="Need a decision" />
-				<CampfireStatCard
-					icon={ClipboardCheck}
-					label="Workflow"
-					value="Approve / Reject"
-					helper="Decision note preserved"
-					tone="green"
+		<div className="campfire-team-workflow campfire-team-review-clean-page">
+			<CampfireSettingsPanel
+				icon={ClipboardCheck}
+				title="Leave approval queue"
+				description="Review pending leave requests and record a clear approval or rejection decision."
+				className="campfire-team-review-panel"
+			>
+				<CampfireReportSummaryBar
+					items={[
+						{ label: 'Pending', value: String(approvals.pendingCount), tone: approvals.pendingCount > 0 ? 'warning' : 'success' },
+						{ label: 'Decision notes', value: 'Supported' },
+						{ label: 'Profiles', value: profiles.loading ? 'Loading' : 'Ready' },
+					]}
 				/>
-				<CampfireStatCard
-					icon={MessageSquare}
-					label="Notes"
-					value="Supported"
-					helper="Reviewer comments"
-					tone="blue"
+			</CampfireSettingsPanel>
+
+			<TeamLeaveApprovalsFeedback
+				state={approvals.loadState}
+				message={approvals.message}
+				profileErrorMessage={profiles.errorMessage}
+			/>
+
+			{approvals.loadState === 'loading' && <TeamLeaveApprovalsLoading />}
+
+			{approvals.loadState !== 'idle' && approvals.loadState !== 'loading' && (
+				<TeamLeaveApprovalQueue
+					leaveRequests={approvals.leaveRequests}
+					comments={approvals.comments}
+					disabled={approvals.isBusy}
+					labelForUserID={profiles.labelForUserID}
+					onCommentChange={approvals.updateComment}
+					timezone={props.workspace.timezone}
+					onDecision={approvals.decide}
 				/>
-				<CampfireStatCard
-					icon={Users}
-					label="Profiles"
-					value={profiles.loading ? 'Loading' : 'Ready'}
-					helper="Requester labels"
-					tone="slate"
+			)}
+
+			{approvals.loadState === 'error' && approvals.leaveRequests.length === 0 && (
+				<CampfireEmpty
+					title="Approval queue unavailable"
+					description="Campfire could not load pending leave requests. Try again after checking the API response."
 				/>
-			</div>
-
-			<CampfireSurface className="campfire-team-workflow-surface">
-				<TeamLeaveApprovalsFeedback
-					state={approvals.loadState}
-					message={approvals.message}
-					profileErrorMessage={profiles.errorMessage}
-				/>
-
-				{approvals.loadState === 'loading' && <TeamLeaveApprovalsLoading />}
-
-				{approvals.loadState !== 'idle' && approvals.loadState !== 'loading' && (
-					<TeamLeaveApprovalQueue
-						leaveRequests={approvals.leaveRequests}
-						comments={approvals.comments}
-						disabled={approvals.isBusy}
-						labelForUserID={profiles.labelForUserID}
-						onCommentChange={approvals.updateComment}
-						timezone={props.workspace.timezone}
-						onDecision={approvals.decide}
-					/>
-				)}
-
-				{approvals.loadState === 'error' && approvals.leaveRequests.length === 0 && (
-					<CampfireEmpty
-						title="Approval queue unavailable"
-						description="Campfire could not load pending leave requests. Try again after checking the API response."
-					/>
-				)}
-			</CampfireSurface>
+			)}
 		</div>
 	);
 }

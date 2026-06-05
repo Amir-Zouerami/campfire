@@ -1,0 +1,193 @@
+/*
+ * Round 8 foundation pass one.
+ * Scope: fixed local floating overlays, readable data rows, title-card
+ * standardization, bidi-safe text, and calmer tooltip/ellipsis behavior.
+ */
+
+/* Floating overlays stay in the Campfire tree but position like overlays. */
+.campfire-theme .campfire-floating-popover {
+	position: fixed !important;
+	z-index: 2147483000 !important;
+	max-height: var(--campfire-floating-max-height, min(22rem, calc(100vh - 3rem))) !important;
+	min-width: var(--campfire-floating-min-width, 12rem) !important;
+	inset: auto !important;
+}
+
+.campfire-theme .campfire-select-menu.campfire-floating-popover {
+	width: auto !important;
+	min-width: var(--campfire-floating-min-width, 12rem) !important;
+	max-width: min(34rem, calc(100vw - 2.25rem)) !important;
+	overflow-y: auto !important;
+	overflow-x: hidden !important;
+}
+
+.campfire-theme .campfire-date-picker-popover.campfire-floating-popover,
+.campfire-theme .campfire-time-picker-popover.campfire-floating-popover {
+	overflow: auto !important;
+}
+
+/* Shared focused-page title card. */
+.campfire-theme .campfire-page-intro-card {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: clamp(1rem, 2vw, 2rem);
+	border: 1px solid rgba(251, 146, 60, 0.18);
+	border-radius: 1.55rem;
+	background:
+		radial-gradient(circle at 0 0, rgba(251, 146, 60, 0.10), transparent 24rem),
+		rgba(255, 255, 255, 0.024);
+	padding: clamp(1.2rem, 1.7vw, 1.9rem);
+}
+
+.campfire-theme .campfire-page-intro-copy {
+	display: grid;
+	min-width: 0;
+	gap: 0.45rem;
+}
+
+.campfire-theme .campfire-page-intro-copy h2 {
+	margin: 0 !important;
+	color: #fff7ed !important;
+	font-size: clamp(2rem, 2.2vw, 3.35rem) !important;
+	font-weight: 780 !important;
+	letter-spacing: -0.065em !important;
+	line-height: 0.98 !important;
+}
+
+.campfire-theme .campfire-page-intro-copy p:not(.campfire-page-eyebrow) {
+	max-width: 58rem;
+	margin: 0 !important;
+	color: rgba(231, 229, 228, 0.72) !important;
+	font-size: 1.02rem !important;
+	font-weight: 570 !important;
+	line-height: 1.55 !important;
+}
+
+.campfire-theme .campfire-page-intro-actions {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 0.75rem;
+}
+
+/* Readable table/list foundation. */
+.campfire-theme .campfire-readable-table-surface {
+	padding: clamp(1rem, 1.4vw, 1.45rem) !important;
+}
+
+.campfire-theme .campfire-data-table--readable {
+	display: grid;
+	gap: 0.35rem;
+}
+
+.campfire-theme .campfire-data-table--readable .campfire-data-table-row {
+	grid-template-columns: minmax(18rem, 2.1fr) minmax(7rem, 0.55fr) minmax(7rem, 0.65fr) minmax(9rem, 0.8fr) minmax(13rem, 1fr);
+	gap: clamp(0.85rem, 1.1vw, 1.35rem);
+	align-items: center;
+}
+
+.campfire-theme .campfire-data-table--time .campfire-data-table-row {
+	grid-template-columns: minmax(18rem, 2.2fr) minmax(9rem, 0.8fr) minmax(9rem, 0.75fr) minmax(14rem, 1.25fr);
+}
+
+.campfire-theme .campfire-data-table--readable .campfire-data-table-row:not(.campfire-data-table-row--head) {
+	min-height: 4.75rem !important;
+	padding-block: 0.9rem !important;
+}
+
+.campfire-theme .campfire-data-table--readable .campfire-data-table-row:not(.campfire-data-table-row--head) > span {
+	min-width: 0;
+	font-size: 1.04rem !important;
+	line-height: 1.35 !important;
+}
+
+.campfire-theme .campfire-data-table--readable .campfire-data-table-row--head > span {
+	font-size: 0.82rem !important;
+	font-weight: 850 !important;
+	letter-spacing: 0.12em !important;
+}
+
+.campfire-theme .campfire-task-title-cell {
+	display: grid !important;
+	min-width: 0 !important;
+	gap: 0.35rem !important;
+}
+
+.campfire-theme .campfire-task-title-cell strong {
+	display: block;
+	min-width: 0;
+	color: #fff7ed !important;
+	font-family: var(--campfire-persian-font), var(--campfire-font-sans), sans-serif !important;
+	font-size: 1.05rem !important;
+	font-weight: 780 !important;
+	line-height: 1.35 !important;
+}
+
+.campfire-theme .campfire-task-title-cell small {
+	min-width: 0;
+	color: rgba(214, 211, 209, 0.64) !important;
+	font-family: var(--campfire-persian-font), var(--campfire-font-sans), sans-serif !important;
+	font-size: 0.94rem !important;
+	font-weight: 630 !important;
+	line-height: 1.35 !important;
+}
+
+.campfire-theme .campfire-muted-cell,
+.campfire-theme .campfire-muted-cell .campfire-ellipsis-text,
+.campfire-theme .campfire-data-table--readable .campfire-ellipsis-text {
+	font-family: var(--campfire-persian-font), var(--campfire-font-sans), sans-serif !important;
+	font-size: 1rem !important;
+	font-weight: 650 !important;
+}
+
+.campfire-theme .campfire-data-table--readable .campfire-select {
+	min-width: 12rem;
+}
+
+.campfire-theme .campfire-table-footer {
+	margin-top: 0.65rem !important;
+	font-size: 1rem !important;
+	font-weight: 650 !important;
+}
+
+/* Ellipsis hover support should apply to every isolated display value. */
+.campfire-theme .campfire-ellipsis-text {
+	cursor: help;
+}
+
+.campfire-theme .campfire-bidi-text,
+.campfire-theme .campfire-ellipsis-text,
+.campfire-theme .campfire-select-option-label,
+.campfire-theme .campfire-select-trigger-label {
+	unicode-bidi: isolate;
+	font-family: var(--campfire-persian-font), var(--campfire-font-sans), sans-serif !important;
+}
+
+/* Date alternate calendar: show the local calendar as a clean second value. */
+.campfire-theme .campfire-date-picker-value-stack {
+	gap: 0.36rem !important;
+}
+
+.campfire-theme .campfire-date-picker-hint-calendar {
+	font-size: 0.98rem !important;
+	font-weight: 760 !important;
+	line-height: 1.15 !important;
+}
+
+@media (max-width: 1100px) {
+	.campfire-theme .campfire-page-intro-card {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.campfire-theme .campfire-page-intro-actions {
+		justify-content: flex-start;
+	}
+
+	.campfire-theme .campfire-data-table--readable .campfire-data-table-row,
+	.campfire-theme .campfire-data-table--time .campfire-data-table-row {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}

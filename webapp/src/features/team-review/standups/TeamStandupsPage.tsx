@@ -1,7 +1,9 @@
 import type { ReactElement } from 'react';
-import { ClipboardList, Percent, UserRoundCheck, UserRoundX, Users } from 'lucide-react';
+import { ClipboardList } from 'lucide-react';
 
-import { CampfireStatCard, CampfireWorkflowIntro } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireControlsPanel } from '@/components/campfire/CampfireControlsPanel';
+import { CampfireReportSummaryBar } from '@/components/campfire/CampfireReportSummaryBar';
+import { CampfireSettingsPanel } from '@/components/campfire/CampfireSettingsPanel';
 import { useUserProfiles } from '@/app/useUserProfiles';
 import type { Workspace } from '@/types/domain';
 
@@ -25,14 +27,17 @@ type TeamStandupsPageProps = {
 export function TeamStandupsPage(props: TeamStandupsPageProps): ReactElement {
 	const standups = useTeamStandups(props);
 	const profiles = useUserProfiles(standups.userIDsForProfiles);
+	const memberCount = standups.summary?.memberUserIds.length ?? 0;
+	const submittedCount = standups.summary?.submittedUserIds.length ?? 0;
+	const missingCount = standups.summary?.missingUserIds.length ?? 0;
+	const onLeaveCount = standups.summary?.onLeaveUserIds.length ?? 0;
 
 	return (
-		<div className="campfire-team-standups-page">
-			<CampfireWorkflowIntro
-				eyebrow="Review cockpit"
-				title="One clean standup review"
-				description="Pick the occurrence date, choose the review order, then scan missing people and submitted updates without nested cards."
-				id="campfire-standup-review-title"
+		<div className="campfire-team-standups-page campfire-team-review-clean-page">
+			<CampfireControlsPanel
+				eyebrow="Review filters"
+				title="Choose the standup occurrence"
+				description="Review one date at a time. People who submitted, missed, or were on approved leave are separated below."
 				controls={
 					<TeamStandupsControls
 						occurrenceDate={standups.occurrenceDate}
@@ -43,37 +48,17 @@ export function TeamStandupsPage(props: TeamStandupsPageProps): ReactElement {
 						onSortModeChange={standups.setSortMode}
 					/>
 				}
-			/>
-
-			<div className="campfire-stat-grid campfire-stat-grid--four campfire-standup-review-metrics">
-				<CampfireStatCard
-					icon={Users}
-					label="Members"
-					value={String(standups.summary?.memberUserIds.length ?? 0)}
-					helper={standups.occurrenceDate}
+			>
+				<CampfireReportSummaryBar
+					items={[
+						{ label: 'Members', value: String(memberCount) },
+						{ label: 'Submitted', value: String(submittedCount), tone: 'success' },
+						{ label: 'Missing', value: String(missingCount), tone: missingCount > 0 ? 'danger' : 'neutral' },
+						{ label: 'On leave', value: String(onLeaveCount) },
+						{ label: 'Complete', value: `${standups.submittedPercent}%`, tone: standups.submittedPercent >= 80 ? 'success' : 'warning' },
+					]}
 				/>
-				<CampfireStatCard
-					icon={UserRoundCheck}
-					label="Submitted"
-					value={String(standups.summary?.submittedUserIds.length ?? 0)}
-					helper="Completed check-ins"
-					tone="green"
-				/>
-				<CampfireStatCard
-					icon={UserRoundX}
-					label="Missing"
-					value={String(standups.summary?.missingUserIds.length ?? 0)}
-					helper="Need follow-up"
-					tone="red"
-				/>
-				<CampfireStatCard
-					icon={Percent}
-					label="Completion"
-					value={`${standups.submittedPercent}%`}
-					helper={profiles.loading ? 'Profiles loading' : 'Profiles ready'}
-					tone="ember"
-				/>
-			</div>
+			</CampfireControlsPanel>
 
 			<TeamStandupsFeedback
 				state={standups.loadState}
@@ -91,21 +76,18 @@ export function TeamStandupsPage(props: TeamStandupsPageProps): ReactElement {
 						labelForUserID={profiles.labelForUserID}
 					/>
 
-					<section className="campfire-standup-review-submissions" aria-labelledby="campfire-submitted-standups-title">
-						<div className="campfire-team-list-heading campfire-team-list-heading--flat">
-							<ClipboardList className="campfire-flat-header-icon" />
-							<div>
-								<h3 id="campfire-submitted-standups-title">Submitted standups</h3>
-								<p>Answers, blockers, and follow-up context for the selected occurrence date.</p>
-							</div>
-						</div>
-
+					<CampfireSettingsPanel
+						icon={ClipboardList}
+						title="Submitted standups"
+						description="Answers and blockers for the selected occurrence date."
+						className="campfire-team-review-panel"
+					>
 						<TeamStandupSubmissionList
 							submissions={standups.summary.submissions}
 							questionsByID={standups.questionsByID}
 							labelForUserID={profiles.labelForUserID}
 						/>
-					</section>
+					</CampfireSettingsPanel>
 				</>
 			)}
 		</div>

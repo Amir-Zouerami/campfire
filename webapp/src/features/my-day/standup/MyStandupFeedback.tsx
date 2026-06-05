@@ -16,7 +16,13 @@ type MyStandupFeedbackProps = {
  * MyStandupFeedback renders compact local workflow feedback.
  */
 export function MyStandupFeedback(props: MyStandupFeedbackProps): ReactElement | null {
-	return <CampfireFeedback message={props.message} tone={props.state === 'error' ? 'error' : 'success'} />;
+	return (
+		<CampfireFeedback
+			message={props.message}
+			tone={props.state === 'error' ? 'error' : 'success'}
+			showInlineError={props.state === 'error'}
+		/>
+	);
 }
 
 /**

@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { Loader2, Save } from 'lucide-react';
+import { Info, Loader2, Save } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import type { StandupSchedule, StandupTemplate } from '@/types/domain';
@@ -8,6 +8,7 @@ import { formatDateTime, formatLabel, scheduleHasChanges, shortID } from './stan
 import type { StandupScheduleDraft, StandupScheduleDraftPatch } from './standup-settings.types';
 import { StandupScheduleFields } from './StandupScheduleFields';
 import { CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireNotice } from '@/components/campfire/CampfireNotice';
 
 /**
  * StandupScheduleCardProps contains one persisted schedule and its draft.
@@ -40,7 +41,7 @@ export function StandupScheduleCard(props: StandupScheduleCardProps): ReactEleme
 					</p>
 
 					<h3 className="cf:m-0 cf:mt-3 cf:text-xl cf:font-semibold cf:leading-tight cf:tracking-[-0.03em] cf:text-foreground">
-						{props.schedule.timeOfDay} · {templateName}
+						{props.schedule.opensAt}–{props.schedule.timeOfDay} · {templateName}
 					</h3>
 
 					<p className="cf:m-0 cf:mt-2 cf:text-xs cf:font-bold cf:text-muted-foreground">
@@ -66,20 +67,21 @@ export function StandupScheduleCard(props: StandupScheduleCardProps): ReactEleme
 				onChange={patch => props.onDraftChange(props.schedule.id, patch)}
 			/>
 
-			<div className="campfire-standup-schedule-footer">
-				<p className="cf:m-0 cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
-					Daily and weekly schedules stay independent. Skipping daily on weekly days is explicit.
-				</p>
-
-				<Button
-					type="button"
-					disabled={formDisabled || !changed}
-					onClick={() => void props.onSave(props.schedule)}
-				>
-					{props.saving ? <Loader2 className="cf:size-4 cf:animate-spin" /> : <Save className="cf:size-4" />}
-					Save schedule
-				</Button>
-			</div>
+			<CampfireNotice
+				icon={Info}
+				title="Daily and weekly schedules stay independent."
+				description="Use “skip daily on weekly” only when the weekly report should replace the daily run."
+				action={
+					<Button
+						type="button"
+						disabled={formDisabled || !changed}
+						onClick={() => void props.onSave(props.schedule)}
+					>
+						{props.saving ? <Loader2 className="cf:size-4 cf:animate-spin" /> : <Save className="cf:size-4" />}
+						Save schedule
+					</Button>
+				}
+			/>
 		</article>
 	);
 }

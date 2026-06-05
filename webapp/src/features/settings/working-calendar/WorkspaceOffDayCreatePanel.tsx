@@ -1,10 +1,11 @@
 import type { FormEvent, ReactElement } from 'react';
 import { Plus } from 'lucide-react';
 
+import { CampfireControlButton } from '@/components/campfire/CampfireControlButton';
 import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
+import { CampfireField } from '@/components/campfire/CampfireField';
 import { CampfireResponsiveInput } from '@/components/campfire/CampfireResponsiveInput';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { CampfireSettingsPanel } from '@/components/campfire/CampfireSettingsPanel';
 
 import type { WorkspaceOffDayDraft, WorkspaceOffDayDraftPatch } from './working-calendar.types';
 
@@ -24,58 +25,47 @@ type WorkspaceOffDayCreatePanelProps = {
  * WorkspaceOffDayCreatePanel renders the add workspace off-day form.
  */
 export function WorkspaceOffDayCreatePanel(props: WorkspaceOffDayCreatePanelProps): ReactElement {
-	/**
-	 * handleSubmit creates the workspace off-day.
-	 */
 	function handleSubmit(event: FormEvent<HTMLFormElement>): void {
 		event.preventDefault();
 		void props.onCreate();
 	}
 
 	return (
-		<form
-			className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5"
-			onSubmit={handleSubmit}
+		<CampfireSettingsPanel
+			eyebrow="Workspace off-days"
+			title="Skip one workspace date"
+			description="Add holidays, release breaks, or one-off dates when this workspace should not run standup automation."
 		>
-			<div>
-				<p className="cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
-					Add off-day
-				</p>
-				<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
-					Skip a workspace date
-				</h3>
-			</div>
+			<form className="campfire-settings-form" onSubmit={handleSubmit}>
+				<div className="campfire-settings-control-grid campfire-settings-control-grid--date-label">
+					<CampfireField id="campfire-workspace-off-day-date" label="Date">
+						<CampfireDateInput
+							id="campfire-workspace-off-day-date"
+							disabled={props.disabled || !props.canManageCalendar}
+							timezone={props.timezone}
+							value={props.draft.date}
+							onValueChange={value => props.onChange({ date: value })}
+						/>
+					</CampfireField>
 
-			<div className="cf:grid cf:gap-4 cf:md:grid-cols-[14rem_1fr]">
-				<div className="cf:grid cf:gap-2">
-					<Label htmlFor="campfire-workspace-off-day-date">Date</Label>
-					<CampfireDateInput
-						id="campfire-workspace-off-day-date"
-						disabled={props.disabled || !props.canManageCalendar}
-						timezone={props.timezone}
-						value={props.draft.date}
-						onValueChange={value => props.onChange({ date: value })}
-					/>
+					<CampfireField id="campfire-workspace-off-day-label" label="Label">
+						<CampfireResponsiveInput
+							id="campfire-workspace-off-day-label"
+							disabled={props.disabled || !props.canManageCalendar}
+							placeholder="Company holiday"
+							value={props.draft.label}
+							onValueChange={value => props.onChange({ label: value })}
+						/>
+					</CampfireField>
 				</div>
 
-				<div className="cf:grid cf:gap-2">
-					<Label htmlFor="campfire-workspace-off-day-label">Label</Label>
-					<CampfireResponsiveInput
-						id="campfire-workspace-off-day-label"
-						disabled={props.disabled || !props.canManageCalendar}
-						placeholder="Company holiday"
-						value={props.draft.label}
-						onValueChange={value => props.onChange({ label: value })}
-					/>
+				<div className="campfire-settings-form-actions">
+					<CampfireControlButton type="submit" disabled={props.disabled || !props.canManageCalendar}>
+						<Plus className="cf:size-4" />
+						Add off-day
+					</CampfireControlButton>
 				</div>
-			</div>
-
-			<div className="cf:flex cf:justify-end">
-				<Button type="submit" disabled={props.disabled || !props.canManageCalendar}>
-					<Plus className="cf:size-4" />
-					Add off-day
-				</Button>
-			</div>
-		</form>
+			</form>
+		</CampfireSettingsPanel>
 	);
 }

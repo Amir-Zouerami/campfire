@@ -1,0 +1,501 @@
+/*
+ * Campfire control design-system stabilizer.
+ *
+ * This is intentionally component-scoped. It normalizes the shared controls only:
+ * CampfireSelect, CampfireDateInput, CampfireTimeInput, Channel/User pickers,
+ * and reminder-time helper surfaces. No page-specific color hacks live here.
+ */
+
+.campfire-theme {
+	--cf-control-surface: #1b1916;
+	--cf-control-surface-hover: #201e1a;
+	--cf-control-surface-open: #211f1b;
+	--cf-control-line: rgba(255, 255, 255, 0.13);
+	--cf-control-line-strong: rgba(255, 255, 255, 0.22);
+	--cf-control-text: rgba(250, 247, 240, 0.94);
+	--cf-control-muted: rgba(250, 247, 240, 0.58);
+	--cf-control-faint: rgba(250, 247, 240, 0.34);
+	--cf-control-accent: #f2a64c;
+	--cf-control-accent-soft: rgba(242, 166, 76, 0.13);
+	--cf-control-accent-line: rgba(242, 166, 76, 0.72);
+	--cf-control-radius: 0.95rem;
+	--cf-control-popover-shadow: 0 26px 72px rgba(0, 0, 0, 0.64);
+}
+
+/* Closed shared controls. */
+.campfire-theme :where(
+	.campfire-select-trigger,
+	.campfire-date-picker-trigger,
+	.campfire-time-picker-trigger,
+	.campfire-channel-picker-search,
+	.campfire-user-picker-search,
+	.campfire-responsive-input,
+	.campfire-responsive-textarea,
+	[data-slot='input'],
+	[data-slot='textarea']
+) {
+	min-height: 3rem !important;
+	border: 1px solid var(--cf-control-line) !important;
+	border-radius: var(--cf-control-radius) !important;
+	background: var(--cf-control-surface) !important;
+	background-image: none !important;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+	color: var(--cf-control-text) !important;
+	color-scheme: dark !important;
+}
+
+.campfire-theme :where(
+	.campfire-select-trigger,
+	.campfire-date-picker-trigger,
+	.campfire-time-picker-trigger,
+	.campfire-channel-picker-search,
+	.campfire-user-picker-search,
+	.campfire-responsive-input,
+	.campfire-responsive-textarea,
+	[data-slot='input'],
+	[data-slot='textarea']
+):hover {
+	border-color: var(--cf-control-line-strong) !important;
+	background: var(--cf-control-surface-hover) !important;
+	background-image: none !important;
+}
+
+.campfire-theme :where(
+	.campfire-select-trigger:focus-visible,
+	.campfire-select-trigger[aria-expanded='true'],
+	.campfire-date-picker-trigger:focus-visible,
+	.campfire-date-picker-trigger--open,
+	.campfire-time-picker-trigger:focus-visible,
+	.campfire-time-picker-trigger--open,
+	.campfire-channel-picker-search:focus-within,
+	.campfire-user-picker-search:focus-within,
+	.campfire-responsive-input:focus-visible,
+	.campfire-responsive-textarea:focus-visible,
+	[data-slot='input']:focus-visible,
+	[data-slot='textarea']:focus-visible
+) {
+	border-color: var(--cf-control-accent-line) !important;
+	background: var(--cf-control-surface-open) !important;
+	background-image: none !important;
+	box-shadow:
+		0 0 0 2px var(--cf-control-accent-soft),
+		inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
+	outline: none !important;
+}
+
+.campfire-theme :where(
+	.campfire-select-trigger svg,
+	.campfire-date-picker-trigger-icon,
+	.campfire-time-picker-trigger-icons,
+	.campfire-channel-picker-search svg,
+	.campfire-user-picker-search svg
+) {
+	border-color: var(--cf-control-line) !important;
+	background: rgba(255, 255, 255, 0.035) !important;
+	background-image: none !important;
+	box-shadow: none !important;
+	color: var(--cf-control-accent) !important;
+}
+
+/* Select menus: same width as trigger, flat surface, no orange blocks. */
+.campfire-theme .campfire-select-root {
+	position: relative !important;
+	width: 100% !important;
+	min-width: 0 !important;
+}
+
+.campfire-theme .campfire-select-menu {
+	box-sizing: border-box !important;
+	left: 0 !important;
+	right: auto !important;
+	width: var(--campfire-select-trigger-width, 100%) !important;
+	min-width: var(--campfire-select-trigger-width, 100%) !important;
+	max-width: var(--campfire-select-trigger-width, 100%) !important;
+	display: grid !important;
+	gap: 0.28rem !important;
+	max-height: min(21rem, calc(100vh - 3rem)) !important;
+	overflow: auto !important;
+	border: 1px solid var(--cf-control-line) !important;
+	border-radius: 1rem !important;
+	background: var(--cf-control-surface) !important;
+	background-image: none !important;
+	padding: 0.42rem !important;
+	box-shadow: var(--cf-control-popover-shadow) !important;
+	color: var(--cf-control-text) !important;
+}
+
+.campfire-theme .campfire-select-search {
+	min-height: 2.75rem !important;
+	margin: 0 0 0.35rem !important;
+	border: 1px solid var(--cf-control-line) !important;
+	border-radius: 0.82rem !important;
+	background: var(--cf-control-surface) !important;
+	background-image: none !important;
+	box-shadow: none !important;
+	color: var(--cf-control-text) !important;
+}
+
+.campfire-theme .campfire-select-search input {
+	background: transparent !important;
+	background-image: none !important;
+	box-shadow: none !important;
+	color: var(--cf-control-text) !important;
+}
+
+.campfire-theme .campfire-select-option,
+.campfire-theme .campfire-select-menu :where([role='option'], button),
+.campfire-theme .campfire-channel-picker-results button,
+.campfire-theme .campfire-user-picker-results :where(button, [role='option']) {
+	min-height: 2.5rem !important;
+	border: 1px solid transparent !important;
+	border-radius: 0.78rem !important;
+	background: transparent !important;
+	background-image: none !important;
+	box-shadow: none !important;
+	color: rgba(250, 247, 240, 0.88) !important;
+}
+
+.campfire-theme .campfire-select-option:hover,
+.campfire-theme .campfire-select-option:focus,
+.campfire-theme .campfire-select-menu :where([role='option'], button):hover,
+.campfire-theme .campfire-select-menu :where([role='option'], button):focus,
+.campfire-theme .campfire-channel-picker-results button:hover,
+.campfire-theme .campfire-user-picker-results :where(button, [role='option']):hover,
+.campfire-theme .campfire-user-picker-results :where(button, [role='option']):focus {
+	border-color: var(--cf-control-line) !important;
+	background: var(--cf-control-surface-hover) !important;
+	background-image: none !important;
+	color: #fffaf2 !important;
+}
+
+.campfire-theme .campfire-select-option[aria-selected='true'],
+.campfire-theme .campfire-select-menu :where([role='option'][aria-selected='true'], button[aria-selected='true']) {
+	border-color: var(--cf-control-line-strong) !important;
+	background: var(--cf-control-surface-hover) !important;
+	background-image: none !important;
+	box-shadow: inset 3px 0 0 var(--cf-control-accent) !important;
+	color: #fffaf2 !important;
+}
+
+.campfire-theme .campfire-select-option:disabled,
+.campfire-theme .campfire-select-menu :where([role='option'][disabled], button:disabled) {
+	pointer-events: none !important;
+	background: transparent !important;
+	background-image: none !important;
+	color: var(--cf-control-faint) !important;
+	opacity: 0.72 !important;
+}
+
+.campfire-theme .campfire-select-menu svg,
+.campfire-theme .campfire-channel-picker-results svg,
+.campfire-theme .campfire-user-picker-results svg {
+	color: var(--cf-control-accent) !important;
+}
+
+/* Date picker: one component surface everywhere. */
+.campfire-theme .campfire-date-picker-popover,
+.campfire-theme .campfire-date-picker-popover.campfire-floating-popover {
+	box-sizing: border-box !important;
+	width: min(22rem, calc(100vw - 2rem)) !important;
+	min-width: min(22rem, calc(100vw - 2rem)) !important;
+	max-width: calc(100vw - 2rem) !important;
+	max-height: min(34rem, calc(100vh - 2rem)) !important;
+	overflow: hidden !important;
+	border: 1px solid var(--cf-control-line) !important;
+	border-radius: 1.05rem !important;
+	background: var(--cf-control-surface) !important;
+	background-image: none !important;
+	padding: 1rem !important;
+	box-shadow: var(--cf-control-popover-shadow) !important;
+	color: var(--cf-control-text) !important;
+	backdrop-filter: none !important;
+	-webkit-backdrop-filter: none !important;
+}
+
+.campfire-theme .campfire-date-picker-glow,
+.campfire-theme .campfire-time-picker-glow {
+	display: none !important;
+}
+
+.campfire-theme :where(
+	.campfire-date-picker-header,
+	.campfire-date-picker-weekdays,
+	.campfire-date-picker-grid,
+	.campfire-date-picker-footer
+) {
+	background: transparent !important;
+	background-image: none !important;
+	box-shadow: none !important;
+}
+
+.campfire-theme .campfire-date-picker-header {
+	border: 1px solid var(--cf-control-line) !important;
+	border-radius: 0.95rem !important;
+	padding: 0.55rem !important;
+	background: transparent !important;
+}
+
+.campfire-theme .campfire-date-picker-month {
+	color: var(--cf-control-accent) !important;
+	font-size: 0.85rem !important;
+	font-weight: 950 !important;
+	letter-spacing: 0.16em !important;
+}
+
+.campfire-theme .campfire-date-picker-year {
+	color: var(--cf-control-text) !important;
+	font-size: 1.22rem !important;
+	font-weight: 950 !important;
+}
+
+.campfire-theme .campfire-date-picker-nav-button,
+.campfire-theme .campfire-date-picker-footer-button,
+.campfire-theme .campfire-time-picker-footer-button {
+	border: 1px solid var(--cf-control-line) !important;
+	border-radius: 0.82rem !important;
+	background: transparent !important;
+	background-image: none !important;
+	box-shadow: none !important;
+	color: var(--cf-control-text) !important;
+}
+
+.campfire-theme .campfire-date-picker-nav-button:hover,
+.campfire-theme .campfire-date-picker-footer-button:hover,
+.campfire-theme .campfire-time-picker-footer-button:hover {
+	border-color: var(--cf-control-line-strong) !important;
+	background: var(--cf-control-surface-hover) !important;
+	color: #fffaf2 !important;
+}
+
+.campfire-theme .campfire-date-picker-footer-button--primary,
+.campfire-theme .campfire-time-picker-footer-button--primary {
+	border-color: var(--cf-control-accent-line) !important;
+	color: var(--cf-control-accent) !important;
+}
+
+.campfire-theme .campfire-date-picker-weekday {
+	color: var(--cf-control-muted) !important;
+	font-size: 0.72rem !important;
+}
+
+.campfire-theme .campfire-date-picker-grid {
+	gap: 0.45rem !important;
+	margin-top: 0.42rem !important;
+}
+
+.campfire-theme .campfire-date-picker-day {
+	min-width: 2.25rem !important;
+	min-height: 2.25rem !important;
+	border: 1px solid transparent !important;
+	border-radius: 0.78rem !important;
+	background: transparent !important;
+	background-image: none !important;
+	box-shadow: none !important;
+	color: var(--cf-control-text) !important;
+	font-size: 0.95rem !important;
+	font-weight: 900 !important;
+}
+
+.campfire-theme .campfire-date-picker-day:hover {
+	border-color: var(--cf-control-line) !important;
+	background: var(--cf-control-surface-hover) !important;
+}
+
+.campfire-theme .campfire-date-picker-day--muted {
+	color: var(--cf-control-faint) !important;
+}
+
+.campfire-theme .campfire-date-picker-day--today {
+	border-color: var(--cf-control-accent-line) !important;
+	background: var(--cf-control-accent-soft) !important;
+	color: #fffaf2 !important;
+}
+
+.campfire-theme .campfire-date-picker-day--today::after {
+	display: none !important;
+}
+
+.campfire-theme .campfire-date-picker-day--selected {
+	border-color: var(--cf-control-line-strong) !important;
+	background: var(--cf-control-surface-hover) !important;
+	box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06) !important;
+	color: #fffaf2 !important;
+}
+
+.campfire-theme .campfire-date-picker-day--selected.campfire-date-picker-day--today {
+	border-color: var(--cf-control-accent-line) !important;
+	background: var(--cf-control-accent-soft) !important;
+}
+
+.campfire-theme .campfire-date-picker-hint,
+.campfire-theme .campfire-date-picker-hint-calendar {
+	font-family: Vazirmatn, Vazir, Inter, sans-serif !important;
+	font-size: 0.86rem !important;
+	line-height: 1.35 !important;
+	color: rgba(250, 247, 240, 0.72) !important;
+}
+
+/* Time picker: same surface, less width, no internal section color blocks. */
+.campfire-theme .campfire-time-picker-popover,
+.campfire-theme .campfire-time-picker-popover.campfire-floating-popover {
+	box-sizing: border-box !important;
+	width: min(21rem, calc(100vw - 2rem)) !important;
+	min-width: min(21rem, calc(100vw - 2rem)) !important;
+	max-width: calc(100vw - 2rem) !important;
+	max-height: min(28rem, calc(100vh - 2rem)) !important;
+	overflow: hidden !important;
+	border: 1px solid var(--cf-control-line) !important;
+	border-radius: 1.05rem !important;
+	background: var(--cf-control-surface) !important;
+	background-image: none !important;
+	padding: 1rem !important;
+	box-shadow: var(--cf-control-popover-shadow) !important;
+	color: var(--cf-control-text) !important;
+	backdrop-filter: none !important;
+	-webkit-backdrop-filter: none !important;
+}
+
+.campfire-theme :where(
+	.campfire-time-picker-header,
+	.campfire-time-picker-columns,
+	.campfire-time-picker-column,
+	.campfire-time-picker-option-list,
+	.campfire-time-picker-footer
+) {
+	background: transparent !important;
+	background-image: none !important;
+	box-shadow: none !important;
+}
+
+.campfire-theme .campfire-time-picker-header {
+	display: flex !important;
+	align-items: center !important;
+	justify-content: space-between !important;
+	gap: 1rem !important;
+	border: 1px solid var(--cf-control-line) !important;
+	border-radius: 0.95rem !important;
+	padding: 0.7rem 0.85rem !important;
+}
+
+.campfire-theme .campfire-time-picker-header > div {
+	display: flex !important;
+	width: 100% !important;
+	align-items: center !important;
+	justify-content: space-between !important;
+	gap: 1rem !important;
+	text-align: left !important;
+}
+
+.campfire-theme .campfire-time-picker-eyebrow {
+	margin: 0 !important;
+	color: var(--cf-control-muted) !important;
+	font-size: 0.78rem !important;
+	font-weight: 950 !important;
+	letter-spacing: 0.14em !important;
+}
+
+.campfire-theme .campfire-time-picker-title {
+	margin: 0 !important;
+	color: var(--cf-control-text) !important;
+	font-size: 1.2rem !important;
+	font-weight: 950 !important;
+}
+
+.campfire-theme .campfire-time-picker-columns {
+	grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+	gap: 0.7rem !important;
+	margin-top: 0.85rem !important;
+}
+
+.campfire-theme .campfire-time-picker-column {
+	border: 1px solid var(--cf-control-line) !important;
+	border-radius: 0.95rem !important;
+	padding: 0.55rem !important;
+}
+
+.campfire-theme .campfire-time-picker-column-label {
+	color: var(--cf-control-muted) !important;
+	font-size: 0.72rem !important;
+}
+
+.campfire-theme .campfire-time-picker-option-list {
+	max-height: 10.5rem !important;
+	overflow-y: auto !important;
+	overflow-x: hidden !important;
+	padding-right: 0.15rem !important;
+}
+
+.campfire-theme .campfire-time-picker-option {
+	min-height: 2.25rem !important;
+	border: 1px solid transparent !important;
+	border-radius: 0.75rem !important;
+	background: transparent !important;
+	background-image: none !important;
+	box-shadow: none !important;
+	color: var(--cf-control-text) !important;
+}
+
+.campfire-theme .campfire-time-picker-option:hover {
+	border-color: var(--cf-control-line) !important;
+	background: var(--cf-control-surface-hover) !important;
+}
+
+.campfire-theme .campfire-time-picker-option--selected {
+	border-color: var(--cf-control-accent-line) !important;
+	background: var(--cf-control-accent-soft) !important;
+	color: #fffaf2 !important;
+}
+
+/* Reminder time helper surface. */
+.campfire-theme .campfire-reminder-window-card {
+	align-items: center !important;
+	gap: 1rem !important;
+	background: var(--cf-control-surface) !important;
+	background-image: none !important;
+}
+
+.campfire-theme .campfire-reminder-window-icon,
+.campfire-theme .campfire-workflow-note-icon,
+.campfire-theme .campfire-notice-icon {
+	width: 3.2rem !important;
+	height: 3.2rem !important;
+	min-width: 3.2rem !important;
+	min-height: 3.2rem !important;
+	flex: 0 0 3.2rem !important;
+	align-self: center !important;
+	border-radius: 1rem !important;
+}
+
+.campfire-theme .campfire-reminder-window-icon svg,
+.campfire-theme .campfire-workflow-note-icon svg,
+.campfire-theme .campfire-notice-icon svg {
+	width: 1.35rem !important;
+	height: 1.35rem !important;
+}
+
+.campfire-theme .campfire-reminder-time-control-row {
+	align-items: center !important;
+	gap: 0.65rem !important;
+}
+
+.campfire-theme .campfire-reminder-time-clear {
+	width: 2.35rem !important;
+	height: 2.35rem !important;
+	min-width: 2.35rem !important;
+	min-height: 2.35rem !important;
+	flex: 0 0 2.35rem !important;
+	aspect-ratio: 1 / 1 !important;
+	border-radius: 0.82rem !important;
+	padding: 0 !important;
+}
+
+/* Channel picker follows the same picker/menu language. */
+.campfire-theme .campfire-channel-picker-results,
+.campfire-theme .campfire-user-picker-results {
+	border: 1px solid var(--cf-control-line) !important;
+	border-radius: 1rem !important;
+	background: var(--cf-control-surface) !important;
+	background-image: none !important;
+	box-shadow: var(--cf-control-popover-shadow) !important;
+	color: var(--cf-control-text) !important;
+}

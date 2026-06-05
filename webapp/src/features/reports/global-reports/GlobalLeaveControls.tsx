@@ -1,9 +1,9 @@
 import type { ReactElement } from 'react';
 import { Download, Search } from 'lucide-react';
 
+import { CampfireControlButton } from '@/components/campfire/CampfireControlButton';
 import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { CampfireField } from '@/components/campfire/CampfireField';
 
 import type { GlobalDateRange, GlobalDateRangePatch } from './global-reports.types';
 
@@ -23,36 +23,34 @@ type GlobalLeaveControlsProps = {
  */
 export function GlobalLeaveControls(props: GlobalLeaveControlsProps): ReactElement {
 	return (
-		<div className="cf:grid cf:gap-4 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/[0.035] cf:p-5 cf:lg:grid-cols-[1fr_1fr_auto_auto] cf:lg:items-end">
-			<div className="cf:grid cf:gap-2">
-				<Label htmlFor="campfire-global-leave-start">Start date</Label>
+		<div className="campfire-control-grid campfire-control-grid--global-leave-report">
+			<CampfireField id="campfire-global-leave-start" label="Start date">
 				<CampfireDateInput
 					id="campfire-global-leave-start"
 					disabled={props.disabled}
 					value={props.range.startDate}
 					onValueChange={value => props.onChange({ startDate: value })}
 				/>
-			</div>
+			</CampfireField>
 
-			<div className="cf:grid cf:gap-2">
-				<Label htmlFor="campfire-global-leave-end">End date</Label>
+			<CampfireField id="campfire-global-leave-end" label="End date">
 				<CampfireDateInput
 					id="campfire-global-leave-end"
 					disabled={props.disabled}
 					value={props.range.endDate}
 					onValueChange={value => props.onChange({ endDate: value })}
 				/>
-			</div>
+			</CampfireField>
 
-			<Button type="button" disabled={props.disabled} onClick={() => void props.onLoad()}>
+			<CampfireControlButton type="button" disabled={props.disabled} onClick={() => void props.onLoad()}>
 				<Search className="cf:size-4" />
 				Load
-			</Button>
+			</CampfireControlButton>
 
-			<Button type="button" variant="secondary" disabled={props.disabled} onClick={() => void props.onExport()}>
+			<CampfireControlButton type="button" variant="secondary" disabled={props.disabled} onClick={() => void props.onExport()}>
 				<Download className="cf:size-4" />
 				CSV
-			</Button>
+			</CampfireControlButton>
 		</div>
 	);
 }

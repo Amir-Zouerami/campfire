@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import type { ReactElement } from 'react';
-import { CalendarDays, CalendarRange, Umbrella, Users } from 'lucide-react';
 
-import { CampfireSurface, CampfireStatCard } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireControlsPanel } from '@/components/campfire/CampfireControlsPanel';
+import { CampfireReportSummaryBar } from '@/components/campfire/CampfireReportSummaryBar';
 import { useUserProfiles } from '@/app/useUserProfiles';
 import type { Workspace } from '@/types/domain';
 
@@ -34,74 +34,63 @@ export function TeamAvailabilityPage(props: TeamAvailabilityPageProps): ReactEle
 	const profiles = useUserProfiles(userIDsForProfiles);
 
 	return (
-		<div className="campfire-team-workflow">
-			<div className="campfire-stat-grid campfire-stat-grid--four">
-				<CampfireStatCard icon={CalendarDays} label="Today" value={String(availability.todayLeaves.length)} helper={availability.today} />
-				<CampfireStatCard
-					icon={CalendarRange}
-					label="This week"
-					value={String(availability.weekLeaves.length)}
-					helper={`${availability.weekRange.startDate} → ${availability.weekRange.endDate}`}
-					tone="blue"
+		<div className="campfire-team-workflow campfire-team-review-clean-page">
+			<CampfireControlsPanel
+				eyebrow="Availability window"
+				title="Pick the leave range"
+				description="Review approved leave for today, this week, or any custom planning window."
+				controls={
+					<TeamAvailabilityRangeControls
+						range={availability.range}
+						disabled={availability.isBusy}
+						timezone={props.workspace.timezone}
+						onChange={availability.updateRange}
+					/>
+				}
+			>
+				<CampfireReportSummaryBar
+					items={[
+						{ label: 'Today', value: String(availability.todayLeaves.length) },
+						{ label: 'This week', value: String(availability.weekLeaves.length) },
+						{ label: 'Selected range', value: String(availability.leaveRequests.length), tone: availability.leaveRequests.length > 0 ? 'success' : 'neutral' },
+						{ label: 'Profiles', value: profiles.loading ? 'Loading' : 'Ready' },
+					]}
 				/>
-				<CampfireStatCard
-					icon={Umbrella}
-					label="Selected range"
-					value={String(availability.leaveRequests.length)}
-					helper="Approved rows"
-					tone="green"
-				/>
-				<CampfireStatCard
-					icon={Users}
-					label="Profiles"
-					value={profiles.loading ? 'Loading' : 'Ready'}
-					helper="User labels"
-					tone="slate"
-				/>
-			</div>
+			</CampfireControlsPanel>
 
-			<CampfireSurface className="campfire-team-workflow-surface">
-				<TeamAvailabilityFeedback
-					state={availability.loadState}
-					message={availability.message}
-					profileErrorMessage={profiles.errorMessage}
-				/>
+			<TeamAvailabilityFeedback
+				state={availability.loadState}
+				message={availability.message}
+				profileErrorMessage={profiles.errorMessage}
+			/>
 
-				<TeamAvailabilityRangeControls
-					range={availability.range}
-					disabled={availability.isBusy}
-					timezone={props.workspace.timezone}
-					onChange={availability.updateRange}
-				/>
+			{availability.loadState === 'loading' && <TeamAvailabilityLoading />}
 
-				{availability.loadState === 'loading' && <TeamAvailabilityLoading />}
-
-				{availability.loadState !== 'loading' && (
-					<>
-						<div className="campfire-team-detail-grid">
-							<TeamAvailabilitySummaryPanel
-								title="Today"
-								description="Out right now"
-								rows={availability.todayLeaves}
-								labelForUserID={profiles.labelForUserID}
-							/>
-
-							<TeamAvailabilitySummaryPanel
-								title="This week"
-								description="Weekly availability"
-								rows={availability.weekLeaves}
-								labelForUserID={profiles.labelForUserID}
-							/>
-						</div>
-
-						<TeamAvailabilityTablePanel
-							rows={availability.leaveRequests}
-							timezone={props.workspace.timezone}
+			{availability.loadState !== 'loading' && (
+				<>
+					<div className="campfire-team-detail-grid campfire-team-detail-grid--flat">
+						<TeamAvailabilitySummaryPanel
+							title="Today"
+							description="Out right now"
+							rows={availability.todayLeaves}
 							labelForUserID={profiles.labelForUserID}
 						/>
-					</>
-				)}
-			</CampfireSurface>
+
+						<TeamAvailabilitySummaryPanel
+							title="This week"
+							description="Weekly availability"
+							rows={availability.weekLeaves}
+							labelForUserID={profiles.labelForUserID}
+						/>
+					</div>
+
+					<TeamAvailabilityTablePanel
+						rows={availability.leaveRequests}
+						timezone={props.workspace.timezone}
+						labelForUserID={profiles.labelForUserID}
+					/>
+				</>
+			)}
 		</div>
 	);
 }

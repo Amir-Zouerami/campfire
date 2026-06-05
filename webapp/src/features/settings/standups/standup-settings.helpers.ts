@@ -73,7 +73,8 @@ export function emptyScheduleDraft(templateID = ''): StandupScheduleDraft {
 		templateId: templateID,
 		kind: 'daily',
 		enabled: true,
-		timeOfDay: '09:00',
+		opensAt: '09:30',
+		timeOfDay: '10:00',
 		skipNonWorkingDays: true,
 		weeklyMode: 'none',
 		skipDailyWhenWeeklyRuns: false,
@@ -120,6 +121,7 @@ export function scheduleToDraft(schedule: StandupSchedule): StandupScheduleDraft
 		templateId: schedule.templateId,
 		kind: schedule.kind,
 		enabled: schedule.enabled,
+		opensAt: schedule.opensAt,
 		timeOfDay: schedule.timeOfDay,
 		skipNonWorkingDays: schedule.skipNonWorkingDays,
 		weeklyMode: schedule.weeklyMode,
@@ -220,6 +222,7 @@ export function normalizeScheduleDraft(
 		templateId: draft.templateId,
 		kind: draft.kind,
 		enabled: draft.enabled,
+		opensAt: draft.opensAt,
 		timeOfDay: draft.timeOfDay,
 		skipNonWorkingDays: draft.skipNonWorkingDays,
 		weeklyMode: draft.kind === 'weekly' ? normalizeWeeklyMode(draft.weeklyMode) : 'none',
@@ -282,8 +285,16 @@ export function validateScheduleDraft(draft: StandupScheduleDraft): string | nul
 		return 'Choose a template for this schedule.';
 	}
 
+	if (draft.opensAt.trim() === '') {
+		return 'Choose when this standup opens.';
+	}
+
 	if (draft.timeOfDay.trim() === '') {
-		return 'Choose a report time.';
+		return 'Choose when this standup closes and posts its report.';
+	}
+
+	if (!opensBeforeClose(draft.opensAt, draft.timeOfDay)) {
+		return 'Standup open time must be before the close/report time.';
 	}
 
 	return null;
@@ -545,6 +556,7 @@ export function scheduleHasChanges(schedule: StandupSchedule, draft: StandupSche
 		schedule.templateId !== normalizedDraft.templateId ||
 		schedule.kind !== normalizedDraft.kind ||
 		schedule.enabled !== normalizedDraft.enabled ||
+		schedule.opensAt !== normalizedDraft.opensAt ||
 		schedule.timeOfDay !== normalizedDraft.timeOfDay ||
 		schedule.skipNonWorkingDays !== normalizedDraft.skipNonWorkingDays ||
 		normalizeWeeklyMode(schedule.weeklyMode) !== normalizedDraft.weeklyMode ||
@@ -616,6 +628,40 @@ export function normalizeWeeklyMode(value: WeeklyMode | 'none' | ''): WeeklyMode
 	}
 
 	return 'none';
+}
+
+
+/**
+ * opensBeforeClose reports whether the open time is before close on the same local day.
+ */
+export function opensBeforeClose(opensAt: string, closesAt: string): boolean {
+	const openMinutes = timeToMinutes(opensAt);
+	const closeMinutes = timeToMinutes(closesAt);
+
+	if (openMinutes === null || closeMinutes === null) {
+		return false;
+	}
+
+	return openMinutes < closeMinutes;
+}
+
+/**
+ * timeToMinutes parses HH:mm into minutes after local midnight.
+ */
+function timeToMinutes(value: string): number | null {
+	const match = /^(\d{2}):(\d{2})$/.exec(value.trim());
+	if (match === null) {
+		return null;
+	}
+
+	const hour = Number.parseInt(match[1] ?? '', 10);
+	const minute = Number.parseInt(match[2] ?? '', 10);
+
+	if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+		return null;
+	}
+
+	return hour * 60 + minute;
 }
 
 /**

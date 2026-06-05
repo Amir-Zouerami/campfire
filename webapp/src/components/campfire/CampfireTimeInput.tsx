@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { KeyboardEvent, ReactElement } from 'react';
 import { Check, ChevronDown, Clock3 } from 'lucide-react';
 
@@ -66,13 +67,19 @@ export function CampfireTimeInput(props: CampfireTimeInputProps): ReactElement {
 		 * handlePointerDown closes the picker when clicking outside.
 		 */
 		function handlePointerDown(event: PointerEvent): void {
-			if (rootRef.current === null || event.target === null) {
+			if (!(event.target instanceof Node)) {
 				return;
 			}
 
-			if (!rootRef.current.contains(event.target as Node)) {
-				setOpen(false);
+			if (rootRef.current !== null && rootRef.current.contains(event.target)) {
+				return;
 			}
+
+			if (popoverRef.current !== null && popoverRef.current.contains(event.target)) {
+				return;
+			}
+
+			setOpen(false);
 		}
 
 		document.addEventListener('pointerdown', handlePointerDown);
@@ -86,7 +93,7 @@ export function CampfireTimeInput(props: CampfireTimeInputProps): ReactElement {
 		return props.value.trim() === '' ? 'HH:MM' : props.value;
 	}, [props.value]);
 
-	const popoverStyle = useCampfireFloatingPopover({
+	const floatingPopover = useCampfireFloatingPopover({
 		open,
 		triggerRef: buttonRef,
 		popoverRef,
@@ -139,6 +146,63 @@ export function CampfireTimeInput(props: CampfireTimeInputProps): ReactElement {
 		setOpen(false);
 	}
 
+	const popover = (
+		<div
+			ref={popoverRef}
+			role="dialog"
+			aria-label="Choose time"
+			className="campfire-picker-portal-scope campfire-time-picker-popover campfire-floating-popover"
+			style={floatingPopover.style}
+		>
+			<div className="campfire-time-picker-glow" />
+
+			<div className="campfire-time-picker-header">
+				<div>
+					<p className="campfire-time-picker-eyebrow">Choose time</p>
+					<p className="campfire-time-picker-title">{formatTimeValue(draftHour, draftMinute)}</p>
+				</div>
+
+				<Clock3 className="cf:size-6 cf:text-amber-200" />
+			</div>
+
+			<div className="campfire-time-picker-columns">
+				<TimeColumn
+					label="Hour"
+					values={HOUR_OPTIONS}
+					selectedValue={draftHour}
+					formatValue={value => String(value).padStart(2, '0')}
+					onSelect={selectHour}
+				/>
+
+				<TimeColumn
+					label="Minute"
+					values={MINUTE_OPTIONS}
+					selectedValue={draftMinute}
+					formatValue={value => String(value).padStart(2, '0')}
+					onSelect={selectMinute}
+				/>
+			</div>
+
+			<div className="campfire-time-picker-footer">
+				<button
+					type="button"
+					className="campfire-time-picker-footer-button campfire-time-picker-footer-button--primary"
+					onClick={selectNow}
+				>
+					Now
+				</button>
+
+				<button
+					type="button"
+					className="campfire-time-picker-footer-button"
+					onClick={() => setOpen(false)}
+				>
+					Done
+				</button>
+			</div>
+		</div>
+	);
+
 	return (
 		<div ref={rootRef} className={cn('campfire-time-picker', props.className)}>
 			<button
@@ -167,62 +231,7 @@ export function CampfireTimeInput(props: CampfireTimeInputProps): ReactElement {
 				</span>
 			</button>
 
-			{open && (
-				<div
-					ref={popoverRef}
-					role="dialog"
-					aria-label="Choose time"
-					className="campfire-time-picker-popover campfire-floating-popover"
-					style={popoverStyle}
-				>
-					<div className="campfire-time-picker-glow" />
-
-					<div className="campfire-time-picker-header">
-						<div>
-							<p className="campfire-time-picker-eyebrow">Choose time</p>
-							<p className="campfire-time-picker-title">{formatTimeValue(draftHour, draftMinute)}</p>
-						</div>
-
-						<Clock3 className="cf:size-6 cf:text-amber-200" />
-					</div>
-
-					<div className="campfire-time-picker-columns">
-						<TimeColumn
-							label="Hour"
-							values={HOUR_OPTIONS}
-							selectedValue={draftHour}
-							formatValue={value => String(value).padStart(2, '0')}
-							onSelect={selectHour}
-						/>
-
-						<TimeColumn
-							label="Minute"
-							values={MINUTE_OPTIONS}
-							selectedValue={draftMinute}
-							formatValue={value => String(value).padStart(2, '0')}
-							onSelect={selectMinute}
-						/>
-					</div>
-
-					<div className="campfire-time-picker-footer">
-						<button
-							type="button"
-							className="campfire-time-picker-footer-button campfire-time-picker-footer-button--primary"
-							onClick={selectNow}
-						>
-							Now
-						</button>
-
-						<button
-							type="button"
-							className="campfire-time-picker-footer-button"
-							onClick={() => setOpen(false)}
-						>
-							Done
-						</button>
-					</div>
-				</div>
-			)}
+			{open && floatingPopover.portalHost !== null && createPortal(popover, floatingPopover.portalHost)}
 		</div>
 	);
 }
