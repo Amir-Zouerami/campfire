@@ -201,7 +201,8 @@
 	box-shadow: inset 3px 0 0 var(--cf-control-accent) !important;
 }
 
-.campfire-theme .campfire-form-question-card :is(.cf\\:border-amber-300\\/35, .cf\\:bg-amber-300\\/10) {
+.campfire-theme .campfire-form-question-card [class~='cf:border-amber-300/35'],
+.campfire-theme .campfire-form-question-card [class~='cf:bg-amber-300/10'] {
 	border-color: var(--cf-control-accent-soft) !important;
 	background: rgba(255, 255, 255, 0.055) !important;
 }

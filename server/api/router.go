@@ -550,7 +550,7 @@ func handleHealth(log logger.Logger) http.HandlerFunc {
 		WriteHealth(w, http.StatusOK, HealthResponse{
 			Status:  "ok",
 			Product: "Campfire",
-			Version: "0.1.0",
+			Version: "1.0.2",
 		})
 	}
 }
