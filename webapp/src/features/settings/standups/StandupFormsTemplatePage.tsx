@@ -9,7 +9,6 @@ import type { StandupQuestion, StandupTemplate } from '@/types/domain';
 import { formatLabel, questionHasChanges, shortID, templateHasChanges } from './standup-settings.helpers';
 import type {
 	StandupQuestionDraft,
-	StandupQuestionWithDraft,
 	StandupTemplateDraftPatch,
 	StandupTemplateWithDraft,
 } from './standup-settings.types';

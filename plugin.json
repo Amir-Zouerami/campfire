@@ -6,7 +6,7 @@
 	"support_url": "https://github.com/amir-zouerami/campfire/issues",
 	"release_notes_url": "https://github.com/amir-zouerami/campfire/releases",
 	"icon_path": "assets/campfire-logo.svg",
-	"version": "0.1.0",
+	"version": "1.0.0",
 	"min_server_version": "9.11.0",
 	"server": {
 		"executables": {

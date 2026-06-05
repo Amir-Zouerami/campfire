@@ -21,6 +21,9 @@ type UseCampfireFloatingPopoverInput = {
 	readonly gap?: number;
 	readonly viewportPadding?: number;
 	readonly minHeight?: number;
+	readonly maxHeight?: number;
+	readonly maxWidth?: number;
+	readonly matchTriggerWidth?: boolean;
 };
 
 /**
@@ -41,12 +44,12 @@ const HIDDEN_STYLE: FloatingPopoverStyle = {
 };
 
 /**
- * useCampfireFloatingPopover positions shared date/time pickers in the viewport.
+ * useCampfireFloatingPopover positions shared pickers in the visual viewport.
  *
- * The picker is portaled to document.body so Campfire cards, panels, filters,
- * and scroll containers cannot clip, stretch, or recolor it. The hook then does
- * the same job a floating-positioning engine does: it measures the trigger,
- * flips above when needed, shifts horizontally into view, and caps height.
+ * The popover is anchored to its trigger using measured fixed coordinates, then
+ * flipped and shifted so scroll containers and Mattermost panels cannot clip or
+ * stretch it. Consumers render the panel normally or through the returned
+ * portalHost, but must use result.style for inline geometry.
  */
 export function useCampfireFloatingPopover(input: UseCampfireFloatingPopoverInput): UseCampfireFloatingPopoverResult {
 	const [portalHost, setPortalHost] = useState<HTMLElement | null>(null);
@@ -54,6 +57,9 @@ export function useCampfireFloatingPopover(input: UseCampfireFloatingPopoverInpu
 
 	const gap = input.gap ?? 8;
 	const minHeight = input.minHeight ?? 160;
+	const maxHeight = input.maxHeight ?? 420;
+	const maxWidth = input.maxWidth ?? 544;
+	const matchTriggerWidth = input.matchTriggerWidth ?? false;
 	const placement = input.placement ?? 'bottom-end';
 	const viewportPadding = input.viewportPadding ?? 12;
 
@@ -83,8 +89,8 @@ export function useCampfireFloatingPopover(input: UseCampfireFloatingPopoverInpu
 		}
 
 		/**
-		 * updatePosition anchors the portaled popover to the trigger and clamps it
-		 * inside the visual viewport.
+		 * updatePosition anchors the popover to the trigger and clamps it inside the
+		 * visual viewport.
 		 */
 		function updatePosition(): void {
 			const trigger = input.triggerRef.current;
@@ -106,27 +112,33 @@ export function useCampfireFloatingPopover(input: UseCampfireFloatingPopoverInpu
 			const rightEdge = viewportLeft + viewportWidth - viewportPadding;
 			const topEdge = viewportTop + viewportPadding;
 			const bottomEdge = viewportTop + viewportHeight - viewportPadding;
-			const popoverWidth = Math.max(1, Math.ceil(popoverRect.width));
-			const popoverHeight = Math.max(1, Math.ceil(popoverRect.height));
-
+			const triggerWidth = Math.max(1, Math.ceil(triggerRect.width));
+			const measuredPopoverWidth = Math.max(1, Math.ceil(popoverRect.width));
+			const requestedWidth = matchTriggerWidth
+				? triggerWidth
+				: Math.min(Math.max(triggerWidth, measuredPopoverWidth), maxWidth, Math.max(1, rightEdge - leftEdge));
+			const popoverWidth = Math.min(requestedWidth, Math.max(1, rightEdge - leftEdge));
 			const preferredLeft = placement === 'bottom-start' ? triggerRect.left : triggerRect.right - popoverWidth;
 			const left = clamp(preferredLeft, leftEdge, Math.max(leftEdge, rightEdge - popoverWidth));
 
+			const measuredPopoverHeight = Math.max(1, Math.ceil(popoverRect.height));
 			const availableBelow = bottomEdge - triggerRect.bottom - gap;
 			const availableAbove = triggerRect.top - topEdge - gap;
-			const shouldOpenAbove = availableBelow < Math.min(popoverHeight, minHeight) && availableAbove > availableBelow;
+			const shouldOpenAbove = availableBelow < Math.min(measuredPopoverHeight, minHeight) && availableAbove > availableBelow;
 			const availableHeight = shouldOpenAbove ? availableAbove : availableBelow;
-			const maxHeight = Math.max(minHeight, Math.floor(availableHeight));
-			const renderedHeight = Math.min(popoverHeight, maxHeight);
+			const clampedMaxHeight = Math.max(minHeight, Math.min(maxHeight, Math.floor(availableHeight)));
+			const renderedHeight = Math.min(measuredPopoverHeight, clampedMaxHeight);
 			const preferredTop = shouldOpenAbove ? triggerRect.top - gap - renderedHeight : triggerRect.bottom + gap;
 			const top = clamp(preferredTop, topEdge, Math.max(topEdge, bottomEdge - renderedHeight));
 
 			setStyle({
 				left: `${Math.round(left)}px`,
-				maxHeight: `${maxHeight}px`,
+				maxHeight: `${clampedMaxHeight}px`,
+				minWidth: `${triggerWidth}px`,
 				position: 'fixed',
 				top: `${Math.round(top)}px`,
 				visibility: 'visible',
+				width: `${popoverWidth}px`,
 				zIndex: 2147483647,
 			});
 		}
@@ -145,7 +157,19 @@ export function useCampfireFloatingPopover(input: UseCampfireFloatingPopoverInpu
 			window.visualViewport?.removeEventListener('resize', schedulePosition);
 			window.visualViewport?.removeEventListener('scroll', schedulePosition);
 		};
-	}, [gap, input.open, input.popoverRef, input.triggerRef, minHeight, placement, portalHost, viewportPadding]);
+	}, [
+		gap,
+		input.open,
+		input.popoverRef,
+		input.triggerRef,
+		matchTriggerWidth,
+		maxHeight,
+		maxWidth,
+		minHeight,
+		placement,
+		portalHost,
+		viewportPadding,
+	]);
 
 	return { portalHost, style };
 }
