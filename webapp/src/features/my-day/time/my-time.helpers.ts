@@ -100,8 +100,8 @@ export function taskMapByID(tasks: readonly Task[]): Readonly<Record<string, Tas
 /**
  * taskLabelForID returns a readable task label.
  */
-export function taskLabelForID(tasksByID: Readonly<Record<string, Task>>, taskID: string): string {
-	return tasksByID[taskID]?.title ?? 'Unknown task';
+export function taskLabelForID(tasksByID: Readonly<Record<string, Task>>, taskID: string, fallback: string): string {
+	return tasksByID[taskID]?.title ?? fallback;
 }
 
 /**
@@ -168,7 +168,7 @@ export function statusTone(status: TaskStatus): 'green' | 'ember' | 'red' | 'sla
 /**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
-export function errorToMessage(error: unknown): string {
+export function errorToMessage(error: unknown, fallback: string): string {
 	if (error instanceof ApiClientError) {
 		return error.message;
 	}
@@ -177,5 +177,5 @@ export function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not update tasks and time.';
+	return fallback;
 }

@@ -1,5 +1,6 @@
 import { ApiClientError } from '@/api';
 import { cn } from '@/lib/utils';
+import type { TFunction } from '@/i18n/types';
 import type { ReportKind, ReportLanguage, ReportRule, ReportSortMode } from '@/types/domain';
 
 import type { ReportRuleDraft, ReportRuleDraftsByID, ReportRuleWithDraft } from './report-rules.types';
@@ -232,7 +233,7 @@ export function reportRuleCardClassName(active: boolean): string {
 /**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
-export function errorToMessage(error: unknown): string {
+export function errorToMessage(error: unknown, t: TFunction): string {
 	if (error instanceof ApiClientError) {
 		return error.message;
 	}
@@ -241,7 +242,7 @@ export function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not update report settings.';
+	return t('settings.reportRules.error.update');
 }
 
 /**

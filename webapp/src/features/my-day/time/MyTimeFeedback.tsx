@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { CampfireFeedback, CampfireLoadingFeedback } from '@/components/campfire/CampfireFeedback';
+import { useI18n } from '@/i18n';
 
 import type { MyTimeLoadState } from './my-time.types';
 
@@ -17,7 +18,7 @@ type MyTimeFeedbackProps = {
  */
 export function MyTimeFeedback(props: MyTimeFeedbackProps): ReactElement | null {
 	if (props.state === 'error') {
-		return null;
+		return <CampfireFeedback message={props.message} tone="error" showInlineError={true} />;
 	}
 
 	return <CampfireFeedback message={props.message} tone="success" />;
@@ -27,5 +28,7 @@ export function MyTimeFeedback(props: MyTimeFeedbackProps): ReactElement | null 
  * MyTimeLoading renders a compact loading state.
  */
 export function MyTimeLoading(): ReactElement {
-	return <CampfireLoadingFeedback message="Loading tasks and recent time…" />;
+	const { t } = useI18n();
+
+	return <CampfireLoadingFeedback message={t('myDay.time.loading')} />;
 }

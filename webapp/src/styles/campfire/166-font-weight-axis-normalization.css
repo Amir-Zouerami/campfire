@@ -1,0 +1,22 @@
+/*
+ * Campfire CSS module: 166-font-weight-axis-normalization.css
+ *
+ * Final guardrail for Vazirmatn/CampfireVazir. Font weight must be controlled
+ * by the normal `font-weight` property, not by pinned low-level variation-axis
+ * declarations. This keeps DevTools editing predictable and prevents older
+ * emergency rules from making every Persian/Arabic weight look the same.
+ */
+
+.app__body .campfire-overlay.campfire-theme.campfire-theme,
+.app__body .campfire-overlay.campfire-theme.campfire-theme *,
+.campfire-overlay.campfire-theme.campfire-theme,
+.campfire-overlay.campfire-theme.campfire-theme *,
+.campfire-picker-portal-scope,
+.campfire-picker-portal-scope * {
+	font-variation-settings: normal !important;
+}
+
+.campfire-overlay.campfire-theme:is([data-campfire-language='fa'], [data-campfire-language='ar']) :is(h1, h2, h3, h4, strong, b),
+.campfire-overlay.campfire-theme[dir='rtl'] :is(h1, h2, h3, h4, strong, b) {
+	font-synthesis-weight: none;
+}

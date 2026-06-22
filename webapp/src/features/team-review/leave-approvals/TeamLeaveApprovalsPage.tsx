@@ -2,9 +2,10 @@ import type { ReactElement } from 'react';
 import { ClipboardCheck } from 'lucide-react';
 
 import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfirePageIntro } from '@/components/campfire/CampfirePageIntro';
 import { CampfireReportSummaryBar } from '@/components/campfire/CampfireReportSummaryBar';
-import { CampfireSettingsPanel } from '@/components/campfire/CampfireSettingsPanel';
 import { useUserProfiles } from '@/app/useUserProfiles';
+import { useI18n } from '@/i18n';
 import type { Workspace } from '@/types/domain';
 
 import { TeamLeaveApprovalQueue } from './TeamLeaveApprovalQueue';
@@ -24,6 +25,7 @@ type TeamLeaveApprovalsPageProps = {
  * TeamLeaveApprovalsPage renders the focused Team Review approval inbox.
  */
 export function TeamLeaveApprovalsPage(props: TeamLeaveApprovalsPageProps): ReactElement | null {
+	const { t } = useI18n();
 	const approvals = useTeamLeaveApprovals(props);
 	const profiles = useUserProfiles(approvals.userIDsForProfiles);
 
@@ -33,20 +35,20 @@ export function TeamLeaveApprovalsPage(props: TeamLeaveApprovalsPageProps): Reac
 
 	return (
 		<div className="campfire-team-workflow campfire-team-review-clean-page">
-			<CampfireSettingsPanel
-				icon={ClipboardCheck}
-				title="Leave approval queue"
-				description="Review pending leave requests and record a clear approval or rejection decision."
-				className="campfire-team-review-panel"
-			>
-				<CampfireReportSummaryBar
-					items={[
-						{ label: 'Pending', value: String(approvals.pendingCount), tone: approvals.pendingCount > 0 ? 'warning' : 'success' },
-						{ label: 'Decision notes', value: 'Supported' },
-						{ label: 'Profiles', value: profiles.loading ? 'Loading' : 'Ready' },
-					]}
-				/>
-			</CampfireSettingsPanel>
+			<CampfirePageIntro
+				eyebrow={t('teamReview.sections.approvals.label')}
+				title={t('teamReview.approvals.panel.title')}
+				description={t('teamReview.approvals.panel.description')}
+				actions={<ClipboardCheck className="cf:size-5" aria-hidden="true" />}
+			/>
+
+			<CampfireReportSummaryBar
+				items={[
+					{ label: t('teamReview.approvals.summary.pending'), value: String(approvals.pendingCount), tone: approvals.pendingCount > 0 ? 'warning' : 'success' },
+					{ label: t('teamReview.approvals.summary.editRequests'), value: String(approvals.changeRequests.length), tone: approvals.changeRequests.length > 0 ? 'warning' : 'slate' },
+					{ label: t('teamReview.approvals.summary.profiles'), value: profiles.loading ? t('common.loading') : t('common.ready') },
+				]}
+			/>
 
 			<TeamLeaveApprovalsFeedback
 				state={approvals.loadState}
@@ -59,19 +61,22 @@ export function TeamLeaveApprovalsPage(props: TeamLeaveApprovalsPageProps): Reac
 			{approvals.loadState !== 'idle' && approvals.loadState !== 'loading' && (
 				<TeamLeaveApprovalQueue
 					leaveRequests={approvals.leaveRequests}
+					changeRequests={approvals.changeRequests}
 					comments={approvals.comments}
 					disabled={approvals.isBusy}
 					labelForUserID={profiles.labelForUserID}
 					onCommentChange={approvals.updateComment}
 					timezone={props.workspace.timezone}
 					onDecision={approvals.decide}
+					onChangeDecision={approvals.decideChange}
+					onCancel={approvals.cancelLeaveRequestByID}
 				/>
 			)}
 
 			{approvals.loadState === 'error' && approvals.leaveRequests.length === 0 && (
 				<CampfireEmpty
-					title="Approval queue unavailable"
-					description="Campfire could not load pending leave requests. Try again after checking the API response."
+					title={t('teamReview.approvals.empty.error.title')}
+					description={t('teamReview.approvals.empty.error.description')}
 				/>
 			)}
 		</div>

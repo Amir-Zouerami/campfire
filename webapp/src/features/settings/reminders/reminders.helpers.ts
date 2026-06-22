@@ -1,5 +1,6 @@
 import { ApiClientError } from '@/api';
 import { cn } from '@/lib/utils';
+import type { TFunction } from '@/i18n/types';
 import type { ReminderRule } from '@/types/domain';
 
 import type { StandupScheduleLabelLookup } from '../standup-schedule-labels';
@@ -116,20 +117,25 @@ export function parseReminderTimes(times: readonly string[], opensAt: string, cl
 /**
  * reminderTimeValidationMessage returns readable guidance for reminder times.
  */
-export function reminderTimeValidationMessage(times: readonly string[], opensAt: string, closeTime: string): string {
+export function reminderTimeValidationMessage(
+	times: readonly string[],
+	opensAt: string,
+	closeTime: string,
+	t: TFunction,
+): string {
 	const enteredTimes = times.map(value => value.trim()).filter(value => value !== '');
 
 	if (enteredTimes.length === 0) {
-		return `Choose at least one reminder between ${opensAt} and ${closeTime}.`;
+		return t('settings.reminders.validation.chooseOne', { openTime: opensAt, closeTime });
 	}
 
 	const validTimes = parseReminderTimes(times, opensAt, closeTime);
 	if (validTimes.length === 0) {
-		return `Reminder times must be after ${opensAt} and before ${closeTime}.`;
+		return t('settings.reminders.validation.insideWindow', { openTime: opensAt, closeTime });
 	}
 
 	if (validTimes.length !== new Set(enteredTimes).size) {
-		return `Only reminder times after ${opensAt} and before ${closeTime} will be saved.`;
+		return t('settings.reminders.validation.partialSave', { openTime: opensAt, closeTime });
 	}
 
 	return '';
@@ -227,7 +233,7 @@ export function reminderRuleCardClassName(active: boolean): string {
 /**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
-export function errorToMessage(error: unknown): string {
+export function errorToMessage(error: unknown, t: TFunction): string {
 	if (error instanceof ApiClientError) {
 		return error.message;
 	}
@@ -236,7 +242,7 @@ export function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not update reminder settings.';
+	return t('settings.reminders.error.update');
 }
 
 /**

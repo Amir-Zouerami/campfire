@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { CampfireFeedbackList, CampfireLoadingFeedback } from '@/components/campfire/CampfireFeedback';
+import { useI18n } from '@/i18n';
 
 import type { RolesAccessLoadState } from './roles-access.types';
 
@@ -10,6 +11,7 @@ import type { RolesAccessLoadState } from './roles-access.types';
 type RolesAccessFeedbackProps = {
 	readonly state: RolesAccessLoadState;
 	readonly message: string;
+	readonly messageTone: 'success' | 'error';
 	readonly profileErrorMessage: string;
 };
 
@@ -23,7 +25,7 @@ export function RolesAccessFeedback(props: RolesAccessFeedbackProps): ReactEleme
 				{
 					key: 'workflow-message',
 					message: props.message,
-					tone: props.state === 'error' ? 'error' as const : 'success' as const,
+					tone: props.state === 'error' ? 'error' as const : props.messageTone,
 				},
 				{
 					key: 'profile-warning',
@@ -39,5 +41,7 @@ export function RolesAccessFeedback(props: RolesAccessFeedbackProps): ReactEleme
  * RolesAccessLoading renders a compact loading state.
  */
 export function RolesAccessLoading(): ReactElement {
-	return <CampfireLoadingFeedback message="Loading workspace roles…" />;
+	const { t } = useI18n();
+
+	return <CampfireLoadingFeedback message={t('settings.roles.loading')} />;
 }

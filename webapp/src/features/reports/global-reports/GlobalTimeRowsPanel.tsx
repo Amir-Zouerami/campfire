@@ -3,14 +3,17 @@ import { Clock3, Rows3 } from 'lucide-react';
 
 import { CampfireEllipsisText } from '@/components/campfire/CampfireBidiText';
 import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
+import { useI18n } from '@/i18n';
 import type { TimeReportGroupBy, TimeReportRow } from '@/types/domain';
 
 import {
 	formatMinutes,
-	globalTimeRowMetaChips,
-	globalTimeRowSubtitle,
 	globalTimeRowTitle,
 } from './global-reports.helpers';
+import {
+	globalTimeRowMetaChips,
+	globalTimeRowSubtitle,
+} from './global-reports.i18n';
 
 /**
  * GlobalTimeRowsPanelProps contains global grouped time rows.
@@ -25,22 +28,23 @@ type GlobalTimeRowsPanelProps = {
  * GlobalTimeRowsPanel renders grouped global time report rows.
  */
 export function GlobalTimeRowsPanel(props: GlobalTimeRowsPanelProps): ReactElement {
+	const { t } = useI18n();
 	const rows = sortGlobalRowsNewestFirst(props.rows);
 
 	return (
 		<section className="campfire-report-list-panel">
 			<header className="campfire-report-section-header">
 				<div>
-					<p className="campfire-page-eyebrow">Grouped rows</p>
-					<h3 className="campfire-surface-title">Global time breakdown</h3>
+					<p className="campfire-page-eyebrow">{t('reports.global.time.rows.eyebrow')}</p>
+					<h3 className="campfire-surface-title">{t('reports.global.time.rows.title')}</h3>
 				</div>
 			</header>
 
 			{rows.length === 0 ? (
 				<CampfireEmpty
 					icon={Rows3}
-					title="No grouped rows"
-					description="No time entries matched this grouping and date range."
+					title={t('reports.global.time.rows.empty.title')}
+					description={t('reports.global.time.rows.empty.description')}
 				/>
 			) : (
 				<div className="campfire-report-row-list">
@@ -66,8 +70,9 @@ function GlobalTimeRow(props: {
 	readonly groupBy: TimeReportGroupBy;
 	readonly labelForUserID: (userID: string) => string;
 }): ReactElement {
-	const metaChips = globalTimeRowMetaChips(props.row);
-	const title = globalTimeRowTitle(props.row, props.groupBy, props.labelForUserID);
+	const { t } = useI18n();
+	const metaChips = globalTimeRowMetaChips(props.row, t);
+	const title = globalTimeRowTitle(props.row, props.groupBy, props.labelForUserID, t('reports.global.row.unlabeled'));
 
 	return (
 		<article className="campfire-report-row-card">
@@ -80,7 +85,7 @@ function GlobalTimeRow(props: {
 					</span>
 				</div>
 
-				<p className="campfire-report-row-subtitle">{globalTimeRowSubtitle(props.row)}</p>
+				<p className="campfire-report-row-subtitle">{globalTimeRowSubtitle(props.row, t)}</p>
 
 				{metaChips.length > 0 && (
 					<div className="campfire-report-row-meta">
@@ -94,9 +99,9 @@ function GlobalTimeRow(props: {
 				)}
 			</div>
 
-			<div className="campfire-report-row-count" aria-label={`${props.row.entryCount} entries`}>
+			<div className="campfire-report-row-count" aria-label={t('reports.global.entry.countAria', { count: props.row.entryCount })}>
 				<strong>{props.row.entryCount}</strong>
-				<span>{props.row.entryCount === 1 ? 'entry' : 'entries'}</span>
+				<span>{props.row.entryCount === 1 ? t('reports.global.entry.singular') : t('reports.global.entry.pluralShort')}</span>
 			</div>
 		</article>
 	);

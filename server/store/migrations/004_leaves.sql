@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS campfire_leave_types (
         ON DELETE CASCADE
 );
 
-CREATE UNIQUE INDEX ux_campfire_leave_types_workspace_code
+CREATE UNIQUE INDEX IF NOT EXISTS ux_campfire_leave_types_workspace_code
     ON campfire_leave_types(workspace_id, code);
 
 CREATE TABLE IF NOT EXISTS campfire_leave_requests (
@@ -50,16 +50,16 @@ CREATE TABLE IF NOT EXISTS campfire_leave_requests (
         ON DELETE CASCADE
 );
 
-CREATE INDEX idx_campfire_leave_requests_workspace_user_dates
+CREATE INDEX IF NOT EXISTS idx_campfire_leave_requests_workspace_user_dates
     ON campfire_leave_requests(workspace_id, user_id, start_date, end_date);
 
-CREATE INDEX idx_campfire_leave_requests_workspace_status
+CREATE INDEX IF NOT EXISTS idx_campfire_leave_requests_workspace_status
     ON campfire_leave_requests(workspace_id, status);
 
-CREATE INDEX idx_campfire_leave_requests_user_status
+CREATE INDEX IF NOT EXISTS idx_campfire_leave_requests_user_status
     ON campfire_leave_requests(user_id, status);
 
-CREATE INDEX idx_campfire_leave_requests_dates
+CREATE INDEX IF NOT EXISTS idx_campfire_leave_requests_dates
     ON campfire_leave_requests(start_date, end_date);
 
 CREATE TABLE IF NOT EXISTS campfire_leave_decisions (
@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS campfire_leave_decisions (
         ON DELETE CASCADE
 );
 
-CREATE INDEX idx_campfire_leave_decisions_request
+CREATE INDEX IF NOT EXISTS idx_campfire_leave_decisions_request
     ON campfire_leave_decisions(leave_request_id);
 
 -- +goose Down

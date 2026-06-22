@@ -43,9 +43,14 @@ const (
 	StandupSkipReasonWorkspaceOffDay StandupSkipReason = "workspace_off_day"
 
 	/*
-		StandupSkipReasonEveryoneOnLeave means all known workspace channel members are on approved leave.
+		StandupSkipReasonEveryoneOnLeave means all active standup participants are on approved leave.
 	*/
 	StandupSkipReasonEveryoneOnLeave StandupSkipReason = "everyone_on_leave"
+
+	/*
+		StandupSkipReasonNoParticipants means there are no channel members included in standups.
+	*/
+	StandupSkipReasonNoParticipants StandupSkipReason = "no_participants"
 )
 
 /*
@@ -63,6 +68,8 @@ type StandupRunDecision struct {
 	IsLastWorkingDayOfWeek bool
 	MemberCount            int
 	OnLeaveMemberCount     int
+	ExcludedMemberCount    int
+	ExcludedUserIDs        []string
 
 	GlobalOffDays    []GlobalSkipDate
 	WorkspaceOffDays []WorkspaceOffDay

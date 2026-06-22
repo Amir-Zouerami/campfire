@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 
 import { CampfireSegmentedTabs } from '@/components/campfire/CampfireSegmentedTabs';
+import { useI18n } from '@/i18n';
 
 import { GlobalLeaveReportPanel } from './GlobalLeaveReportPanel';
 import { GlobalTimeReportPanel } from './GlobalTimeReportPanel';
@@ -14,31 +15,31 @@ type GlobalReportsPageProps = {
 	readonly isSystemAdmin: boolean;
 };
 
-const globalReportTabs = [
-	{
-		value: 'time',
-		label: 'Global time',
-		description: 'Time totals across active workspaces',
-	},
-	{
-		value: 'leave',
-		label: 'Global leave',
-		description: 'Approved and pending leave across workspaces',
-	},
-] as const;
-
 /**
  * GlobalReportsPage renders global report sub-pages for Admins.
  */
 export function GlobalReportsPage(props: GlobalReportsPageProps): ReactElement {
+	const { t } = useI18n();
 	const [activeTab, setActiveTab] = useState<GlobalReportTab>('time');
+	const globalReportTabs = useMemo(() => [
+		{
+			value: 'time' as const,
+			label: t('reports.global.tabs.time.label'),
+			description: t('reports.global.tabs.time.description'),
+		},
+		{
+			value: 'leave' as const,
+			label: t('reports.global.tabs.leave.label'),
+			description: t('reports.global.tabs.leave.description'),
+		},
+	], [t]);
 
 	return (
 		<div className="campfire-page-stack">
 			<CampfireSegmentedTabs
 				tabs={globalReportTabs}
 				activeValue={activeTab}
-				label="Global report type"
+				label={t('reports.global.tabs.ariaLabel')}
 				onChange={setActiveTab}
 			/>
 

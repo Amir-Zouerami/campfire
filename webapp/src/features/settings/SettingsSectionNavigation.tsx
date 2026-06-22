@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { CampfireSegmentedTabs, type CampfireSegmentedTab } from '@/components/campfire/CampfireSegmentedTabs';
+import { useI18n } from '@/i18n';
 
 import type { SettingsSection, SettingsSectionID } from './settings.types';
 
@@ -18,17 +19,18 @@ type SettingsSectionNavigationProps = {
  * matte segmented-tab system used by Reports and Team Review.
  */
 export function SettingsSectionNavigation(props: SettingsSectionNavigationProps): ReactElement {
+	const { t } = useI18n();
 	const tabs: CampfireSegmentedTab<SettingsSectionID>[] = props.sections.map(section => ({
 		value: section.id,
-		label: section.label,
-		description: section.description,
+		label: t(section.labelKey),
+		description: t(section.descriptionKey),
 	}));
 
 	return (
 		<CampfireSegmentedTabs
 			tabs={tabs}
 			activeValue={props.activeSection}
-			label="Settings sections"
+			label={t('settings.sections.ariaLabel')}
 			onChange={props.onSelectSection}
 		/>
 	);

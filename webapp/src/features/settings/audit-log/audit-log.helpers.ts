@@ -1,4 +1,5 @@
 import { ApiClientError } from '@/api';
+import type { TFunction } from '@/i18n/types';
 import type { AuditLogEntry } from '@/types/domain';
 
 import type { AuditActionCount, AuditLimitOption } from './audit-log.types';
@@ -33,9 +34,9 @@ export function countAuditActions(entries: readonly AuditLogEntry[]): readonly A
 /**
  * formatAuditLabel converts enum-like audit values to readable labels.
  */
-export function formatAuditLabel(value: string): string {
+export function formatAuditLabel(value: string, t: TFunction): string {
 	if (value.trim() === '') {
-		return 'Unknown';
+		return t('settings.audit.unknown');
 	}
 
 	return value
@@ -47,14 +48,17 @@ export function formatAuditLabel(value: string): string {
 /**
  * formatDateTime formats an API timestamp for compact display.
  */
-export function formatDateTime(value: string): string {
+export function formatDateTime(value: string, locale: string): string {
 	const date = new Date(value);
 
 	if (Number.isNaN(date.getTime())) {
 		return value;
 	}
 
-	return date.toLocaleString();
+	return new Intl.DateTimeFormat(locale, {
+		dateStyle: 'medium',
+		timeStyle: 'short',
+	}).format(date);
 }
 
 /**
@@ -82,7 +86,7 @@ export function toAuditLimitOption(value: string): AuditLimitOption {
 /**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
-export function errorToMessage(error: unknown): string {
+export function errorToMessage(error: unknown, t: TFunction): string {
 	if (error instanceof ApiClientError) {
 		return error.message;
 	}
@@ -91,7 +95,7 @@ export function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not load the audit log.';
+	return t('settings.audit.error.load');
 }
 
 /**

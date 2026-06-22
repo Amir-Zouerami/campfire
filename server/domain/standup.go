@@ -192,6 +192,26 @@ const (
 	QuestionTypeLongText QuestionType = "long_text"
 
 	/*
+		QuestionTypeWorkItems stores itemized work as newline-separated text.
+	*/
+	QuestionTypeWorkItems QuestionType = "work_items"
+
+	/*
+		QuestionTypeDate stores a YYYY-MM-DD calendar date.
+	*/
+	QuestionTypeDate QuestionType = "date"
+
+	/*
+		QuestionTypeTime stores an HH:mm local time.
+	*/
+	QuestionTypeTime QuestionType = "time"
+
+	/*
+		QuestionTypeDateTime stores a YYYY-MM-DDTHH:mm local date-time.
+	*/
+	QuestionTypeDateTime QuestionType = "datetime"
+
+	/*
 		QuestionTypeCheckbox stores a checkbox answer.
 	*/
 	QuestionTypeCheckbox QuestionType = "checkbox"
@@ -232,6 +252,26 @@ const (
 		QuestionLongText is a backwards-compatible alias for long text questions.
 	*/
 	QuestionLongText = QuestionTypeLongText
+
+	/*
+		QuestionWorkItems is an alias for itemized work questions.
+	*/
+	QuestionWorkItems = QuestionTypeWorkItems
+
+	/*
+		QuestionDate is an alias for date questions.
+	*/
+	QuestionDate = QuestionTypeDate
+
+	/*
+		QuestionTime is an alias for time questions.
+	*/
+	QuestionTime = QuestionTypeTime
+
+	/*
+		QuestionDateTime is an alias for date-time questions.
+	*/
+	QuestionDateTime = QuestionTypeDateTime
 
 	/*
 		QuestionCheckbox is a backwards-compatible alias for checkbox questions.

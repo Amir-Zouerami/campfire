@@ -6,6 +6,9 @@ SERVER_MAIN := ./server
 SERVER_DIST := server/dist
 WEBAPP_DIR := webapp
 WEBAPP_DIST := webapp/dist
+WEBAPP_GENERATED_ASSETS := $(WEBAPP_DIR)/src/generated-assets
+FONT_SOURCE := assets/fonts/Vazirmatn-Variable.woff2
+FONT_TARGET_DIR := $(WEBAPP_GENERATED_ASSETS)/fonts
 DIST_DIR := dist
 BUNDLE_ROOT := $(DIST_DIR)/bundle-root
 
@@ -15,8 +18,6 @@ GOARCH ?= amd64
 SERVER_TARGETS := \
 	linux/amd64/plugin-linux-amd64 \
 	linux/arm64/plugin-linux-arm64 \
-	darwin/amd64/plugin-darwin-amd64 \
-	darwin/arm64/plugin-darwin-arm64 \
 	windows/amd64/plugin-windows-amd64.exe
 
 .PHONY: help
@@ -54,8 +55,19 @@ build-server-all:
 		CGO_ENABLED=0 GOOS=$$goos GOARCH=$$goarch go build -trimpath -o $(SERVER_DIST)/$$output $(SERVER_MAIN); \
 	done
 
+.PHONY: prepare-webapp-assets
+prepare-webapp-assets:
+	@if [ ! -f "$(FONT_SOURCE)" ]; then \
+		echo "Missing required font asset: $(FONT_SOURCE)"; \
+		echo "Campfire uses this font for Persian and Arabic typography."; \
+		exit 1; \
+	fi
+	rm -rf $(FONT_TARGET_DIR)
+	mkdir -p $(FONT_TARGET_DIR)
+	cp $(FONT_SOURCE) $(FONT_TARGET_DIR)/Vazirmatn-Variable.woff2
+
 .PHONY: build-webapp
-build-webapp:
+build-webapp: prepare-webapp-assets
 	cd $(WEBAPP_DIR) && npx vite build
 
 .PHONY: bundle-check
@@ -85,3 +97,4 @@ clean:
 	rm -rf $(SERVER_DIST)
 	rm -rf $(DIST_DIR)
 	rm -rf $(WEBAPP_DIST)
+	rm -rf $(WEBAPP_GENERATED_ASSETS)/fonts

@@ -6,6 +6,7 @@ import { CampfireControlsPanel } from '@/components/campfire/CampfireControlsPan
 import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
 import { CampfirePageIntro } from '@/components/campfire/CampfirePageIntro';
 import { CampfireReportSummaryBar } from '@/components/campfire/CampfireReportSummaryBar';
+import { useI18n } from '@/i18n';
 
 import { GlobalLeaveBreakdownPanel } from './GlobalLeaveBreakdownPanel';
 import { GlobalLeaveControls } from './GlobalLeaveControls';
@@ -24,21 +25,22 @@ type GlobalLeaveReportPanelProps = {
  * GlobalLeaveReportPanel renders global leave reports across workspaces.
  */
 export function GlobalLeaveReportPanel(props: GlobalLeaveReportPanelProps): ReactElement {
+	const { t } = useI18n();
 	const report = useGlobalLeaveReport(props.isSystemAdmin);
 	const profiles = useUserProfiles(report.userIDsForProfiles);
 
 	return (
 		<div className="campfire-page-stack campfire-report-page-stack">
 			<CampfirePageIntro
-				eyebrow="Global leave"
-				title="Cross-workspace leave"
-				description="Load approved and pending leave across active Campfire workspaces."
+				eyebrow={t('reports.global.leave.eyebrow')}
+				title={t('reports.global.leave.title')}
+				description={t('reports.global.leave.description')}
 			/>
 
 			<CampfireControlsPanel
-				eyebrow="Filters"
-				title="Global leave range"
-				description="Choose the date range for leave rows and breakdowns."
+				eyebrow={t('reports.global.controls.eyebrow')}
+				title={t('reports.global.leave.filters.title')}
+				description={t('reports.global.leave.filters.description')}
 				controls={(
 					<GlobalLeaveControls
 						range={report.range}
@@ -61,9 +63,9 @@ export function GlobalLeaveReportPanel(props: GlobalLeaveReportPanelProps): Reac
 			{report.summary !== null && (
 				<CampfireReportSummaryBar
 					items={[
-						{ label: 'Approved', value: String(report.summary.approvedCount), tone: 'success' },
-						{ label: 'Pending', value: String(report.summary.pendingCount), tone: report.summary.pendingCount > 0 ? 'warning' : 'neutral' },
-						{ label: 'Workspaces', value: String(report.summary.workspaceCount), tone: 'neutral' },
+						{ label: t('reports.global.summary.approved'), value: String(report.summary.approvedCount), tone: 'success' },
+						{ label: t('reports.global.summary.pending'), value: String(report.summary.pendingCount), tone: report.summary.pendingCount > 0 ? 'warning' : 'neutral' },
+						{ label: t('reports.global.summary.workspaces'), value: String(report.summary.workspaceCount), tone: 'neutral' },
 					]}
 				/>
 			)}
@@ -71,8 +73,8 @@ export function GlobalLeaveReportPanel(props: GlobalLeaveReportPanelProps): Reac
 			{report.loadState !== 'loading' && report.summary === null && (
 				<CampfireEmpty
 					icon={Umbrella}
-					title="No global leave report loaded"
-					description="Choose a date range and load the global leave report."
+					title={t('reports.global.leave.empty.title')}
+					description={t('reports.global.leave.empty.description')}
 				/>
 			)}
 

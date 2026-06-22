@@ -12,12 +12,11 @@ function normalizeTaskTitleKey(value: string): string {
 /**
  * isTaskListQuestion returns whether a question should be edited as a list of work items.
  *
- * Task generation is now explicit backend configuration. The frontend no longer
- * guesses from labels like "today" or "yesterday", because that created hidden
- * behavior and made template design unpredictable.
+ * Work-item rendering is now explicit in the question type. Task generation, when
+ * enabled, remains a separate setting and is not inferred from labels.
  */
 export function isTaskListQuestion(question: StandupQuestion): boolean {
-	return question.createsTasks && (question.type === 'long_text' || question.type === 'text');
+	return question.type === 'work_items';
 }
 
 /**

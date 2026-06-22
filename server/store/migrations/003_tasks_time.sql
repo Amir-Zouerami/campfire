@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS campfire_projects (
         ON DELETE CASCADE
 );
 
-CREATE UNIQUE INDEX ux_campfire_projects_workspace_name
+CREATE UNIQUE INDEX IF NOT EXISTS ux_campfire_projects_workspace_name
     ON campfire_projects(workspace_id, name);
 
 CREATE TABLE IF NOT EXISTS campfire_task_categories (
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS campfire_task_categories (
         ON DELETE CASCADE
 );
 
-CREATE UNIQUE INDEX ux_campfire_task_categories_workspace_name
+CREATE UNIQUE INDEX IF NOT EXISTS ux_campfire_task_categories_workspace_name
     ON campfire_task_categories(workspace_id, name);
 
 CREATE TABLE IF NOT EXISTS campfire_tasks (
@@ -60,16 +60,16 @@ CREATE TABLE IF NOT EXISTS campfire_tasks (
         ON DELETE CASCADE
 );
 
-CREATE INDEX idx_campfire_tasks_workspace_user
+CREATE INDEX IF NOT EXISTS idx_campfire_tasks_workspace_user
     ON campfire_tasks(workspace_id, user_id);
 
-CREATE INDEX idx_campfire_tasks_workspace_status
+CREATE INDEX IF NOT EXISTS idx_campfire_tasks_workspace_status
     ON campfire_tasks(workspace_id, status);
 
-CREATE INDEX idx_campfire_tasks_workspace_project
+CREATE INDEX IF NOT EXISTS idx_campfire_tasks_workspace_project
     ON campfire_tasks(workspace_id, project_id);
 
-CREATE INDEX idx_campfire_tasks_workspace_category
+CREATE INDEX IF NOT EXISTS idx_campfire_tasks_workspace_category
     ON campfire_tasks(workspace_id, category_id);
 
 CREATE TABLE IF NOT EXISTS campfire_time_entries (
@@ -97,19 +97,19 @@ CREATE TABLE IF NOT EXISTS campfire_time_entries (
         ON DELETE CASCADE
 );
 
-CREATE INDEX idx_campfire_time_entries_workspace_date
+CREATE INDEX IF NOT EXISTS idx_campfire_time_entries_workspace_date
     ON campfire_time_entries(workspace_id, entry_date);
 
-CREATE INDEX idx_campfire_time_entries_workspace_user_date
+CREATE INDEX IF NOT EXISTS idx_campfire_time_entries_workspace_user_date
     ON campfire_time_entries(workspace_id, user_id, entry_date);
 
-CREATE INDEX idx_campfire_time_entries_task
+CREATE INDEX IF NOT EXISTS idx_campfire_time_entries_task
     ON campfire_time_entries(task_id);
 
-CREATE INDEX idx_campfire_time_entries_project_date
+CREATE INDEX IF NOT EXISTS idx_campfire_time_entries_project_date
     ON campfire_time_entries(project_id, entry_date);
 
-CREATE INDEX idx_campfire_time_entries_category_date
+CREATE INDEX IF NOT EXISTS idx_campfire_time_entries_category_date
     ON campfire_time_entries(category_id, entry_date);
 
 -- +goose Down

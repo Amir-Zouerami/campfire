@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { CampfireFeedbackList, CampfireLoadingFeedback } from '@/components/campfire/CampfireFeedback';
+import { useI18n } from '@/i18n';
 
 import type { TimeReportLoadState } from './time-report.types';
 
@@ -24,6 +25,7 @@ export function TimeReportFeedback(props: TimeReportFeedbackProps): ReactElement
 					key: 'workflow-message',
 					message: props.message,
 					tone: props.state === 'error' ? 'error' as const : 'success' as const,
+					showInlineError: true,
 				},
 				{
 					key: 'profile-warning',
@@ -39,5 +41,7 @@ export function TimeReportFeedback(props: TimeReportFeedbackProps): ReactElement
  * TimeReportLoading renders a compact loading state.
  */
 export function TimeReportLoading(): ReactElement {
-	return <CampfireLoadingFeedback message="Loading time report…" />;
+	const { t } = useI18n();
+
+	return <CampfireLoadingFeedback message={t('reports.time.loading')} />;
 }

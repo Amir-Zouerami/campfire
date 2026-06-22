@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { CampfireFeedbackList, CampfireLoadingFeedback } from '@/components/campfire/CampfireFeedback';
+import { useI18n } from '@/i18n';
 
 import type { TeamLeaveApprovalLoadState } from './team-leave-approvals.types';
 
@@ -24,6 +25,7 @@ export function TeamLeaveApprovalsFeedback(props: TeamLeaveApprovalsFeedbackProp
 					key: 'workflow-message',
 					message: props.message,
 					tone: props.state === 'error' ? 'error' as const : 'success' as const,
+					showInlineError: props.state === 'error',
 				},
 				{
 					key: 'profile-warning',
@@ -39,5 +41,7 @@ export function TeamLeaveApprovalsFeedback(props: TeamLeaveApprovalsFeedbackProp
  * TeamLeaveApprovalsLoading renders a compact loading state.
  */
 export function TeamLeaveApprovalsLoading(): ReactElement {
-	return <CampfireLoadingFeedback message="Loading pending leave requests…" />;
+	const { t } = useI18n();
+
+	return <CampfireLoadingFeedback message={t('teamReview.approvals.loading')} />;
 }

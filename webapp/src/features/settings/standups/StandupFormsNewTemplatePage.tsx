@@ -3,6 +3,7 @@ import { Loader2, Plus } from 'lucide-react';
 
 import { CampfireSurface } from '@/components/campfire/CampfireLayoutPrimitives';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/i18n';
 
 import type { StandupTemplateDraft, StandupTemplateDraftPatch } from './standup-settings.types';
 import { StandupFormsPageHeader } from './StandupFormsPageHeader';
@@ -24,6 +25,8 @@ type StandupFormsNewTemplatePageProps = {
  * StandupFormsNewTemplatePage renders the full-page template creation flow.
  */
 export function StandupFormsNewTemplatePage(props: StandupFormsNewTemplatePageProps): ReactElement {
+	const { t } = useI18n();
+
 	return (
 		<CampfireSurface className="campfire-standup-editor-surface campfire-standup-editor-surface--hero">
 			<form
@@ -34,10 +37,10 @@ export function StandupFormsNewTemplatePage(props: StandupFormsNewTemplatePagePr
 				}}
 			>
 				<StandupFormsPageHeader
-					eyebrow="New template"
-					title="Create a standup form"
-					description="Start with the form name and cadence. Add questions after the template is created."
-					backLabel="Back to forms"
+					eyebrow={t('settings.standups.forms.new.eyebrow')}
+					title={t('settings.standups.forms.new.title')}
+					description={t('settings.standups.forms.new.description')}
+					backLabel={t('settings.standups.actions.backToForms')}
 					onBack={props.onBack}
 				/>
 
@@ -50,10 +53,10 @@ export function StandupFormsNewTemplatePage(props: StandupFormsNewTemplatePagePr
 				/>
 
 				<div className="campfire-form-actions campfire-form-actions--split">
-					<Button type="button" variant="ghost" onClick={props.onBack}>Cancel</Button>
+					<Button type="button" variant="ghost" onClick={props.onBack}>{t('common.cancel')}</Button>
 					<Button type="submit" disabled={props.disabled}>
 						{props.saving ? <Loader2 className="cf:size-4 cf:animate-spin" /> : <Plus className="cf:size-4" />}
-						Create template
+						{t('settings.standups.actions.createTemplate')}
 					</Button>
 				</div>
 			</form>

@@ -1,6 +1,8 @@
 import type { ReactElement } from 'react';
 
-import { CampfireFeedback, CampfireLoadingFeedback } from '@/components/campfire/CampfireFeedback';
+import { CampfireFeedback } from '@/components/campfire/CampfireFeedback';
+import { CampfireLoadingFeedback } from '@/components/campfire/CampfireFeedback';
+import { useI18n } from '@/i18n';
 
 import type { CSVExportLoadState } from './csv-exports.types';
 
@@ -16,12 +18,20 @@ type CSVExportFeedbackProps = {
  * CSVExportFeedback renders compact local workflow feedback.
  */
 export function CSVExportFeedback(props: CSVExportFeedbackProps): ReactElement | null {
-	return <CampfireFeedback message={props.message} tone={props.state === 'error' ? 'error' : 'success'} />;
+	return (
+		<CampfireFeedback
+			message={props.message}
+			tone={props.state === 'error' ? 'error' : 'success'}
+			showInlineError={true}
+		/>
+	);
 }
 
 /**
  * CSVExportLoading renders a compact loading state.
  */
 export function CSVExportLoading(): ReactElement {
-	return <CampfireLoadingFeedback message="Preparing CSV export…" />;
+	const { t } = useI18n();
+
+	return <CampfireLoadingFeedback message={t('reports.csv.loading')} />;
 }

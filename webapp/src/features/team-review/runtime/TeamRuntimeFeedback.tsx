@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { CampfireFeedbackList, CampfireLoadingFeedback } from '@/components/campfire/CampfireFeedback';
+import { useI18n } from '@/i18n';
 
 import type { TeamRuntimeLoadState } from './team-runtime.types';
 
@@ -39,5 +40,7 @@ export function TeamRuntimeFeedback(props: TeamRuntimeFeedbackProps): ReactEleme
  * TeamRuntimeLoading renders a compact loading state.
  */
 export function TeamRuntimeLoading(): ReactElement {
-	return <CampfireLoadingFeedback message="Evaluating standup runtime…" />;
+	const { t } = useI18n();
+
+	return <CampfireLoadingFeedback message={t('teamReview.runtime.loading')} />;
 }

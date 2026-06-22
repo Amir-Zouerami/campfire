@@ -3,6 +3,8 @@ import { Crown, ShieldCheck, UserCog, UsersRound } from 'lucide-react';
 
 import { useUserProfiles } from '@/app/useUserProfiles';
 import { CampfireStatCard, CampfireSurface } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfirePageIntro } from '@/components/campfire/CampfirePageIntro';
+import { useI18n } from '@/i18n';
 
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
 
@@ -17,6 +19,7 @@ import { useRolesAccess } from './useRolesAccess';
  * RolesAccessPage renders effective workspace role access and assignment controls.
  */
 export function RolesAccessPage(props: WorkspaceShellProps): ReactElement {
+	const { t } = useI18n();
 	const canManageRoles = props.capabilities.canManageWorkspace || props.isSystemAdmin;
 
 	const access = useRolesAccess({
@@ -25,56 +28,70 @@ export function RolesAccessPage(props: WorkspaceShellProps): ReactElement {
 	});
 
 	const profiles = useUserProfiles(access.userIDsForProfiles);
-	const namedRoleCount = access.roleGroups.reduce((count, group) => count + group.userIDs.length, 0);
-	const leadCount = access.roleGroups.find(group => group.id === 'lead')?.userIDs.length ?? 0;
-	const approverCount = access.roleGroups.find(group => group.id === 'approver')?.userIDs.length ?? 0;
+	const namedRoleCount = access.roleGroups.reduce((count, group) => {
+		return group.removable ? count + group.userIDs.length : count;
+	}, 0);
+	const leadCount = access.roleGroups.find(group => group.id === 'leads')?.userIDs.length ?? 0;
+	const approverCount = access.roleGroups.find(group => group.id === 'approvers')?.userIDs.length ?? 0;
+	const excludedCount = access.roleGroups.find(group => group.id === 'excluded')?.userIDs.length ?? 0;
+	const shouldShowStatusSurface = access.loadState === 'loading'
+		|| access.loadState === 'error'
+		|| access.message.trim() !== ''
+		|| profiles.errorMessage.trim() !== '';
 
 	return (
 		<div className="campfire-page-stack campfire-settings-workflow">
 			<div className="campfire-stat-grid campfire-stat-grid--four">
 				<CampfireStatCard
 					icon={ShieldCheck}
-					label="Access mode"
-					value={canManageRoles ? 'Editable' : 'Read only'}
-					helper={props.isSystemAdmin ? 'System admin' : 'Workspace capability'}
+					label={t('settings.roles.stats.accessMode.label')}
+					value={canManageRoles ? t('settings.roles.status.editable') : t('settings.roles.status.readOnly')}
+					helper={props.isSystemAdmin ? t('settings.roles.stats.accessMode.systemAdmin') : t('settings.roles.stats.accessMode.capability')}
 					tone={canManageRoles ? 'green' : 'slate'}
 				/>
-				<CampfireStatCard icon={Crown} label="Leads" value={String(leadCount)} helper="Workspace operators" />
+				<CampfireStatCard
+					icon={Crown}
+					label={t('settings.roles.stats.leads.label')}
+					value={String(leadCount)}
+					helper={t('settings.roles.stats.leads.helper')}
+				/>
 				<CampfireStatCard
 					icon={UserCog}
-					label="Approvers"
+					label={t('settings.roles.stats.approvers.label')}
 					value={String(approverCount)}
-					helper="Can decide leave"
+					helper={t('settings.roles.stats.approvers.helper')}
 				/>
 				<CampfireStatCard
 					icon={UsersRound}
-					label="Named roles"
-					value={String(namedRoleCount)}
-					helper={profiles.loading ? 'Loading profiles' : 'Explicit assignments'}
+					label={t('settings.roles.stats.excluded.label')}
+					value={String(excludedCount)}
+					helper={
+						profiles.loading
+							? t('settings.roles.stats.excluded.loading')
+							: t('settings.roles.stats.excluded.helper', { count: String(namedRoleCount) })
+					}
 				/>
 			</div>
 
-			<CampfireSurface className="campfire-control-surface campfire-settings-control-surface">
-				<header className="campfire-flat-section-header">
-					<div>
-						<p className="campfire-page-eyebrow">Roles & access</p>
-						<h3 className="campfire-surface-title">Role model and named access</h3>
-						<p className="campfire-surface-description">
-							Review inherited Mattermost rules, assign named Campfire roles, and remove explicit assignments
-							from one focused workspace.
-						</p>
-					</div>
-					<ShieldCheck className="campfire-flat-header-icon" aria-hidden="true" />
-				</header>
+			<CampfirePageIntro
+				eyebrow={t('settings.roles.page.eyebrow')}
+				title={t('settings.roles.page.title')}
+				description={t('settings.roles.page.description')}
+				actions={<ShieldCheck className="cf:size-5" aria-hidden="true" />}
+			/>
 
-				<RolesAccessFeedback
-					state={access.loadState}
-					message={access.message}
-					profileErrorMessage={profiles.errorMessage}
-				/>
+			{shouldShowStatusSurface && (
+				<CampfireSurface className="campfire-control-surface campfire-settings-control-surface">
+					<RolesAccessFeedback
+						state={access.loadState}
+						message={access.message}
+						messageTone={access.messageTone}
+						profileErrorMessage={profiles.errorMessage}
+					/>
 
-				{access.loadState === 'loading' && <RolesAccessLoading />}
-			</CampfireSurface>
+					{access.loadState === 'loading' && <RolesAccessLoading />}
+				</CampfireSurface>
+			)}
 
 			<RoleModelExplainer />
 

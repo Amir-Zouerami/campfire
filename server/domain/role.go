@@ -33,6 +33,15 @@ const (
 		RoleViewer can view selected dashboards and reports.
 	*/
 	RoleViewer Role = "viewer"
+
+	/*
+		RoleExcluded removes a channel member from standup participation.
+
+		Excluded users remain normal Mattermost channel members and may keep any
+		separate Campfire access roles, but they are not counted as standup
+		participants, missing users, reminder recipients, or report subjects.
+	*/
+	RoleExcluded Role = "excluded"
 )
 
 /*
@@ -40,7 +49,7 @@ IsValid returns true when the role is one of Campfire's supported simple roles.
 */
 func (r Role) IsValid() bool {
 	switch r {
-	case RoleMember, RoleLead, RoleApprover, RoleAdmin, RoleViewer:
+	case RoleMember, RoleLead, RoleApprover, RoleAdmin, RoleViewer, RoleExcluded:
 		return true
 	default:
 		return false

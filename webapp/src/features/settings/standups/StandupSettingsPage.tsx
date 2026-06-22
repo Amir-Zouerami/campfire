@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { ReactElement } from 'react';
 
 import { CampfireSurface } from '@/components/campfire/CampfireLayoutPrimitives';
+import { useI18n } from '@/i18n';
 import { CampfireSegmentedTabs } from '@/components/campfire/CampfireSegmentedTabs';
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
 
@@ -21,8 +22,8 @@ type StandupSettingsSectionID = 'overview' | 'schedules' | 'forms';
  */
 type StandupSettingsSection = {
 	readonly id: StandupSettingsSectionID;
-	readonly label: string;
-	readonly description: string;
+	readonly labelKey: 'settings.standups.sections.overview.label' | 'settings.standups.sections.schedules.label' | 'settings.standups.sections.forms.label';
+	readonly descriptionKey: 'settings.standups.sections.overview.description' | 'settings.standups.sections.schedules.description' | 'settings.standups.sections.forms.description';
 };
 
 /**
@@ -31,18 +32,18 @@ type StandupSettingsSection = {
 const standupSettingsSections: readonly StandupSettingsSection[] = [
 	{
 		id: 'overview',
-		label: 'Overview',
-		description: 'Review templates, schedules, and questions.',
+		labelKey: 'settings.standups.sections.overview.label',
+		descriptionKey: 'settings.standups.sections.overview.description',
 	},
 	{
 		id: 'schedules',
-		label: 'Schedules',
-		description: 'Control when daily and weekly forms close.',
+		labelKey: 'settings.standups.sections.schedules.label',
+		descriptionKey: 'settings.standups.sections.schedules.description',
 	},
 	{
 		id: 'forms',
-		label: 'Form builder',
-		description: 'Create templates and edit questions.',
+		labelKey: 'settings.standups.sections.forms.label',
+		descriptionKey: 'settings.standups.sections.forms.description',
 	},
 ];
 
@@ -50,6 +51,7 @@ const standupSettingsSections: readonly StandupSettingsSection[] = [
  * StandupSettingsPage renders focused standup form and schedule settings.
  */
 export function StandupSettingsPage(props: WorkspaceShellProps): ReactElement {
+	const { t } = useI18n();
 	const [activeSectionID, setActiveSectionID] = useState<StandupSettingsSectionID>('overview');
 
 	const canManageStandups = props.capabilities.canManageStandups || props.canManageWorkspace || props.isSystemAdmin;
@@ -69,7 +71,7 @@ export function StandupSettingsPage(props: WorkspaceShellProps): ReactElement {
 				{!canManageStandups && (
 					<StandupSettingsFeedback
 						state="error"
-						message="You can view standup settings, but only workspace Leads and system admins can edit them."
+						message={t('settings.standups.error.permissionViewOnly')}
 					/>
 				)}
 
@@ -77,12 +79,12 @@ export function StandupSettingsPage(props: WorkspaceShellProps): ReactElement {
 
 				{standups.loadState !== 'loading' && (
 					<CampfireSegmentedTabs
-						label="Standup settings sections"
+						label={t('settings.standups.sections.ariaLabel')}
 						activeValue={activeSectionID}
 						tabs={standupSettingsSections.map(section => ({
 							value: section.id,
-							label: section.label,
-							description: section.description,
+							label: t(section.labelKey),
+							description: t(section.descriptionKey),
 						}))}
 						onChange={setActiveSectionID}
 					/>
@@ -125,6 +127,7 @@ function StandupSettingsSectionPanel(props: {
 					onScheduleDraftChange={props.standups.updateScheduleDraft}
 					onCreateSchedule={props.standups.createSchedule}
 					onSaveSchedule={props.standups.saveSchedule}
+					onDeleteSchedule={props.standups.deleteSchedule}
 				/>
 			);
 
@@ -144,9 +147,12 @@ function StandupSettingsSectionPanel(props: {
 					onQuestionDraftChange={props.standups.updateQuestionDraft}
 					onCreateTemplate={props.standups.createTemplate}
 					onSaveTemplate={props.standups.saveTemplate}
+					onDeleteTemplate={props.standups.deleteTemplate}
 					onCreateQuestion={props.standups.createQuestion}
 					onSaveQuestion={props.standups.saveQuestion}
+					onDeleteQuestion={props.standups.deleteQuestion}
 				/>
 			);
 	}
 }
+

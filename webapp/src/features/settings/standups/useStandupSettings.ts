@@ -1,15 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
-import { toast } from '@/components/campfire/campfire-toast';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
 
 import {
 	createStandupQuestion,
 	createStandupSchedule,
 	createStandupTemplate,
+	deleteStandupQuestion,
+	deleteStandupSchedule,
+	deleteStandupTemplate,
 	listStandupConfiguration,
 	updateStandupQuestion,
 	updateStandupSchedule,
 	updateStandupTemplate,
 } from '@/api';
+import { toast } from '@/components/campfire/campfire-toast';
+import { useI18n } from '@/i18n';
+import { campfireQueryKeys } from '@/query';
 import type { StandupQuestion, StandupSchedule, StandupTemplate, Workspace } from '@/types/domain';
 
 import {
@@ -33,6 +40,11 @@ import {
 	pairSchedulesWithDrafts,
 	pairTemplatesWithDrafts,
 	questionToDraft,
+	removeQuestion,
+	removeQuestionsByTemplate,
+	removeSchedule,
+	removeSchedulesByTemplate,
+	removeTemplate,
 	replaceQuestion,
 	replaceSchedule,
 	replaceTemplate,
@@ -74,6 +86,15 @@ type UseStandupSettingsInput = {
 };
 
 /**
+ * StandupSettingsSnapshot is the query-owned standup configuration aggregate.
+ */
+type StandupSettingsSnapshot = {
+	readonly templates: readonly StandupTemplate[];
+	readonly questions: readonly StandupQuestion[];
+	readonly schedules: readonly StandupSchedule[];
+};
+
+/**
  * UseStandupSettingsResult contains settings data, drafts, metrics, and actions.
  */
 export type UseStandupSettingsResult = {
@@ -109,20 +130,21 @@ export type UseStandupSettingsResult = {
 	readonly updateQuestionDraft: (questionID: string, patch: StandupQuestionDraftPatch) => void;
 	readonly createTemplate: () => Promise<void>;
 	readonly saveTemplate: (template: StandupTemplate) => Promise<void>;
+	readonly deleteTemplate: (template: StandupTemplate) => Promise<boolean>;
 	readonly createSchedule: () => Promise<void>;
 	readonly saveSchedule: (schedule: StandupSchedule) => Promise<void>;
+	readonly deleteSchedule: (schedule: StandupSchedule) => Promise<boolean>;
 	readonly createQuestion: () => Promise<void>;
 	readonly saveQuestion: (question: StandupQuestion) => Promise<void>;
+	readonly deleteQuestion: (question: StandupQuestion) => Promise<boolean>;
 };
 
 /**
- * useStandupSettings owns settings loading, draft editing, and persistence.
+ * useStandupSettings owns standup configuration query state and editable drafts.
  */
 export function useStandupSettings(input: UseStandupSettingsInput): UseStandupSettingsResult {
-	const [loadState, setLoadState] = useState<StandupSettingsLoadState>('idle');
-	const [templates, setTemplates] = useState<readonly StandupTemplate[]>([]);
-	const [questions, setQuestions] = useState<readonly StandupQuestion[]>([]);
-	const [schedules, setSchedules] = useState<readonly StandupSchedule[]>([]);
+	const { t } = useI18n();
+	const queryClient = useQueryClient();
 	const [templateDrafts, setTemplateDrafts] = useState<StandupTemplateDraftsByID>({});
 	const [scheduleDrafts, setScheduleDrafts] = useState<StandupScheduleDraftsByID>({});
 	const [questionDrafts, setQuestionDrafts] = useState<StandupQuestionDraftsByID>({});
@@ -131,61 +153,222 @@ export function useStandupSettings(input: UseStandupSettingsInput): UseStandupSe
 	const [newQuestion, setNewQuestion] = useState<StandupQuestionDraft>(emptyQuestionDraft());
 	const [savingID, setSavingID] = useState('');
 	const [message, setMessage] = useState('');
+	const [hasLocalError, setHasLocalError] = useState(false);
+
+	const queryKey = campfireQueryKeys.standupSettingsConfiguration(input.workspace.id, input.refreshToken);
+	const configurationQuery = useQuery({
+		queryKey,
+		queryFn: async (): Promise<StandupSettingsSnapshot> => {
+			const response = await listStandupConfiguration(input.workspace.id, { includeInactive: true });
+
+			return {
+				templates: response.templates,
+				questions: response.questions,
+				schedules: response.schedules,
+			};
+		},
+	});
 
 	useEffect(() => {
-		let isActive = true;
-
-		/**
-		 * loadConfiguration loads templates, questions, and schedules together.
-		 */
-		async function loadConfiguration(): Promise<void> {
-			setLoadState('loading');
-			setMessage('');
-
-			try {
-				const response = await listStandupConfiguration(input.workspace.id, { includeInactive: true });
-
-				if (!isActive) {
-					return;
-				}
-
-				const firstTemplateID = response.templates[0]?.id ?? '';
-
-				setTemplates(response.templates);
-				setQuestions(response.questions);
-				setSchedules(response.schedules);
-				setTemplateDrafts(buildTemplateDrafts(response.templates));
-				setScheduleDrafts(buildScheduleDrafts(response.schedules));
-				setQuestionDrafts(buildQuestionDrafts(response.questions));
-				setNewSchedule(current => ({
-					...current,
-					templateId: current.templateId.trim() !== '' ? current.templateId : firstTemplateID,
-				}));
-				setNewQuestion(current => ({
-					...current,
-					templateId: current.templateId.trim() !== '' ? current.templateId : firstTemplateID,
-					position:
-						current.position > 0
-							? current.position
-							: nextQuestionPosition(firstTemplateID, response.questions),
-				}));
-				setLoadState('ready');
-			} catch (error: unknown) {
-				if (!isActive) {
-					return;
-				}
-
-				setMessage(errorToMessage(error));
-				setLoadState('error');
-			}
+		const snapshot = configurationQuery.data;
+		if (snapshot === undefined) {
+			return;
 		}
 
-		void loadConfiguration();
+		const firstTemplateID = snapshot.templates[0]?.id ?? '';
+		setTemplateDrafts(buildTemplateDrafts(snapshot.templates));
+		setScheduleDrafts(buildScheduleDrafts(snapshot.schedules));
+		setQuestionDrafts(buildQuestionDrafts(snapshot.questions));
+		setNewSchedule(current => ({
+			...current,
+			templateId: current.templateId.trim() !== '' ? current.templateId : firstTemplateID,
+		}));
+		setNewQuestion(current => ({
+			...current,
+			templateId: current.templateId.trim() !== '' ? current.templateId : firstTemplateID,
+			position:
+				current.position > 0
+					? current.position
+					: nextQuestionPosition(firstTemplateID, snapshot.questions),
+		}));
+	}, [configurationQuery.data]);
 
-		return () => {
-			isActive = false;
-		};
-	}, [input.workspace.id, input.refreshToken]);
+	const templates = configurationQuery.data?.templates ?? [];
+	const questions = configurationQuery.data?.questions ?? [];
+	const schedules = configurationQuery.data?.schedules ?? [];
+
+	const createTemplateMutation = useMutation({
+		mutationFn: async () => createStandupTemplate(input.workspace.id, normalizeTemplateCreate(newTemplate)),
+		onSuccess: response => {
+			updateSnapshot(queryClient, queryKey, snapshot => ({
+				...snapshot,
+				templates: mergeTemplateWithActiveDailyRule([...snapshot.templates, response.template], response.template),
+			}));
+			setTemplateDrafts(current => ({ ...current, [response.template.id]: templateToDraft(response.template) }));
+			setNewTemplate(emptyTemplateDraft());
+			setNewSchedule(current => ({
+				...current,
+				templateId: current.templateId.trim() !== '' ? current.templateId : response.template.id,
+			}));
+			setNewQuestion(current => ({
+				...current,
+				templateId: current.templateId.trim() !== '' ? current.templateId : response.template.id,
+			}));
+			finishMutation(t('settings.standups.toast.templateCreated'));
+		},
+		onError: failMutation,
+	});
+
+	const updateTemplateMutation = useMutation({
+		mutationFn: async (template: StandupTemplate) => {
+			const draft = templateDrafts[template.id];
+			if (draft === undefined) {
+				throw new Error(t('settings.standups.error.templateDraftMissing'));
+			}
+
+			return updateStandupTemplate(input.workspace.id, template.id, normalizeTemplateUpdate(draft));
+		},
+		onSuccess: response => {
+			updateSnapshot(queryClient, queryKey, snapshot => ({
+				...snapshot,
+				templates: mergeTemplateWithActiveDailyRule(
+					replaceTemplate(snapshot.templates, response.template),
+					response.template,
+				),
+			}));
+			setTemplateDrafts(current => ({ ...current, [response.template.id]: templateToDraft(response.template) }));
+			finishMutation(t('settings.standups.toast.templateUpdated'));
+		},
+		onError: failMutation,
+	});
+
+	const deleteTemplateMutation = useMutation({
+		mutationFn: async (template: StandupTemplate) => {
+			await deleteStandupTemplate(input.workspace.id, template.id);
+
+			return template;
+		},
+		onSuccess: template => {
+			updateSnapshot(queryClient, queryKey, snapshot => ({
+				...snapshot,
+				templates: removeTemplate(snapshot.templates, template.id),
+				questions: removeQuestionsByTemplate(snapshot.questions, template.id),
+				schedules: removeSchedulesByTemplate(snapshot.schedules, template.id),
+			}));
+			setTemplateDrafts(current => removeDraft(current, template.id));
+			setQuestionDrafts(current => removeDraftsByQuestionTemplate(current, questions, template.id));
+			setScheduleDrafts(current => removeDraftsByScheduleTemplate(current, schedules, template.id));
+			finishMutation(t('settings.standups.toast.templateDeleted'));
+		},
+		onError: failMutation,
+	});
+
+	const createScheduleMutation = useMutation({
+		mutationFn: async () => createStandupSchedule(input.workspace.id, normalizeScheduleDraft(newSchedule)),
+		onSuccess: response => {
+			updateSnapshot(queryClient, queryKey, snapshot => ({
+				...snapshot,
+				schedules: [...snapshot.schedules, response.schedule],
+			}));
+			setScheduleDrafts(current => ({ ...current, [response.schedule.id]: scheduleToDraft(response.schedule) }));
+			setNewSchedule(current => emptyScheduleDraft(current.templateId));
+			finishMutation(t('settings.standups.toast.scheduleCreated'));
+		},
+		onError: failMutation,
+	});
+
+	const updateScheduleMutation = useMutation({
+		mutationFn: async (schedule: StandupSchedule) => {
+			const draft = scheduleDrafts[schedule.id];
+			if (draft === undefined) {
+				throw new Error(t('settings.standups.error.scheduleDraftMissing'));
+			}
+
+			return updateStandupSchedule(input.workspace.id, schedule.id, normalizeScheduleDraft(draft));
+		},
+		onSuccess: response => {
+			updateSnapshot(queryClient, queryKey, snapshot => ({
+				...snapshot,
+				schedules: replaceSchedule(snapshot.schedules, response.schedule),
+			}));
+			setScheduleDrafts(current => ({ ...current, [response.schedule.id]: scheduleToDraft(response.schedule) }));
+			finishMutation(t('settings.standups.toast.scheduleUpdated'));
+		},
+		onError: failMutation,
+	});
+
+	const deleteScheduleMutation = useMutation({
+		mutationFn: async (schedule: StandupSchedule) => {
+			await deleteStandupSchedule(input.workspace.id, schedule.id);
+
+			return schedule;
+		},
+		onSuccess: schedule => {
+			updateSnapshot(queryClient, queryKey, snapshot => ({
+				...snapshot,
+				schedules: removeSchedule(snapshot.schedules, schedule.id),
+			}));
+			setScheduleDrafts(current => removeDraft(current, schedule.id));
+			finishMutation(t('settings.standups.toast.scheduleDeleted'));
+		},
+		onError: failMutation,
+	});
+
+	const createQuestionMutation = useMutation({
+		mutationFn: async () => createStandupQuestion(input.workspace.id, normalizeQuestionDraft(newQuestion)),
+		onSuccess: response => {
+			updateSnapshot(queryClient, queryKey, snapshot => ({
+				...snapshot,
+				questions: [...snapshot.questions, response.question],
+			}));
+			setQuestionDrafts(current => ({ ...current, [response.question.id]: questionToDraft(response.question) }));
+			setNewQuestion(current =>
+				emptyQuestionDraft(
+					current.templateId,
+					nextQuestionPosition(current.templateId, [...questions, response.question]),
+				),
+			);
+			finishMutation(t('settings.standups.toast.questionCreated'));
+		},
+		onError: failMutation,
+	});
+
+	const updateQuestionMutation = useMutation({
+		mutationFn: async (question: StandupQuestion) => {
+			const draft = questionDrafts[question.id];
+			if (draft === undefined) {
+				throw new Error(t('settings.standups.error.questionDraftMissing'));
+			}
+
+			return updateStandupQuestion(input.workspace.id, question.id, normalizeQuestionDraft(draft));
+		},
+		onSuccess: response => {
+			updateSnapshot(queryClient, queryKey, snapshot => ({
+				...snapshot,
+				questions: replaceQuestion(snapshot.questions, response.question),
+			}));
+			setQuestionDrafts(current => ({ ...current, [response.question.id]: questionToDraft(response.question) }));
+			finishMutation(t('settings.standups.toast.questionUpdated'));
+		},
+		onError: failMutation,
+	});
+
+	const deleteQuestionMutation = useMutation({
+		mutationFn: async (question: StandupQuestion) => {
+			await deleteStandupQuestion(input.workspace.id, question.id);
+
+			return question;
+		},
+		onSuccess: question => {
+			updateSnapshot(queryClient, queryKey, snapshot => ({
+				...snapshot,
+				questions: removeQuestion(snapshot.questions, question.id),
+			}));
+			setQuestionDrafts(current => removeDraft(current, question.id));
+			finishMutation(t('settings.standups.toast.questionDeleted'));
+		},
+		onError: failMutation,
+	});
 
 	const sortedTemplates = useMemo(() => sortTemplates(templates), [templates]);
 	const sortedQuestions = useMemo(() => sortQuestions(questions), [questions]);
@@ -207,7 +390,19 @@ export function useStandupSettings(input: UseStandupSettingsInput): UseStandupSe
 	const dailyCount = useMemo(() => dailyScheduleCount(schedules), [schedules]);
 	const weeklyCount = useMemo(() => weeklyScheduleCount(schedules), [schedules]);
 	const reportCount = useMemo(() => reportQuestionCount(questions), [questions]);
-	const isBusy = loadState === 'loading' || loadState === 'saving';
+	const mutationPending =
+		createTemplateMutation.isPending ||
+		updateTemplateMutation.isPending ||
+		deleteTemplateMutation.isPending ||
+		createScheduleMutation.isPending ||
+		updateScheduleMutation.isPending ||
+		deleteScheduleMutation.isPending ||
+		createQuestionMutation.isPending ||
+		updateQuestionMutation.isPending ||
+		deleteQuestionMutation.isPending;
+	const loadState = deriveStandupSettingsLoadState(configurationQuery.isLoading, configurationQuery.isError, mutationPending, hasLocalError);
+	const isBusy = configurationQuery.isLoading || mutationPending;
+	const currentMessage = configurationQuery.isError ? errorToMessage(configurationQuery.error, t('settings.standups.error.fallback')) : message;
 
 	/**
 	 * updateNewTemplate patches the create-template draft.
@@ -256,43 +451,23 @@ export function useStandupSettings(input: UseStandupSettingsInput): UseStandupSe
 	 */
 	async function createTemplate(): Promise<void> {
 		if (!input.canManageStandups) {
-			showPermissionError('Only workspace Leads and system admins can manage standup forms.');
+			showPermissionError(t('settings.standups.error.permission.forms'));
 			return;
 		}
 
-		const validationMessage = validateTemplateDraft(newTemplate);
+		const validationMessage = validateTemplateDraft(newTemplate, t);
 		if (validationMessage !== null) {
 			showValidationError(validationMessage);
 			return;
 		}
 
 		if (templateNameExists(templates, newTemplate.name)) {
-			showValidationError('A standup template with this name already exists in this workspace.');
+			showValidationError(t('settings.standups.validation.templateNameDuplicate'));
 			return;
 		}
 
-		setLoadState('saving');
-		setSavingID('new-template');
-		setMessage('');
-
-		try {
-			const response = await createStandupTemplate(input.workspace.id, normalizeTemplateCreate(newTemplate));
-
-			setTemplates(current => mergeTemplateWithActiveDailyRule([...current, response.template], response.template));
-			setTemplateDrafts(current => ({ ...current, [response.template.id]: templateToDraft(response.template) }));
-			setNewTemplate(emptyTemplateDraft());
-			setNewSchedule(current => ({
-				...current,
-				templateId: current.templateId.trim() !== '' ? current.templateId : response.template.id,
-			}));
-			setNewQuestion(current => ({
-				...current,
-				templateId: current.templateId.trim() !== '' ? current.templateId : response.template.id,
-			}));
-			finishMutation('Standup template created.');
-		} catch (error: unknown) {
-			failMutation(error);
-		}
+		startMutation('new-template');
+		await createTemplateMutation.mutateAsync().catch(() => undefined);
 	}
 
 	/**
@@ -300,44 +475,45 @@ export function useStandupSettings(input: UseStandupSettingsInput): UseStandupSe
 	 */
 	async function saveTemplate(template: StandupTemplate): Promise<void> {
 		if (!input.canManageStandups) {
-			showPermissionError('Only workspace Leads and system admins can manage standup forms.');
+			showPermissionError(t('settings.standups.error.permission.forms'));
 			return;
 		}
 
 		const draft = templateDrafts[template.id];
 		if (draft === undefined) {
-			showValidationError('Could not find this template draft.');
+			showValidationError(t('settings.standups.error.templateDraftMissing'));
 			return;
 		}
 
-		const validationMessage = validateTemplateDraft(draft);
+		const validationMessage = validateTemplateDraft(draft, t);
 		if (validationMessage !== null) {
 			showValidationError(validationMessage);
 			return;
 		}
 
 		if (templateNameExists(templates, draft.name, template.id)) {
-			showValidationError('A standup template with this name already exists in this workspace.');
+			showValidationError(t('settings.standups.validation.templateNameDuplicate'));
 			return;
 		}
 
-		setLoadState('saving');
-		setSavingID(template.id);
-		setMessage('');
+		startMutation(template.id);
+		await updateTemplateMutation.mutateAsync(template).catch(() => undefined);
+	}
 
-		try {
-			const response = await updateStandupTemplate(
-				input.workspace.id,
-				template.id,
-				normalizeTemplateUpdate(draft),
-			);
-
-			setTemplates(current => mergeTemplateWithActiveDailyRule(replaceTemplate(current, response.template), response.template));
-			setTemplateDrafts(current => ({ ...current, [response.template.id]: templateToDraft(response.template) }));
-			finishMutation('Standup template updated.');
-		} catch (error: unknown) {
-			failMutation(error);
+	/**
+	 * deleteTemplate removes one template and its dependent standup configuration/history.
+	 */
+	async function deleteTemplate(template: StandupTemplate): Promise<boolean> {
+		if (!input.canManageStandups) {
+			showPermissionError(t('settings.standups.error.permission.deleteForms'));
+			return false;
 		}
+
+		startMutation(`delete-template-${template.id}`);
+		return deleteTemplateMutation
+			.mutateAsync(template)
+			.then(() => true)
+			.catch(() => false);
 	}
 
 	/**
@@ -345,30 +521,18 @@ export function useStandupSettings(input: UseStandupSettingsInput): UseStandupSe
 	 */
 	async function createSchedule(): Promise<void> {
 		if (!input.canManageStandups) {
-			showPermissionError('Only workspace Leads and system admins can manage standup schedules.');
+			showPermissionError(t('settings.standups.error.permission.schedules'));
 			return;
 		}
 
-		const validationMessage = validateScheduleDraft(newSchedule);
+		const validationMessage = validateScheduleDraft(newSchedule, t);
 		if (validationMessage !== null) {
 			showValidationError(validationMessage);
 			return;
 		}
 
-		setLoadState('saving');
-		setSavingID('new-schedule');
-		setMessage('');
-
-		try {
-			const response = await createStandupSchedule(input.workspace.id, normalizeScheduleDraft(newSchedule));
-
-			setSchedules(current => [...current, response.schedule]);
-			setScheduleDrafts(current => ({ ...current, [response.schedule.id]: scheduleToDraft(response.schedule) }));
-			setNewSchedule(current => emptyScheduleDraft(current.templateId));
-			finishMutation('Standup schedule created.');
-		} catch (error: unknown) {
-			failMutation(error);
-		}
+		startMutation('new-schedule');
+		await createScheduleMutation.mutateAsync().catch(() => undefined);
 	}
 
 	/**
@@ -376,39 +540,40 @@ export function useStandupSettings(input: UseStandupSettingsInput): UseStandupSe
 	 */
 	async function saveSchedule(schedule: StandupSchedule): Promise<void> {
 		if (!input.canManageStandups) {
-			showPermissionError('Only workspace Leads and system admins can manage standup schedules.');
+			showPermissionError(t('settings.standups.error.permission.schedules'));
 			return;
 		}
 
 		const draft = scheduleDrafts[schedule.id];
 		if (draft === undefined) {
-			showValidationError('Could not find this schedule draft.');
+			showValidationError(t('settings.standups.error.scheduleDraftMissing'));
 			return;
 		}
 
-		const validationMessage = validateScheduleDraft(draft);
+		const validationMessage = validateScheduleDraft(draft, t);
 		if (validationMessage !== null) {
 			showValidationError(validationMessage);
 			return;
 		}
 
-		setLoadState('saving');
-		setSavingID(schedule.id);
-		setMessage('');
+		startMutation(schedule.id);
+		await updateScheduleMutation.mutateAsync(schedule).catch(() => undefined);
+	}
 
-		try {
-			const response = await updateStandupSchedule(
-				input.workspace.id,
-				schedule.id,
-				normalizeScheduleDraft(draft),
-			);
-
-			setSchedules(current => replaceSchedule(current, response.schedule));
-			setScheduleDrafts(current => ({ ...current, [response.schedule.id]: scheduleToDraft(response.schedule) }));
-			finishMutation('Standup schedule updated.');
-		} catch (error: unknown) {
-			failMutation(error);
+	/**
+	 * deleteSchedule removes one schedule and schedule-scoped generated rows.
+	 */
+	async function deleteSchedule(schedule: StandupSchedule): Promise<boolean> {
+		if (!input.canManageStandups) {
+			showPermissionError(t('settings.standups.error.permission.deleteSchedules'));
+			return false;
 		}
+
+		startMutation(`delete-schedule-${schedule.id}`);
+		return deleteScheduleMutation
+			.mutateAsync(schedule)
+			.then(() => true)
+			.catch(() => false);
 	}
 
 	/**
@@ -416,35 +581,18 @@ export function useStandupSettings(input: UseStandupSettingsInput): UseStandupSe
 	 */
 	async function createQuestion(): Promise<void> {
 		if (!input.canManageStandups) {
-			showPermissionError('Only workspace Leads and system admins can manage standup forms.');
+			showPermissionError(t('settings.standups.error.permission.forms'));
 			return;
 		}
 
-		const validationMessage = validateQuestionDraft(newQuestion);
+		const validationMessage = validateQuestionDraft(newQuestion, t);
 		if (validationMessage !== null) {
 			showValidationError(validationMessage);
 			return;
 		}
 
-		setLoadState('saving');
-		setSavingID('new-question');
-		setMessage('');
-
-		try {
-			const response = await createStandupQuestion(input.workspace.id, normalizeQuestionDraft(newQuestion));
-
-			setQuestions(current => [...current, response.question]);
-			setQuestionDrafts(current => ({ ...current, [response.question.id]: questionToDraft(response.question) }));
-			setNewQuestion(current =>
-				emptyQuestionDraft(
-					current.templateId,
-					nextQuestionPosition(current.templateId, [...questions, response.question]),
-				),
-			);
-			finishMutation('Standup question created.');
-		} catch (error: unknown) {
-			failMutation(error);
-		}
+		startMutation('new-question');
+		await createQuestionMutation.mutateAsync().catch(() => undefined);
 	}
 
 	/**
@@ -452,55 +600,67 @@ export function useStandupSettings(input: UseStandupSettingsInput): UseStandupSe
 	 */
 	async function saveQuestion(question: StandupQuestion): Promise<void> {
 		if (!input.canManageStandups) {
-			showPermissionError('Only workspace Leads and system admins can manage standup forms.');
+			showPermissionError(t('settings.standups.error.permission.forms'));
 			return;
 		}
 
 		const draft = questionDrafts[question.id];
 		if (draft === undefined) {
-			showValidationError('Could not find this question draft.');
+			showValidationError(t('settings.standups.error.questionDraftMissing'));
 			return;
 		}
 
-		const validationMessage = validateQuestionDraft(draft);
+		const validationMessage = validateQuestionDraft(draft, t);
 		if (validationMessage !== null) {
 			showValidationError(validationMessage);
 			return;
 		}
 
-		setLoadState('saving');
-		setSavingID(question.id);
-		setMessage('');
+		startMutation(question.id);
+		await updateQuestionMutation.mutateAsync(question).catch(() => undefined);
+	}
 
-		try {
-			const response = await updateStandupQuestion(
-				input.workspace.id,
-				question.id,
-				normalizeQuestionDraft(draft),
-			);
-
-			setQuestions(current => replaceQuestion(current, response.question));
-			setQuestionDrafts(current => ({ ...current, [response.question.id]: questionToDraft(response.question) }));
-			finishMutation('Standup question updated.');
-		} catch (error: unknown) {
-			failMutation(error);
+	/**
+	 * deleteQuestion removes one question and stored answers attached to it.
+	 */
+	async function deleteQuestion(question: StandupQuestion): Promise<boolean> {
+		if (!input.canManageStandups) {
+			showPermissionError(t('settings.standups.error.permission.deleteQuestions'));
+			return false;
 		}
+
+		startMutation(`delete-question-${question.id}`);
+		return deleteQuestionMutation
+			.mutateAsync(question)
+			.then(() => true)
+			.catch(() => false);
+	}
+
+	/**
+	 * startMutation resets feedback and stores which row is mutating.
+	 */
+	function startMutation(nextSavingID: string): void {
+		setSavingID(nextSavingID);
+		setMessage('');
+		setHasLocalError(false);
 	}
 
 	/**
 	 * showPermissionError displays an edit permission failure.
 	 */
 	function showPermissionError(errorMessage: string): void {
-		setLoadState('error');
+		setSavingID('');
 		setMessage(errorMessage);
+		setHasLocalError(true);
 	}
 
 	/**
 	 * showValidationError displays a validation failure.
 	 */
 	function showValidationError(errorMessage: string): void {
-		setLoadState('error');
+		setSavingID('');
 		setMessage(errorMessage);
+		setHasLocalError(true);
 	}
 
 	/**
@@ -508,9 +668,10 @@ export function useStandupSettings(input: UseStandupSettingsInput): UseStandupSe
 	 */
 	function finishMutation(successMessage: string): void {
 		setSavingID('');
-		setLoadState('ready');
 		setMessage(successMessage);
+		setHasLocalError(false);
 		toast.success(successMessage);
+		void queryClient.invalidateQueries({ queryKey: campfireQueryKeys.standupSettings(input.workspace.id) });
 		input.onConfigurationChanged();
 	}
 
@@ -518,11 +679,11 @@ export function useStandupSettings(input: UseStandupSettingsInput): UseStandupSe
 	 * failMutation finalizes a failed mutation.
 	 */
 	function failMutation(error: unknown): void {
-		const errorMessage = errorToMessage(error);
+		const errorMessage = errorToMessage(error, t('settings.standups.error.fallback'));
 
 		setSavingID('');
-		setLoadState('error');
 		setMessage(errorMessage);
+		setHasLocalError(true);
 		toast.error(errorMessage);
 	}
 
@@ -544,7 +705,7 @@ export function useStandupSettings(input: UseStandupSettingsInput): UseStandupSe
 		newSchedule,
 		newQuestion,
 		savingID,
-		message,
+		message: currentMessage,
 		isBusy,
 		activeTemplateCount: activeCount,
 		enabledScheduleCount: enabledCount,
@@ -559,10 +720,13 @@ export function useStandupSettings(input: UseStandupSettingsInput): UseStandupSe
 		updateQuestionDraft,
 		createTemplate,
 		saveTemplate,
+		deleteTemplate,
 		createSchedule,
 		saveSchedule,
+		deleteSchedule,
 		createQuestion,
 		saveQuestion,
+		deleteQuestion,
 	};
 }
 
@@ -581,6 +745,23 @@ function templateNameExists(
 	}
 
 	return templates.some(template => template.id !== excludedTemplateID && templateNameKey(template.name) === nextKey);
+}
+
+/**
+ * updateSnapshot writes a derived standup settings snapshot into the query cache.
+ */
+function updateSnapshot(
+	queryClient: QueryClient,
+	queryKey: ReturnType<typeof campfireQueryKeys.standupSettingsConfiguration>,
+	mapper: (snapshot: StandupSettingsSnapshot) => StandupSettingsSnapshot,
+): void {
+	queryClient.setQueryData<StandupSettingsSnapshot>(queryKey, current => {
+		if (current === undefined) {
+			return current;
+		}
+
+		return mapper(current);
+	});
 }
 
 /**
@@ -632,4 +813,76 @@ function patchDraft<TDraft extends object, TPatch extends Partial<TDraft>>(
 			...patch,
 		},
 	};
+}
+
+/**
+ * removeDraft removes one draft entry without mutating the current lookup.
+ */
+function removeDraft<TDraft>(drafts: Record<string, TDraft>, id: string): Record<string, TDraft> {
+	const next = { ...drafts };
+	delete next[id];
+
+	return next;
+}
+
+/**
+ * removeDraftsByQuestionTemplate removes all question drafts for one template.
+ */
+function removeDraftsByQuestionTemplate(
+	drafts: StandupQuestionDraftsByID,
+	currentQuestions: readonly StandupQuestion[],
+	templateID: string,
+): StandupQuestionDraftsByID {
+	const next = { ...drafts };
+
+	for (const question of currentQuestions) {
+		if (question.templateId === templateID) {
+			delete next[question.id];
+		}
+	}
+
+	return next;
+}
+
+/**
+ * removeDraftsByScheduleTemplate removes all schedule drafts that point at one template.
+ */
+function removeDraftsByScheduleTemplate(
+	drafts: StandupScheduleDraftsByID,
+	currentSchedules: readonly StandupSchedule[],
+	templateID: string,
+): StandupScheduleDraftsByID {
+	const next = { ...drafts };
+
+	for (const schedule of currentSchedules) {
+		if (schedule.templateId === templateID) {
+			delete next[schedule.id];
+		}
+	}
+
+	return next;
+}
+
+/**
+ * deriveStandupSettingsLoadState maps query and mutation state to the existing UI contract.
+ */
+function deriveStandupSettingsLoadState(
+	isLoading: boolean,
+	isQueryError: boolean,
+	isMutating: boolean,
+	hasLocalError: boolean,
+): StandupSettingsLoadState {
+	if (isLoading) {
+		return 'loading';
+	}
+
+	if (isMutating) {
+		return 'saving';
+	}
+
+	if (isQueryError || hasLocalError) {
+		return 'error';
+	}
+
+	return 'ready';
 }

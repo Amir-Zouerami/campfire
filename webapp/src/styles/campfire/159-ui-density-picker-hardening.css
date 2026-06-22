@@ -1,0 +1,216 @@
+/*
+ * Campfire CSS module: 159-ui-density-picker-hardening.css
+ * Final-stage visual scale and picker containment fixes.
+ *
+ * This file intentionally lands after the legacy repair cascade so shared
+ * controls have one predictable final contract while the deeper design-system
+ * rewrite continues in later patches.
+ */
+
+.campfire-theme {
+	--cf-readable-body-size: clamp(1.08rem, 0.98rem + 0.22vw, 1.24rem);
+	--cf-readable-small-size: clamp(0.98rem, 0.9rem + 0.16vw, 1.08rem);
+	--cf-readable-label-size: clamp(1.04rem, 0.96rem + 0.18vw, 1.18rem);
+	--cf-readable-title-size: clamp(2.1rem, 1.7rem + 1.05vw, 3.2rem);
+}
+
+.campfire-theme .campfire-modal {
+	width: min(98vw, 1680px);
+	height: min(94vh, 1100px);
+	min-height: min(820px, calc(100vh - 3rem));
+}
+
+.campfire-theme .campfire-workspace-content,
+.campfire-theme .campfire-page-stack,
+.campfire-theme .campfire-settings-panel,
+.campfire-theme .campfire-section,
+.campfire-theme .campfire-form-section {
+	font-size: var(--cf-readable-body-size);
+}
+
+.campfire-theme :where(
+	.campfire-page-title,
+	.campfire-page-header h1,
+	.campfire-page-header h2,
+	.campfire-page-intro-copy h1,
+	.campfire-page-intro-copy h2,
+	.campfire-settings-panel-title-row h3,
+	.campfire-section-title
+) {
+	font-size: var(--cf-readable-title-size) !important;
+	line-height: 1.08 !important;
+}
+
+.campfire-theme :where(
+	.campfire-page-description,
+	.campfire-section-description,
+	.campfire-settings-panel-description,
+	.campfire-page-intro-copy p:not(.campfire-page-eyebrow),
+	.campfire-workspace-content p,
+	.campfire-card-description
+) {
+	font-size: var(--cf-readable-body-size) !important;
+	line-height: 1.72 !important;
+}
+
+.campfire-theme :where(
+	.campfire-field-label,
+	.campfire-form-label,
+	.campfire-checkbox-label,
+	.campfire-radio-label,
+	label
+) {
+	font-size: var(--cf-readable-label-size) !important;
+	line-height: 1.35 !important;
+}
+
+.campfire-theme :where(
+	.campfire-input,
+	.campfire-textarea,
+	.campfire-select-trigger,
+	.campfire-date-picker-trigger,
+	.campfire-time-picker-trigger,
+	input,
+	textarea,
+	button
+) {
+	font-size: var(--cf-readable-body-size) !important;
+}
+
+.campfire-theme :where(.campfire-input, .campfire-select-trigger, .campfire-date-picker-trigger, .campfire-time-picker-trigger) {
+	min-height: 3.55rem !important;
+}
+
+.campfire-theme .campfire-textarea,
+.campfire-theme textarea {
+	min-height: 8.5rem;
+}
+
+.campfire-theme :where(
+	.campfire-field-help,
+	.campfire-page-eyebrow,
+	.campfire-date-picker-hint,
+	.campfire-time-picker-value--empty,
+	.campfire-select-hidden-count
+) {
+	font-size: var(--cf-readable-small-size) !important;
+}
+
+.campfire-theme .campfire-workspace-content {
+	padding-inline: clamp(1.6rem, 2.2vw, 3rem) !important;
+	padding-block: clamp(1.5rem, 2vw, 2.6rem) !important;
+}
+
+.campfire-theme .campfire-page-stack {
+	gap: clamp(1.45rem, 1.5vw, 2.2rem) !important;
+}
+
+/*
+ * Picker portal hardening.
+ * Date/time pickers are portaled to the overlay by the shared floating hook.
+ * These rules also target the picker class directly so fallback body portals in
+ * tests do not inherit Mattermost or page-level sizing by accident.
+ */
+.campfire-picker-portal-scope.campfire-date-picker-popover,
+.campfire-theme .campfire-date-picker-popover.campfire-floating-popover {
+	inline-size: 24rem !important;
+	min-inline-size: 24rem !important;
+	max-inline-size: min(24rem, calc(100vw - 2rem)) !important;
+	block-size: auto !important;
+	min-block-size: auto !important;
+	max-block-size: min(36rem, calc(100vh - 2rem)) !important;
+	display: grid !important;
+	grid-template-columns: minmax(0, 1fr) !important;
+	gap: 0.9rem !important;
+	overflow: hidden !important;
+}
+
+.campfire-picker-portal-scope.campfire-time-picker-popover,
+.campfire-theme .campfire-time-picker-popover.campfire-floating-popover {
+	inline-size: 20rem !important;
+	min-inline-size: 20rem !important;
+	max-inline-size: min(20rem, calc(100vw - 2rem)) !important;
+	block-size: auto !important;
+	min-block-size: auto !important;
+	max-block-size: min(34rem, calc(100vh - 2rem)) !important;
+	overflow: hidden !important;
+}
+
+.campfire-picker-portal-scope .campfire-date-picker-header,
+.campfire-theme .campfire-date-picker-header {
+	min-inline-size: 0 !important;
+}
+
+.campfire-picker-portal-scope .campfire-date-picker-heading,
+.campfire-theme .campfire-date-picker-heading {
+	min-inline-size: 0 !important;
+	text-align: center !important;
+}
+
+.campfire-picker-portal-scope .campfire-date-picker-weekdays,
+.campfire-picker-portal-scope .campfire-date-picker-grid,
+.campfire-theme .campfire-date-picker-weekdays,
+.campfire-theme .campfire-date-picker-grid {
+	display: grid !important;
+	grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+	inline-size: 100% !important;
+	min-inline-size: 0 !important;
+}
+
+.campfire-picker-portal-scope .campfire-date-picker-weekdays,
+.campfire-theme .campfire-date-picker-weekdays {
+	gap: 0.35rem !important;
+}
+
+.campfire-picker-portal-scope .campfire-date-picker-grid,
+.campfire-theme .campfire-date-picker-grid {
+	gap: 0.5rem !important;
+}
+
+.campfire-picker-portal-scope .campfire-date-picker-day,
+.campfire-theme .campfire-date-picker-day {
+	inline-size: 100% !important;
+	min-inline-size: 0 !important;
+	min-block-size: 2.55rem !important;
+	padding: 0 !important;
+}
+
+.campfire-picker-portal-scope .campfire-date-picker-footer,
+.campfire-theme .campfire-date-picker-footer {
+	display: grid !important;
+	grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+	gap: 0.7rem !important;
+}
+
+.campfire-picker-portal-scope .campfire-date-picker-footer-button,
+.campfire-theme .campfire-date-picker-footer-button,
+.campfire-picker-portal-scope .campfire-time-picker-footer-button,
+.campfire-theme .campfire-time-picker-footer-button {
+	min-block-size: 2.8rem !important;
+	font-size: 1rem !important;
+}
+
+.campfire-overlay[dir='rtl'] .campfire-picker-portal-scope,
+.campfire-picker-portal-scope[dir='rtl'] {
+	direction: rtl;
+}
+
+.campfire-overlay[dir='ltr'] .campfire-picker-portal-scope,
+.campfire-picker-portal-scope[dir='ltr'] {
+	direction: ltr;
+}
+
+@media (max-width: 900px) {
+	.campfire-theme .campfire-modal {
+		width: 100vw;
+		height: 100vh;
+		min-height: 100vh;
+		border-radius: 0;
+	}
+
+	.campfire-picker-portal-scope.campfire-date-picker-popover,
+	.campfire-theme .campfire-date-picker-popover.campfire-floating-popover {
+		inline-size: min(23rem, calc(100vw - 1.25rem)) !important;
+		min-inline-size: min(23rem, calc(100vw - 1.25rem)) !important;
+	}
+}

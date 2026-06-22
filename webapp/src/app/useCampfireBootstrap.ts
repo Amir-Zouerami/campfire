@@ -1,10 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 import type { HealthResponse, MeResponse } from '@/types/api';
 import type { Workspace, WorkspaceCapabilities } from '@/types/domain';
 import { ApiClientError, getHealth, getMe, getWorkspaceByChannel } from '@/api';
+import { campfireQueryKeys } from '@/query';
 
-import { getMattermostHostContext, isWorkspaceEligibleChannelType } from './mattermostHost';
+import { isWorkspaceEligibleChannelType } from './mattermostHost';
+
+/**
+ * CampfireBootstrapOpenContext is the Mattermost location snapshot captured when the modal opens.
+ */
+export type CampfireBootstrapOpenContext = {
+	readonly openSequence: number;
+	readonly channelID: string | null;
+	readonly channelName: string | null;
+	readonly channelType: string | null;
+	readonly teamID: string | null;
+};
 
 /**
  * BootstrapIdleStatus means Campfire has not started loading startup data yet.
@@ -53,108 +65,111 @@ export type BootstrapStatus =
 	| BootstrapErrorStatus;
 
 /**
- * useCampfireBootstrap loads initial backend data when Campfire opens.
+ * useCampfireBootstrap loads startup data for the exact channel snapshot that opened the modal.
+ *
+ * Mattermost keeps the plugin root mounted while users move between channels, so bootstrap data
+ * must be keyed by an explicit open-session context instead of the ambient current channel alone.
  */
-export function useCampfireBootstrap(isOpen: boolean, refreshToken: number): BootstrapStatus {
-	const [status, setStatus] = useState<BootstrapStatus>({
-		state: 'idle',
+export function useCampfireBootstrap(
+	isOpen: boolean,
+	openContext: CampfireBootstrapOpenContext | null,
+	refreshToken: number,
+): BootstrapStatus {
+	const bootstrapQuery = useQuery({
+		queryKey: campfireQueryKeys.bootstrap(
+			openContext?.openSequence ?? 0,
+			openContext?.channelID ?? null,
+			openContext?.channelType ?? null,
+			openContext?.teamID ?? null,
+			refreshToken,
+		),
+		queryFn: async () => {
+			if (openContext === null) {
+				throw new Error('Campfire open context is missing.');
+			}
+
+			return loadBootstrapData(openContext);
+		},
+		enabled: isOpen && openContext !== null,
 	});
 
-	useEffect(() => {
-		if (!isOpen) {
-			return;
-		}
-
-		let isActive = true;
-
-		async function loadBootstrapData(): Promise<void> {
-			setStatus({
-				state: 'loading',
-			});
-
-			try {
-				const [health, me] = await Promise.all([getHealth(), getMe()]);
-				const hostContext = getMattermostHostContext();
-				const teamID = hostContext.teamID ?? '';
-
-				if (hostContext.channelID !== null && !isWorkspaceEligibleChannelType(hostContext.channelType)) {
-					if (!isActive) {
-						return;
-					}
-
-					setStatus({
-						state: 'ready',
-						health,
-						me,
-						channelID: null,
-						channelName: hostContext.channelName,
-						teamID,
-						workspace: null,
-						capabilities: null,
-						workspaceNotice:
-							'⚠️ Campfire workspaces can only be set up from channels or group conversations. Direct messages cannot become Campfire workspaces.',
-					});
-
-					return;
-				}
-
-				if (hostContext.channelID === null) {
-					if (!isActive) {
-						return;
-					}
-
-					setStatus({
-						state: 'ready',
-						health,
-						me,
-						channelID: null,
-						channelName: null,
-						teamID,
-						workspace: null,
-						capabilities: null,
-						workspaceNotice: 'Open Campfire from a Mattermost channel to load or create a workspace.',
-					});
-
-					return;
-				}
-
-				const workspaceResult = await loadWorkspaceForChannel(hostContext.channelID);
-
-				if (!isActive) {
-					return;
-				}
-
-				setStatus({
-					state: 'ready',
-					health,
-					me,
-					channelID: hostContext.channelID,
-					channelName: hostContext.channelName,
-					teamID,
-					workspace: workspaceResult.workspace,
-					capabilities: workspaceResult.capabilities,
-					workspaceNotice: workspaceResult.notice,
-				});
-			} catch (error: unknown) {
-				if (!isActive) {
-					return;
-				}
-
-				setStatus({
-					state: 'error',
-					errorMessage: getErrorMessage(error),
-				});
-			}
-		}
-
-		void loadBootstrapData();
-
-		return () => {
-			isActive = false;
+	if (!isOpen) {
+		return {
+			state: 'idle',
 		};
-	}, [isOpen, refreshToken]);
+	}
 
-	return status;
+	if (openContext === null) {
+		return {
+			state: 'loading',
+		};
+	}
+
+	if (bootstrapQuery.data !== undefined) {
+		return bootstrapQuery.data;
+	}
+
+	if (bootstrapQuery.isError) {
+		return {
+			state: 'error',
+			errorMessage: getErrorMessage(bootstrapQuery.error),
+		};
+	}
+
+	return {
+		state: 'loading',
+	};
+}
+
+/**
+ * loadBootstrapData loads health, current user, and the workspace for the captured open context.
+ */
+async function loadBootstrapData(openContext: CampfireBootstrapOpenContext): Promise<BootstrapReadyStatus> {
+	const [health, me] = await Promise.all([getHealth(), getMe()]);
+	const teamID = openContext.teamID ?? '';
+
+	if (openContext.channelID !== null && !isWorkspaceEligibleChannelType(openContext.channelType)) {
+		return {
+			state: 'ready',
+			health,
+			me,
+			channelID: null,
+			channelName: openContext.channelName,
+			teamID,
+			workspace: null,
+			capabilities: null,
+			workspaceNotice:
+				'⚠️ Campfire workspaces can only be set up from channels or group conversations. Direct messages cannot become Campfire workspaces.',
+		};
+	}
+
+	if (openContext.channelID === null) {
+		return {
+			state: 'ready',
+			health,
+			me,
+			channelID: null,
+			channelName: null,
+			teamID,
+			workspace: null,
+			capabilities: null,
+			workspaceNotice: 'Open Campfire from a Mattermost channel to load or create a workspace.',
+		};
+	}
+
+	const workspaceResult = await loadWorkspaceForChannel(openContext.channelID);
+
+	return {
+		state: 'ready',
+		health,
+		me,
+		channelID: openContext.channelID,
+		channelName: openContext.channelName,
+		teamID,
+		workspace: workspaceResult.workspace,
+		capabilities: workspaceResult.capabilities,
+		workspaceNotice: workspaceResult.notice,
+	};
 }
 
 /**

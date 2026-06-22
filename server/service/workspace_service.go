@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/amir-zouerami/campfire/server/domain"
+	"github.com/amir-zouerami/campfire/server/i18n"
 	"github.com/amir-zouerami/campfire/server/store"
 	"github.com/google/uuid"
 )
@@ -50,28 +51,40 @@ type ArchiveWorkspaceInput struct {
 CreateWorkspaceInput contains user-submitted workspace setup data.
 */
 type CreateWorkspaceInput struct {
-	ActorUserID            string
-	TeamID                 string
-	ChannelID              string
-	Name                   string
-	Description            string
-	BoardURL               string
-	Timezone               string
-	WorkingDays            []int
-	ChannelAdminsAreLeads  bool
-	NamedLeadUserIDs       []string
-	NamedApproverUserIDs   []string
-	CreateDefaultTemplates bool
+	ActorUserID              string
+	TeamID                   string
+	ChannelID                string
+	Name                     string
+	Description              string
+	BoardURL                 string
+	Timezone                 string
+	WorkingDays              []int
+	ChannelAdminsAreLeads    bool
+	NamedLeadUserIDs         []string
+	NamedApproverUserIDs     []string
+	CreateDefaultTemplates   bool
+	GeneratedMessageLanguage string
 }
 
 /*
 UpdateWorkspaceNotificationSettingsInput contains workspace notification routing changes.
 */
 type UpdateWorkspaceNotificationSettingsInput struct {
-	ActorUserID                        string
-	WorkspaceID                        string
-	ApprovedLeaveNotificationChannelID string
-	LeaveNotificationLanguage          string
+	ActorUserID                          string
+	WorkspaceID                          string
+	ApprovedLeaveNotificationChannelID   string
+	LeaveRequestNotificationRecipientIDs []string
+	LeaveNotificationLanguage            string
+	GeneratedMessageLanguage             string
+}
+
+/*
+UpdateWorkspaceTimezoneInput contains a timezone change for an active workspace.
+*/
+type UpdateWorkspaceTimezoneInput struct {
+	ActorUserID string
+	WorkspaceID string
+	Timezone    string
 }
 
 /*
@@ -214,6 +227,11 @@ func (s *WorkspaceService) Create(ctx context.Context, input CreateWorkspaceInpu
 
 	now := time.Now().UTC()
 	workspaceID := domain.ID(uuid.NewString())
+	generatedLanguage := normalizeGeneratedMessageLanguage(
+		input.GeneratedMessageLanguage,
+		i18n.InferLanguageFromTimezone(cleanTimezone),
+	)
+	workingDays := buildWorkingDays(workspaceID, input.WorkingDays, now)
 
 	params := store.CreateWorkspaceParams{
 		Workspace: domain.Workspace{
@@ -223,14 +241,16 @@ func (s *WorkspaceService) Create(ctx context.Context, input CreateWorkspaceInpu
 			Name:                      cleanName,
 			Description:               strings.TrimSpace(input.Description),
 			BoardURL:                  strings.TrimSpace(input.BoardURL),
-			LeaveNotificationLanguage: domain.ReportLanguageEnglish,
+			LeaveNotificationLanguage: generatedLanguage,
+			GeneratedMessageLanguage:  generatedLanguage,
+			WorkingDays:               workingDayRecordsToWeekdays(workingDays),
 			Timezone:                  cleanTimezone,
 			CreatedBy:                 cleanActorUserID,
 			CreatedAt:                 now,
 			UpdatedAt:                 now,
 			IsArchived:                false,
 		},
-		WorkingDays: buildWorkingDays(workspaceID, input.WorkingDays, now),
+		WorkingDays: workingDays,
 		RoleSettings: domain.WorkspaceRoleSettings{
 			WorkspaceID:           workspaceID,
 			ChannelAdminsAreLeads: input.ChannelAdminsAreLeads,
@@ -249,7 +269,7 @@ func (s *WorkspaceService) Create(ctx context.Context, input CreateWorkspaceInpu
 	}
 
 	if input.CreateDefaultTemplates {
-		defaultSetup := buildDefaultWorkspaceSetup(workspaceID, cleanActorUserID, now)
+		defaultSetup := buildDefaultWorkspaceSetup(workspaceID, cleanActorUserID, generatedLanguage, now)
 		params.StandupTemplates = defaultSetup.Templates
 		params.StandupSchedules = defaultSetup.Schedules
 		params.ReminderRules = defaultSetup.Reminders
@@ -274,6 +294,50 @@ UpdateApprovedLeaveNotificationChannelID updates leave notification routing and 
 An empty channel ID clears the override and makes Campfire post approved-leave
 announcements back to the workspace channel.
 */
+/*
+UpdateTimezone changes the IANA timezone used for workspace schedule and report decisions.
+*/
+func (s *WorkspaceService) UpdateTimezone(ctx context.Context, input UpdateWorkspaceTimezoneInput) (*domain.Workspace, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to update workspace settings.")
+	}
+
+	cleanWorkspaceID := strings.TrimSpace(input.WorkspaceID)
+	if cleanWorkspaceID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
+	}
+
+	cleanTimezone := strings.TrimSpace(input.Timezone)
+	if cleanTimezone == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Timezone is required.")
+	}
+
+	if _, err := time.LoadLocation(cleanTimezone); err != nil {
+		return nil, NewError(ErrorCodeValidationFailed, "Timezone must be a valid IANA timezone.")
+	}
+
+	workspace, err := s.workspaceStore.UpdateTimezone(
+		ctx,
+		domain.ID(cleanWorkspaceID),
+		cleanTimezone,
+		time.Now().UTC(),
+	)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Workspace was not found.")
+		}
+
+		if errors.Is(err, store.ErrUnavailable) {
+			return nil, NewError(ErrorCodeInternal, "Workspace persistence is not connected yet.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not update workspace timezone.")
+	}
+
+	return workspace, nil
+}
+
 func (s *WorkspaceService) UpdateApprovedLeaveNotificationChannelID(
 	ctx context.Context,
 	input UpdateWorkspaceNotificationSettingsInput,
@@ -289,13 +353,20 @@ func (s *WorkspaceService) UpdateApprovedLeaveNotificationChannelID(
 	}
 
 	cleanChannelID := strings.TrimSpace(input.ApprovedLeaveNotificationChannelID)
+	leaveRequestRecipientIDs := normalizeNotificationRecipientIDs(input.LeaveRequestNotificationRecipientIDs, "")
 	leaveNotificationLanguage := normalizeWorkspaceNotificationLanguage(input.LeaveNotificationLanguage)
+	generatedMessageLanguage := normalizeGeneratedMessageLanguage(
+		input.GeneratedMessageLanguage,
+		leaveNotificationLanguage,
+	)
 
 	workspace, err := s.workspaceStore.UpdateNotificationSettings(
 		ctx,
 		domain.ID(cleanWorkspaceID),
 		cleanChannelID,
+		leaveRequestRecipientIDs,
 		leaveNotificationLanguage,
+		generatedMessageLanguage,
 		time.Now().UTC(),
 	)
 	if err != nil {
@@ -317,14 +388,49 @@ func (s *WorkspaceService) UpdateApprovedLeaveNotificationChannelID(
 normalizeWorkspaceNotificationLanguage returns a safe leave notification language.
 */
 func normalizeWorkspaceNotificationLanguage(language string) domain.ReportLanguage {
-	switch domain.ReportLanguage(strings.TrimSpace(language)) {
-	case domain.ReportLanguagePersian:
-		return domain.ReportLanguagePersian
-	case domain.ReportLanguageArabic:
-		return domain.ReportLanguageArabic
-	default:
-		return domain.ReportLanguageEnglish
+	return i18n.NormalizeLanguage(language, domain.LanguageEnglish)
+}
+
+/*
+normalizeGeneratedMessageLanguage returns a safe workspace generated-message language.
+*/
+func normalizeGeneratedMessageLanguage(language string, fallback domain.Language) domain.Language {
+	return i18n.NormalizeLanguage(language, fallback)
+}
+
+/*
+normalizeNotificationRecipientIDs trims, de-duplicates, and optionally excludes one Mattermost user ID.
+*/
+func normalizeNotificationRecipientIDs(userIDs []string, excludedUserID string) []string {
+	normalized := make([]string, 0, len(userIDs))
+	seen := map[string]bool{}
+	cleanExcludedUserID := strings.TrimSpace(excludedUserID)
+
+	for _, userID := range userIDs {
+		cleanUserID := strings.TrimSpace(userID)
+		if cleanUserID == "" || cleanUserID == cleanExcludedUserID || seen[cleanUserID] {
+			continue
+		}
+
+		normalized = append(normalized, cleanUserID)
+		seen[cleanUserID] = true
 	}
+
+	return normalized
+}
+
+/*
+workingDayRecordsToWeekdays converts seed rows to the compact workspace payload model.
+*/
+func workingDayRecordsToWeekdays(workingDays []domain.WorkspaceWorkingDay) []time.Weekday {
+	weekdays := make([]time.Weekday, 0, len(workingDays))
+	for _, workingDay := range workingDays {
+		if workingDay.Enabled {
+			weekdays = append(weekdays, workingDay.Weekday)
+		}
+	}
+
+	return weekdays
 }
 
 /*

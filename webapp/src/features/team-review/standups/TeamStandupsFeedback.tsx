@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { CampfireFeedbackList, CampfireLoadingFeedback } from '@/components/campfire/CampfireFeedback';
+import { useI18n } from '@/i18n';
 
 import type { TeamStandupsLoadState } from './team-standups.types';
 
@@ -39,5 +40,7 @@ export function TeamStandupsFeedback(props: TeamStandupsFeedbackProps): ReactEle
  * TeamStandupsLoading renders a compact loading state.
  */
 export function TeamStandupsLoading(): ReactElement {
-	return <CampfireLoadingFeedback message="Loading standup submissions…" />;
+	const { t } = useI18n();
+
+	return <CampfireLoadingFeedback message={t('teamReview.standups.loading')} />;
 }

@@ -1,9 +1,11 @@
 package service
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/amir-zouerami/campfire/server/domain"
+	"github.com/amir-zouerami/campfire/server/i18n"
 	"github.com/amir-zouerami/campfire/server/store"
 	"github.com/google/uuid"
 )
@@ -16,7 +18,7 @@ const (
 	defaultWeeklySummaryOpenTime = "15:30"
 	defaultWeeklySummaryTime     = "16:00"
 
-	defaultDailyReminderOffsetsJSON  = "[0,15,25]"
+	defaultDailyReminderOffsetsJSON  = "[15,25]"
 	defaultWeeklyReminderOffsetsJSON = "[15]"
 )
 
@@ -33,17 +35,15 @@ type DefaultWorkspaceSetup struct {
 /*
 buildDefaultLeaveTypes creates the default workspace leave types.
 
-All default leave types require approval for Campfire MVP, including Remote/WFH.
+All default leave types require approval for Campfire MVP, including WFH/Remote.
 Notification behavior will be implemented in the leave workflow and scheduler
 layers, not inside seed construction.
 */
 func buildDefaultLeaveTypes(workspaceID domain.ID, createdBy string, now time.Time) []domain.LeaveType {
 	return []domain.LeaveType{
-		buildLeaveType(workspaceID, createdBy, now, "Vacation", "vacation", "#f97316"),
 		buildLeaveType(workspaceID, createdBy, now, "Sick", "sick", "#ef4444"),
 		buildLeaveType(workspaceID, createdBy, now, "Personal", "personal", "#f59e0b"),
-		buildLeaveType(workspaceID, createdBy, now, "Remote/WFH", "remote_wfh", "#38bdf8"),
-		buildLeaveType(workspaceID, createdBy, now, "Custom", "custom", "#a78bfa"),
+		buildLeaveType(workspaceID, createdBy, now, "WFH/Remote", "remote_wfh", "#38bdf8"),
 	}
 }
 
@@ -79,6 +79,7 @@ schedules, reminder windows, and report rules.
 func buildDefaultWorkspaceSetup(
 	workspaceID domain.ID,
 	createdBy string,
+	language domain.Language,
 	now time.Time,
 ) DefaultWorkspaceSetup {
 	dailyTemplateID := domain.ID(uuid.NewString())
@@ -88,8 +89,8 @@ func buildDefaultWorkspaceSetup(
 
 	return DefaultWorkspaceSetup{
 		Templates: []store.CreateStandupTemplateParams{
-			buildDefaultDailyTemplate(workspaceID, dailyTemplateID, createdBy, now),
-			buildDefaultWeeklyTemplate(workspaceID, weeklyTemplateID, createdBy, now),
+			buildDefaultDailyTemplate(workspaceID, dailyTemplateID, createdBy, language, now),
+			buildDefaultWeeklyTemplate(workspaceID, weeklyTemplateID, createdBy, language, now),
 		},
 		Schedules: []domain.StandupSchedule{
 			{
@@ -159,9 +160,9 @@ func buildDefaultWorkspaceSetup(
 				Enabled:         true,
 				ReportKind:      domain.ReportKindDaily,
 				PostToChannel:   true,
-				PreviewRequired: true,
-				SortMode:        domain.ReportSortBlockersFirst,
-				ReportLanguage:  domain.ReportLanguageEnglish,
+				PreviewRequired: false,
+				SortMode:        domain.ReportSortFirstSubmitted,
+				ReportLanguage:  language,
 				IncludeOnLeave:  true,
 				IncludeMissing:  true,
 				IncludeTime:     false,
@@ -177,9 +178,9 @@ func buildDefaultWorkspaceSetup(
 				Enabled:         true,
 				ReportKind:      domain.ReportKindWeekly,
 				PostToChannel:   true,
-				PreviewRequired: true,
-				SortMode:        domain.ReportSortBlockersFirst,
-				ReportLanguage:  domain.ReportLanguageEnglish,
+				PreviewRequired: false,
+				SortMode:        domain.ReportSortFirstSubmitted,
+				ReportLanguage:  language,
 				IncludeOnLeave:  true,
 				IncludeMissing:  true,
 				IncludeTime:     true,
@@ -194,13 +195,53 @@ func buildDefaultWorkspaceSetup(
 
 /*
 buildDefaultDailyTemplate creates the default daily standup template.
+
+Default templates and questions are plain seeded rows. They do not receive any
+special runtime behavior and can be edited or deleted like administrator-created
+forms.
 */
 func buildDefaultDailyTemplate(
 	workspaceID domain.ID,
 	templateID domain.ID,
 	createdBy string,
+	language domain.Language,
 	now time.Time,
 ) store.CreateStandupTemplateParams {
+	questionCopies := i18n.DefaultDailyStandupQuestions(language)
+	questions := make([]domain.StandupQuestion, 0, len(questionCopies))
+
+	for index, copy := range questionCopies {
+		questionType := domain.QuestionLongText
+		if index < 2 {
+			questionType = domain.QuestionWorkItems
+		}
+
+		options := []string{}
+		required := index < 2
+
+		if index == 3 {
+			questionType = domain.QuestionBoolean
+			options = []string{
+				i18n.Translate(language, i18n.MessageNo),
+				i18n.Translate(language, i18n.MessageYes),
+			}
+			required = true
+		}
+
+		questions = append(questions, buildStandupQuestion(
+			templateID,
+			workspaceID,
+			now,
+			index+1,
+			copy,
+			questionType,
+			required,
+			true,
+			false,
+			options,
+		))
+	}
+
 	return store.CreateStandupTemplateParams{
 		Template: domain.StandupTemplate{
 			ID:          templateID,
@@ -213,62 +254,41 @@ func buildDefaultDailyTemplate(
 			CreatedAt:   now,
 			UpdatedAt:   now,
 		},
-		Questions: []domain.StandupQuestion{
-			buildStandupQuestion(
-				templateID,
-				workspaceID,
-				now,
-				1,
-				"Today",
-				"What did you do today?",
-				"Share the work you completed or moved forward.",
-				"Finished login refactor, reviewed dashboard PRs...",
-				domain.QuestionLongText,
-				true,
-				true,
-				true,
-			),
-			buildStandupQuestion(
-				templateID,
-				workspaceID,
-				now,
-				2,
-				"Next",
-				"What will you do next?",
-				"Share your next focus and planned work.",
-				"Continue dashboard work, pair on API contract...",
-				domain.QuestionLongText,
-				true,
-				true,
-				true,
-			),
-			buildStandupQuestion(
-				templateID,
-				workspaceID,
-				now,
-				3,
-				"Blockers",
-				"Are you blocked?",
-				"Share blockers, dependencies, or risks that need help.",
-				"Waiting on API contract...",
-				domain.QuestionLongText,
-				false,
-				true,
-				false,
-			),
-		},
+		Questions: questions,
 	}
 }
 
 /*
 buildDefaultWeeklyTemplate creates the default weekly summary template.
+
+The weekly seed is independent from the daily seed. It only creates normal
+weekly-template rows and never suppresses daily standups.
 */
 func buildDefaultWeeklyTemplate(
 	workspaceID domain.ID,
 	templateID domain.ID,
 	createdBy string,
+	language domain.Language,
 	now time.Time,
 ) store.CreateStandupTemplateParams {
+	questionCopies := i18n.DefaultWeeklyStandupQuestions(language)
+	questions := make([]domain.StandupQuestion, 0, len(questionCopies))
+
+	for index, copy := range questionCopies {
+		questions = append(questions, buildStandupQuestion(
+			templateID,
+			workspaceID,
+			now,
+			index+1,
+			copy,
+			domain.QuestionLongText,
+			index < 2,
+			true,
+			false,
+			[]string{},
+		))
+	}
+
 	return store.CreateStandupTemplateParams{
 		Template: domain.StandupTemplate{
 			ID:          templateID,
@@ -281,50 +301,7 @@ func buildDefaultWeeklyTemplate(
 			CreatedAt:   now,
 			UpdatedAt:   now,
 		},
-		Questions: []domain.StandupQuestion{
-			buildStandupQuestion(
-				templateID,
-				workspaceID,
-				now,
-				1,
-				"Weekly Wins",
-				"What did you complete this week?",
-				"Summarize the meaningful outcomes from this week.",
-				"Shipped onboarding improvements, reduced flaky tests...",
-				domain.QuestionLongText,
-				true,
-				true,
-				false,
-			),
-			buildStandupQuestion(
-				templateID,
-				workspaceID,
-				now,
-				2,
-				"Next Week",
-				"What are your priorities next week?",
-				"Share the most important focus areas for next week.",
-				"Finish reporting filters, polish leave calendar...",
-				domain.QuestionLongText,
-				true,
-				true,
-				false,
-			),
-			buildStandupQuestion(
-				templateID,
-				workspaceID,
-				now,
-				3,
-				"Risks",
-				"Any blockers or risks?",
-				"Share risks, dependencies, or things leadership should know.",
-				"Release timing depends on security review...",
-				domain.QuestionLongText,
-				false,
-				true,
-				false,
-			),
-		},
+		Questions: questions,
 	}
 }
 
@@ -336,31 +313,49 @@ func buildStandupQuestion(
 	workspaceID domain.ID,
 	now time.Time,
 	position int,
-	section string,
-	label string,
-	helpText string,
-	placeholder string,
+	copy i18n.StandupQuestionCopy,
 	questionType domain.QuestionType,
 	required bool,
 	showInReport bool,
 	createsTasks bool,
+	options []string,
 ) domain.StandupQuestion {
 	return domain.StandupQuestion{
 		ID:           domain.ID(uuid.NewString()),
 		TemplateID:   templateID,
 		WorkspaceID:  workspaceID,
-		Section:      section,
-		Label:        label,
-		HelpText:     helpText,
-		Placeholder:  placeholder,
+		Section:      copy.Section,
+		Label:        copy.Label,
+		HelpText:     copy.HelpText,
+		Placeholder:  copy.Placeholder,
 		Type:         questionType,
 		Required:     required,
 		ShowInReport: showInReport,
 		IsPrivate:    false,
 		CreatesTasks: createsTasks,
 		Position:     position,
-		OptionsJSON:  emptyQuestionOptionsJSON,
+		OptionsJSON:  standupQuestionOptionsJSON(options),
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
+}
+
+/*
+standupQuestionOptionsJSON serializes default question options.
+
+Seed failures should not be possible for a static string slice, but keeping a
+small defensive fallback prevents workspace creation from failing because of an
+options serialization edge case.
+*/
+func standupQuestionOptionsJSON(options []string) string {
+	if len(options) == 0 {
+		return emptyQuestionOptionsJSON
+	}
+
+	encoded, err := json.Marshal(options)
+	if err != nil {
+		return emptyQuestionOptionsJSON
+	}
+
+	return string(encoded)
 }

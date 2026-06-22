@@ -1,0 +1,168 @@
+/*
+ * Campfire CSS module: 163-live-polish-date-leave-settings.css
+ * Live UI polish for RTL calendar density, settings card titles, and portaled
+ * user pickers after the Persian QA pass.
+ */
+
+.campfire-overlay.campfire-theme {
+	--cf-live-settings-title-size: clamp(1.28rem, 1.08rem + 0.34vw, 1.72rem);
+	--cf-live-settings-card-title-size: clamp(1.12rem, 1rem + 0.22vw, 1.42rem);
+	--cf-live-runtime-title-size: clamp(1.16rem, 1.02rem + 0.2vw, 1.38rem);
+}
+
+.campfire-overlay.campfire-theme:is([data-campfire-language='fa'], [data-campfire-language='ar']),
+.campfire-overlay.campfire-theme[dir='rtl'] {
+	--cf-live-settings-title-size: clamp(1.38rem, 1.12rem + 0.34vw, 1.82rem);
+	--cf-live-settings-card-title-size: clamp(1.2rem, 1.04rem + 0.22vw, 1.5rem);
+	--cf-live-runtime-title-size: clamp(1.2rem, 1.04rem + 0.2vw, 1.42rem);
+}
+
+/* Settings overview titles are section titles, not page hero titles. */
+.campfire-overlay.campfire-theme .campfire-workspace-overview-heading h3 {
+	font-size: var(--cf-live-settings-title-size) !important;
+	font-weight: 850 !important;
+	line-height: 1.16 !important;
+	letter-spacing: -0.025em !important;
+	text-shadow: none !important;
+}
+
+.campfire-overlay.campfire-theme .campfire-workspace-settings-header h3 {
+	font-size: var(--cf-live-settings-card-title-size) !important;
+	font-weight: 840 !important;
+	line-height: 1.2 !important;
+	letter-spacing: -0.018em !important;
+	text-shadow: none !important;
+}
+
+.campfire-overlay.campfire-theme[dir='rtl'] :is(
+	.campfire-workspace-overview-heading h3,
+	.campfire-workspace-settings-header h3
+) {
+	font-weight: 900 !important;
+	letter-spacing: 0 !important;
+}
+
+/* Runtime cards should read as compact signal cards, not giant hero cards. */
+.campfire-overlay.campfire-theme .campfire-runtime-message-panel h3,
+.campfire-overlay.campfire-theme .campfire-runtime-reason-panel h3,
+.campfire-overlay.campfire-theme .campfire-runtime-signal-grid p:nth-child(2),
+.campfire-overlay.campfire-theme .campfire-runtime-signal-card p:nth-child(2) {
+	font-size: var(--cf-live-runtime-title-size) !important;
+	font-weight: 820 !important;
+	line-height: 1.24 !important;
+	letter-spacing: 0 !important;
+	text-shadow: none !important;
+}
+
+.campfire-overlay.campfire-theme .campfire-runtime-signal-grid :is(article, .campfire-runtime-signal-card) p:first-child {
+	font-size: clamp(0.75rem, 0.7rem + 0.08vw, 0.88rem) !important;
+	line-height: 1.35 !important;
+	letter-spacing: 0.04em !important;
+}
+
+.campfire-overlay.campfire-theme[dir='rtl'] .campfire-runtime-signal-grid :is(article, .campfire-runtime-signal-card) p:first-child {
+	letter-spacing: 0 !important;
+}
+
+/* Date trigger: keep the local calendar hint readable but visually attached. */
+.campfire-overlay.campfire-theme[dir='rtl'] .campfire-date-picker-hint,
+.campfire-overlay.campfire-theme[dir='rtl'] .campfire-date-picker-hint-calendar {
+	font-size: clamp(0.76rem, 0.7rem + 0.05vw, 0.86rem) !important;
+	font-weight: 720 !important;
+	line-height: 1.08 !important;
+}
+
+/* Date popover: roomier header and columns without making the whole picker huge. */
+.campfire-picker-portal-scope.campfire-date-picker-popover,
+.campfire-theme .campfire-date-picker-popover.campfire-floating-popover {
+	inline-size: min(23.75rem, calc(100vw - 24px)) !important;
+	width: min(23.75rem, calc(100vw - 24px)) !important;
+	padding: 0.95rem !important;
+}
+
+.campfire-picker-portal-scope .campfire-date-picker-header,
+.campfire-theme .campfire-date-picker-header {
+	padding: 0.72rem !important;
+}
+
+.campfire-picker-portal-scope .campfire-date-picker-month,
+.campfire-theme .campfire-date-picker-month {
+	font-size: clamp(0.92rem, 0.82rem + 0.12vw, 1.06rem) !important;
+	font-weight: 930 !important;
+	line-height: 1.12 !important;
+	letter-spacing: 0.03em !important;
+	text-transform: none !important;
+}
+
+.campfire-picker-portal-scope[dir='rtl'] .campfire-date-picker-month,
+.campfire-overlay[dir='rtl'] .campfire-picker-portal-scope .campfire-date-picker-month {
+	letter-spacing: 0 !important;
+}
+
+.campfire-picker-portal-scope .campfire-date-picker-year,
+.campfire-theme .campfire-date-picker-year {
+	font-size: clamp(1.18rem, 1.02rem + 0.18vw, 1.38rem) !important;
+	font-weight: 900 !important;
+	line-height: 1.08 !important;
+	margin-top: 0.2rem !important;
+}
+
+.campfire-picker-portal-scope .campfire-date-picker-weekdays,
+.campfire-theme .campfire-date-picker-weekdays {
+	column-gap: 0.58rem !important;
+	row-gap: 0.28rem !important;
+	margin-top: 1rem !important;
+}
+
+.campfire-picker-portal-scope .campfire-date-picker-weekday,
+.campfire-theme .campfire-date-picker-weekday {
+	padding-inline: 0.18rem !important;
+	font-size: clamp(0.64rem, 0.6rem + 0.05vw, 0.74rem) !important;
+	line-height: 1.2 !important;
+	letter-spacing: 0.02em !important;
+	white-space: nowrap !important;
+}
+
+.campfire-picker-portal-scope[dir='rtl'] .campfire-date-picker-weekday,
+.campfire-overlay[dir='rtl'] .campfire-picker-portal-scope .campfire-date-picker-weekday {
+	letter-spacing: 0 !important;
+}
+
+.campfire-picker-portal-scope .campfire-date-picker-grid,
+.campfire-theme .campfire-date-picker-grid {
+	column-gap: 0.52rem !important;
+	row-gap: 0.42rem !important;
+}
+
+.campfire-picker-portal-scope .campfire-date-picker-day,
+.campfire-theme .campfire-date-picker-day {
+	min-block-size: 2.38rem !important;
+	font-size: clamp(0.94rem, 0.86rem + 0.08vw, 1.06rem) !important;
+}
+
+/* Portaled user picker must behave like date/time pickers, not an in-flow card. */
+.campfire-picker-portal-scope.campfire-user-picker-menu,
+.campfire-theme .campfire-user-picker-menu.campfire-floating-popover {
+	position: fixed !important;
+	right: auto !important;
+	bottom: auto !important;
+	z-index: 2147483647 !important;
+	box-sizing: border-box !important;
+	max-block-size: var(--campfire-floating-max-height, min(22rem, calc(100vh - 24px))) !important;
+	min-inline-size: var(--campfire-floating-min-width, 18rem) !important;
+	inline-size: var(--campfire-floating-width, min(34rem, calc(100vw - 24px))) !important;
+	width: var(--campfire-floating-width, min(34rem, calc(100vw - 24px))) !important;
+	overflow: auto !important;
+	border: 1px solid var(--campfire-control-border, rgba(255, 255, 255, 0.12)) !important;
+	border-radius: 1rem !important;
+	background: var(--campfire-control-panel, #171613) !important;
+	box-shadow:
+		0 28px 76px rgba(0, 0, 0, 0.64),
+		inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+@media (min-width: 1800px) {
+	.campfire-overlay.campfire-theme .campfire-modal {
+		font-size: 1.04rem;
+	}
+}

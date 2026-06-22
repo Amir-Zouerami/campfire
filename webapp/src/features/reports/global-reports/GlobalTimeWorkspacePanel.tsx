@@ -3,6 +3,7 @@ import { Globe2 } from 'lucide-react';
 
 import { CampfireEllipsisText } from '@/components/campfire/CampfireBidiText';
 import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
+import { useI18n } from '@/i18n';
 import type { GlobalTimeReportWorkspaceSummary } from '@/types/domain';
 
 import { formatMinutes } from './global-reports.helpers';
@@ -18,22 +19,23 @@ type GlobalTimeWorkspacePanelProps = {
  * GlobalTimeWorkspacePanel renders workspace totals for global time reports.
  */
 export function GlobalTimeWorkspacePanel(props: GlobalTimeWorkspacePanelProps): ReactElement {
+	const { t } = useI18n();
 	const workspaces = [...props.workspaces].sort((left, right) => right.totalMinutes - left.totalMinutes);
 
 	return (
 		<section className="campfire-report-list-panel">
 			<header className="campfire-report-section-header">
 				<div>
-					<p className="campfire-page-eyebrow">Workspace totals</p>
-					<h3 className="campfire-surface-title">Time by workspace</h3>
+					<p className="campfire-page-eyebrow">{t('reports.global.time.workspace.eyebrow')}</p>
+					<h3 className="campfire-surface-title">{t('reports.global.time.workspace.title')}</h3>
 				</div>
 			</header>
 
 			{workspaces.length === 0 ? (
 				<CampfireEmpty
 					icon={Globe2}
-					title="No workspace time"
-					description="No time entries matched this global range."
+					title={t('reports.global.time.workspace.empty.title')}
+					description={t('reports.global.time.workspace.empty.description')}
 				/>
 			) : (
 				<div className="campfire-report-compact-grid">
@@ -42,7 +44,10 @@ export function GlobalTimeWorkspacePanel(props: GlobalTimeWorkspacePanelProps): 
 							<CampfireEllipsisText value={workspace.workspaceName} className="campfire-report-compact-title" />
 							<div className="campfire-report-compact-meta">
 								<span>{formatMinutes(workspace.totalMinutes)}</span>
-								<span>{workspace.entryCount} {workspace.entryCount === 1 ? 'entry' : 'entries'}</span>
+								<span>
+									{workspace.entryCount}{' '}
+									{workspace.entryCount === 1 ? t('reports.global.entry.singular') : t('reports.global.entry.pluralShort')}
+								</span>
 							</div>
 						</article>
 					))}

@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/components/campfire/campfire-toast';
 
 import { createSavedReportFilter, deleteSavedReportFilter, listSavedReportFilters } from '@/api';
 import { dispatchApplyReportFilter } from '@/app/events';
+import { isolateBidiText, useI18n } from '@/i18n';
+import { campfireQueryKeys } from '@/query';
 import type { ReportKind, SavedReportFilter, Workspace } from '@/types/domain';
 
 import {
@@ -39,62 +42,111 @@ export type UseSavedFiltersResult = {
 };
 
 /**
- * useSavedFilters owns saved-filter listing, creation, deletion, and apply events.
+ * useSavedFilters owns saved-filter drafts and query-backed filter state.
+ *
+ * Saved filters are report-server state, so TanStack Query owns the list while
+ * this hook keeps only form drafts and user-facing validation feedback local.
  */
 export function useSavedFilters(input: UseSavedFiltersInput): UseSavedFiltersResult {
-	const [loadState, setLoadState] = useState<SavedFiltersLoadState>('idle');
+	const { t } = useI18n();
+	const queryClient = useQueryClient();
 	const [selectedReportType, setSelectedReportType] = useState<ReportKind>('daily');
-	const [filters, setFilters] = useState<readonly SavedReportFilter[]>([]);
 	const [draft, setDraft] = useState<SavedFilterDraft>({
 		name: '',
 		reportType: 'daily',
 		filterJson: defaultFilterJsonForReportKind('daily'),
 	});
-	const [message, setMessage] = useState('');
+	const [manualMessage, setManualMessage] = useState('');
+	const [manualError, setManualError] = useState('');
 
-	useEffect(() => {
-		let isActive = true;
+	const filtersQuery = useQuery({
+		queryKey: campfireQueryKeys.savedReportFilters(input.workspace.id, selectedReportType),
+		queryFn: async (): Promise<readonly SavedReportFilter[]> => {
+			const response = await listSavedReportFilters(input.workspace.id, selectedReportType);
 
-		/**
-		 * loadFilters loads saved filters for the selected report type.
-		 */
-		async function loadFilters(): Promise<void> {
-			setLoadState('loading');
-			setMessage('');
+			return response.filters;
+		},
+	});
 
-			try {
-				const response = await listSavedReportFilters(input.workspace.id, selectedReportType);
+	const createMutation = useMutation({
+		mutationFn: async (cleanDraft: SavedFilterDraft): Promise<SavedReportFilter> => {
+			const response = await createSavedReportFilter(input.workspace.id, {
+				name: cleanDraft.name,
+				scope: 'workspace',
+				reportType: cleanDraft.reportType,
+				filterJson: cleanDraft.filterJson,
+			});
 
-				if (!isActive) {
-					return;
-				}
+			return response.filter;
+		},
+		onSuccess: (filter: SavedReportFilter): void => {
+			queryClient.setQueryData<readonly SavedReportFilter[]>(
+				campfireQueryKeys.savedReportFilters(input.workspace.id, filter.reportType),
+				current => [filter, ...(current ?? [])],
+			);
+			setSelectedReportType(filter.reportType);
+			setDraft(current => ({
+				...current,
+				name: '',
+				filterJson: filter.filterJson,
+			}));
+			setManualError('');
+			setManualMessage(t('reports.saved.message.created'));
+			toast.success(t('reports.saved.toast.created'));
+		},
+		onError: (error: unknown): void => {
+			const errorMessage = errorToMessage(error, t);
 
-				setFilters(response.filters);
-				setLoadState('ready');
-			} catch (error: unknown) {
-				if (!isActive) {
-					return;
-				}
+			setManualMessage('');
+			setManualError(errorMessage);
+			toast.error(errorMessage);
+		},
+	});
 
-				setMessage(errorToMessage(error));
-				setLoadState('error');
-			}
-		}
+	const deleteMutation = useMutation({
+		mutationFn: async (filterID: string): Promise<string> => {
+			await deleteSavedReportFilter(input.workspace.id, filterID);
 
-		void loadFilters();
+			return filterID;
+		},
+		onSuccess: (filterID: string): void => {
+			queryClient.setQueryData<readonly SavedReportFilter[]>(
+				campfireQueryKeys.savedReportFilters(input.workspace.id, selectedReportType),
+				current => (current ?? []).filter(filter => filter.id !== filterID),
+			);
+			setManualError('');
+			setManualMessage(t('reports.saved.message.deleted'));
+			toast.success(t('reports.saved.toast.deleted'));
+		},
+		onError: (error: unknown): void => {
+			const errorMessage = errorToMessage(error, t);
 
-		return () => {
-			isActive = false;
-		};
-	}, [input.workspace.id, selectedReportType]);
+			setManualMessage('');
+			setManualError(errorMessage);
+			toast.error(errorMessage);
+		},
+	});
 
+	const filters = filtersQuery.data ?? [];
 	const sortedFilters = useMemo(() => sortSavedFilters(filters), [filters]);
-	const isBusy = loadState === 'loading' || loadState === 'saving' || loadState === 'deleting';
+	const queryError = filtersQuery.isError ? errorToMessage(filtersQuery.error, t) : '';
+	const message = manualError || queryError || manualMessage;
+	const loadState = resolveSavedFiltersLoadState({
+		manualError,
+		queryError,
+		loading: filtersQuery.isFetching,
+		saving: createMutation.isPending,
+		deleting: deleteMutation.isPending,
+		ready: filtersQuery.data !== undefined,
+	});
+	const isBusy = filtersQuery.isFetching || createMutation.isPending || deleteMutation.isPending;
 
 	/**
 	 * updateDraft patches the saved-filter form.
 	 */
 	function updateDraft(patch: SavedFilterDraftPatch): void {
+		setManualError('');
+		setManualMessage('');
 		setDraft(current => ({
 			...current,
 			...patch,
@@ -109,45 +161,29 @@ export function useSavedFilters(input: UseSavedFiltersInput): UseSavedFiltersRes
 		const cleanName = draft.name.trim();
 
 		if (cleanName === '') {
-			setLoadState('error');
-			setMessage('Saved filter name is required.');
+			setManualMessage('');
+			setManualError(t('reports.saved.validation.nameRequired'));
 			return;
 		}
 
 		const normalizedFilterJson = normalizeFilterJson(draft.filterJson);
 		if (normalizedFilterJson === null) {
-			setLoadState('error');
-			setMessage('Filter JSON must be valid JSON.');
+			setManualMessage('');
+			setManualError(t('reports.saved.validation.jsonInvalid'));
 			return;
 		}
 
-		setLoadState('saving');
-		setMessage('');
+		setManualError('');
+		setManualMessage('');
 
 		try {
-			const response = await createSavedReportFilter(input.workspace.id, {
+			await createMutation.mutateAsync({
 				name: cleanName,
-				scope: 'workspace',
 				reportType: draft.reportType,
 				filterJson: normalizedFilterJson,
 			});
-
-			setFilters(current => [response.filter, ...current]);
-			setSelectedReportType(response.filter.reportType);
-			setDraft(current => ({
-				...current,
-				name: '',
-				filterJson: normalizedFilterJson,
-			}));
-			setLoadState('ready');
-			setMessage('Saved report filter created.');
-			toast.success('Saved report filter created');
-		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
-
-			setMessage(errorMessage);
-			setLoadState('error');
-			toast.error(errorMessage);
+		} catch (_error: unknown) {
+			// onError owns visible feedback and toast delivery.
 		}
 	}
 
@@ -155,22 +191,13 @@ export function useSavedFilters(input: UseSavedFiltersInput): UseSavedFiltersRes
 	 * deleteFilter deletes one saved report filter.
 	 */
 	async function deleteFilter(filterID: string): Promise<void> {
-		setLoadState('deleting');
-		setMessage('');
+		setManualError('');
+		setManualMessage('');
 
 		try {
-			await deleteSavedReportFilter(input.workspace.id, filterID);
-
-			setFilters(current => current.filter(filter => filter.id !== filterID));
-			setLoadState('ready');
-			setMessage('Saved report filter deleted.');
-			toast.success('Saved report filter deleted');
-		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
-
-			setMessage(errorMessage);
-			setLoadState('error');
-			toast.error(errorMessage);
+			await deleteMutation.mutateAsync(filterID);
+		} catch (_error: unknown) {
+			// onError owns visible feedback and toast delivery.
 		}
 	}
 
@@ -185,9 +212,10 @@ export function useSavedFilters(input: UseSavedFiltersInput): UseSavedFiltersRes
 			filterJson: filter.filterJson,
 		});
 
-		setMessage(`Applied saved filter "${filter.name}".`);
-		setLoadState('ready');
-		toast.success(`Applied "${filter.name}"`);
+		const safeName = isolateBidiText(filter.name);
+		setManualError('');
+		setManualMessage(t('reports.saved.message.applied', { name: safeName }));
+		toast.success(t('reports.saved.toast.applied', { name: safeName }));
 	}
 
 	return {
@@ -204,4 +232,38 @@ export function useSavedFilters(input: UseSavedFiltersInput): UseSavedFiltersRes
 		deleteFilter,
 		applyFilter,
 	};
+}
+
+/**
+ * resolveSavedFiltersLoadState maps query/mutation state into compact UI state.
+ */
+function resolveSavedFiltersLoadState(input: {
+	readonly manualError: string;
+	readonly queryError: string;
+	readonly loading: boolean;
+	readonly saving: boolean;
+	readonly deleting: boolean;
+	readonly ready: boolean;
+}): SavedFiltersLoadState {
+	if (input.manualError !== '' || input.queryError !== '') {
+		return 'error';
+	}
+
+	if (input.saving) {
+		return 'saving';
+	}
+
+	if (input.deleting) {
+		return 'deleting';
+	}
+
+	if (input.loading) {
+		return 'loading';
+	}
+
+	if (input.ready) {
+		return 'ready';
+	}
+
+	return 'idle';
 }

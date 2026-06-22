@@ -1,0 +1,62 @@
+/*
+ * RTL brand lockup correction.
+ *
+ * RTL keeps the workspace sidebar on the right through the surrounding shell
+ * direction. The brand itself is an English product lockup, so it should behave
+ * as a compact LTR micro-layout inside that RTL sidebar: logo on the physical
+ * left, wordmark immediately beside it, and the pair anchored to the left edge
+ * of the sidebar area.
+ */
+
+.campfire-overlay[dir='rtl'] .campfire-sidebar-brand {
+	direction: ltr !important;
+	justify-content: flex-start !important;
+	align-items: center !important;
+	gap: 0.65rem !important;
+	width: 100% !important;
+	text-align: left !important;
+}
+
+.campfire-overlay[dir='rtl'] .campfire-sidebar-logo-tile {
+	order: 0 !important;
+	flex: 0 0 auto !important;
+	margin-inline-start: 0 !important;
+	margin-inline-end: 0 !important;
+}
+
+.campfire-overlay[dir='rtl'] .campfire-sidebar-brand-title {
+	order: 0 !important;
+	flex: 0 1 auto !important;
+	min-width: 0 !important;
+	max-width: max-content !important;
+	direction: ltr !important;
+	font-size: clamp(1.28rem, 0.72rem + 0.62vw, 1.58rem) !important;
+	font-weight: 850 !important;
+	line-height: 1 !important;
+	letter-spacing: -0.035em !important;
+	text-align: left !important;
+	white-space: nowrap !important;
+}
+
+.campfire-overlay[dir='rtl'] .campfire-brand {
+	direction: ltr !important;
+	justify-content: flex-start !important;
+	align-items: center !important;
+	gap: 0.75rem !important;
+	text-align: left !important;
+}
+
+.campfire-overlay[dir='rtl'] .campfire-logo-tile {
+	order: 0 !important;
+	flex: 0 0 auto !important;
+	margin-inline-start: 0 !important;
+	margin-inline-end: 0 !important;
+}
+
+.campfire-overlay[dir='rtl'] .campfire-brand-copy {
+	order: 0 !important;
+	flex: 0 1 auto !important;
+	min-width: 0 !important;
+	max-width: max-content !important;
+	text-align: left !important;
+}

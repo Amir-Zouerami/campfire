@@ -63,6 +63,12 @@ type NotificationKind string
 
 const (
 	/*
+		NotificationKindStandupOpeningAnnouncement identifies the channel-only message
+		sent when a standup submission window opens.
+	*/
+	NotificationKindStandupOpeningAnnouncement NotificationKind = "standup_opening_announcement"
+
+	/*
 		NotificationKindDMReminder identifies a direct-message standup reminder.
 	*/
 	NotificationKindDMReminder NotificationKind = "dm_reminder"
@@ -78,7 +84,7 @@ IsValid returns true when the notification kind is supported by Campfire.
 */
 func (k NotificationKind) IsValid() bool {
 	switch k {
-	case NotificationKindDMReminder, NotificationKindChannelMissingReminder:
+	case NotificationKindStandupOpeningAnnouncement, NotificationKindDMReminder, NotificationKindChannelMissingReminder:
 		return true
 	default:
 		return false

@@ -5,12 +5,13 @@ import { CampfireControlButton } from '@/components/campfire/CampfireControlButt
 import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
 import { CampfireField } from '@/components/campfire/CampfireField';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
+import { useI18n } from '@/i18n';
 
 import {
-	formatGroupBy,
 	globalTimeGroupByOptions,
 	toTimeReportGroupBy,
 } from './global-reports.helpers';
+import { globalReportGroupByLabel } from './global-reports.i18n';
 import type { GlobalTimeReportFilter, GlobalTimeReportFilterPatch } from './global-reports.types';
 
 /**
@@ -28,9 +29,11 @@ type GlobalTimeControlsProps = {
  * GlobalTimeControls renders date/group filters and load/export actions.
  */
 export function GlobalTimeControls(props: GlobalTimeControlsProps): ReactElement {
+	const { t } = useI18n();
+
 	return (
 		<div className="campfire-control-grid campfire-control-grid--global-time-report">
-			<CampfireField id="campfire-global-time-start" label="Start date">
+			<CampfireField id="campfire-global-time-start" label={t('reports.global.controls.startDate')}>
 				<CampfireDateInput
 					id="campfire-global-time-start"
 					disabled={props.disabled}
@@ -39,7 +42,7 @@ export function GlobalTimeControls(props: GlobalTimeControlsProps): ReactElement
 				/>
 			</CampfireField>
 
-			<CampfireField id="campfire-global-time-end" label="End date">
+			<CampfireField id="campfire-global-time-end" label={t('reports.global.controls.endDate')}>
 				<CampfireDateInput
 					id="campfire-global-time-end"
 					disabled={props.disabled}
@@ -48,7 +51,7 @@ export function GlobalTimeControls(props: GlobalTimeControlsProps): ReactElement
 				/>
 			</CampfireField>
 
-			<CampfireField id="campfire-global-time-group" label="Group by">
+			<CampfireField id="campfire-global-time-group" label={t('reports.global.controls.groupBy')}>
 				<CampfireSelect
 					id="campfire-global-time-group"
 					disabled={props.disabled}
@@ -57,7 +60,7 @@ export function GlobalTimeControls(props: GlobalTimeControlsProps): ReactElement
 				>
 					{globalTimeGroupByOptions.map(groupBy => (
 						<option key={groupBy} value={groupBy}>
-							{formatGroupBy(groupBy)}
+							{globalReportGroupByLabel(groupBy, t)}
 						</option>
 					))}
 				</CampfireSelect>
@@ -65,12 +68,12 @@ export function GlobalTimeControls(props: GlobalTimeControlsProps): ReactElement
 
 			<CampfireControlButton type="button" disabled={props.disabled} onClick={() => void props.onLoad()}>
 				<Search className="cf:size-4" />
-				Load
+				{t('reports.global.actions.load')}
 			</CampfireControlButton>
 
 			<CampfireControlButton type="button" variant="secondary" disabled={props.disabled} onClick={() => void props.onExport()}>
 				<Download className="cf:size-4" />
-				CSV
+				{t('reports.global.actions.csv')}
 			</CampfireControlButton>
 		</div>
 	);

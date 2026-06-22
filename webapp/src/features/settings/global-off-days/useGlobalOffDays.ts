@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { toast } from '@/components/campfire/campfire-toast';
+import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { createGlobalSkipDate, deleteGlobalSkipDate, listGlobalSkipDates } from '@/api';
+import { toast } from '@/components/campfire/campfire-toast';
+import { useI18n } from '@/i18n';
+import { campfireQueryKeys } from '@/query';
+import type { ListGlobalSkipDatesResponse } from '@/types/api';
 import type { GlobalSkipDate } from '@/types/domain';
 
 import {
@@ -37,54 +41,82 @@ export type UseGlobalOffDaysResult = {
 };
 
 /**
- * useGlobalOffDays owns global skip-date loading and mutations.
+ * useGlobalOffDays owns global skip-date query state and mutations.
  */
 export function useGlobalOffDays(input: UseGlobalOffDaysInput): UseGlobalOffDaysResult {
-	const [loadState, setLoadState] = useState<GlobalOffDaysLoadState>('idle');
-	const [skipDates, setSkipDates] = useState<readonly GlobalSkipDate[]>([]);
+	const { t } = useI18n();
+	const queryClient = useQueryClient();
+	const queryKey = campfireQueryKeys.globalOffDays();
 	const [draft, setDraft] = useState<GlobalOffDayDraft>(emptyGlobalOffDayDraft);
 	const [deletingID, setDeletingID] = useState('');
-	const [message, setMessage] = useState('');
+	const [feedback, setFeedback] = useState('');
 
-	useEffect(() => {
-		let isActive = true;
+	const offDaysQuery = useQuery({
+		queryKey,
+		queryFn: listGlobalSkipDates,
+	});
 
-		/**
-		 * loadSkipDates loads global Campfire skip dates.
-		 */
-		async function loadSkipDates(): Promise<void> {
-			setLoadState('loading');
-			setMessage('');
+	const createMutation = useMutation({
+		mutationFn: async (value: GlobalOffDayDraft) => {
+			return createGlobalSkipDate({
+				date: value.date.trim(),
+				label: value.label.trim(),
+			});
+		},
+		onSuccess: response => {
+			queryClient.setQueryData<ListGlobalSkipDatesResponse>(queryKey, current => {
+				const currentSkipDates = current?.skipDates ?? [];
 
-			try {
-				const response = await listGlobalSkipDates();
+				return {
+					skipDates: [...currentSkipDates, response.skipDate],
+				};
+			});
+			setDraft(emptyGlobalOffDayDraft());
+			setFeedback(t('settings.globalOffDays.toast.created'));
+			toast.success(t('settings.globalOffDays.toast.created'));
+		},
+		onError: error => {
+			const message = errorToMessage(error, t);
+			setFeedback(message);
+			toast.error(message);
+		},
+	});
 
-				if (!isActive) {
-					return;
-				}
+	const deleteMutation = useMutation({
+		mutationFn: async (skipDateID: string) => {
+			setDeletingID(skipDateID);
+			await deleteGlobalSkipDate(skipDateID);
 
-				setSkipDates(response.skipDates);
-				setLoadState('ready');
-			} catch (error: unknown) {
-				if (!isActive) {
-					return;
-				}
+			return skipDateID;
+		},
+		onSuccess: skipDateID => {
+			queryClient.setQueryData<ListGlobalSkipDatesResponse>(queryKey, current => ({
+				skipDates: (current?.skipDates ?? []).filter(skipDate => skipDate.id !== skipDateID),
+			}));
+			setFeedback(t('settings.globalOffDays.toast.deleted'));
+			toast.success(t('settings.globalOffDays.toast.deleted'));
+		},
+		onError: error => {
+			const message = errorToMessage(error, t);
+			setFeedback(message);
+			toast.error(message);
+		},
+		onSettled: () => {
+			setDeletingID('');
+		},
+	});
 
-				setMessage(errorToMessage(error));
-				setLoadState('error');
-			}
-		}
-
-		void loadSkipDates();
-
-		return () => {
-			isActive = false;
-		};
-	}, []);
-
+	const skipDates = offDaysQuery.data?.skipDates ?? [];
 	const sortedSkipDates = useMemo(() => sortGlobalOffDays(skipDates), [skipDates]);
 	const upcomingCount = useMemo(() => upcomingGlobalOffDayCount(skipDates), [skipDates]);
-	const isBusy = loadState === 'loading' || loadState === 'saving' || loadState === 'deleting';
+	const isBusy = offDaysQuery.isLoading || createMutation.isPending || deleteMutation.isPending;
+	const loadState = deriveGlobalOffDaysLoadState(
+		offDaysQuery.isLoading,
+		offDaysQuery.isError,
+		createMutation.isPending,
+		deleteMutation.isPending,
+	);
+	const message = offDaysQuery.isError ? errorToMessage(offDaysQuery.error, t) : feedback;
 
 	/**
 	 * updateDraft patches the create off-day form.
@@ -101,8 +133,7 @@ export function useGlobalOffDays(input: UseGlobalOffDaysInput): UseGlobalOffDays
 	 */
 	async function createOffDay(): Promise<void> {
 		if (!input.isSystemAdmin) {
-			setLoadState('error');
-			setMessage('Only system admins can manage global off-days.');
+			setFeedback(t('settings.globalOffDays.error.permission.manage'));
 			return;
 		}
 
@@ -110,38 +141,17 @@ export function useGlobalOffDays(input: UseGlobalOffDaysInput): UseGlobalOffDays
 		const cleanLabel = draft.label.trim();
 
 		if (cleanDate === '') {
-			setLoadState('error');
-			setMessage('Global off-day date is required.');
+			setFeedback(t('settings.globalOffDays.error.dateRequired'));
 			return;
 		}
 
 		if (cleanLabel === '') {
-			setLoadState('error');
-			setMessage('Global off-day label is required.');
+			setFeedback(t('settings.globalOffDays.error.labelRequired'));
 			return;
 		}
 
-		setLoadState('saving');
-		setMessage('');
-
-		try {
-			const response = await createGlobalSkipDate({
-				date: cleanDate,
-				label: cleanLabel,
-			});
-
-			setSkipDates(current => [...current, response.skipDate]);
-			setDraft(emptyGlobalOffDayDraft());
-			setLoadState('ready');
-			setMessage('Global off-day added.');
-			toast.success('Global off-day added');
-		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
-
-			setLoadState('error');
-			setMessage(errorMessage);
-			toast.error(errorMessage);
-		}
+		setFeedback('');
+		await createMutation.mutateAsync({ date: cleanDate, label: cleanLabel }).catch(() => undefined);
 	}
 
 	/**
@@ -149,31 +159,12 @@ export function useGlobalOffDays(input: UseGlobalOffDaysInput): UseGlobalOffDays
 	 */
 	async function deleteOffDay(skipDateID: string): Promise<void> {
 		if (!input.isSystemAdmin) {
-			setLoadState('error');
-			setMessage('Only system admins can delete global off-days.');
+			setFeedback(t('settings.globalOffDays.error.permission.delete'));
 			return;
 		}
 
-		setLoadState('deleting');
-		setDeletingID(skipDateID);
-		setMessage('');
-
-		try {
-			await deleteGlobalSkipDate(skipDateID);
-
-			setSkipDates(current => current.filter(skipDate => skipDate.id !== skipDateID));
-			setDeletingID('');
-			setLoadState('ready');
-			setMessage('Global off-day deleted.');
-			toast.success('Global off-day deleted');
-		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
-
-			setDeletingID('');
-			setLoadState('error');
-			setMessage(errorMessage);
-			toast.error(errorMessage);
-		}
+		setFeedback('');
+		await deleteMutation.mutateAsync(skipDateID).catch(() => undefined);
 	}
 
 	return {
@@ -189,4 +180,32 @@ export function useGlobalOffDays(input: UseGlobalOffDaysInput): UseGlobalOffDays
 		createOffDay,
 		deleteOffDay,
 	};
+}
+
+/**
+ * deriveGlobalOffDaysLoadState keeps rendering independent from TanStack internals.
+ */
+function deriveGlobalOffDaysLoadState(
+	isLoading: boolean,
+	isError: boolean,
+	isCreating: boolean,
+	isDeleting: boolean,
+): GlobalOffDaysLoadState {
+	if (isLoading) {
+		return 'loading';
+	}
+
+	if (isCreating) {
+		return 'saving';
+	}
+
+	if (isDeleting) {
+		return 'deleting';
+	}
+
+	if (isError) {
+		return 'error';
+	}
+
+	return 'ready';
 }

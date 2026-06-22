@@ -114,6 +114,55 @@ func handleUpdateStandupTemplate(
 }
 
 /*
+handleDeleteStandupTemplate handles deleting a standup template and dependent rows.
+*/
+func handleDeleteStandupTemplate(
+	log logger.Logger,
+	mm mattermost.Client,
+	standupService *service.StandupService,
+	permissionService *service.PermissionService,
+	auditService *service.AuditService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireManageStandups(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
+
+		templateID := strings.TrimSpace(chi.URLParam(r, "templateID"))
+
+		if err := standupService.DeleteTemplate(r.Context(), service.DeleteStandupTemplateInput{
+			ActorUserID:   user.ID,
+			IsSystemAdmin: user.IsSystemAdmin,
+			WorkspaceID:   workspaceID,
+			TemplateID:    templateID,
+		}); err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		recordAuditEvent(
+			r.Context(),
+			auditService,
+			workspaceID,
+			user.ID,
+			"standup_template_deleted",
+			"standup_template",
+			templateID,
+			map[string]string{},
+		)
+
+		WriteDeleteStandupTemplate(w, http.StatusOK, DeleteStandupTemplateResponse{Deleted: true})
+	}
+}
+
+/*
 handleCreateStandupQuestion handles creating a standup question.
 */
 func handleCreateStandupQuestion(
@@ -227,6 +276,55 @@ func handleUpdateStandupQuestion(
 }
 
 /*
+handleDeleteStandupQuestion handles deleting a standup question and dependent answers.
+*/
+func handleDeleteStandupQuestion(
+	log logger.Logger,
+	mm mattermost.Client,
+	standupService *service.StandupService,
+	permissionService *service.PermissionService,
+	auditService *service.AuditService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireManageStandups(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
+
+		questionID := strings.TrimSpace(chi.URLParam(r, "questionID"))
+
+		if err := standupService.DeleteQuestion(r.Context(), service.DeleteStandupQuestionInput{
+			ActorUserID:   user.ID,
+			IsSystemAdmin: user.IsSystemAdmin,
+			WorkspaceID:   workspaceID,
+			QuestionID:    questionID,
+		}); err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		recordAuditEvent(
+			r.Context(),
+			auditService,
+			workspaceID,
+			user.ID,
+			"standup_question_deleted",
+			"standup_question",
+			questionID,
+			map[string]string{},
+		)
+
+		WriteDeleteStandupQuestion(w, http.StatusOK, DeleteStandupQuestionResponse{Deleted: true})
+	}
+}
+
+/*
 handleCreateStandupSchedule handles creating a standup schedule.
 */
 func handleCreateStandupSchedule(
@@ -328,6 +426,55 @@ func handleUpdateStandupSchedule(
 		WriteUpdateStandupSchedule(w, http.StatusOK, UpdateStandupScheduleResponse{
 			Schedule: StandupScheduleToPayload(*schedule),
 		})
+	}
+}
+
+/*
+handleDeleteStandupSchedule handles deleting a standup schedule and dependent rows.
+*/
+func handleDeleteStandupSchedule(
+	log logger.Logger,
+	mm mattermost.Client,
+	standupService *service.StandupService,
+	permissionService *service.PermissionService,
+	auditService *service.AuditService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireManageStandups(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
+
+		scheduleID := strings.TrimSpace(chi.URLParam(r, "scheduleID"))
+
+		if err := standupService.DeleteSchedule(r.Context(), service.DeleteStandupScheduleInput{
+			ActorUserID:   user.ID,
+			IsSystemAdmin: user.IsSystemAdmin,
+			WorkspaceID:   workspaceID,
+			ScheduleID:    scheduleID,
+		}); err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		recordAuditEvent(
+			r.Context(),
+			auditService,
+			workspaceID,
+			user.ID,
+			"standup_schedule_deleted",
+			"standup_schedule",
+			scheduleID,
+			map[string]string{},
+		)
+
+		WriteDeleteStandupSchedule(w, http.StatusOK, DeleteStandupScheduleResponse{Deleted: true})
 	}
 }
 

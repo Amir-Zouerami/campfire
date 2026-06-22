@@ -1,12 +1,13 @@
 import type { ReactElement } from 'react';
 import { FileText } from 'lucide-react';
 
+import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
+import { useI18n } from '@/i18n';
 import { scheduleLabelForRule, type StandupScheduleLabelLookup } from '@/features/settings/standup-schedule-labels';
 import type { ReportRule } from '@/types/domain';
 
 import { ReportRuleCard } from './ReportRuleCard';
 import type { ReportRuleDraftPatch, ReportRuleWithDraft } from './report-rules.types';
-import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * ReportRulesPanelProps contains report rules and edit actions.
@@ -25,13 +26,15 @@ type ReportRulesPanelProps = {
  * ReportRulesPanel renders all editable report rules.
  */
 export function ReportRulesPanel(props: ReportRulesPanelProps): ReactElement {
+	const { t } = useI18n();
+
 	return (
 		<section className="campfire-settings-rule-list">
 			{props.rulesWithDrafts.length === 0 ? (
 				<CampfireEmpty
 					icon={FileText}
-					title="No report rules yet"
-					description="Default report rules are created when standup templates and schedules are seeded."
+					title={t('settings.reportRules.empty.title')}
+					description={t('settings.reportRules.empty.description')}
 				/>
 			) : (
 				props.rulesWithDrafts.map(pair => (

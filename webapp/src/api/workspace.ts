@@ -11,6 +11,8 @@ import type {
 	WorkspaceByChannelResponse,
 	UpdateWorkspaceNotificationSettingsRequest,
 	UpdateWorkspaceNotificationSettingsResponse,
+	UpdateWorkspaceTimezoneRequest,
+	UpdateWorkspaceTimezoneResponse,
 } from '@/types/api';
 import type { Role } from '@/types/domain';
 
@@ -47,6 +49,19 @@ export function updateWorkspaceNotificationSettings(
 			body: request,
 		},
 	);
+}
+
+/**
+ * updateWorkspaceTimezone calls PUT /workspaces/{workspaceID}/timezone.
+ */
+export function updateWorkspaceTimezone(
+	workspaceID: string,
+	request: UpdateWorkspaceTimezoneRequest,
+): Promise<UpdateWorkspaceTimezoneResponse> {
+	return requestJson<UpdateWorkspaceTimezoneResponse>(`/workspaces/${encodePath(workspaceID)}/timezone`, {
+		method: 'PUT',
+		body: request,
+	});
 }
 
 /**

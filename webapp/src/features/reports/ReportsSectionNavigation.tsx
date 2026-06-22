@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { CampfireSegmentedTabs, type CampfireSegmentedTab } from '@/components/campfire/CampfireSegmentedTabs';
+import { useI18n } from '@/i18n';
 
 import type { ReportsSection, ReportsSectionID } from './reports.types';
 
@@ -18,17 +19,18 @@ type ReportsSectionNavigationProps = {
  * Campfire segmented-tab primitive instead of the older card-like section grid.
  */
 export function ReportsSectionNavigation(props: ReportsSectionNavigationProps): ReactElement {
+	const { t } = useI18n();
 	const tabs: CampfireSegmentedTab<ReportsSectionID>[] = props.sections.map(section => ({
 		value: section.id,
-		label: section.label,
-		description: section.description,
+		label: t(section.labelKey),
+		description: t(section.descriptionKey),
 	}));
 
 	return (
 		<CampfireSegmentedTabs
 			tabs={tabs}
 			activeValue={props.activeSection}
-			label="Reports sections"
+			label={t('reports.sections.ariaLabel')}
 			onChange={props.onSelectSection}
 		/>
 	);

@@ -130,22 +130,6 @@ export function formatLeaveRange(leaveRequest: LeaveRequest): string {
 }
 
 /**
- * formatLeaveDuration returns duration-specific leave details.
- */
-export function formatLeaveDuration(leaveRequest: LeaveRequest): string {
-	switch (leaveRequest.durationMode) {
-		case 'half_day':
-			return leaveRequest.halfDayPart === '' ? 'Half day' : `Half day · ${formatLabel(leaveRequest.halfDayPart)}`;
-
-		case 'hourly':
-			return `${leaveRequest.startTime} → ${leaveRequest.endTime}`;
-
-		case 'full_day':
-			return 'Full day';
-	}
-}
-
-/**
  * dateRangeIsValid returns whether the selected date range can be searched.
  */
 export function dateRangeIsValid(range: TeamAvailabilityRange): boolean {
@@ -162,7 +146,7 @@ export function rangeInputClassName(): string {
 /**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
-export function errorToMessage(error: unknown): string {
+export function errorToMessage(error: unknown, fallbackMessage: string): string {
 	if (error instanceof ApiClientError) {
 		return error.message;
 	}
@@ -171,7 +155,7 @@ export function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not load team availability.';
+	return fallbackMessage;
 }
 
 /**
@@ -179,14 +163,4 @@ export function errorToMessage(error: unknown): string {
  */
 function uniqueStrings(values: readonly string[]): readonly string[] {
 	return [...new Set(values.map(value => value.trim()).filter(Boolean))];
-}
-
-/**
- * formatLabel converts enum-like values to readable labels.
- */
-function formatLabel(value: string): string {
-	return value
-		.split('_')
-		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
-		.join(' ');
 }

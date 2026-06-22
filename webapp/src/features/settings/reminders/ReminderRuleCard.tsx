@@ -5,9 +5,16 @@ import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxFie
 import { CampfireControlButton } from '@/components/campfire/CampfireControlButton';
 import { CampfireReminderTimeFields } from '@/components/campfire/CampfireReminderTimeFields';
 import { CampfireSettingsPanel } from '@/components/campfire/CampfireSettingsPanel';
-import { reminderRuleTitle, type StandupScheduleLabel } from '@/features/settings/standup-schedule-labels';
+import { useI18n } from '@/i18n';
 import type { ReminderRule } from '@/types/domain';
 
+import type { StandupScheduleLabel } from '../standup-schedule-labels';
+import {
+	localizedReminderDeliveryLabel,
+	localizedReminderRuleDescription,
+	localizedReminderRuleTitle,
+	localizedReminderTimeLabels,
+} from './reminder-settings.i18n';
 import {
 	reminderRuleHasChanges,
 	reminderTimeValidationMessage,
@@ -32,22 +39,28 @@ type ReminderRuleCardProps = {
  * ReminderRuleCard renders one editable reminder rule.
  */
 export function ReminderRuleCard(props: ReminderRuleCardProps): ReactElement {
+	const { t } = useI18n();
 	const changed = reminderRuleHasChanges(props.rule, props.draft, props.scheduleLabel.opensAt, props.scheduleLabel.timeOfDay);
 	const formDisabled = props.disabled || !props.canManageReminders;
-	const validationMessage = reminderTimeValidationMessage(props.draft.reminderTimes, props.scheduleLabel.opensAt, props.scheduleLabel.timeOfDay);
+	const validationMessage = reminderTimeValidationMessage(
+		props.draft.reminderTimes,
+		props.scheduleLabel.opensAt,
+		props.scheduleLabel.timeOfDay,
+		t,
+	);
 
 	return (
 		<CampfireSettingsPanel
 			className={props.draft.enabled ? 'campfire-rule-panel' : 'campfire-rule-panel campfire-rule-panel--disabled'}
-			title={reminderRuleTitle(props.scheduleLabel)}
-			description={`Window ${props.scheduleLabel.opensAt}–${props.scheduleLabel.timeOfDay}. Reminders only go to missing submitters.`}
+			title={localizedReminderRuleTitle(t, props.scheduleLabel)}
+			description={localizedReminderRuleDescription(t, props.scheduleLabel)}
 			icon={BellRing}
 			meta={
 				<div className="campfire-rule-meta-stack">
-					<span>{reminderDeliveryLabel(props.draft)}</span>
-					<span>{props.draft.enabled ? 'Enabled' : 'Disabled'}</span>
-					<span>{changed ? 'Unsaved changes' : 'Saved'}</span>
-					{props.scheduleLabel.unavailable && <span>Missing schedule</span>}
+					<span>{localizedReminderDeliveryLabel(t, props.draft)}</span>
+					<span>{props.draft.enabled ? t('common.enabled') : t('common.disabled')}</span>
+					<span>{changed ? t('common.unsavedChanges') : t('common.saved')}</span>
+					{props.scheduleLabel.unavailable && <span>{t('settings.schedule.missing')}</span>}
 				</div>
 			}
 		>
@@ -55,32 +68,32 @@ export function ReminderRuleCard(props: ReminderRuleCardProps): ReactElement {
 				<CampfireCheckboxField
 					checked={props.draft.enabled}
 					disabled={formDisabled}
-					label="Enable reminders"
-					description="Allow this schedule to send reminder nudges."
+					label={t('settings.reminders.field.enabled.label')}
+					description={t('settings.reminders.field.enabled.description')}
 					onCheckedChange={checked => props.onDraftChange(props.rule.id, { enabled: checked })}
 				/>
 
 				<CampfireCheckboxField
 					checked={props.draft.dmReminderEnabled}
 					disabled={formDisabled}
-					label="DM missing users"
-					description="Private reminder for each missing submitter."
+					label={t('settings.reminders.field.dm.label')}
+					description={t('settings.reminders.field.dm.description')}
 					onCheckedChange={checked => props.onDraftChange(props.rule.id, { dmReminderEnabled: checked })}
 				/>
 
 				<CampfireCheckboxField
 					checked={props.draft.channelReminderEnabled}
 					disabled={formDisabled}
-					label="Channel reminder"
-					description="Post a shared reminder when people are still missing."
+					label={t('settings.reminders.field.channel.label')}
+					description={t('settings.reminders.field.channel.description')}
 					onCheckedChange={checked => props.onDraftChange(props.rule.id, { channelReminderEnabled: checked })}
 				/>
 
 				<CampfireCheckboxField
 					checked={props.draft.mentionMissingInChannel}
 					disabled={formDisabled}
-					label="Mention missing users"
-					description="Mention missing users in the channel reminder."
+					label={t('settings.reminders.field.mentionMissing.label')}
+					description={t('settings.reminders.field.mentionMissing.description')}
 					onCheckedChange={checked =>
 						props.onDraftChange(props.rule.id, { mentionMissingInChannel: checked })
 					}
@@ -94,6 +107,7 @@ export function ReminderRuleCard(props: ReminderRuleCardProps): ReactElement {
 				reminderTimes={props.draft.reminderTimes}
 				disabled={formDisabled}
 				validationMessage={validationMessage}
+				labels={localizedReminderTimeLabels(t)}
 				onReminderTimeChange={(index, value) =>
 					props.onDraftChange(props.rule.id, {
 						reminderTimes: replaceReminderTime(props.draft.reminderTimes, index, value),
@@ -108,30 +122,11 @@ export function ReminderRuleCard(props: ReminderRuleCardProps): ReactElement {
 					onClick={() => void props.onSave(props.rule)}
 				>
 					{props.saving ? <Loader2 className="cf:size-4 cf:animate-spin" /> : <Save className="cf:size-4" />}
-					{props.saving ? 'Saving…' : 'Save reminders'}
+					{props.saving ? t('common.saving') : t('settings.reminders.action.save')}
 				</CampfireControlButton>
 			</div>
 		</CampfireSettingsPanel>
 	);
-}
-
-/**
- * reminderDeliveryLabel returns a readable delivery summary.
- */
-function reminderDeliveryLabel(draft: ReminderRuleDraft): string {
-	if (draft.dmReminderEnabled && draft.channelReminderEnabled) {
-		return 'DM + channel';
-	}
-
-	if (draft.dmReminderEnabled) {
-		return 'DM only';
-	}
-
-	if (draft.channelReminderEnabled) {
-		return 'Channel only';
-	}
-
-	return 'No delivery';
 }
 
 /**

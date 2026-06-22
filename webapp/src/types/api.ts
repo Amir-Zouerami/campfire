@@ -10,11 +10,13 @@ import type {
 	LeaveRequest,
 	LeaveStatus,
 	LeaveType,
+	PendingLeaveChangeRequest,
 	PendingLeaveRequest,
 	QuestionType,
 	ReminderRule,
 	ReportKind,
 	ReportLanguage,
+	CampfireLanguage,
 	ReportRule,
 	ReportRun,
 	ReportSortMode,
@@ -158,13 +160,29 @@ export type WorkspaceByChannelResponse = {
  */
 export type UpdateWorkspaceNotificationSettingsRequest = {
 	readonly approvedLeaveNotificationChannelId: string;
+	readonly leaveRequestNotificationRecipientIds: readonly string[];
 	readonly leaveNotificationLanguage: ReportLanguage;
+	readonly generatedMessageLanguage: CampfireLanguage;
+};
+
+/**
+ * UpdateWorkspaceTimezoneRequest is sent to PUT /workspaces/{workspaceID}/timezone.
+ */
+export type UpdateWorkspaceTimezoneRequest = {
+	readonly timezone: string;
 };
 
 /**
  * UpdateWorkspaceNotificationSettingsResponse is returned after workspace notification settings update.
  */
 export type UpdateWorkspaceNotificationSettingsResponse = {
+	readonly workspace: Workspace;
+};
+
+/**
+ * UpdateWorkspaceTimezoneResponse is returned after workspace timezone update.
+ */
+export type UpdateWorkspaceTimezoneResponse = {
 	readonly workspace: Workspace;
 };
 
@@ -183,6 +201,7 @@ export type CreateWorkspaceRequest = {
 	readonly namedLeadUserIds: readonly string[];
 	readonly namedApproverUserIds: readonly string[];
 	readonly createDefaultTemplates: boolean;
+	readonly generatedMessageLanguage: CampfireLanguage;
 };
 
 /**
@@ -321,6 +340,7 @@ export type ValidateLeaveRequest = {
 	readonly startTime: TimeOfDay | '';
 	readonly endTime: TimeOfDay | '';
 	readonly backupUserId: string;
+	readonly canContactIfNeeded: boolean;
 };
 
 /**
@@ -343,6 +363,65 @@ export type CreateLeaveRequest = ValidateLeaveRequest & {
  */
 export type CreateLeaveResponse = {
 	readonly leaveRequest: LeaveRequest;
+};
+
+/**
+ * UpdateLeaveRequest is sent to PUT /leaves/{leaveRequestID}.
+ */
+export type UpdateLeaveRequest = {
+	readonly leaveTypeId: string;
+	readonly startDate: string;
+	readonly endDate: string;
+	readonly durationMode: LeaveDurationMode;
+	readonly halfDayPart: LeaveHalfDayPart | '';
+	readonly startTime: TimeOfDay | '';
+	readonly endTime: TimeOfDay | '';
+	readonly reason: string;
+	readonly backupUserId: string;
+	readonly canContactIfNeeded: boolean;
+};
+
+/**
+ * UpdateLeaveResponse is returned by PUT /leaves/{leaveRequestID}.
+ */
+export type UpdateLeaveResponse = {
+	readonly leaveRequest: LeaveRequest;
+};
+
+
+/**
+ * CreateLeaveChangeRequest is sent to POST /leaves/{leaveRequestID}/change-requests.
+ */
+export type CreateLeaveChangeRequest = UpdateLeaveRequest;
+
+/**
+ * CreateLeaveChangeResponse is returned after creating a leave edit request.
+ */
+export type CreateLeaveChangeResponse = {
+	readonly changeRequest: PendingLeaveChangeRequest['changeRequest'];
+};
+
+/**
+ * DecideLeaveChangeRequest is sent to POST /leaves/change-requests/{changeRequestID}/decision.
+ */
+export type DecideLeaveChangeRequest = {
+	readonly decision: Extract<LeaveStatus, 'approved' | 'rejected'>;
+	readonly comment: string;
+};
+
+/**
+ * DecideLeaveChangeResponse is returned after deciding a leave edit request.
+ */
+export type DecideLeaveChangeResponse = {
+	readonly changeRequest: PendingLeaveChangeRequest['changeRequest'];
+	readonly leaveRequest: LeaveRequest;
+};
+
+/**
+ * ListPendingLeaveChangeRequestsResponse is returned by GET /workspaces/{workspaceID}/leaves/change-requests/pending.
+ */
+export type ListPendingLeaveChangeRequestsResponse = {
+	readonly changeRequests: readonly PendingLeaveChangeRequest[];
 };
 
 /**
@@ -446,6 +525,13 @@ export type UpdateStandupTemplateResponse = {
 };
 
 /**
+ * DeleteStandupTemplateResponse is returned by DELETE /workspaces/{workspaceID}/standups/templates/{templateID}.
+ */
+export type DeleteStandupTemplateResponse = {
+	readonly deleted: boolean;
+};
+
+/**
  * CreateStandupQuestionRequest is sent to POST /workspaces/{workspaceID}/standups/questions.
  */
 export type CreateStandupQuestionRequest = {
@@ -483,6 +569,13 @@ export type UpdateStandupQuestionResponse = {
 };
 
 /**
+ * DeleteStandupQuestionResponse is returned by DELETE /workspaces/{workspaceID}/standups/questions/{questionID}.
+ */
+export type DeleteStandupQuestionResponse = {
+	readonly deleted: boolean;
+};
+
+/**
  * CreateStandupScheduleRequest is sent to POST /workspaces/{workspaceID}/standups/schedules.
  */
 export type CreateStandupScheduleRequest = {
@@ -513,6 +606,13 @@ export type UpdateStandupScheduleRequest = CreateStandupScheduleRequest;
  */
 export type UpdateStandupScheduleResponse = {
 	readonly schedule: StandupSchedule;
+};
+
+/**
+ * DeleteStandupScheduleResponse is returned by DELETE /workspaces/{workspaceID}/standups/schedules/{scheduleID}.
+ */
+export type DeleteStandupScheduleResponse = {
+	readonly deleted: boolean;
 };
 
 /**
@@ -809,6 +909,45 @@ export type UpdateReportRuleRequest = {
  */
 export type UpdateReportRuleResponse = {
 	readonly reportRule: ReportRule;
+};
+
+
+/**
+ * DataRetentionSummary describes old operational rows targeted by retention cleanup.
+ */
+export type DataRetentionSummary = {
+	readonly cutoffDate: string;
+	readonly standupSubmissions: number;
+	readonly standupAnswers: number;
+	readonly leaveRequests: number;
+	readonly leaveDecisions: number;
+	readonly timeEntries: number;
+	readonly reportRuns: number;
+	readonly notificationRuns: number;
+	readonly auditLogEntries: number;
+	readonly totalRows: number;
+};
+
+/**
+ * GetDataRetentionPreviewResponse is returned by GET /workspaces/{workspaceID}/admin/data-retention/preview.
+ */
+export type GetDataRetentionPreviewResponse = {
+	readonly summary: DataRetentionSummary;
+};
+
+/**
+ * PurgeWorkspaceDataRequest is sent to POST /workspaces/{workspaceID}/admin/data-retention/purge.
+ */
+export type PurgeWorkspaceDataRequest = {
+	readonly cutoffDate: string;
+};
+
+/**
+ * PurgeWorkspaceDataResponse is returned by POST /workspaces/{workspaceID}/admin/data-retention/purge.
+ */
+export type PurgeWorkspaceDataResponse = {
+	readonly summary: DataRetentionSummary;
+	readonly deleted: boolean;
 };
 
 /**

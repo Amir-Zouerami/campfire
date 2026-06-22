@@ -1,0 +1,598 @@
+/* Source: 122-audit-repost-userpicker-fixes.css */
+
+/* Patch 35: focused fixes for role search, bounded audit history, and report reposting UX. */
+
+.campfire-theme .campfire-user-picker-search {
+	position: relative !important;
+	display: block !important;
+	padding: 0 !important;
+	border: 1px solid rgba(251, 191, 36, 0.22) !important;
+	border-radius: 0.9rem !important;
+	background: rgba(0, 0, 0, 0.24) !important;
+	color: rgba(251, 191, 36, 0.78) !important;
+}
+
+.campfire-theme .campfire-user-picker-search > svg:first-child {
+	position: absolute !important;
+	left: 0.85rem !important;
+	top: 50% !important;
+	z-index: 2 !important;
+	transform: translateY(-50%) !important;
+	pointer-events: none !important;
+	color: rgba(251, 191, 36, 0.76) !important;
+}
+
+.campfire-theme .campfire-user-picker-search > svg:last-child:not(:first-child) {
+	position: absolute !important;
+	right: 0.85rem !important;
+	top: 50% !important;
+	z-index: 2 !important;
+	transform: translateY(-50%) !important;
+	pointer-events: none !important;
+}
+
+.campfire-theme .campfire-user-picker-search input {
+	width: 100% !important;
+	min-width: 0 !important;
+	border: 0 !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	padding-left: 2.55rem !important;
+	padding-right: 2.3rem !important;
+}
+
+.campfire-theme .campfire-audit-entries-panel {
+	min-height: 0;
+}
+
+.campfire-theme .campfire-audit-entries-scroll {
+	max-height: min(34rem, 52vh);
+	overflow-y: auto;
+	padding-right: 0.35rem;
+	scrollbar-gutter: stable;
+}
+
+.campfire-theme .campfire-audit-entries-scroll::-webkit-scrollbar {
+	width: 0.55rem;
+}
+
+.campfire-theme .campfire-audit-entries-scroll::-webkit-scrollbar-track {
+	background: rgba(0, 0, 0, 0.16);
+	border-radius: 999px;
+}
+
+.campfire-theme .campfire-audit-entries-scroll::-webkit-scrollbar-thumb {
+	background: rgba(180, 126, 38, 0.58);
+	border-radius: 999px;
+}
+
+/* Source: 123-report-toast-polish.css */
+
+/* Patch 38: larger toast cards and report polish support. */
+
+.campfire-theme [data-sonner-toaster] {
+	bottom: 1.5rem !important;
+	right: 1.5rem !important;
+}
+
+.campfire-theme [data-sonner-toast].campfire-toast,
+.campfire-theme .campfire-toast {
+	width: min(34rem, calc(100vw - 2.5rem)) !important;
+	min-height: 5.25rem !important;
+	padding: 1.15rem 1.25rem !important;
+	border-radius: 1.25rem !important;
+	box-shadow: 0 1.6rem 3.6rem rgba(0, 0, 0, 0.48) !important;
+}
+
+.campfire-theme .campfire-toast-title {
+	font-size: 1.08rem !important;
+	line-height: 1.28 !important;
+	letter-spacing: -0.02em !important;
+}
+
+.campfire-theme .campfire-toast-description {
+	margin-top: 0.35rem !important;
+	font-size: 0.92rem !important;
+	line-height: 1.5 !important;
+}
+
+.campfire-theme .campfire-toast-icon-slot,
+.campfire-theme .campfire-toast-icon {
+	width: 1.35rem !important;
+	height: 1.35rem !important;
+}
+
+.campfire-theme .campfire-toast-close {
+	width: 1.35rem !important;
+	height: 1.35rem !important;
+}
+
+/* Source: 124-report-rule-alignment.css */
+
+/* Patch 40: keep report rule select controls aligned after adding language choice. */
+.campfire-report-rule-select-grid {
+	align-items: start;
+}
+
+.campfire-report-rule-select-grid .campfire-field {
+	grid-template-rows: auto auto;
+	align-content: start;
+}
+
+.campfire-report-rule-select-grid .campfire-field > label {
+	min-height: 1.25rem;
+	display: flex;
+	align-items: center;
+}
+
+.campfire-report-rule-select-grid .campfire-select-trigger,
+.campfire-report-rule-select-grid select,
+.campfire-report-rule-select-grid button[role='combobox'] {
+	min-height: 3rem;
+}
+
+/* Source: 125-setup-weekday-fit.css */
+
+/*
+Setup weekday fit keeps the first-run working-day toggles readable inside the
+narrow setup sidebar without letting long weekday names bleed into neighbors.
+*/
+.campfire-setup-weekday-grid {
+	grid-template-columns: repeat(auto-fit, minmax(4.85rem, 1fr));
+	align-items: stretch;
+}
+
+.campfire-theme .campfire-setup-weekday-grid .campfire-weekday-button {
+	box-sizing: border-box;
+	min-width: 0;
+	min-height: 4.35rem;
+	align-items: center;
+	justify-content: center;
+	padding: 0.75rem 0.55rem;
+	text-align: center;
+}
+
+.campfire-theme .campfire-setup-weekday-grid .campfire-weekday-button span {
+	max-width: 100%;
+	min-width: 0;
+}
+
+.campfire-theme .campfire-setup-weekday-grid .campfire-weekday-button span:first-child {
+	font-size: 0.9rem;
+	line-height: 1.1;
+}
+
+.campfire-theme .campfire-setup-weekday-grid .campfire-weekday-button span:last-child {
+	margin-top: 0.3rem;
+	overflow: hidden;
+	font-size: 0.58rem;
+	font-weight: 650;
+	letter-spacing: 0.035em;
+	line-height: 1.1;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+@media (max-width: 540px) {
+	.campfire-setup-weekday-grid {
+		grid-template-columns: repeat(auto-fit, minmax(4.5rem, 1fr));
+	}
+}
+
+/* Source: 126-standup-form-builder-redesign.css */
+
+/*
+ * Standup form builder redesign.
+ *
+ * This replaces the crowded stacked template/question editor with a focused
+ * workbench: template rail on the left, one selected template in the main area,
+ * and only one question create/edit form visible at a time.
+ */
+
+.campfire-theme .campfire-standup-form-workbench {
+	display: grid;
+	gap: 1rem;
+}
+
+.campfire-theme .campfire-standup-form-workbench-intro {
+	background:
+		radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.11), transparent 18rem),
+		linear-gradient(135deg, rgba(34, 18, 10, 0.88), rgba(20, 14, 11, 0.96));
+	border-color: rgba(251, 146, 60, 0.2);
+}
+
+.campfire-theme .campfire-standup-form-workbench-intro-row,
+.campfire-theme .campfire-standup-template-library-header,
+.campfire-theme .campfire-standup-focused-header,
+.campfire-theme .campfire-question-library-header,
+.campfire-theme .campfire-question-editor-heading {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.campfire-theme .campfire-standup-form-workbench-grid {
+	display: grid;
+	grid-template-columns: minmax(16rem, 0.32fr) minmax(0, 1fr);
+	gap: 1rem;
+	align-items: start;
+}
+
+.campfire-theme .campfire-standup-template-library,
+.campfire-theme .campfire-standup-focused-editor,
+.campfire-theme .campfire-question-library-panel,
+.campfire-theme .campfire-question-focused-editor,
+.campfire-theme .campfire-standup-empty-workbench {
+	display: grid;
+	gap: 1rem;
+	border-color: rgba(255, 255, 255, 0.09);
+	background:
+		radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.055), transparent 14rem),
+		rgba(255, 255, 255, 0.026);
+}
+
+.campfire-theme .campfire-standup-template-library {
+	position: sticky;
+	top: 0.75rem;
+}
+
+.campfire-theme .campfire-standup-template-rail {
+	display: grid;
+	gap: 0.6rem;
+	max-height: min(34rem, 58vh);
+	overflow: auto;
+	padding-right: 0.25rem;
+}
+
+.campfire-theme .campfire-standup-template-rail-item {
+	display: grid;
+	gap: 0.45rem;
+	width: 100%;
+	min-width: 0;
+	padding: 0.85rem;
+	border: 1px solid rgba(255, 255, 255, 0.085);
+	border-radius: 1rem;
+	background: rgba(0, 0, 0, 0.16);
+	color: inherit;
+	text-align: left;
+	cursor: pointer;
+	transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.campfire-theme .campfire-standup-template-rail-item:hover,
+.campfire-theme .campfire-standup-template-rail-item--active {
+	border-color: rgba(253, 186, 116, 0.35);
+	background:
+		linear-gradient(90deg, rgba(249, 115, 22, 0.11), rgba(249, 115, 22, 0.03)),
+		rgba(0, 0, 0, 0.16);
+}
+
+.campfire-theme .campfire-standup-template-rail-item:hover {
+	transform: translateY(-1px);
+}
+
+.campfire-theme .campfire-standup-template-rail-title {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 0.98rem;
+	font-weight: 760;
+	letter-spacing: -0.02em;
+	color: rgba(255, 247, 237, 0.94);
+}
+
+.campfire-theme .campfire-standup-template-rail-meta {
+	font-size: 0.78rem;
+	font-weight: 650;
+	color: rgba(255, 247, 237, 0.62);
+}
+
+.campfire-theme .campfire-standup-template-rail-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+}
+
+.campfire-theme .campfire-standup-template-rail-badges span,
+.campfire-theme .campfire-question-row-badges span {
+	display: inline-flex;
+	align-items: center;
+	min-height: 1.45rem;
+	padding: 0.18rem 0.5rem;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.035);
+	font-size: 0.68rem;
+	font-weight: 760;
+	color: rgba(255, 247, 237, 0.66);
+}
+
+.campfire-theme .campfire-standup-form-workbench-main,
+.campfire-theme .campfire-selected-template-workbench,
+.campfire-theme .campfire-standup-focused-form {
+	display: grid;
+	gap: 1rem;
+	min-width: 0;
+}
+
+.campfire-theme .campfire-standup-template-metrics {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 0.6rem;
+}
+
+.campfire-theme .campfire-standup-template-metric {
+	display: grid;
+	gap: 0.18rem;
+	padding: 0.75rem;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 0.9rem;
+	background: rgba(0, 0, 0, 0.14);
+}
+
+.campfire-theme .campfire-standup-template-metric strong {
+	font-size: 1.05rem;
+	font-weight: 820;
+	line-height: 1;
+	color: rgba(255, 247, 237, 0.94);
+}
+
+.campfire-theme .campfire-standup-template-metric span {
+	font-size: 0.72rem;
+	font-weight: 700;
+	color: rgba(255, 247, 237, 0.58);
+}
+
+.campfire-theme .campfire-question-workbench-grid {
+	display: grid;
+	grid-template-columns: minmax(18rem, 0.42fr) minmax(0, 1fr);
+	gap: 1rem;
+	align-items: start;
+}
+
+.campfire-theme .campfire-question-table {
+	display: grid;
+	gap: 0.55rem;
+	max-height: min(40rem, 62vh);
+	overflow: auto;
+	padding-right: 0.25rem;
+}
+
+.campfire-theme .campfire-question-table-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto auto;
+	gap: 0.75rem;
+	align-items: center;
+	width: 100%;
+	padding: 0.8rem;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 1rem;
+	background: rgba(0, 0, 0, 0.15);
+	color: inherit;
+	text-align: left;
+	cursor: pointer;
+	transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.campfire-theme .campfire-question-table-row:hover,
+.campfire-theme .campfire-question-table-row--active {
+	border-color: rgba(253, 186, 116, 0.35);
+	background:
+		linear-gradient(90deg, rgba(249, 115, 22, 0.1), rgba(249, 115, 22, 0.025)),
+		rgba(0, 0, 0, 0.15);
+}
+
+.campfire-theme .campfire-question-table-row:hover {
+	transform: translateY(-1px);
+}
+
+.campfire-theme .campfire-question-row-main {
+	display: grid;
+	min-width: 0;
+	gap: 0.22rem;
+}
+
+.campfire-theme .campfire-question-row-title {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 0.94rem;
+	font-weight: 760;
+	letter-spacing: -0.015em;
+	color: rgba(255, 247, 237, 0.92);
+}
+
+.campfire-theme .campfire-question-row-meta {
+	font-size: 0.72rem;
+	font-weight: 680;
+	color: rgba(255, 247, 237, 0.56);
+}
+
+.campfire-theme .campfire-question-row-badges {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 0.3rem;
+	max-width: 14rem;
+}
+
+.campfire-theme .campfire-question-row-action {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.1rem;
+	height: 2.1rem;
+	border-radius: 0.75rem;
+	background: rgba(255, 255, 255, 0.05);
+	color: rgba(253, 186, 116, 0.9);
+}
+
+.campfire-theme .campfire-question-focused-editor {
+	align-self: start;
+}
+
+.campfire-theme .campfire-question-focused-editor--empty {
+	min-height: 18rem;
+	align-content: center;
+}
+
+.campfire-theme .campfire-question-behavior-grid {
+	display: grid;
+	grid-template-columns: minmax(16rem, 1fr) minmax(13rem, 0.75fr) minmax(13rem, 0.75fr);
+	gap: 0.8rem;
+	align-items: stretch;
+}
+
+.campfire-theme .campfire-form-actions--split {
+	justify-content: space-between;
+}
+
+.campfire-theme .campfire-question-empty-actions {
+	display: flex;
+	justify-content: center;
+}
+
+@media (max-width: 1280px) {
+	.campfire-theme .campfire-standup-form-workbench-grid,
+	.campfire-theme .campfire-question-workbench-grid,
+	.campfire-theme .campfire-question-behavior-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.campfire-theme .campfire-standup-template-library {
+		position: static;
+	}
+
+	.campfire-theme .campfire-standup-template-rail,
+	.campfire-theme .campfire-question-table {
+		max-height: 24rem;
+	}
+}
+
+@media (max-width: 760px) {
+	.campfire-theme .campfire-standup-form-workbench-intro-row,
+	.campfire-theme .campfire-standup-template-library-header,
+	.campfire-theme .campfire-standup-focused-header,
+	.campfire-theme .campfire-question-library-header,
+	.campfire-theme .campfire-question-editor-heading,
+	.campfire-theme .campfire-form-actions--split {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.campfire-theme .campfire-standup-template-metrics {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.campfire-theme .campfire-question-table-row {
+		grid-template-columns: 1fr;
+	}
+
+	.campfire-theme .campfire-question-row-badges {
+		justify-content: flex-start;
+		max-width: none;
+	}
+}
+
+/* Source: 127-performance-foundation.css */
+
+/*
+ * Campfire CSS module: 127-performance-foundation.css
+ *
+ * These rules reduce style/layout work inside the Mattermost modal without
+ * changing the warm Campfire visual language. They intentionally avoid paint
+ * containment on picker/popover parents so date/time menus remain visible.
+ */
+
+.campfire-theme .campfire-workspace-content {
+	contain: layout style;
+}
+
+.campfire-theme .campfire-page-stack,
+.campfire-theme .campfire-standup-body,
+.campfire-theme .campfire-settings-standup-workbench,
+.campfire-theme .campfire-standup-builder-workbench {
+	contain: layout style;
+}
+
+.campfire-theme .campfire-audit-log-entry,
+.campfire-theme .campfire-time-entry-row,
+.campfire-theme .campfire-task-row,
+.campfire-theme .campfire-role-group,
+.campfire-theme .campfire-leave-approval-card,
+.campfire-theme .campfire-availability-table-row,
+.campfire-theme .campfire-report-row,
+.campfire-theme .campfire-saved-filter-card,
+.campfire-theme .campfire-standup-submission-card {
+	content-visibility: auto;
+	contain-intrinsic-size: 1px 7rem;
+}
+
+.campfire-theme .campfire-user-picker-results,
+.campfire-theme .campfire-channel-picker-results,
+.campfire-theme .campfire-task-suggestion-list,
+.campfire-theme .campfire-audit-log-list,
+.campfire-theme .campfire-scroll-panel {
+	overscroll-behavior: contain;
+}
+
+.campfire-theme .campfire-logo-ember,
+.campfire-theme .campfire-toast-spinner {
+	backface-visibility: hidden;
+	transform: translateZ(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.campfire-theme .campfire-logo-ember,
+	.campfire-theme .campfire-sidebar-logo-embers,
+	.campfire-theme .campfire-toast-spinner {
+		animation-duration: 0.001ms !important;
+		animation-iteration-count: 1 !important;
+	}
+}
+
+/* Current UI polish: compact preset cards follow the active document direction. */
+.campfire-theme[dir='rtl'] .campfire-working-day-preset {
+	text-align: right !important;
+	justify-items: start !important;
+}
+
+.campfire-theme[dir='rtl'] .campfire-working-day-preset :is(strong, span) {
+	text-align: right !important;
+}
+
+/* Current UI polish: settings overview copy should not be artificially narrow. */
+.campfire-theme .campfire-workspace-overview-heading p:not(.campfire-page-eyebrow),
+.campfire-theme .campfire-workspace-settings-header p:not(.campfire-page-eyebrow) {
+	max-width: none !important;
+}
+
+.campfire-theme .campfire-workspace-timezone-surface .campfire-field-stack {
+	max-width: min(42rem, 100%) !important;
+}
+
+.campfire-theme .campfire-standup-overview-stack .campfire-standup-overview-surface {
+	padding-top: clamp(1rem, 1.2vw, 1.35rem) !important;
+}
+
+/* Current UI polish: keep timezone and disconnect surfaces paired on overview. */
+.campfire-theme .campfire-workspace-admin-grid {
+	display: grid !important;
+	grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+	gap: 1rem !important;
+	align-items: stretch !important;
+}
+
+.campfire-theme .campfire-workspace-admin-grid > :is(.campfire-workspace-settings-surface, .campfire-workspace-danger-surface) {
+	min-width: 0 !important;
+	height: 100% !important;
+}
+
+@media (max-width: 1040px) {
+	.campfire-theme .campfire-workspace-admin-grid {
+		grid-template-columns: 1fr !important;
+	}
+}

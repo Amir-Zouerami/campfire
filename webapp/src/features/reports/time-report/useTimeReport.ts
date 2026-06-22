@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 import { getTimeReportSummary } from '@/api';
 import { CAMPFIRE_APPLY_REPORT_FILTER_EVENT, isReportFilterApplyEvent } from '@/app/events';
+import { isolateBidiText, useI18n } from '@/i18n';
+import { campfireQueryKeys } from '@/query';
 import type { TimeReportSummary, Workspace } from '@/types/domain';
 
 import {
@@ -39,13 +42,46 @@ export type UseTimeReportResult = {
 };
 
 /**
- * useTimeReport owns filter state, saved-filter handling, and summary loading.
+ * useTimeReport owns filter drafts and query-backed summary loading.
+ *
+ * The report remains explicit-load because time summaries can be expensive and
+ * admins often adjust multiple filters before asking Campfire to run the query.
  */
 export function useTimeReport(input: UseTimeReportInput): UseTimeReportResult {
+	const { t } = useI18n();
 	const [filter, setFilter] = useState<TimeReportFilterDraft>(defaultTimeReportFilter);
-	const [loadState, setLoadState] = useState<TimeReportLoadState>('idle');
-	const [summary, setSummary] = useState<TimeReportSummary | null>(null);
-	const [message, setMessage] = useState('');
+	const [queryFilter, setQueryFilter] = useState<TimeReportFilterDraft | null>(null);
+	const [refreshToken, setRefreshToken] = useState(0);
+	const [manualMessage, setManualMessage] = useState('');
+	const [manualError, setManualError] = useState('');
+
+	const reportQuery = useQuery({
+		queryKey: campfireQueryKeys.timeReportSummary(
+			input.workspace.id,
+			queryFilter?.startDate ?? '',
+			queryFilter?.endDate ?? '',
+			queryFilter?.groupBy ?? 'person',
+			refreshToken,
+		),
+		queryFn: async (): Promise<TimeReportSummary> => {
+			if (queryFilter === null) {
+				throw new Error(t('reports.time.validation.loadReportFirst'));
+			}
+
+			const response = await getTimeReportSummary(
+				input.workspace.id,
+				queryFilter.startDate,
+				queryFilter.endDate,
+				queryFilter.groupBy,
+			);
+
+			return response.summary;
+		},
+		enabled: queryFilter !== null,
+	});
+
+	const summary = reportQuery.data ?? null;
+	const userIDsForProfiles = useMemo(() => collectTimeReportUserIDs(summary), [summary]);
 
 	useEffect(() => {
 		/**
@@ -62,8 +98,8 @@ export function useTimeReport(input: UseTimeReportInput): UseTimeReportResult {
 
 			const savedFilter = parseTimeReportSavedFilter(event.detail.filterJson);
 			if (savedFilter === null) {
-				setLoadState('error');
-				setMessage(`Saved filter "${event.detail.name}" is not a valid time report filter.`);
+				setManualMessage('');
+				setManualError(t('reports.time.filter.invalid', { name: isolateBidiText(event.detail.name) }));
 				return;
 			}
 
@@ -71,8 +107,8 @@ export function useTimeReport(input: UseTimeReportInput): UseTimeReportResult {
 				...current,
 				...savedFilter,
 			}));
-			setLoadState('ready');
-			setMessage(`Applied saved filter "${event.detail.name}". Load the report to refresh results.`);
+			setManualError('');
+			setManualMessage(t('reports.time.filter.applied', { name: isolateBidiText(event.detail.name) }));
 		}
 
 		window.addEventListener(CAMPFIRE_APPLY_REPORT_FILTER_EVENT, handleApplyReportFilter);
@@ -80,14 +116,14 @@ export function useTimeReport(input: UseTimeReportInput): UseTimeReportResult {
 		return () => {
 			window.removeEventListener(CAMPFIRE_APPLY_REPORT_FILTER_EVENT, handleApplyReportFilter);
 		};
-	}, [input.workspace.id]);
-
-	const userIDsForProfiles = useMemo(() => collectTimeReportUserIDs(summary), [summary]);
+	}, [input.workspace.id, t]);
 
 	/**
 	 * updateFilter patches the current report filter.
 	 */
 	function updateFilter(patch: TimeReportFilterPatch): void {
+		setManualError('');
+		setManualMessage('');
 		setFilter(current => ({
 			...current,
 			...patch,
@@ -95,44 +131,40 @@ export function useTimeReport(input: UseTimeReportInput): UseTimeReportResult {
 	}
 
 	/**
-	 * loadReport loads the current workspace time report summary.
+	 * loadReport validates the draft and runs a query-backed summary load.
 	 */
 	async function loadReport(): Promise<void> {
-		const validationMessage = validateTimeReportFilter(filter);
+		const validationMessage = validateTimeReportFilter(filter, t);
 
 		if (validationMessage !== null) {
-			setLoadState('error');
-			setMessage(validationMessage);
+			setManualMessage('');
+			setManualError(validationMessage);
 			return;
 		}
 
-		setLoadState('loading');
-		setMessage('');
-
-		try {
-			const response = await getTimeReportSummary(
-				input.workspace.id,
-				filter.startDate,
-				filter.endDate,
-				filter.groupBy,
-			);
-
-			setSummary(response.summary);
-			setLoadState('ready');
-			setMessage('Time report loaded.');
-		} catch (error: unknown) {
-			setSummary(null);
-			setLoadState('error');
-			setMessage(errorToMessage(error));
-		}
+		setManualError('');
+		setManualMessage('');
+		setQueryFilter(filter);
+		setRefreshToken(current => current + 1);
 	}
+
+	const queryErrorMessage = reportQuery.isError
+		? errorToMessage(reportQuery.error, t('reports.time.error.fallback'))
+		: '';
+	const message = manualError || queryErrorMessage || manualMessage;
+	const loadState = resolveTimeReportLoadState({
+		manualError,
+		queryErrorMessage,
+		queryLoading: reportQuery.isFetching,
+		queryLoaded: queryFilter !== null && summary !== null,
+	});
 
 	return {
 		loadState,
 		filter,
 		summary,
 		message,
-		isBusy: loadState === 'loading',
+		isBusy: reportQuery.isFetching,
 		totalMinutes: summary?.totalMinutes ?? 0,
 		rowCount: summary?.rows.length ?? 0,
 		entryCount: timeReportEntryCount(summary),
@@ -140,4 +172,28 @@ export function useTimeReport(input: UseTimeReportInput): UseTimeReportResult {
 		updateFilter,
 		loadReport,
 	};
+}
+
+/**
+ * resolveTimeReportLoadState maps local validation and query state into UI state.
+ */
+function resolveTimeReportLoadState(input: {
+	readonly manualError: string;
+	readonly queryErrorMessage: string;
+	readonly queryLoading: boolean;
+	readonly queryLoaded: boolean;
+}): TimeReportLoadState {
+	if (input.manualError !== '' || input.queryErrorMessage !== '') {
+		return 'error';
+	}
+
+	if (input.queryLoading) {
+		return 'loading';
+	}
+
+	if (input.queryLoaded) {
+		return 'ready';
+	}
+
+	return 'idle';
 }

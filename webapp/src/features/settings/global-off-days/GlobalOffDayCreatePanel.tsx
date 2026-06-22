@@ -6,6 +6,7 @@ import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
 import { CampfireField } from '@/components/campfire/CampfireField';
 import { CampfireResponsiveInput } from '@/components/campfire/CampfireResponsiveInput';
 import { CampfireSettingsPanel } from '@/components/campfire/CampfireSettingsPanel';
+import { useI18n } from '@/i18n';
 
 import type { GlobalOffDayDraft, GlobalOffDayDraftPatch } from './global-off-days.types';
 
@@ -24,6 +25,8 @@ type GlobalOffDayCreatePanelProps = {
  * GlobalOffDayCreatePanel renders the create global off-day form.
  */
 export function GlobalOffDayCreatePanel(props: GlobalOffDayCreatePanelProps): ReactElement {
+	const { t } = useI18n();
+
 	function handleSubmit(event: FormEvent<HTMLFormElement>): void {
 		event.preventDefault();
 		void props.onCreate();
@@ -31,13 +34,13 @@ export function GlobalOffDayCreatePanel(props: GlobalOffDayCreatePanelProps): Re
 
 	return (
 		<CampfireSettingsPanel
-			eyebrow="Global skip date"
-			title="Skip all workspaces"
-			description="Create one holiday or no-standup date that applies everywhere."
+			eyebrow={t('settings.globalOffDays.create.eyebrow')}
+			title={t('settings.globalOffDays.create.title')}
+			description={t('settings.globalOffDays.create.description')}
 		>
 			<form className="campfire-settings-form" onSubmit={handleSubmit}>
 				<div className="campfire-settings-control-grid campfire-settings-control-grid--date-label">
-					<CampfireField id="campfire-global-off-day-date" label="Date">
+					<CampfireField id="campfire-global-off-day-date" label={t('settings.globalOffDays.create.date')}>
 						<CampfireDateInput
 							id="campfire-global-off-day-date"
 							disabled={props.disabled || !props.isSystemAdmin}
@@ -46,11 +49,11 @@ export function GlobalOffDayCreatePanel(props: GlobalOffDayCreatePanelProps): Re
 						/>
 					</CampfireField>
 
-					<CampfireField id="campfire-global-off-day-label" label="Label">
+					<CampfireField id="campfire-global-off-day-label" label={t('settings.globalOffDays.create.label')}>
 						<CampfireResponsiveInput
 							id="campfire-global-off-day-label"
 							disabled={props.disabled || !props.isSystemAdmin}
-							placeholder="Company-wide holiday"
+							placeholder={t('settings.globalOffDays.create.placeholder')}
 							value={props.draft.label}
 							onValueChange={value => props.onChange({ label: value })}
 						/>
@@ -60,7 +63,7 @@ export function GlobalOffDayCreatePanel(props: GlobalOffDayCreatePanelProps): Re
 				<div className="campfire-settings-form-actions">
 					<CampfireControlButton type="submit" disabled={props.disabled || !props.isSystemAdmin}>
 						<Plus className="cf:size-4" />
-						Add global off-day
+						{t('settings.globalOffDays.create.action')}
 					</CampfireControlButton>
 				</div>
 			</form>

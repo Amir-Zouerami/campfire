@@ -2,15 +2,16 @@ import type { ReactElement } from 'react';
 
 import { CampfireCheckboxField } from '@/components/campfire/CampfireCheckboxField';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
+import { useI18n } from '@/i18n';
 import { CampfireResponsiveInput, CampfireResponsiveTextarea } from '@/components/campfire/CampfireResponsiveInput';
 import type { StandupTemplate } from '@/types/domain';
 
 import {
-	formatLabel,
 	questionTypeNeedsOptions,
 	SUPPORTED_QUESTION_TYPES,
 	toQuestionType,
 } from './standup-settings.helpers';
+import { questionTypeLabel } from './standup-settings.i18n';
 import type { StandupQuestionDraft, StandupQuestionDraftPatch } from './standup-settings.types';
 import { StandupField } from './StandupField';
 
@@ -31,8 +32,9 @@ type StandupQuestionFieldsProps = {
  * StandupQuestionFields renders dynamic-form question controls.
  */
 export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactElement {
+	const { t } = useI18n();
 	const needsOptions = questionTypeNeedsOptions(props.draft.type);
-	const taskCreationSupported = props.draft.type === 'text' || props.draft.type === 'long_text';
+	const taskCreationSupported = props.draft.type === 'work_items';
 
 	const showTemplateField = props.hideTemplateField !== true;
 
@@ -40,14 +42,14 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 		<div className="campfire-standup-question-field-grid">
 			<div className={showTemplateField ? 'campfire-standup-question-primary-grid' : 'campfire-standup-question-primary-grid campfire-standup-question-primary-grid--no-template'}>
 				{showTemplateField && (
-					<StandupField htmlFor={`${props.idPrefix}-template`} label="Template">
+					<StandupField htmlFor={`${props.idPrefix}-template`} label={t('settings.standups.fields.template')}>
 						<CampfireSelect
 							id={`${props.idPrefix}-template`}
 							disabled={props.disabled || !props.allowTemplateChange}
 							value={props.draft.templateId}
 							onValueChange={(value) => props.onChange({ templateId: value })}
 						>
-							<option value="">Choose template</option>
+							<option value="">{t('settings.standups.fields.template.placeholder')}</option>
 							{props.templates.map((template) => (
 								<option key={template.id} value={template.id}>
 									{template.name}
@@ -57,7 +59,7 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 					</StandupField>
 				)}
 
-				<StandupField htmlFor={`${props.idPrefix}-type`} label="Type">
+				<StandupField htmlFor={`${props.idPrefix}-type`} label={t('settings.standups.fields.type')}>
 					<CampfireSelect
 						id={`${props.idPrefix}-type`}
 						disabled={props.disabled}
@@ -66,19 +68,19 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 							const nextType = toQuestionType(value);
 							props.onChange({
 								type: nextType,
-								createsTasks: nextType === 'text' || nextType === 'long_text' ? props.draft.createsTasks : false,
+								createsTasks: nextType === 'work_items' ? props.draft.createsTasks : false,
 							});
 						}}
 					>
 						{SUPPORTED_QUESTION_TYPES.map((type) => (
 							<option key={type} value={type}>
-								{formatLabel(type)}
+								{questionTypeLabel(t, type)}
 							</option>
 						))}
 					</CampfireSelect>
 				</StandupField>
 
-				<StandupField htmlFor={`${props.idPrefix}-position`} label="Position">
+				<StandupField htmlFor={`${props.idPrefix}-position`} label={t('settings.standups.fields.position')}>
 					<CampfireResponsiveInput
 						id={`${props.idPrefix}-position`}
 						type="number"
@@ -96,17 +98,17 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 			</div>
 
 			<div className="campfire-standup-question-label-grid">
-				<StandupField htmlFor={`${props.idPrefix}-label`} label="Question label">
+				<StandupField htmlFor={`${props.idPrefix}-label`} label={t('settings.standups.fields.questionLabel')}>
 					<CampfireResponsiveInput
 						id={`${props.idPrefix}-label`}
 						disabled={props.disabled}
-						placeholder="What did you work on yesterday?"
+						placeholder={t('settings.standups.fields.questionLabel.placeholder')}
 						value={props.draft.label}
 						onValueChange={(value) => props.onChange({ label: value })}
 					/>
 				</StandupField>
 
-				<StandupField htmlFor={`${props.idPrefix}-section`} label="Section">
+				<StandupField htmlFor={`${props.idPrefix}-section`} label={t('settings.standups.fields.section')}>
 					<CampfireResponsiveInput
 						id={`${props.idPrefix}-section`}
 						disabled={props.disabled}
@@ -118,21 +120,21 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 			</div>
 
 			<div className="campfire-standup-question-helper-grid">
-				<StandupField htmlFor={`${props.idPrefix}-help`} label="Help text">
+				<StandupField htmlFor={`${props.idPrefix}-help`} label={t('settings.standups.fields.helpText')}>
 					<CampfireResponsiveInput
 						id={`${props.idPrefix}-help`}
 						disabled={props.disabled}
-						placeholder="Optional helper text for submitters."
+						placeholder={t('settings.standups.fields.helpText.placeholder')}
 						value={props.draft.helpText}
 						onValueChange={(value) => props.onChange({ helpText: value })}
 					/>
 				</StandupField>
 
-				<StandupField htmlFor={`${props.idPrefix}-placeholder`} label="Placeholder">
+				<StandupField htmlFor={`${props.idPrefix}-placeholder`} label={t('settings.standups.fields.placeholder')}>
 					<CampfireResponsiveInput
 						id={`${props.idPrefix}-placeholder`}
 						disabled={props.disabled}
-						placeholder="Optional input placeholder."
+						placeholder={t('settings.standups.fields.placeholder.placeholder')}
 						value={props.draft.placeholder}
 						onValueChange={(value) => props.onChange({ placeholder: value })}
 					/>
@@ -142,14 +144,14 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 			{needsOptions && (
 				<StandupField
 					htmlFor={`${props.idPrefix}-options`}
-					label="Options"
-					description="One option per line. Empty and duplicate rows are ignored."
+					label={t('settings.standups.fields.options')}
+					description={t('settings.standups.fields.options.description')}
 				>
 					<CampfireResponsiveTextarea
 						id={`${props.idPrefix}-options`}
 						className="cf:min-h-28"
 						disabled={props.disabled}
-						placeholder="Option one&#10;Option two&#10;Option three"
+						placeholder={t('settings.standups.fields.options.placeholder')}
 						value={props.draft.optionsText}
 						onValueChange={(value) => props.onChange({ optionsText: value })}
 					/>
@@ -160,32 +162,32 @@ export function StandupQuestionFields(props: StandupQuestionFieldsProps): ReactE
 				<CampfireCheckboxField
 					checked={props.draft.required}
 					disabled={props.disabled}
-					label="Required"
-					description="Submitters must answer this question."
+					label={t('settings.standups.fields.required')}
+					description={t('settings.standups.fields.required.description')}
 					onCheckedChange={(checked) => props.onChange({ required: checked })}
 				/>
 
 				<CampfireCheckboxField
 					checked={props.draft.showInReport}
 					disabled={props.disabled}
-					label="Show in report"
-					description="Include answers in Markdown previews and reports."
+					label={t('settings.standups.fields.showInReport')}
+					description={t('settings.standups.fields.showInReport.description')}
 					onCheckedChange={(checked) => props.onChange({ showInReport: checked })}
 				/>
 
 				<CampfireCheckboxField
 					checked={props.draft.isPrivate}
 					disabled={props.disabled}
-					label="Private"
-					description="Keep this answer out of public reports when supported."
+					label={t('settings.standups.fields.private')}
+					description={t('settings.standups.fields.private.description')}
 					onCheckedChange={(checked) => props.onChange({ isPrivate: checked })}
 				/>
 
 				<CampfireCheckboxField
 					checked={props.draft.createsTasks}
 					disabled={props.disabled || !taskCreationSupported}
-					label="Create tasks"
-					description="Each answer row becomes a task behind the scenes."
+					label={t('settings.standups.fields.createTasks')}
+					description={t('settings.standups.fields.createTasks.description')}
 					onCheckedChange={(checked) => props.onChange({ createsTasks: checked })}
 				/>
 			</div>

@@ -1,3 +1,4 @@
+import type { TranslationKey } from '@/i18n';
 import type { StandupSubmissionSortMode } from '@/types/domain';
 
 /**
@@ -10,6 +11,6 @@ export type TeamStandupsLoadState = 'idle' | 'loading' | 'ready' | 'error';
  */
 export type TeamStandupSortOption = {
 	readonly value: StandupSubmissionSortMode;
-	readonly label: string;
-	readonly helper: string;
+	readonly labelKey: TranslationKey;
+	readonly helperKey: TranslationKey;
 };

@@ -25,10 +25,12 @@ type StandupRunDecisionPayload struct {
 	Reason    string `json:"reason"`
 	Message   string `json:"message"`
 
-	IsWorkingDay           bool `json:"isWorkingDay"`
-	IsLastWorkingDayOfWeek bool `json:"isLastWorkingDayOfWeek"`
-	MemberCount            int  `json:"memberCount"`
-	OnLeaveMemberCount     int  `json:"onLeaveMemberCount"`
+	IsWorkingDay           bool     `json:"isWorkingDay"`
+	IsLastWorkingDayOfWeek bool     `json:"isLastWorkingDayOfWeek"`
+	MemberCount            int      `json:"memberCount"`
+	OnLeaveMemberCount     int      `json:"onLeaveMemberCount"`
+	ExcludedMemberCount    int      `json:"excludedMemberCount"`
+	ExcludedUserIDs        []string `json:"excludedUserIds"`
 
 	GlobalOffDays    []GlobalSkipDatePayload      `json:"globalOffDays"`
 	WorkspaceOffDays []WorkspaceOffDayPayload     `json:"workspaceOffDays"`
@@ -85,6 +87,8 @@ func StandupRunDecisionToPayload(decision domain.StandupRunDecision) StandupRunD
 		IsLastWorkingDayOfWeek: decision.IsLastWorkingDayOfWeek,
 		MemberCount:            decision.MemberCount,
 		OnLeaveMemberCount:     decision.OnLeaveMemberCount,
+		ExcludedMemberCount:    decision.ExcludedMemberCount,
+		ExcludedUserIDs:        decision.ExcludedUserIDs,
 
 		GlobalOffDays:    GlobalSkipDatesToPayload(decision.GlobalOffDays),
 		WorkspaceOffDays: WorkspaceOffDaysToPayload(decision.WorkspaceOffDays),

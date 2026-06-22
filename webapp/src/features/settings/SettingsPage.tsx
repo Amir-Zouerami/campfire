@@ -3,8 +3,10 @@ import type { ReactElement } from 'react';
 
 import { CampfirePageHeader } from '@/components/campfire/CampfireLayoutPrimitives';
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
+import { useI18n } from '@/i18n';
 
 import { AuditLogPage } from './audit-log/AuditLogPage';
+import { DataManagementPage } from './data-management/DataManagementPage';
 import { GlobalOffDaysPage } from './global-off-days/GlobalOffDaysPage';
 import { ReminderSettingsPage } from './reminders/ReminderSettingsPage';
 import { ReportRulesSettingsPage } from './report-rules/ReportRulesSettingsPage';
@@ -21,6 +23,7 @@ import { WorkingCalendarPage } from './working-calendar/WorkingCalendarPage';
  * SettingsPage renders workspace configuration as separated sub-pages.
  */
 export function SettingsPage(props: WorkspaceShellProps): ReactElement {
+	const { t } = useI18n();
 	const [activeSection, setActiveSection] = useState<SettingsSectionID>('overview');
 
 	const canViewSettings = props.isSystemAdmin || props.canManageWorkspace;
@@ -40,9 +43,9 @@ export function SettingsPage(props: WorkspaceShellProps): ReactElement {
 	return (
 		<div className="campfire-page-stack">
 			<CampfirePageHeader
-				eyebrow="Settings"
-				title={resolvedSection.label}
-				description={resolvedSection.description}
+				eyebrow={t('settings.page.eyebrow')}
+				title={t(resolvedSection.labelKey)}
+				description={t(resolvedSection.descriptionKey)}
 			/>
 
 			<SettingsSectionNavigation
@@ -82,6 +85,9 @@ function renderSettingsSection(activeSection: SettingsSectionID, props: Workspac
 
 		case 'audit':
 			return <AuditLogPage {...props} />;
+
+		case 'data':
+			return <DataManagementPage {...props} />;
 
 		case 'global':
 			return <GlobalOffDaysPage {...props} />;

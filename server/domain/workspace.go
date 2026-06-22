@@ -26,10 +26,34 @@ type Workspace struct {
 	ApprovedLeaveNotificationChannelID string
 
 	/*
+		LeaveRequestNotificationRecipientIDs lists the exact Mattermost users who
+		receive direct messages when a new leave request needs attention.
+
+		When empty, Campfire falls back to workspace Leads and Approvers for
+		backward-compatible workspaces that have not configured explicit recipients.
+	*/
+	LeaveRequestNotificationRecipientIDs []string
+
+	/*
 		LeaveNotificationLanguage controls generated leave request, decision, and
 		team-facing availability notification copy.
 	*/
 	LeaveNotificationLanguage ReportLanguage
+
+	/*
+		GeneratedMessageLanguage controls the default language for generated UI,
+		report, reminder, notification, and seeded-default copy. Specific older
+		settings can temporarily override it until they are migrated onto the shared
+		language model.
+	*/
+	GeneratedMessageLanguage Language
+
+	/*
+		WorkingDays lists the enabled workspace weekdays used for calendar
+		presentation and scheduling decisions. Weekday values follow Go's
+		time.Weekday numbering.
+	*/
+	WorkingDays []time.Weekday
 
 	Timezone string
 

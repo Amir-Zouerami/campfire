@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { CampfireFeedback, CampfireLoadingFeedback } from '@/components/campfire/CampfireFeedback';
+import { useI18n } from '@/i18n';
 
 import type { GlobalOffDaysLoadState } from './global-off-days.types';
 
@@ -23,5 +24,7 @@ export function GlobalOffDaysFeedback(props: GlobalOffDaysFeedbackProps): ReactE
  * GlobalOffDaysLoading renders a compact loading state.
  */
 export function GlobalOffDaysLoading(): ReactElement {
-	return <CampfireLoadingFeedback message="Loading global off-days…" />;
+	const { t } = useI18n();
+
+	return <CampfireLoadingFeedback message={t('settings.globalOffDays.loading')} />;
 }

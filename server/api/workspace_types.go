@@ -11,19 +11,22 @@ import (
 WorkspacePayload is the API representation of a Campfire workspace.
 */
 type WorkspacePayload struct {
-	ID                                 string `json:"id"`
-	TeamID                             string `json:"teamId"`
-	ChannelID                          string `json:"channelId"`
-	Name                               string `json:"name"`
-	Description                        string `json:"description"`
-	BoardURL                           string `json:"boardUrl"`
-	ApprovedLeaveNotificationChannelID string `json:"approvedLeaveNotificationChannelId"`
-	LeaveNotificationLanguage          string `json:"leaveNotificationLanguage"`
-	Timezone                           string `json:"timezone"`
-	CreatedBy                          string `json:"createdBy"`
-	CreatedAt                          string `json:"createdAt"`
-	UpdatedAt                          string `json:"updatedAt"`
-	IsArchived                         bool   `json:"isArchived"`
+	ID                                   string   `json:"id"`
+	TeamID                               string   `json:"teamId"`
+	ChannelID                            string   `json:"channelId"`
+	Name                                 string   `json:"name"`
+	Description                          string   `json:"description"`
+	BoardURL                             string   `json:"boardUrl"`
+	ApprovedLeaveNotificationChannelID   string   `json:"approvedLeaveNotificationChannelId"`
+	LeaveRequestNotificationRecipientIDs []string `json:"leaveRequestNotificationRecipientIds"`
+	LeaveNotificationLanguage            string   `json:"leaveNotificationLanguage"`
+	GeneratedMessageLanguage             string   `json:"generatedMessageLanguage"`
+	WorkingDays                          []int    `json:"workingDays"`
+	Timezone                             string   `json:"timezone"`
+	CreatedBy                            string   `json:"createdBy"`
+	CreatedAt                            string   `json:"createdAt"`
+	UpdatedAt                            string   `json:"updatedAt"`
+	IsArchived                           bool     `json:"isArchived"`
 }
 
 /*
@@ -52,25 +55,35 @@ type WorkspaceByChannelResponse struct {
 CreateWorkspaceRequest is accepted by POST /workspaces.
 */
 type CreateWorkspaceRequest struct {
-	TeamID                 string   `json:"teamId"`
-	ChannelID              string   `json:"channelId"`
-	Name                   string   `json:"name"`
-	Description            string   `json:"description"`
-	BoardURL               string   `json:"boardUrl"`
-	Timezone               string   `json:"timezone"`
-	WorkingDays            []int    `json:"workingDays"`
-	ChannelAdminsAreLeads  bool     `json:"channelAdminsAreLeads"`
-	NamedLeadUserIDs       []string `json:"namedLeadUserIds"`
-	NamedApproverUserIDs   []string `json:"namedApproverUserIds"`
-	CreateDefaultTemplates bool     `json:"createDefaultTemplates"`
+	TeamID                   string   `json:"teamId"`
+	ChannelID                string   `json:"channelId"`
+	Name                     string   `json:"name"`
+	Description              string   `json:"description"`
+	BoardURL                 string   `json:"boardUrl"`
+	Timezone                 string   `json:"timezone"`
+	WorkingDays              []int    `json:"workingDays"`
+	ChannelAdminsAreLeads    bool     `json:"channelAdminsAreLeads"`
+	NamedLeadUserIDs         []string `json:"namedLeadUserIds"`
+	NamedApproverUserIDs     []string `json:"namedApproverUserIds"`
+	CreateDefaultTemplates   bool     `json:"createDefaultTemplates"`
+	GeneratedMessageLanguage string   `json:"generatedMessageLanguage"`
 }
 
 /*
 UpdateWorkspaceNotificationSettingsRequest updates workspace notification routing.
 */
 type UpdateWorkspaceNotificationSettingsRequest struct {
-	ApprovedLeaveNotificationChannelID string `json:"approvedLeaveNotificationChannelId"`
-	LeaveNotificationLanguage          string `json:"leaveNotificationLanguage"`
+	ApprovedLeaveNotificationChannelID   string   `json:"approvedLeaveNotificationChannelId"`
+	LeaveRequestNotificationRecipientIDs []string `json:"leaveRequestNotificationRecipientIds"`
+	LeaveNotificationLanguage            string   `json:"leaveNotificationLanguage"`
+	GeneratedMessageLanguage             string   `json:"generatedMessageLanguage"`
+}
+
+/*
+UpdateWorkspaceTimezoneRequest updates the workspace timezone used by schedules and reports.
+*/
+type UpdateWorkspaceTimezoneRequest struct {
+	Timezone string `json:"timezone"`
 }
 
 /*
@@ -84,6 +97,13 @@ type CreateWorkspaceResponse struct {
 UpdateWorkspaceNotificationSettingsResponse is returned after workspace notification settings are updated.
 */
 type UpdateWorkspaceNotificationSettingsResponse struct {
+	Workspace WorkspacePayload `json:"workspace"`
+}
+
+/*
+UpdateWorkspaceTimezoneResponse is returned after the workspace timezone is updated.
+*/
+type UpdateWorkspaceTimezoneResponse struct {
 	Workspace WorkspacePayload `json:"workspace"`
 }
 
@@ -109,25 +129,37 @@ WorkspaceToPayload maps a domain workspace to its API representation.
 */
 func WorkspaceToPayload(workspace domain.Workspace) WorkspacePayload {
 	return WorkspacePayload{
-		ID:                                 workspace.ID.String(),
-		TeamID:                             workspace.TeamID,
-		ChannelID:                          workspace.ChannelID,
-		Name:                               workspace.Name,
-		Description:                        workspace.Description,
-		BoardURL:                           workspace.BoardURL,
-		ApprovedLeaveNotificationChannelID: workspace.ApprovedLeaveNotificationChannelID,
-		LeaveNotificationLanguage:          string(workspace.LeaveNotificationLanguage),
-		Timezone:                           workspace.Timezone,
-		CreatedBy:                          workspace.CreatedBy,
-		CreatedAt:                          formatAPITime(workspace.CreatedAt),
-		UpdatedAt:                          formatAPITime(workspace.UpdatedAt),
-		IsArchived:                         workspace.IsArchived,
+		ID:                                   workspace.ID.String(),
+		TeamID:                               workspace.TeamID,
+		ChannelID:                            workspace.ChannelID,
+		Name:                                 workspace.Name,
+		Description:                          workspace.Description,
+		BoardURL:                             workspace.BoardURL,
+		ApprovedLeaveNotificationChannelID:   workspace.ApprovedLeaveNotificationChannelID,
+		LeaveRequestNotificationRecipientIDs: workspace.LeaveRequestNotificationRecipientIDs,
+		LeaveNotificationLanguage:            string(workspace.LeaveNotificationLanguage),
+		GeneratedMessageLanguage:             string(workspace.GeneratedMessageLanguage),
+		WorkingDays:                          workingDaysToPayload(workspace.WorkingDays),
+		Timezone:                             workspace.Timezone,
+		CreatedBy:                            workspace.CreatedBy,
+		CreatedAt:                            formatAPITime(workspace.CreatedAt),
+		UpdatedAt:                            formatAPITime(workspace.UpdatedAt),
+		IsArchived:                           workspace.IsArchived,
 	}
 }
 
 /*
 CapabilitiesToPayload maps service capabilities to their API representation.
 */
+func workingDaysToPayload(workingDays []time.Weekday) []int {
+	payload := make([]int, 0, len(workingDays))
+	for _, weekday := range workingDays {
+		payload = append(payload, int(weekday))
+	}
+
+	return payload
+}
+
 func CapabilitiesToPayload(capabilities service.WorkspaceCapabilities) WorkspaceCapabilitiesPayload {
 	return WorkspaceCapabilitiesPayload{
 		CanSubmitStandup:        capabilities.CanSubmitStandup,
@@ -145,18 +177,19 @@ ToServiceInput maps an API create-workspace request to a service input.
 */
 func (r CreateWorkspaceRequest) ToServiceInput(actorUserID string) service.CreateWorkspaceInput {
 	return service.CreateWorkspaceInput{
-		ActorUserID:            actorUserID,
-		TeamID:                 r.TeamID,
-		ChannelID:              r.ChannelID,
-		Name:                   r.Name,
-		Description:            r.Description,
-		BoardURL:               r.BoardURL,
-		Timezone:               r.Timezone,
-		WorkingDays:            r.WorkingDays,
-		ChannelAdminsAreLeads:  r.ChannelAdminsAreLeads,
-		NamedLeadUserIDs:       r.NamedLeadUserIDs,
-		NamedApproverUserIDs:   r.NamedApproverUserIDs,
-		CreateDefaultTemplates: r.CreateDefaultTemplates,
+		ActorUserID:              actorUserID,
+		TeamID:                   r.TeamID,
+		ChannelID:                r.ChannelID,
+		Name:                     r.Name,
+		Description:              r.Description,
+		BoardURL:                 r.BoardURL,
+		Timezone:                 r.Timezone,
+		WorkingDays:              r.WorkingDays,
+		ChannelAdminsAreLeads:    r.ChannelAdminsAreLeads,
+		NamedLeadUserIDs:         r.NamedLeadUserIDs,
+		NamedApproverUserIDs:     r.NamedApproverUserIDs,
+		CreateDefaultTemplates:   r.CreateDefaultTemplates,
+		GeneratedMessageLanguage: r.GeneratedMessageLanguage,
 	}
 }
 
@@ -168,10 +201,12 @@ func (r UpdateWorkspaceNotificationSettingsRequest) ToServiceInput(
 	workspaceID string,
 ) service.UpdateWorkspaceNotificationSettingsInput {
 	return service.UpdateWorkspaceNotificationSettingsInput{
-		ActorUserID:                        actorUserID,
-		WorkspaceID:                        workspaceID,
-		ApprovedLeaveNotificationChannelID: r.ApprovedLeaveNotificationChannelID,
-		LeaveNotificationLanguage:          r.LeaveNotificationLanguage,
+		ActorUserID:                          actorUserID,
+		WorkspaceID:                          workspaceID,
+		ApprovedLeaveNotificationChannelID:   r.ApprovedLeaveNotificationChannelID,
+		LeaveRequestNotificationRecipientIDs: r.LeaveRequestNotificationRecipientIDs,
+		LeaveNotificationLanguage:            r.LeaveNotificationLanguage,
+		GeneratedMessageLanguage:             r.GeneratedMessageLanguage,
 	}
 }
 
@@ -184,4 +219,15 @@ func formatAPITime(value time.Time) string {
 	}
 
 	return value.UTC().Format(time.RFC3339)
+}
+
+/*
+ToServiceInput maps an API timezone update request to service input.
+*/
+func (r UpdateWorkspaceTimezoneRequest) ToServiceInput(actorUserID string, workspaceID string) service.UpdateWorkspaceTimezoneInput {
+	return service.UpdateWorkspaceTimezoneInput{
+		ActorUserID: actorUserID,
+		WorkspaceID: workspaceID,
+		Timezone:    r.Timezone,
+	}
 }

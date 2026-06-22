@@ -1,6 +1,24 @@
 package service
 
-import "context"
+import (
+	"context"
+
+	"github.com/amir-zouerami/campfire/server/domain"
+)
+
+/*
+StandupOpeningAnnouncement contains data needed for the channel-only message sent
+when a standup submission window opens.
+*/
+type StandupOpeningAnnouncement struct {
+	WorkspaceID    string
+	WorkspaceName  string
+	ChannelID      string
+	ScheduleID     string
+	ScheduleKind   domain.StandupKind
+	OccurrenceDate string
+	Language       domain.Language
+}
 
 /*
 StandupDMReminder contains data needed to DM one user about a standup.
@@ -11,6 +29,7 @@ type StandupDMReminder struct {
 	ChannelID      string
 	ScheduleID     string
 	OccurrenceDate string
+	Language       domain.Language
 
 	TargetUserID string
 
@@ -26,6 +45,7 @@ type StandupChannelMissingReminder struct {
 	ChannelID      string
 	ScheduleID     string
 	OccurrenceDate string
+	Language       domain.Language
 
 	MissingUserIDs      []string
 	MissingUserCount    int
@@ -41,6 +61,7 @@ StandupReminderPublisher defines outbound reminder delivery behavior.
 Application services depend on this port instead of importing Mattermost APIs.
 */
 type StandupReminderPublisher interface {
+	SendStandupOpeningAnnouncement(ctx context.Context, announcement StandupOpeningAnnouncement) (string, error)
 	SendStandupDMReminder(ctx context.Context, reminder StandupDMReminder) (string, error)
 	SendChannelMissingReminder(ctx context.Context, reminder StandupChannelMissingReminder) (string, error)
 }
@@ -57,6 +78,16 @@ NewNoopStandupReminderPublisher creates a reminder publisher that does nothing.
 */
 func NewNoopStandupReminderPublisher() *NoopStandupReminderPublisher {
 	return &NoopStandupReminderPublisher{}
+}
+
+/*
+SendStandupOpeningAnnouncement intentionally does nothing and returns an empty post ID.
+*/
+func (p *NoopStandupReminderPublisher) SendStandupOpeningAnnouncement(
+	_ context.Context,
+	_ StandupOpeningAnnouncement,
+) (string, error) {
+	return "", nil
 }
 
 /*

@@ -72,6 +72,7 @@ type WorkspaceRoleOverview struct {
 	ApproverUserIDs []string
 	AdminUserIDs    []string
 	ViewerUserIDs   []string
+	ExcludedUserIDs []string
 }
 
 /*
@@ -235,6 +236,11 @@ func (s *WorkspaceRoleService) buildOverview(
 		return nil, NewError(ErrorCodeInternal, "Could not load workspace Viewers.")
 	}
 
+	excludedUserIDs, err := s.workspaceRoleStore.ListUserIDsByRoles(ctx, workspace.ID, []domain.Role{domain.RoleExcluded})
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not load excluded standup members.")
+	}
+
 	memberUserIDs, err := s.workspaceMemberProvider.ListWorkspaceMemberUserIDs(ctx, workspace)
 	if err != nil {
 		return nil, NewError(ErrorCodeInternal, "Could not load workspace channel members.")
@@ -248,6 +254,7 @@ func (s *WorkspaceRoleService) buildOverview(
 		ApproverUserIDs: normalizeUserIDs(approverUserIDs),
 		AdminUserIDs:    normalizeUserIDs(adminUserIDs),
 		ViewerUserIDs:   normalizeUserIDs(viewerUserIDs),
+		ExcludedUserIDs: normalizeUserIDs(excludedUserIDs),
 	}, nil
 }
 

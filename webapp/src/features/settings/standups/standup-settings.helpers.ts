@@ -1,4 +1,5 @@
 import { ApiClientError } from '@/api';
+import type { TFunction } from '@/i18n';
 import type {
 	CreateStandupQuestionRequest,
 	CreateStandupScheduleRequest,
@@ -35,6 +36,10 @@ import type {
 export const SUPPORTED_QUESTION_TYPES: readonly QuestionType[] = [
 	'text',
 	'long_text',
+	'work_items',
+	'date',
+	'time',
+	'datetime',
 	'checkbox',
 	'boolean',
 	'dropdown',
@@ -91,7 +96,7 @@ export function emptyQuestionDraft(templateID = '', position = 10): StandupQuest
 		label: '',
 		helpText: '',
 		placeholder: '',
-		type: 'text',
+		type: 'long_text',
 		required: true,
 		showInReport: true,
 		isPrivate: false,
@@ -226,7 +231,7 @@ export function normalizeScheduleDraft(
 		timeOfDay: draft.timeOfDay,
 		skipNonWorkingDays: draft.skipNonWorkingDays,
 		weeklyMode: draft.kind === 'weekly' ? normalizeWeeklyMode(draft.weeklyMode) : 'none',
-		skipDailyWhenWeeklyRuns: draft.skipDailyWhenWeeklyRuns,
+		skipDailyWhenWeeklyRuns: false,
 	};
 }
 
@@ -246,7 +251,7 @@ export function normalizeQuestionDraft(
 		required: draft.required,
 		showInReport: draft.showInReport,
 		isPrivate: draft.isPrivate,
-		createsTasks: draft.createsTasks,
+		createsTasks: draft.type === 'work_items' ? draft.createsTasks : false,
 		position: draft.position,
 		options: parseQuestionOptions(draft.optionsText),
 	};
@@ -255,9 +260,9 @@ export function normalizeQuestionDraft(
 /**
  * validateTemplateDraft validates template state before mutation.
  */
-export function validateTemplateDraft(draft: StandupTemplateDraft): string | null {
+export function validateTemplateDraft(draft: StandupTemplateDraft, t?: TFunction): string | null {
 	if (normalizeTemplateName(draft.name) === '') {
-		return 'Template name is required.';
+		return t?.('settings.standups.validation.templateNameRequired') ?? 'Template name is required.';
 	}
 
 	return null;
@@ -280,21 +285,21 @@ export function templateNameKey(value: string): string {
 /**
  * validateScheduleDraft validates schedule state before mutation.
  */
-export function validateScheduleDraft(draft: StandupScheduleDraft): string | null {
+export function validateScheduleDraft(draft: StandupScheduleDraft, t?: TFunction): string | null {
 	if (draft.templateId.trim() === '') {
-		return 'Choose a template for this schedule.';
+		return t?.('settings.standups.validation.scheduleTemplateRequired') ?? 'Choose a template for this schedule.';
 	}
 
 	if (draft.opensAt.trim() === '') {
-		return 'Choose when this standup opens.';
+		return t?.('settings.standups.validation.scheduleOpenRequired') ?? 'Choose when this standup opens.';
 	}
 
 	if (draft.timeOfDay.trim() === '') {
-		return 'Choose when this standup closes and posts its report.';
+		return t?.('settings.standups.validation.scheduleCloseRequired') ?? 'Choose when this standup closes and posts its report.';
 	}
 
 	if (!opensBeforeClose(draft.opensAt, draft.timeOfDay)) {
-		return 'Standup open time must be before the close/report time.';
+		return t?.('settings.standups.validation.scheduleOpenBeforeClose') ?? 'Standup open time must be before the close/report time.';
 	}
 
 	return null;
@@ -303,21 +308,21 @@ export function validateScheduleDraft(draft: StandupScheduleDraft): string | nul
 /**
  * validateQuestionDraft validates dynamic question state before mutation.
  */
-export function validateQuestionDraft(draft: StandupQuestionDraft): string | null {
+export function validateQuestionDraft(draft: StandupQuestionDraft, t?: TFunction): string | null {
 	if (draft.templateId.trim() === '') {
-		return 'Choose the template this question belongs to.';
+		return t?.('settings.standups.validation.questionTemplateRequired') ?? 'Choose the template this question belongs to.';
 	}
 
 	if (draft.label.trim() === '') {
-		return 'Question label is required.';
+		return t?.('settings.standups.validation.questionLabelRequired') ?? 'Question label is required.';
 	}
 
 	if (questionTypeNeedsOptions(draft.type) && parseQuestionOptions(draft.optionsText).length === 0) {
-		return 'This question type needs at least one option.';
+		return t?.('settings.standups.validation.questionOptionsRequired') ?? 'This question type needs at least one option.';
 	}
 
-	if (draft.createsTasks && draft.type !== 'text' && draft.type !== 'long_text') {
-		return 'Only text and long-text questions can create tasks.';
+	if (draft.createsTasks && draft.type !== 'work_items') {
+		return t?.('settings.standups.validation.questionTasksWorkItemsOnly') ?? 'Only work-items questions can create tasks.';
 	}
 
 	return null;
@@ -370,6 +375,56 @@ export function replaceQuestion(
 	updatedQuestion: StandupQuestion,
 ): readonly StandupQuestion[] {
 	return questions.map((question) => (question.id === updatedQuestion.id ? updatedQuestion : question));
+}
+
+/**
+ * removeTemplate returns a list without one template.
+ */
+export function removeTemplate(
+	templates: readonly StandupTemplate[],
+	templateID: string,
+): readonly StandupTemplate[] {
+	return templates.filter((template) => template.id !== templateID);
+}
+
+/**
+ * removeSchedule returns a list without one schedule.
+ */
+export function removeSchedule(
+	schedules: readonly StandupSchedule[],
+	scheduleID: string,
+): readonly StandupSchedule[] {
+	return schedules.filter((schedule) => schedule.id !== scheduleID);
+}
+
+/**
+ * removeQuestion returns a list without one question.
+ */
+export function removeQuestion(
+	questions: readonly StandupQuestion[],
+	questionID: string,
+): readonly StandupQuestion[] {
+	return questions.filter((question) => question.id !== questionID);
+}
+
+/**
+ * removeQuestionsByTemplate returns questions not attached to a deleted template.
+ */
+export function removeQuestionsByTemplate(
+	questions: readonly StandupQuestion[],
+	templateID: string,
+): readonly StandupQuestion[] {
+	return questions.filter((question) => question.templateId !== templateID);
+}
+
+/**
+ * removeSchedulesByTemplate returns schedules not attached to a deleted template.
+ */
+export function removeSchedulesByTemplate(
+	schedules: readonly StandupSchedule[],
+	templateID: string,
+): readonly StandupSchedule[] {
+	return schedules.filter((schedule) => schedule.templateId !== templateID);
 }
 
 /**
@@ -559,8 +614,7 @@ export function scheduleHasChanges(schedule: StandupSchedule, draft: StandupSche
 		schedule.opensAt !== normalizedDraft.opensAt ||
 		schedule.timeOfDay !== normalizedDraft.timeOfDay ||
 		schedule.skipNonWorkingDays !== normalizedDraft.skipNonWorkingDays ||
-		normalizeWeeklyMode(schedule.weeklyMode) !== normalizedDraft.weeklyMode ||
-		schedule.skipDailyWhenWeeklyRuns !== normalizedDraft.skipDailyWhenWeeklyRuns
+		normalizeWeeklyMode(schedule.weeklyMode) !== normalizedDraft.weeklyMode
 	);
 }
 
@@ -751,7 +805,7 @@ export function formatLabel(value: string): string {
 /**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
-export function errorToMessage(error: unknown): string {
+export function errorToMessage(error: unknown, fallback = 'Could not update standup settings.'): string {
 	if (error instanceof ApiClientError) {
 		return error.message;
 	}
@@ -760,7 +814,7 @@ export function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not update standup settings.';
+	return fallback;
 }
 
 /**

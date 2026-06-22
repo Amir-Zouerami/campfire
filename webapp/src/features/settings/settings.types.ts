@@ -1,3 +1,5 @@
+import type { TranslationKey } from '@/i18n';
+
 /**
  * SettingsSectionID identifies one settings sub-page.
  */
@@ -9,6 +11,7 @@ export type SettingsSectionID =
 	| 'reminders'
 	| 'reports'
 	| 'audit'
+	| 'data'
 	| 'global';
 
 /**
@@ -16,7 +19,7 @@ export type SettingsSectionID =
  */
 export type SettingsSection = {
 	readonly id: SettingsSectionID;
-	readonly label: string;
-	readonly description: string;
+	readonly labelKey: TranslationKey;
+	readonly descriptionKey: TranslationKey;
 	readonly adminOnly: boolean;
 };

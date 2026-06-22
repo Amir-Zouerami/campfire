@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { CampfireFeedbackList, CampfireLoadingFeedback } from '@/components/campfire/CampfireFeedback';
+import { useI18n } from '@/i18n';
 
 import type { GlobalReportLoadState } from './global-reports.types';
 
@@ -39,5 +40,7 @@ export function GlobalReportsFeedback(props: GlobalReportsFeedbackProps): ReactE
  * GlobalReportsLoading renders a compact loading state.
  */
 export function GlobalReportsLoading(): ReactElement {
-	return <CampfireLoadingFeedback message="Loading global report…" />;
+	const { t } = useI18n();
+
+	return <CampfireLoadingFeedback message={t('reports.global.loading')} />;
 }

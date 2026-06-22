@@ -5,6 +5,7 @@ import { CampfireBidiText, CampfireEllipsisText } from '@/components/campfire/Ca
 import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
 import { CampfireSettingsPanel } from '@/components/campfire/CampfireSettingsPanel';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/i18n';
 import { sortByNewest } from '@/lib/sort';
 import type { GlobalSkipDate } from '@/types/domain';
 
@@ -25,19 +26,20 @@ type GlobalOffDaysListPanelProps = {
  * GlobalOffDaysListPanel renders global off-days.
  */
 export function GlobalOffDaysListPanel(props: GlobalOffDaysListPanelProps): ReactElement {
+	const { htmlLang, t } = useI18n();
 	const skipDates = sortByNewest(props.skipDates, skipDate => skipDate.date || skipDate.createdAt);
 
 	return (
 		<CampfireSettingsPanel
-			eyebrow="Global skip dates"
-			title="Company-wide holidays"
-			description="Newest dates appear first so recent changes are easy to review."
+			eyebrow={t('settings.globalOffDays.list.eyebrow')}
+			title={t('settings.globalOffDays.list.title')}
+			description={t('settings.globalOffDays.list.description')}
 		>
 			{skipDates.length === 0 ? (
 				<CampfireEmpty
 					icon={CalendarX2}
-					title="No global off-days"
-					description="System admins can add dates that suppress standup automation everywhere."
+					title={t('settings.globalOffDays.empty.title')}
+					description={t('settings.globalOffDays.empty.description')}
 				/>
 			) : (
 				<div className="campfire-settings-flat-list">
@@ -47,6 +49,7 @@ export function GlobalOffDaysListPanel(props: GlobalOffDaysListPanelProps): Reac
 							skipDate={skipDate}
 							disabled={props.disabled || !props.isSystemAdmin}
 							deleting={props.deletingID === skipDate.id}
+							locale={htmlLang}
 							onDelete={() => props.onDelete(skipDate.id)}
 						/>
 					))}
@@ -63,8 +66,10 @@ function GlobalOffDayRow(props: {
 	readonly skipDate: GlobalSkipDate;
 	readonly disabled: boolean;
 	readonly deleting: boolean;
+	readonly locale: string;
 	readonly onDelete: () => Promise<void>;
 }): ReactElement {
+	const { t } = useI18n();
 	const isPast = globalOffDayIsPast(props.skipDate);
 
 	return (
@@ -74,15 +79,15 @@ function GlobalOffDayRow(props: {
 				<p>
 					<CampfireBidiText>{props.skipDate.date}</CampfireBidiText>
 					<span> · </span>
-					<span>{isPast ? 'Past date' : 'Upcoming'}</span>
+					<span>{isPast ? t('settings.globalOffDays.status.past') : t('settings.globalOffDays.status.upcoming')}</span>
 					<span> · </span>
-					<span>Created {formatDateTime(props.skipDate.createdAt)}</span>
+					<span>{t('settings.globalOffDays.created', { date: formatDateTime(props.skipDate.createdAt, props.locale) })}</span>
 				</p>
 			</div>
 
 			<Button type="button" variant="destructive" disabled={props.disabled} onClick={() => void props.onDelete()}>
 				<Trash2 className="cf:size-4" />
-				{props.deleting ? 'Deleting…' : 'Delete'}
+				{props.deleting ? t('settings.globalOffDays.deleting') : t('settings.globalOffDays.delete')}
 			</Button>
 		</article>
 	);

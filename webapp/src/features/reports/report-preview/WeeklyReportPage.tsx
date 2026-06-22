@@ -7,13 +7,11 @@ import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
 import { CampfireField } from '@/components/campfire/CampfireField';
 import { CampfireReportSummaryBar } from '@/components/campfire/CampfireReportSummaryBar';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
+import { useI18n } from '@/i18n';
 import type { Workspace } from '@/types/domain';
 
-import {
-	formatReportSortMode,
-	toWeeklyReportSortMode,
-	weeklyReportSortOptions,
-} from './report-preview.helpers';
+import { toWeeklyReportSortMode, weeklyReportSortOptions } from './report-preview.helpers';
+import { translateReportSortMode } from './report-preview.i18n';
 import { ReportMarkdownPreview } from './ReportMarkdownPreview';
 import { ReportPreviewFeedback, ReportPreviewLoading } from './ReportPreviewFeedback';
 import { useWeeklyReportPreview } from './useWeeklyReportPreview';
@@ -30,6 +28,7 @@ type WeeklyReportPageProps = {
  * WeeklyReportPage renders the focused weekly report preview/post workflow.
  */
 export function WeeklyReportPage(props: WeeklyReportPageProps): ReactElement {
+	const { t } = useI18n();
 	const report = useWeeklyReportPreview(props);
 	const missingCount = report.preview?.missingCount ?? 0;
 
@@ -37,32 +36,34 @@ export function WeeklyReportPage(props: WeeklyReportPageProps): ReactElement {
 		<div className="campfire-page-stack campfire-report-page-stack">
 
 			<CampfireControlsPanel
-				eyebrow="Filters"
-				title="Weekly preview"
-				description="The report uses the selected range and workspace working-day rules."
+				eyebrow={t('reports.preview.controls.eyebrow')}
+				title={t('reports.preview.weekly.title')}
+				description={t('reports.preview.weekly.description')}
 				controls={(
 					<div className="campfire-control-grid campfire-control-grid--weekly-report">
-						<CampfireField id="campfire-weekly-report-start" label="Period start">
+						<CampfireField id="campfire-weekly-report-start" label={t('reports.preview.field.periodStart')}>
 							<CampfireDateInput
 								id="campfire-weekly-report-start"
 								disabled={report.isBusy}
 								timezone={props.workspace.timezone}
+								workingDays={props.workspace.workingDays}
 								value={report.periodStart}
 								onValueChange={report.setPeriodStart}
 							/>
 						</CampfireField>
 
-						<CampfireField id="campfire-weekly-report-end" label="Period end">
+						<CampfireField id="campfire-weekly-report-end" label={t('reports.preview.field.periodEnd')}>
 							<CampfireDateInput
 								id="campfire-weekly-report-end"
 								disabled={report.isBusy}
 								timezone={props.workspace.timezone}
+								workingDays={props.workspace.workingDays}
 								value={report.periodEnd}
 								onValueChange={report.setPeriodEnd}
 							/>
 						</CampfireField>
 
-						<CampfireField id="campfire-weekly-report-sort" label="Sort mode">
+						<CampfireField id="campfire-weekly-report-sort" label={t('reports.preview.field.sortMode')}>
 							<CampfireSelect
 								id="campfire-weekly-report-sort"
 								disabled={report.isBusy}
@@ -71,7 +72,7 @@ export function WeeklyReportPage(props: WeeklyReportPageProps): ReactElement {
 							>
 								{weeklyReportSortOptions.map(sortMode => (
 									<option key={sortMode} value={sortMode}>
-										{formatReportSortMode(sortMode)}
+										{translateReportSortMode(t, sortMode)}
 									</option>
 								))}
 							</CampfireSelect>
@@ -79,7 +80,7 @@ export function WeeklyReportPage(props: WeeklyReportPageProps): ReactElement {
 
 						<CampfireControlButton type="button" variant="outline" disabled={report.isBusy} onClick={report.resetToCurrentWeek}>
 							<RotateCcw className="cf:size-4" />
-							This week
+							{t('reports.preview.action.thisWeek')}
 						</CampfireControlButton>
 					</div>
 				)}
@@ -91,12 +92,13 @@ export function WeeklyReportPage(props: WeeklyReportPageProps): ReactElement {
 
 			{report.preview !== null && (
 				<CampfireReportSummaryBar
+					ariaLabel={t('reports.preview.summary.ariaLabel')}
 					items={[
-						{ label: 'Submitted', value: String(report.preview.submittedCount), tone: 'success' },
-						{ label: 'Missing', value: String(missingCount), tone: missingCount > 0 ? 'danger' : 'neutral' },
-						{ label: 'On leave', value: String(report.preview.onLeaveCount), tone: 'neutral' },
-						{ label: 'Days', value: String(report.dailyPreviewCount), tone: 'neutral' },
-						{ label: 'Markdown lines', value: String(report.markdownLines), tone: 'neutral' },
+						{ label: t('reports.preview.summary.submitted'), value: String(report.preview.submittedCount), tone: 'success' },
+						{ label: t('reports.preview.summary.missing'), value: String(missingCount), tone: missingCount > 0 ? 'danger' : 'neutral' },
+						{ label: t('reports.preview.summary.onLeave'), value: String(report.preview.onLeaveCount), tone: 'neutral' },
+						{ label: t('reports.preview.summary.days'), value: String(report.dailyPreviewCount), tone: 'neutral' },
+						{ label: t('reports.preview.summary.markdownLines'), value: String(report.markdownLines), tone: 'neutral' },
 					]}
 				/>
 			)}

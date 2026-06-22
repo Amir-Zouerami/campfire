@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { toast } from '@/components/campfire/campfire-toast';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { listReminderRules, listStandupConfiguration, updateReminderRule } from '@/api';
+import { toast } from '@/components/campfire/campfire-toast';
+import { useI18n } from '@/i18n';
+import { campfireQueryKeys } from '@/query';
 import type { ReminderRule, Workspace } from '@/types/domain';
 
 import { buildStandupScheduleLabelLookup, type StandupScheduleLabelLookup } from '../standup-schedule-labels';
@@ -35,6 +38,14 @@ type UseReminderSettingsInput = {
 };
 
 /**
+ * ReminderSettingsSnapshot is the query-owned reminder settings aggregate.
+ */
+type ReminderSettingsSnapshot = {
+	readonly rules: readonly ReminderRule[];
+	readonly scheduleLabels: StandupScheduleLabelLookup;
+};
+
+/**
  * UseReminderSettingsResult contains reminder settings state and actions.
  */
 export type UseReminderSettingsResult = {
@@ -46,6 +57,7 @@ export type UseReminderSettingsResult = {
 	readonly scheduleLabels: StandupScheduleLabelLookup;
 	readonly savingRuleID: string;
 	readonly message: string;
+	readonly messageTone: 'success' | 'error';
 	readonly isBusy: boolean;
 	readonly enabledCount: number;
 	readonly dmEnabledCount: number;
@@ -56,62 +68,103 @@ export type UseReminderSettingsResult = {
 };
 
 /**
- * useReminderSettings owns reminder rule loading, schedule labeling, draft editing, and saving.
+ * useReminderSettings owns reminder rule query state, drafts, and mutations.
  */
 export function useReminderSettings(input: UseReminderSettingsInput): UseReminderSettingsResult {
-	const [loadState, setLoadState] = useState<ReminderSettingsLoadState>('idle');
-	const [rules, setRules] = useState<readonly ReminderRule[]>([]);
+	const { t } = useI18n();
+	const queryClient = useQueryClient();
 	const [drafts, setDrafts] = useState<ReminderDraftsByID>({});
-	const [scheduleLabels, setScheduleLabels] = useState<StandupScheduleLabelLookup>({});
 	const [savingRuleID, setSavingRuleID] = useState('');
 	const [message, setMessage] = useState('');
+	const [messageTone, setMessageTone] = useState<'success' | 'error'>('success');
+
+	const queryKey = campfireQueryKeys.reminderSettings(input.workspace.id);
+	const settingsQuery = useQuery({
+		queryKey,
+		queryFn: async (): Promise<ReminderSettingsSnapshot> => {
+			const [rulesResponse, configurationResponse] = await Promise.all([
+				listReminderRules(input.workspace.id),
+				listStandupConfiguration(input.workspace.id),
+			]);
+			const scheduleLabels = buildStandupScheduleLabelLookup(
+				configurationResponse.templates,
+				configurationResponse.schedules,
+			);
+
+			return {
+				rules: rulesResponse.reminderRules,
+				scheduleLabels,
+			};
+		},
+	});
 
 	useEffect(() => {
-		let isActive = true;
-
-		/**
-		 * loadReminderRules loads workspace reminder rules and their readable schedule context.
-		 */
-		async function loadReminderRules(): Promise<void> {
-			setLoadState('loading');
-			setMessage('');
-
-			try {
-				const [rulesResponse, configurationResponse] = await Promise.all([
-					listReminderRules(input.workspace.id),
-					listStandupConfiguration(input.workspace.id),
-				]);
-
-				if (!isActive) {
-					return;
-				}
-
-				const nextScheduleLabels = buildStandupScheduleLabelLookup(
-					configurationResponse.templates,
-					configurationResponse.schedules,
-				);
-
-				setRules(rulesResponse.reminderRules);
-				setDrafts(buildReminderDrafts(rulesResponse.reminderRules, nextScheduleLabels));
-				setScheduleLabels(nextScheduleLabels);
-				setLoadState('ready');
-			} catch (error: unknown) {
-				if (!isActive) {
-					return;
-				}
-
-				setMessage(errorToMessage(error));
-				setLoadState('error');
-			}
+		if (settingsQuery.data === undefined) {
+			return;
 		}
 
-		void loadReminderRules();
+		setDrafts(buildReminderDrafts(settingsQuery.data.rules, settingsQuery.data.scheduleLabels));
+	}, [settingsQuery.data]);
 
-		return () => {
-			isActive = false;
-		};
-	}, [input.workspace.id]);
+	const updateMutation = useMutation({
+		mutationFn: async (rule: ReminderRule) => {
+			const draft = drafts[rule.id];
+			const scheduleLabel = settingsQuery.data?.scheduleLabels[rule.scheduleId];
+			const opensAt = scheduleLabel?.opensAt ?? '09:30';
+			const closeTime = scheduleLabel?.timeOfDay ?? '10:00';
 
+			if (draft === undefined) {
+				throw new Error(t('settings.reminders.error.draftMissing'));
+			}
+
+			const parsedOffsets = parseReminderTimes(draft.reminderTimes, opensAt, closeTime);
+			if (parsedOffsets.length === 0) {
+				throw new Error(t('settings.reminders.validation.chooseOne', { openTime: opensAt, closeTime }));
+			}
+
+			return updateReminderRule(input.workspace.id, rule.id, {
+				enabled: draft.enabled,
+				channelReminderEnabled: draft.channelReminderEnabled,
+				dmReminderEnabled: draft.dmReminderEnabled,
+				reminderOffsets: parsedOffsets,
+				mentionMissingInChannel: draft.mentionMissingInChannel,
+			});
+		},
+		onSuccess: response => {
+			queryClient.setQueryData<ReminderSettingsSnapshot>(queryKey, current => {
+				if (current === undefined) {
+					return current;
+				}
+
+				return {
+					...current,
+					rules: replaceReminderRule(current.rules, response.reminderRule),
+				};
+			});
+
+			const scheduleLabel = settingsQuery.data?.scheduleLabels[response.reminderRule.scheduleId];
+			const opensAt = scheduleLabel?.opensAt ?? '09:30';
+			const closeTime = scheduleLabel?.timeOfDay ?? '10:00';
+			setDrafts(current => ({
+				...current,
+				[response.reminderRule.id]: reminderRuleToDraft(response.reminderRule, opensAt, closeTime),
+			}));
+			setSavingRuleID('');
+			setMessage(t('settings.reminders.toast.updated'));
+			setMessageTone('success');
+			toast.success(t('settings.reminders.toast.updated'));
+		},
+		onError: error => {
+			const errorMessage = errorToMessage(error, t);
+			setSavingRuleID('');
+			setMessage(errorMessage);
+			setMessageTone('error');
+			toast.error(errorMessage);
+		},
+	});
+
+	const rules = settingsQuery.data?.rules ?? [];
+	const scheduleLabels = settingsQuery.data?.scheduleLabels ?? {};
 	const sortedRules = useMemo(() => sortReminderRules(rules), [rules]);
 	const rulesWithDrafts = useMemo(() => pairRulesWithDrafts(sortedRules, drafts), [sortedRules, drafts]);
 
@@ -119,7 +172,9 @@ export function useReminderSettings(input: UseReminderSettingsInput): UseReminde
 	const dmEnabledCount = useMemo(() => dmReminderRuleCount(rules), [rules]);
 	const channelEnabledCount = useMemo(() => channelReminderRuleCount(rules), [rules]);
 	const offsetCount = useMemo(() => totalReminderOffsetCount(rules), [rules]);
-	const isBusy = loadState === 'loading' || loadState === 'saving';
+	const loadState = deriveReminderLoadState(settingsQuery.isLoading, settingsQuery.isError, updateMutation.isPending, rules);
+	const isBusy = settingsQuery.isLoading || updateMutation.isPending;
+	const currentMessage = settingsQuery.isError ? errorToMessage(settingsQuery.error, t) : message;
 
 	/**
 	 * updateDraft patches one reminder rule draft.
@@ -147,58 +202,15 @@ export function useReminderSettings(input: UseReminderSettingsInput): UseReminde
 	 */
 	async function saveRule(rule: ReminderRule): Promise<void> {
 		if (!input.canManageReminders) {
-			setLoadState('error');
-			setMessage('Only workspace Leads and system admins can manage reminder settings.');
+			setMessage(t('settings.reminders.error.permission'));
+			setMessageTone('error');
 			return;
 		}
 
-		const draft = drafts[rule.id];
-		if (draft === undefined) {
-			setLoadState('error');
-			setMessage('Reminder draft was not found.');
-			return;
-		}
-
-		const scheduleLabel = scheduleLabels[rule.scheduleId];
-		const opensAt = scheduleLabel?.opensAt ?? '09:30';
-		const closeTime = scheduleLabel?.timeOfDay ?? '10:00';
-		const parsedOffsets = parseReminderTimes(draft.reminderTimes, opensAt, closeTime);
-		if (parsedOffsets.length === 0) {
-			setLoadState('error');
-			setMessage('Choose at least one reminder time before saving.');
-			return;
-		}
-
-		setLoadState('saving');
 		setSavingRuleID(rule.id);
 		setMessage('');
-
-		try {
-			const response = await updateReminderRule(input.workspace.id, rule.id, {
-				enabled: draft.enabled,
-				channelReminderEnabled: draft.channelReminderEnabled,
-				dmReminderEnabled: draft.dmReminderEnabled,
-				reminderOffsets: parsedOffsets,
-				mentionMissingInChannel: draft.mentionMissingInChannel,
-			});
-
-			setRules(current => replaceReminderRule(current, response.reminderRule));
-			setDrafts(current => ({
-				...current,
-				[response.reminderRule.id]: reminderRuleToDraft(response.reminderRule, opensAt, closeTime),
-			}));
-			setLoadState('ready');
-			setMessage('Reminder rule updated.');
-			toast.success('Reminder rule updated');
-		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
-
-			setLoadState('error');
-			setMessage(errorMessage);
-			toast.error(errorMessage);
-		} finally {
-			setSavingRuleID('');
-		}
+		setMessageTone('success');
+		await updateMutation.mutateAsync(rule).catch(() => undefined);
 	}
 
 	return {
@@ -209,7 +221,8 @@ export function useReminderSettings(input: UseReminderSettingsInput): UseReminde
 		rulesWithDrafts,
 		scheduleLabels,
 		savingRuleID,
-		message,
+		message: currentMessage,
+		messageTone: settingsQuery.isError ? 'error' : messageTone,
 		isBusy,
 		enabledCount,
 		dmEnabledCount,
@@ -218,4 +231,32 @@ export function useReminderSettings(input: UseReminderSettingsInput): UseReminde
 		updateDraft,
 		saveRule,
 	};
+}
+
+/**
+ * deriveReminderLoadState keeps rendering independent from TanStack internals.
+ */
+function deriveReminderLoadState(
+	isLoading: boolean,
+	isError: boolean,
+	isSaving: boolean,
+	rules: readonly ReminderRule[],
+): ReminderSettingsLoadState {
+	if (isSaving) {
+		return 'saving';
+	}
+
+	if (isLoading) {
+		return 'loading';
+	}
+
+	if (isError) {
+		return 'error';
+	}
+
+	if (rules.length > 0) {
+		return 'ready';
+	}
+
+	return 'idle';
 }

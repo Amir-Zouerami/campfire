@@ -1,4 +1,5 @@
 import { ApiClientError } from '@/api';
+import type { TFunction } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { StandupSubmissionSortMode } from '@/types/domain';
 
@@ -20,29 +21,21 @@ export const csvExportSortOptions: readonly StandupSubmissionSortMode[] = [
 export const csvExportActions: readonly CSVExportActionDefinition[] = [
 	{
 		kind: 'time',
-		title: 'Time entries',
-		description: 'Download raw workspace time entries for the selected date range.',
 		filenamePrefix: 'campfire-time',
 		includesSortMode: false,
 	},
 	{
 		kind: 'leaves',
-		title: 'Approved leave',
-		description: 'Download approved leave requests overlapping the selected date range.',
 		filenamePrefix: 'campfire-leaves',
 		includesSortMode: false,
 	},
 	{
 		kind: 'standups',
-		title: 'Standup submissions',
-		description: 'Download submitted standups and answer rows for the selected date range.',
 		filenamePrefix: 'campfire-standup-submissions',
 		includesSortMode: true,
 	},
 	{
 		kind: 'missing',
-		title: 'Missing standups',
-		description: 'Download missing-user rows for each standup occurrence in the selected range.',
 		filenamePrefix: 'campfire-missing-standups',
 		includesSortMode: true,
 	},
@@ -97,19 +90,19 @@ export function defaultCSVExportFilter(): CSVExportFilterDraft {
 }
 
 /**
- * validateCSVExportFilter returns a user-facing validation message.
+ * validateCSVExportFilter returns a localized validation message.
  */
-export function validateCSVExportFilter(filter: CSVExportFilterDraft): string | null {
+export function validateCSVExportFilter(filter: CSVExportFilterDraft, t: TFunction): string | null {
 	if (filter.startDate.trim() === '') {
-		return 'Start date is required.';
+		return t('reports.csv.validation.startDateRequired');
 	}
 
 	if (filter.endDate.trim() === '') {
-		return 'End date is required.';
+		return t('reports.csv.validation.endDateRequired');
 	}
 
 	if (filter.endDate < filter.startDate) {
-		return 'End date cannot be before start date.';
+		return t('reports.csv.validation.endBeforeStart');
 	}
 
 	return null;
@@ -153,16 +146,6 @@ export function toCSVExportSortMode(value: string): StandupSubmissionSortMode {
 }
 
 /**
- * formatCSVExportSortMode returns a readable sort label.
- */
-export function formatCSVExportSortMode(sortMode: StandupSubmissionSortMode): string {
-	return sortMode
-		.split('_')
-		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
-		.join(' ');
-}
-
-/**
  * buildCSVExportFilename returns a stable browser download filename.
  */
 export function buildCSVExportFilename(prefix: string, filter: CSVExportFilterDraft): string {
@@ -190,17 +173,15 @@ export function downloadCSVBlob(blob: Blob, filename: string): void {
  */
 export function exportActionCardClassName(active: boolean): string {
 	return cn(
-		'campfire-flat-list-row campfire-flat-list-row--export' ,
-		active
-			? 'campfire-flat-list-row--active'
-			: '',
+		'campfire-flat-list-row campfire-flat-list-row--export',
+		active ? 'campfire-flat-list-row--active' : '',
 	);
 }
 
 /**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
-export function errorToMessage(error: unknown): string {
+export function errorToMessage(error: unknown, fallback: string): string {
 	if (error instanceof ApiClientError) {
 		return error.message;
 	}
@@ -209,7 +190,7 @@ export function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not export CSV.';
+	return fallback;
 }
 
 /**

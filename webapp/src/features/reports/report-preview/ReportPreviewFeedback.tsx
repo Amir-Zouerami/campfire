@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { CampfireFeedback, CampfireLoadingFeedback } from '@/components/campfire/CampfireFeedback';
+import { useI18n } from '@/i18n';
 
 import type { ReportPreviewLoadState } from './report-preview.types';
 
@@ -23,5 +24,7 @@ export function ReportPreviewFeedback(props: ReportPreviewFeedbackProps): ReactE
  * ReportPreviewLoading renders a compact loading state.
  */
 export function ReportPreviewLoading(): ReactElement {
-	return <CampfireLoadingFeedback message="Loading report preview…" />;
+	const { t } = useI18n();
+
+	return <CampfireLoadingFeedback message={t('reports.preview.loading')} />;
 }

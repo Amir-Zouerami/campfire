@@ -17,10 +17,12 @@ import {
 	CampfireResponsiveInput,
 	CampfireResponsiveTextarea,
 } from '@/components/campfire/CampfireResponsiveInput';
+import { useI18n } from '@/i18n';
 import { sortByNewest } from '@/lib/sort';
 import type { TimeEntry, Workspace } from '@/types/domain';
 
-import { formatMinutes, taskLabelForID } from './my-time.helpers';
+import { taskLabelForID } from './my-time.helpers';
+import { formatLocalizedMinutes } from './my-time.i18n';
 import { MyTimeFeedback, MyTimeLoading } from './MyTimeFeedback';
 import { useMyTimeLog } from './useMyTimeLog';
 
@@ -36,7 +38,18 @@ type MyTimeLogPageProps = {
  * MyTimeLogPage renders the dedicated personal time entry page.
  */
 export function MyTimeLogPage(props: MyTimeLogPageProps): ReactElement {
-	const timeLog = useMyTimeLog({ workspace: props.workspace });
+	const { t } = useI18n();
+	const timeLog = useMyTimeLog({
+		workspace: props.workspace,
+		text: {
+			taskCreated: t('myDay.time.toast.taskCreated'),
+			timeLogged: t('myDay.time.toast.timeLogged'),
+			taskTitleRequired: t('myDay.time.validation.taskTitleRequired'),
+			chooseTask: t('myDay.time.validation.chooseTask'),
+			minutesPositive: t('myDay.time.validation.minutesPositive'),
+			fallbackError: t('myDay.time.error.fallback'),
+		},
+	});
 	const recentEntries = useMemo(
 		() => sortByNewest(timeLog.timeEntries, entry => entry.entryDate || entry.createdAt).slice(0, 20),
 		[timeLog.timeEntries],
@@ -45,17 +58,17 @@ export function MyTimeLogPage(props: MyTimeLogPageProps): ReactElement {
 	return (
 		<div className="campfire-page-stack">
 			{props.onBack !== undefined && (
-				<CampfireBackButton onClick={props.onBack}>Back to My Day</CampfireBackButton>
+				<CampfireBackButton onClick={props.onBack}>{t('common.backToMyDay')}</CampfireBackButton>
 			)}
 
 			<CampfirePageIntro
-				eyebrow="Time log"
-				title="Track time against tasks"
-				description="Add time entries and review recent work."
+				eyebrow={t('myDay.time.page.eyebrow')}
+				title={t('myDay.time.page.title')}
+				description={t('myDay.time.page.description')}
 				actions={
 					<Button type="button" onClick={() => void timeLog.submitTimeEntry()} disabled={timeLog.isBusy}>
 						<Plus className="cf:size-4" />
-						Save entry
+						{t('myDay.time.action.saveEntry')}
 					</Button>
 				}
 			/>
@@ -67,28 +80,33 @@ export function MyTimeLogPage(props: MyTimeLogPageProps): ReactElement {
 				<CampfireSurface className="campfire-table-surface campfire-readable-table-surface">
 					<div className="campfire-surface-header">
 						<div>
-							<h3 className="campfire-surface-title">Recent entries</h3>
+							<h3 className="campfire-surface-title">{t('myDay.time.recent.title')}</h3>
 						</div>
 					</div>
 
 					<CampfireDataTable
-						label="My time entries"
-						columns={['Task', 'Date', 'Duration', 'Note']}
+						label={t('myDay.time.table.label')}
+						columns={[
+							t('myDay.time.table.column.task'),
+							t('myDay.time.table.column.date'),
+							t('myDay.time.table.column.duration'),
+							t('myDay.time.table.column.note'),
+						]}
 						className="campfire-data-table--time"
 						empty={recentEntries.length === 0 ? (
 							<CampfireEmptyState
 								icon={Inbox}
-								title="No time entries yet"
-								description="Log time against one of your tasks when work is ready to track."
+								title={t('myDay.time.empty.title')}
+								description={t('myDay.time.empty.description')}
 							/>
 						) : undefined}
-						footer={<>Showing {recentEntries.length} of {timeLog.timeEntries.length} entries</>}
+						footer={<>{t('myDay.time.footer.showing', { visible: recentEntries.length, total: timeLog.timeEntries.length })}</>}
 					>
 						{recentEntries.map(entry => (
 							<TimeEntryRow
 								key={entry.id}
 								entry={entry}
-								taskTitle={taskLabelForID(timeLog.tasksByID, entry.taskId)}
+								taskTitle={taskLabelForID(timeLog.tasksByID, entry.taskId, t('myDay.time.task.unknown'))}
 							/>
 						))}
 					</CampfireDataTable>
@@ -97,24 +115,24 @@ export function MyTimeLogPage(props: MyTimeLogPageProps): ReactElement {
 				<CampfireSurface className="campfire-time-entry-panel">
 					<div className="campfire-surface-header">
 						<div>
-							<h3 className="campfire-surface-title">Log time</h3>
-							<p className="campfire-surface-description">Choose a task, date, and duration.</p>
+							<h3 className="campfire-surface-title">{t('myDay.time.log.title')}</h3>
+							<p className="campfire-surface-description">{t('myDay.time.log.description')}</p>
 						</div>
 					</div>
 
 					<div className="campfire-form-stack">
 						<label className="campfire-form-field">
-							<span>Task</span>
+							<span>{t('myDay.time.field.task')}</span>
 							<CampfireSelect
 								id="campfire-time-log-task"
 								value={timeLog.timeDraft.taskId}
 								disabled={timeLog.isBusy || timeLog.loggableTasks.length === 0}
 								onValueChange={timeLog.handleTimeTaskChange}
 								searchable={true}
-								searchPlaceholder="Search tasks…"
+								searchPlaceholder={t('myDay.time.searchTasks.placeholder')}
 								maxVisibleOptions={50}
 							>
-								<option value="">Choose a task…</option>
+								<option value="">{t('myDay.time.field.task.placeholder')}</option>
 								{timeLog.loggableTasks.map(task => (
 									<option key={task.id} value={task.id}>
 										{task.title}
@@ -125,18 +143,19 @@ export function MyTimeLogPage(props: MyTimeLogPageProps): ReactElement {
 						</label>
 
 						<label className="campfire-form-field">
-							<span>Entry date</span>
+							<span>{t('myDay.time.field.entryDate')}</span>
 							<CampfireDateInput
 								id="campfire-time-log-date"
 								disabled={timeLog.isBusy}
 								timezone={props.workspace.timezone}
+								workingDays={props.workspace.workingDays}
 								value={timeLog.timeDraft.entryDate}
 								onValueChange={value => timeLog.updateTimeDraft({ entryDate: value })}
 							/>
 						</label>
 
 						<label className="campfire-form-field">
-							<span>Minutes</span>
+							<span>{t('myDay.time.field.minutes')}</span>
 							<CampfireResponsiveInput
 								type="number"
 								min="1"
@@ -150,11 +169,11 @@ export function MyTimeLogPage(props: MyTimeLogPageProps): ReactElement {
 						</label>
 
 						<label className="campfire-form-field">
-							<span>Note</span>
+							<span>{t('myDay.time.field.note')}</span>
 							<CampfireResponsiveTextarea
 								value={timeLog.timeDraft.note}
 								disabled={timeLog.isBusy}
-								placeholder="Optional note for this entry"
+								placeholder={t('myDay.time.field.note.placeholder')}
 								onValueChange={value => timeLog.updateTimeDraft({ note: value })}
 							/>
 						</label>
@@ -162,7 +181,7 @@ export function MyTimeLogPage(props: MyTimeLogPageProps): ReactElement {
 
 					<div className="campfire-form-actions">
 						<Button type="button" disabled={timeLog.isBusy} onClick={() => void timeLog.submitTimeEntry()}>
-							Save entry
+							{t('myDay.time.action.saveEntry')}
 						</Button>
 					</div>
 				</CampfireSurface>
@@ -178,6 +197,8 @@ function TimeEntryRow(props: {
 	readonly entry: TimeEntry;
 	readonly taskTitle: string;
 }): ReactElement {
+	const { t } = useI18n();
+
 	return (
 		<CampfireDataTableRow>
 			<CampfireDataTableCell className="campfire-task-title-cell">
@@ -190,7 +211,7 @@ function TimeEntryRow(props: {
 				<CampfireEllipsisText value={props.entry.entryDate} />
 			</CampfireDataTableCell>
 			<CampfireDataTableCell>
-				<CampfireEllipsisText value={formatMinutes(props.entry.minutes)} />
+				<CampfireEllipsisText value={formatLocalizedMinutes(props.entry.minutes, t)} />
 			</CampfireDataTableCell>
 			<CampfireDataTableCell className="campfire-muted-cell">
 				<CampfireEllipsisText value={props.entry.note.trim() === '' ? '—' : props.entry.note} />

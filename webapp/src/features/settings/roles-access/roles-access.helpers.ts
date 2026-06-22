@@ -1,4 +1,5 @@
 import { ApiClientError } from '@/api';
+import type { TFunction } from '@/i18n';
 import type { Role, WorkspaceRoleOverview } from '@/types/domain';
 
 import type { AssignableWorkspaceRole, RoleAssignmentDraft, RoleGroup } from './roles-access.types';
@@ -6,7 +7,7 @@ import type { AssignableWorkspaceRole, RoleAssignmentDraft, RoleGroup } from './
 /**
  * ASSIGNABLE_WORKSPACE_ROLES lists roles that can be manually assigned.
  */
-export const ASSIGNABLE_WORKSPACE_ROLES: readonly AssignableWorkspaceRole[] = ['lead', 'approver', 'viewer', 'admin'];
+export const ASSIGNABLE_WORKSPACE_ROLES: readonly AssignableWorkspaceRole[] = ['lead', 'approver', 'viewer', 'admin', 'excluded'];
 
 /**
  * emptyRoleAssignmentDraft returns the default add-role form state.
@@ -32,6 +33,7 @@ export function collectRoleUserIDs(roles: WorkspaceRoleOverview | null): readonl
 		...roles.approverUserIds,
 		...roles.adminUserIds,
 		...roles.viewerUserIds,
+		...roles.excludedUserIds,
 	]);
 }
 
@@ -47,8 +49,6 @@ export function buildRoleGroups(roles: WorkspaceRoleOverview | null): readonly R
 		{
 			id: 'leads',
 			role: 'lead',
-			title: 'Leads',
-			description: 'Can manage workspace settings, schedules, forms, reminders, report rules, and team review.',
 			userIDs: roles.leadUserIds,
 			tone: 'ember',
 			removable: true,
@@ -56,8 +56,6 @@ export function buildRoleGroups(roles: WorkspaceRoleOverview | null): readonly R
 		{
 			id: 'approvers',
 			role: 'approver',
-			title: 'Approvers',
-			description: 'Can approve or reject leave requests. They are not automatically full Leads.',
 			userIDs: roles.approverUserIds,
 			tone: 'green',
 			removable: true,
@@ -65,8 +63,6 @@ export function buildRoleGroups(roles: WorkspaceRoleOverview | null): readonly R
 		{
 			id: 'viewers',
 			role: 'viewer',
-			title: 'Viewers',
-			description: 'Can view reports and dashboards without editing workspace settings.',
 			userIDs: roles.viewerUserIds,
 			tone: 'slate',
 			removable: true,
@@ -74,17 +70,20 @@ export function buildRoleGroups(roles: WorkspaceRoleOverview | null): readonly R
 		{
 			id: 'admins',
 			role: 'admin',
-			title: 'Explicit Admins',
-			description: 'Named Campfire admins for this workspace. System admin access is inherited separately.',
 			userIDs: roles.adminUserIds,
 			tone: 'green',
 			removable: true,
 		},
 		{
+			id: 'excluded',
+			role: 'excluded',
+			userIDs: roles.excludedUserIds,
+			tone: 'slate',
+			removable: true,
+		},
+		{
 			id: 'members',
 			role: 'member',
-			title: 'Members',
-			description: 'Channel members who can use their own standup, tasks/time, and leave workflows.',
 			userIDs: roles.memberUserIds,
 			tone: 'slate',
 			removable: false,
@@ -93,22 +92,18 @@ export function buildRoleGroups(roles: WorkspaceRoleOverview | null): readonly R
 }
 
 /**
- * roleGroupCount returns total users across role groups.
- */
-export function roleGroupCount(groups: readonly RoleGroup[]): number {
-	return groups.reduce((total, group) => total + group.userIDs.length, 0);
-}
-
-/**
  * validateRoleAssignmentDraft validates the add-role form.
  */
-export function validateRoleAssignmentDraft(draft: RoleAssignmentDraft): string | null {
+export function validateRoleAssignmentDraft(
+	draft: RoleAssignmentDraft,
+	t: TFunction,
+): string | null {
 	if (draft.userID.trim() === '') {
-		return 'Choose a workspace member before assigning a role.';
+		return t('settings.roles.validation.userRequired');
 	}
 
 	if (!ASSIGNABLE_WORKSPACE_ROLES.includes(draft.role)) {
-		return 'Choose a valid role.';
+		return t('settings.roles.validation.roleRequired');
 	}
 
 	return null;
@@ -133,40 +128,24 @@ export function isAssignableWorkspaceRole(role: Role): role is AssignableWorkspa
 }
 
 /**
- * roleLabel returns a readable role label.
- */
-export function roleLabel(role: Role): string {
-	switch (role) {
-		case 'lead':
-			return 'Lead';
-		case 'approver':
-			return 'Approver';
-		case 'viewer':
-			return 'Viewer';
-		case 'admin':
-			return 'Admin';
-		case 'member':
-			return 'Member';
-	}
-}
-
-/**
  * formatDateTime formats an API timestamp for compact display.
  */
-export function formatDateTime(value: string): string {
+export function formatDateTime(value: string, language: string = 'english'): string {
 	const date = new Date(value);
 
 	if (Number.isNaN(date.getTime())) {
 		return value;
 	}
 
-	return date.toLocaleString();
+	const locale = language === 'persian' ? 'fa-IR' : language === 'arabic' ? 'ar' : 'en';
+
+	return date.toLocaleString(locale);
 }
 
 /**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
-export function errorToMessage(error: unknown): string {
+export function errorToMessage(error: unknown, t: TFunction): string {
 	if (error instanceof ApiClientError) {
 		return error.message;
 	}
@@ -175,7 +154,7 @@ export function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not load workspace roles.';
+	return t('settings.roles.error.load');
 }
 
 /**

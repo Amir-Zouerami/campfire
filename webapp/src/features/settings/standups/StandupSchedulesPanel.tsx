@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
-import { CalendarClock, Loader2, Plus, Save } from 'lucide-react';
+import { CalendarClock, Loader2, Plus, Save, Trash2 } from 'lucide-react';
 
 import { CampfireBidiText } from '@/components/campfire/CampfireBidiText';
+import { CampfireConfirmDialog } from '@/components/campfire/CampfireConfirmDialog';
 import { CampfireEmpty, CampfireStatusPill, CampfireSurface } from '@/components/campfire/CampfireLayoutPrimitives';
 import { CampfirePageIntro } from '@/components/campfire/CampfirePageIntro';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/i18n';
+import type { TFunction } from '@/i18n';
 import type { StandupSchedule, StandupTemplate } from '@/types/domain';
 
-import { formatDateTime, formatLabel, scheduleHasChanges, shortID } from './standup-settings.helpers';
+import { formatDateTime, scheduleHasChanges, shortID } from './standup-settings.helpers';
+import { standupKindLabel } from './standup-settings.i18n';
 import type {
 	StandupScheduleDraft,
 	StandupScheduleDraftPatch,
@@ -31,6 +35,7 @@ type StandupSchedulesPanelProps = {
 	readonly onScheduleDraftChange: (scheduleID: string, patch: StandupScheduleDraftPatch) => void;
 	readonly onCreateSchedule: () => Promise<void>;
 	readonly onSaveSchedule: (schedule: StandupSchedule) => Promise<void>;
+	readonly onDeleteSchedule: (schedule: StandupSchedule) => Promise<boolean>;
 };
 
 /**
@@ -42,6 +47,7 @@ type StandupScheduleView = 'list' | 'new' | 'edit';
  * StandupSchedulesPanel renders schedule list/create/edit as dedicated pages.
  */
 export function StandupSchedulesPanel(props: StandupSchedulesPanelProps): ReactElement {
+	const { t } = useI18n();
 	const [view, setView] = useState<StandupScheduleView>('list');
 	const [selectedScheduleID, setSelectedScheduleID] = useState('');
 	const selectedSchedule = useMemo(
@@ -79,9 +85,20 @@ export function StandupSchedulesPanel(props: StandupSchedulesPanelProps): ReactE
 				disabled={props.disabled}
 				canManageStandups={props.canManageStandups}
 				saving={props.savingID === selectedSchedule.schedule.id}
+				deleting={props.savingID === `delete-schedule-${selectedSchedule.schedule.id}`}
 				onBack={() => setView('list')}
 				onDraftChange={props.onScheduleDraftChange}
 				onSaveSchedule={props.onSaveSchedule}
+				onDeleteSchedule={async schedule => {
+					const deleted = await props.onDeleteSchedule(schedule);
+
+					if (deleted) {
+						setView('list');
+						setSelectedScheduleID('');
+					}
+
+					return deleted;
+				}}
 			/>
 		);
 	}
@@ -89,20 +106,20 @@ export function StandupSchedulesPanel(props: StandupSchedulesPanelProps): ReactE
 	return (
 		<div className="campfire-standup-editor-stack">
 			<CampfirePageIntro
-				eyebrow="Schedules"
-				title="Choose a standup window"
-				description="Open one schedule at a time. Each window controls when submissions open, close, and post the report."
+				eyebrow={t('settings.standups.schedules.library.eyebrow')}
+				title={t('settings.standups.schedules.library.title')}
+				description={t('settings.standups.schedules.library.description')}
 				actions={(
 					<Button type="button" disabled={formDisabled} onClick={() => setView('new')}>
 						<Plus className="cf:size-4" />
-						New schedule
+						{t('settings.standups.actions.newSchedule')}
 					</Button>
 				)}
 			/>
 
 			<CampfireSurface className="campfire-standup-editor-surface">
 				{props.schedulesWithDrafts.length === 0 ? (
-					<CampfireEmpty icon={CalendarClock} title="No schedules yet" description="Create at least one schedule after a template exists." />
+					<CampfireEmpty icon={CalendarClock} title={t('settings.standups.schedules.empty.title')} description={t('settings.standups.schedules.empty.description')} />
 				) : (
 					<div className="campfire-standup-template-directory" role="list">
 						{props.schedulesWithDrafts.map(pair => (
@@ -136,6 +153,8 @@ function NewSchedulePage(props: {
 	readonly onDraftChange: (patch: StandupScheduleDraftPatch) => void;
 	readonly onCreateSchedule: () => Promise<void>;
 }): ReactElement {
+	const { t } = useI18n();
+
 	return (
 		<CampfireSurface className="campfire-standup-editor-surface campfire-standup-editor-surface--hero">
 			<form
@@ -146,10 +165,10 @@ function NewSchedulePage(props: {
 				}}
 			>
 				<StandupFormsPageHeader
-					eyebrow="New schedule"
-					title="Create a standup window"
-					description="Set the open time, close time, cadence, and skip rules on a full page."
-					backLabel="Back to schedules"
+					eyebrow={t('settings.standups.schedules.new.eyebrow')}
+					title={t('settings.standups.schedules.new.title')}
+					description={t('settings.standups.schedules.new.description')}
+					backLabel={t('settings.standups.actions.backToSchedules')}
 					onBack={props.onBack}
 				/>
 
@@ -162,10 +181,10 @@ function NewSchedulePage(props: {
 				/>
 
 				<div className="campfire-form-actions campfire-form-actions--split">
-					<Button type="button" variant="ghost" onClick={props.onBack}>Cancel</Button>
+					<Button type="button" variant="ghost" onClick={props.onBack}>{t('common.cancel')}</Button>
 					<Button type="submit" disabled={props.disabled}>
 						{props.saving ? <Loader2 className="cf:size-4 cf:animate-spin" /> : <Plus className="cf:size-4" />}
-						Create schedule
+						{t('settings.standups.actions.createSchedule')}
 					</Button>
 				</div>
 			</form>
@@ -182,13 +201,18 @@ function EditSchedulePage(props: {
 	readonly disabled: boolean;
 	readonly canManageStandups: boolean;
 	readonly saving: boolean;
+	readonly deleting: boolean;
 	readonly onBack: () => void;
 	readonly onDraftChange: (scheduleID: string, patch: StandupScheduleDraftPatch) => void;
 	readonly onSaveSchedule: (schedule: StandupSchedule) => Promise<void>;
+	readonly onDeleteSchedule: (schedule: StandupSchedule) => Promise<boolean>;
 }): ReactElement {
+	const { t } = useI18n();
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const changed = scheduleHasChanges(props.scheduleWithDraft.schedule, props.scheduleWithDraft.draft);
 	const formDisabled = props.disabled || !props.canManageStandups;
-	const title = `${formatLabel(props.scheduleWithDraft.schedule.kind)} · ${props.scheduleWithDraft.draft.opensAt}–${props.scheduleWithDraft.draft.timeOfDay}`;
+	const mutationBusy = props.saving || props.deleting;
+	const title = `${standupKindLabel(t, props.scheduleWithDraft.schedule.kind)} · ${props.scheduleWithDraft.draft.opensAt}–${props.scheduleWithDraft.draft.timeOfDay}`;
 
 	return (
 		<CampfireSurface className="campfire-standup-editor-surface campfire-standup-editor-surface--hero">
@@ -200,17 +224,26 @@ function EditSchedulePage(props: {
 				}}
 			>
 				<StandupFormsPageHeader
-					eyebrow="Schedule"
+					eyebrow={t('settings.standups.schedule.eyebrow')}
 					title={title}
-					description={`Last updated ${formatDateTime(props.scheduleWithDraft.schedule.updatedAt)}.`}
-					backLabel="Back to schedules"
+					description={t('settings.standups.schedule.updatedAt', { time: formatDateTime(props.scheduleWithDraft.schedule.updatedAt) })}
+					backLabel={t('settings.standups.actions.backToSchedules')}
 					onBack={props.onBack}
 					actions={(
 						<div className="campfire-pill-row">
 							<CampfireStatusPill tone={props.scheduleWithDraft.draft.enabled ? 'green' : 'slate'}>
-								{props.scheduleWithDraft.draft.enabled ? 'Enabled' : 'Disabled'}
+								{props.scheduleWithDraft.draft.enabled ? t('settings.standups.status.enabled') : t('settings.standups.status.disabled')}
 							</CampfireStatusPill>
-							<CampfireStatusPill tone={changed ? 'ember' : 'green'}>{changed ? 'Unsaved' : 'Saved'}</CampfireStatusPill>
+							<CampfireStatusPill tone={changed ? 'ember' : 'green'}>{changed ? t('settings.standups.status.unsaved') : t('settings.standups.status.saved')}</CampfireStatusPill>
+							<Button
+								type="button"
+								variant="destructive"
+								disabled={formDisabled || mutationBusy}
+								onClick={() => setDeleteDialogOpen(true)}
+							>
+								{props.deleting ? <Loader2 className="cf:size-4 cf:animate-spin" /> : <Trash2 className="cf:size-4" />}
+								{t('settings.standups.actions.deleteSchedule')}
+							</Button>
 						</div>
 					)}
 				/>
@@ -224,13 +257,34 @@ function EditSchedulePage(props: {
 				/>
 
 				<div className="campfire-form-actions campfire-form-actions--split">
-					<Button type="button" variant="ghost" onClick={props.onBack}>Back</Button>
-					<Button type="submit" disabled={formDisabled || !changed}>
+					<Button type="button" variant="ghost" onClick={props.onBack}>{t('common.back')}</Button>
+					<Button type="submit" disabled={formDisabled || !changed || mutationBusy}>
 						{props.saving ? <Loader2 className="cf:size-4 cf:animate-spin" /> : <Save className="cf:size-4" />}
-						Save schedule
+						{t('settings.standups.actions.saveSchedule')}
 					</Button>
 				</div>
 			</form>
+
+			<CampfireConfirmDialog
+				open={deleteDialogOpen}
+				intent="danger"
+				title={t('settings.standups.delete.schedule.title')}
+				description={t('settings.standups.delete.schedule.description')}
+				confirmLabel={t('settings.standups.actions.deleteSchedule')}
+				busy={props.deleting}
+				onCancel={() => setDeleteDialogOpen(false)}
+				onConfirm={() => {
+					void props.onDeleteSchedule(props.scheduleWithDraft.schedule).then(deleted => {
+						if (deleted) {
+							setDeleteDialogOpen(false);
+						}
+					});
+				}}
+			>
+				<p className="campfire-destructive-inline-note">
+					{t('settings.standups.delete.schedule.note')}
+				</p>
+			</CampfireConfirmDialog>
 		</CampfireSurface>
 	);
 }
@@ -244,7 +298,8 @@ function ScheduleDirectoryRow(props: {
 	readonly templates: readonly StandupTemplate[];
 	readonly onOpen: () => void;
 }): ReactElement {
-	const templateName = scheduleTemplateName(props.schedule.templateId, props.templates);
+	const { t } = useI18n();
+	const templateName = scheduleTemplateName(props.schedule.templateId, props.templates, t);
 	const changed = scheduleHasChanges(props.schedule, props.draft);
 
 	return (
@@ -254,16 +309,16 @@ function ScheduleDirectoryRow(props: {
 					{props.draft.opensAt}–{props.draft.timeOfDay} · {templateName}
 				</CampfireBidiText>
 				<span className="campfire-standup-template-row-meta">
-					{formatLabel(props.schedule.kind)} · updated {formatDateTime(props.schedule.updatedAt)}
+					{standupKindLabel(t, props.schedule.kind)} · {t('settings.standups.schedule.updatedAt', { time: formatDateTime(props.schedule.updatedAt) })}
 				</span>
 			</span>
 
-			<span className="campfire-standup-question-row-badges" aria-label="Schedule status">
-				<span>{props.draft.enabled ? 'Enabled' : 'Disabled'}</span>
-				{changed && <span>Unsaved</span>}
+			<span className="campfire-standup-question-row-badges" aria-label={t('settings.standups.aria.scheduleStatus')}>
+				<span>{props.draft.enabled ? t('settings.standups.status.enabled') : t('settings.standups.status.disabled')}</span>
+				{changed && <span>{t('settings.standups.status.unsaved')}</span>}
 			</span>
 
-			<span className="campfire-standup-template-row-action">Open</span>
+			<span className="campfire-standup-template-row-action">{t('settings.standups.actions.open')}</span>
 		</button>
 	);
 }
@@ -271,11 +326,11 @@ function ScheduleDirectoryRow(props: {
 /**
  * scheduleTemplateName returns a readable template label for a schedule.
  */
-function scheduleTemplateName(templateID: string, templates: readonly StandupTemplate[]): string {
+function scheduleTemplateName(templateID: string, templates: readonly StandupTemplate[], t: TFunction): string {
 	const template = templates.find(item => item.id === templateID);
 
 	if (template === undefined) {
-		return `Missing template ${shortID(templateID)}`;
+		return t('settings.standups.schedule.missingTemplate', { id: shortID(templateID) });
 	}
 
 	return template.name;

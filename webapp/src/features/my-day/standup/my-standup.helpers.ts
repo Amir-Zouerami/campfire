@@ -1,4 +1,6 @@
 import { ApiClientError } from '@/api';
+import { isolateBidiText } from '@/i18n';
+import type { TranslationKey } from '@/i18n';
 import type { QuestionType, StandupQuestion, StandupSchedule, StandupTemplate, Task } from '@/types/domain';
 
 import type { AnswerDrafts, AnswerDraftValue, NormalizedAnswerValue } from './my-standup.types';
@@ -97,6 +99,10 @@ export function emptyAnswerForQuestion(questionType: QuestionType): AnswerDraftV
 
 		case 'text':
 		case 'long_text':
+		case 'work_items':
+		case 'date':
+		case 'time':
+		case 'datetime':
 		case 'dropdown':
 		case 'number':
 		case 'duration':
@@ -138,6 +144,10 @@ export function normalizeAnswerValue(
 
 		case 'text':
 		case 'long_text':
+		case 'work_items':
+		case 'date':
+		case 'time':
+		case 'datetime':
 		case 'dropdown':
 		default:
 			return String(value);
@@ -147,7 +157,11 @@ export function normalizeAnswerValue(
 /**
  * validateRequiredAnswers returns a user-facing validation message when required answers are missing.
  */
-export function validateRequiredAnswers(questions: readonly StandupQuestion[], answers: AnswerDrafts): string | null {
+export function validateRequiredAnswers(
+	questions: readonly StandupQuestion[],
+	answers: AnswerDrafts,
+	t: (key: TranslationKey, values?: Record<string, string | number | boolean>) => string,
+): string | null {
 	for (const question of questions) {
 		if (!question.required) {
 			continue;
@@ -156,11 +170,11 @@ export function validateRequiredAnswers(questions: readonly StandupQuestion[], a
 		const value = answers[question.id];
 
 		if (isTaskListQuestion(question) && taskListAnswerIsMissing(value)) {
-			return `${question.label} needs at least one item.`;
+			return t('myDay.standup.validation.taskItemsRequired', { questionLabel: isolateBidiText(question.label) });
 		}
 
 		if (!isTaskListQuestion(question) && answerIsMissing(question.type, value)) {
-			return `${question.label} is required.`;
+			return t('myDay.standup.validation.answerRequired', { questionLabel: isolateBidiText(question.label) });
 		}
 	}
 
@@ -214,24 +228,41 @@ export function nextMultiSelectValue(
 /**
  * templateLabel returns a readable template name for a schedule row.
  */
-export function templateLabel(templates: readonly StandupTemplate[], templateID: string): string {
-	return templates.find(template => template.id === templateID)?.name ?? 'Unknown template';
+export function templateLabel(
+	templates: readonly StandupTemplate[],
+	templateID: string,
+	t: (key: TranslationKey, values?: Record<string, string | number | boolean>) => string,
+): string {
+	return templates.find(template => template.id === templateID)?.name ?? t('myDay.standup.template.unknown');
 }
 
 /**
- * formatLabel converts enum-like API values to readable labels.
+ * localizedScheduleKindLabel keeps schedule-kind labels translated while leaving
+ * unknown future values readable instead of crashing the UI.
  */
-export function formatLabel(value: string): string {
-	return value
-		.split('_')
-		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
-		.join(' ');
+export function localizedScheduleKindLabel(
+	value: string,
+	t: (key: TranslationKey, values?: Record<string, string | number | boolean>) => string,
+): string {
+	switch (value) {
+		case 'daily':
+			return t('myDay.standup.kind.daily');
+
+		case 'weekly':
+			return t('myDay.standup.kind.weekly');
+
+		default:
+			return t('myDay.standup.kind.generic', { kind: value });
+	}
 }
 
 /**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
-export function errorToMessage(error: unknown): string {
+export function errorToMessage(
+	error: unknown,
+	t: (key: TranslationKey, values?: Record<string, string | number | boolean>) => string,
+): string {
 	if (error instanceof ApiClientError) {
 		return error.message;
 	}
@@ -240,7 +271,7 @@ export function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not submit your standup.';
+	return t('myDay.standup.error.fallback');
 }
 
 /**
@@ -261,6 +292,10 @@ function emptyNormalizedValue(questionType: QuestionType): NormalizedAnswerValue
 
 		case 'text':
 		case 'long_text':
+		case 'work_items':
+		case 'date':
+		case 'time':
+		case 'datetime':
 		case 'dropdown':
 		default:
 			return '';
@@ -287,6 +322,10 @@ function answerIsMissing(questionType: QuestionType, value: AnswerDraftValue | u
 
 		case 'text':
 		case 'long_text':
+		case 'work_items':
+		case 'date':
+		case 'time':
+		case 'datetime':
 		case 'dropdown':
 		case 'number':
 		case 'duration':

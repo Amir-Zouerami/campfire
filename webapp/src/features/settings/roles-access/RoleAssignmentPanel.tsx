@@ -5,8 +5,10 @@ import { CampfireControlButton } from '@/components/campfire/CampfireControlButt
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { CampfireUserPicker } from '@/components/campfire/CampfireUserPicker';
 import { Label } from '@/components/ui/label';
+import { useI18n } from '@/i18n';
 
-import { ASSIGNABLE_WORKSPACE_ROLES, roleLabel, toAssignableWorkspaceRole } from './roles-access.helpers';
+import { ASSIGNABLE_WORKSPACE_ROLES, toAssignableWorkspaceRole } from './roles-access.helpers';
+import { localizedRoleLabel } from './roles-access.i18n';
 import type { RoleAssignmentDraft } from './roles-access.types';
 import { CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
@@ -27,6 +29,7 @@ type RoleAssignmentPanelProps = {
  * RoleAssignmentPanel renders role assignment through fixed-height controls.
  */
 export function RoleAssignmentPanel(props: RoleAssignmentPanelProps): ReactElement {
+	const { t } = useI18n();
 	const formDisabled = props.disabled || !props.canManageRoles;
 
 	return (
@@ -35,18 +38,18 @@ export function RoleAssignmentPanel(props: RoleAssignmentPanelProps): ReactEleme
 				<div>
 					<p className="cf:flex cf:items-center cf:gap-2 cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
 						<UserPlus className="cf:size-5" />
-						Assign role
+						{t('settings.roles.assignment.eyebrow')}
 					</p>
 					<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
-						Add named access
+						{t('settings.roles.assignment.title')}
 					</h3>
 					<p className="cf:mt-2 cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
-						Choose a channel member with search, then assign the exact Campfire role.
+						{t('settings.roles.assignment.description')}
 					</p>
 				</div>
 
 				<CampfireStatusPill tone={props.canManageRoles ? 'green' : 'slate'}>
-					{props.canManageRoles ? 'Editable' : 'Read only'}
+					{props.canManageRoles ? t('settings.roles.status.editable') : t('settings.roles.status.readOnly')}
 				</CampfireStatusPill>
 			</div>
 
@@ -58,7 +61,7 @@ export function RoleAssignmentPanel(props: RoleAssignmentPanelProps): ReactEleme
 				}}
 			>
 				<div className="campfire-role-assignment-field">
-					<Label>User</Label>
+					<Label>{t('settings.roles.assignment.user.label')}</Label>
 					<CampfireUserPicker
 						workspaceID={props.workspaceID}
 						disabled={formDisabled}
@@ -68,7 +71,7 @@ export function RoleAssignmentPanel(props: RoleAssignmentPanelProps): ReactEleme
 				</div>
 
 				<div className="campfire-role-assignment-field">
-					<Label htmlFor="campfire-role-select">Role</Label>
+					<Label htmlFor="campfire-role-select">{t('settings.roles.assignment.access.label')}</Label>
 					<CampfireSelect
 						id="campfire-role-select"
 						disabled={formDisabled}
@@ -77,7 +80,7 @@ export function RoleAssignmentPanel(props: RoleAssignmentPanelProps): ReactEleme
 					>
 						{ASSIGNABLE_WORKSPACE_ROLES.map(role => (
 							<option key={role} value={role}>
-								{roleLabel(role)}
+								{localizedRoleLabel(t, role)}
 							</option>
 						))}
 					</CampfireSelect>
@@ -90,7 +93,7 @@ export function RoleAssignmentPanel(props: RoleAssignmentPanelProps): ReactEleme
 						) : (
 							<UserPlus className="cf:size-4" />
 						)}
-						Add role
+						{t('settings.roles.assignment.submit')}
 					</CampfireControlButton>
 				</div>
 			</form>

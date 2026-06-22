@@ -6,12 +6,14 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import type { KeyboardEvent, ReactElement } from "react";
 import { Check, ChevronDown, Loader2, Search, UserRound } from "lucide-react";
 
 import { ApiClientError, listWorkspaceMembers } from "@/api";
 import type { UserProfile } from "@/types/api";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 import { useCampfireFloatingPopover } from "./useCampfireFloatingPopover";
 
 /**
@@ -44,6 +46,7 @@ export function CampfireUserPicker(
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [message, setMessage] = useState("");
   const deferredQuery = useDeferredValue(query);
+  const { direction, htmlLang, t } = useI18n();
 
   useEffect(() => {
     let active = true;
@@ -66,7 +69,7 @@ export function CampfireUserPicker(
         }
 
         setLoadState("error");
-        setMessage(errorToMessage(error));
+        setMessage(errorToMessage(error, t("shared.userPicker.loadError")));
       }
     }
 
@@ -75,7 +78,7 @@ export function CampfireUserPicker(
     return () => {
       active = false;
     };
-  }, [props.workspaceID]);
+  }, [props.workspaceID, t]);
 
   useEffect(() => {
     if (!open) {
@@ -91,6 +94,10 @@ export function CampfireUserPicker(
       }
 
       if (rootRef.current !== null && rootRef.current.contains(event.target)) {
+        return;
+      }
+
+      if (menuRef.current !== null && menuRef.current.contains(event.target)) {
         return;
       }
 
@@ -134,7 +141,7 @@ export function CampfireUserPicker(
     minHeight: 160,
     maxHeight: 360,
     maxWidth: 560,
-    matchTriggerWidth: true,
+    matchTriggerWidth: false,
   });
 
   function toggleOpen(): void {
@@ -197,14 +204,14 @@ export function CampfireUserPicker(
           <strong>
             <bdi dir="auto">
               {selectedUser === null
-                ? (props.placeholder ?? "Choose a channel member")
+                ? (props.placeholder ?? t("shared.userPicker.placeholder"))
                 : profileLabel(selectedUser)}
             </bdi>
           </strong>
           <small>
             <bdi dir="auto">
               {selectedUser === null
-                ? "Search workspace members"
+                ? t("shared.userPicker.searchHint")
                 : profileSecondaryLabel(selectedUser)}
             </bdi>
           </small>
@@ -217,13 +224,15 @@ export function CampfireUserPicker(
         />
       </button>
 
-      {open && (
+      {open && floatingPopover.portalHost !== null && createPortal((
         <div
           ref={menuRef}
           id={menuID}
-          className="campfire-user-picker-menu campfire-floating-popover"
+          dir={direction}
+          lang={htmlLang}
+          className="campfire-picker-portal-scope campfire-user-picker-menu campfire-floating-popover"
           role="listbox"
-          aria-label="Matching workspace members"
+          aria-label={t("shared.userPicker.resultsLabel")}
           style={floatingPopover.style}
         >
           <label className="campfire-user-picker-search">
@@ -232,7 +241,7 @@ export function CampfireUserPicker(
               ref={searchRef}
               type="search"
               disabled={disabled}
-              placeholder="Search by username, display name, or email"
+              placeholder={t("shared.userPicker.searchPlaceholder")}
               value={query}
               onChange={(event) => setQuery(event.currentTarget.value)}
               onKeyDown={(event) => event.stopPropagation()}
@@ -275,7 +284,7 @@ export function CampfireUserPicker(
 
           {loadState === "ready" && visibleMembers.length === 0 && (
             <p className="campfire-user-picker-message">
-              No matching channel members.
+              {t("shared.userPicker.noResults")}
             </p>
           )}
 
@@ -285,7 +294,7 @@ export function CampfireUserPicker(
             </p>
           )}
         </div>
-      )}
+      ), floatingPopover.portalHost)}
     </div>
   );
 }
@@ -379,7 +388,7 @@ function filterMembers(
 /**
  * errorToMessage converts unknown errors to safe picker text.
  */
-function errorToMessage(error: unknown): string {
+function errorToMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiClientError) {
     return error.message;
   }
@@ -388,5 +397,5 @@ function errorToMessage(error: unknown): string {
     return error.message;
   }
 
-  return "Could not load workspace members.";
+  return fallback;
 }

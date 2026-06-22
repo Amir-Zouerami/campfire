@@ -33,6 +33,10 @@ const config = defineConfig({
 		'process.env': '{}',
 	},
 	build: {
+		// Mattermost does not serve arbitrary plugin-root assets to injected CSS.
+		// Inline the generated Vazirmatn font so Persian/Arabic typography does not
+		// depend on /plugins/<id>/assets/... static-file routing.
+		assetsInlineLimit: 4 * 1024 * 1024,
 		outDir: 'dist',
 		emptyOutDir: true,
 		target: 'es2022',

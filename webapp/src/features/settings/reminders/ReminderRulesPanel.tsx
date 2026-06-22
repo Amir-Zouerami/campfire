@@ -1,12 +1,13 @@
 import type { ReactElement } from 'react';
 import { BellRing } from 'lucide-react';
 
+import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
+import { useI18n } from '@/i18n';
 import { scheduleLabelForRule, type StandupScheduleLabelLookup } from '@/features/settings/standup-schedule-labels';
 import type { ReminderRule } from '@/types/domain';
 
 import { ReminderRuleCard } from './ReminderRuleCard';
 import type { ReminderRuleDraftPatch, ReminderRuleWithDraft } from './reminders.types';
-import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * ReminderRulesPanelProps contains reminder rules and edit actions.
@@ -25,13 +26,15 @@ type ReminderRulesPanelProps = {
  * ReminderRulesPanel renders all editable reminder rules.
  */
 export function ReminderRulesPanel(props: ReminderRulesPanelProps): ReactElement {
+	const { t } = useI18n();
+
 	return (
 		<section className="campfire-settings-rule-list">
 			{props.rulesWithDrafts.length === 0 ? (
 				<CampfireEmpty
 					icon={BellRing}
-					title="No reminder rules yet"
-					description="Reminder rules are created from standup schedules. Add a daily or weekly schedule first."
+					title={t('settings.reminders.empty.title')}
+					description={t('settings.reminders.empty.description')}
 				/>
 			) : (
 				props.rulesWithDrafts.map(pair => (

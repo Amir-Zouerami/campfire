@@ -1,4 +1,5 @@
 import type { MeUserResponse } from '@/types/api';
+import type { TranslationKey } from '@/i18n';
 import type { Workspace, WorkspaceCapabilities } from '@/types/domain';
 
 /**
@@ -11,10 +12,10 @@ export type WorkspacePageID = 'my-day' | 'team-review' | 'reports' | 'settings';
  */
 export type WorkspacePageDefinition = {
 	readonly id: WorkspacePageID;
-	readonly label: string;
-	readonly eyebrow: string;
-	readonly title: string;
-	readonly description: string;
+	readonly labelKey: TranslationKey;
+	readonly eyebrowKey: TranslationKey;
+	readonly titleKey: TranslationKey;
+	readonly descriptionKey: TranslationKey;
 	readonly managerOnly: boolean;
 };
 

@@ -169,6 +169,15 @@ func WriteUpdateWorkspaceNotificationSettings(
 }
 
 /*
+WriteUpdateWorkspaceTimezone writes the updated workspace timezone response.
+*/
+func WriteUpdateWorkspaceTimezone(w http.ResponseWriter, statusCode int, payload UpdateWorkspaceTimezoneResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode updated workspace timezone response")
+}
+
+/*
 WriteListWorkspaceWorkingDays writes the workspace working-day list response.
 */
 func WriteListWorkspaceWorkingDays(
@@ -307,6 +316,15 @@ func WriteListPendingLeaveRequests(
 }
 
 /*
+WriteUpdateLeave writes the leave update response.
+*/
+func WriteUpdateLeave(w http.ResponseWriter, statusCode int, payload UpdateLeaveResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode leave update response")
+}
+
+/*
 WriteDecideLeave writes the leave decision response.
 */
 func WriteDecideLeave(w http.ResponseWriter, statusCode int, payload DecideLeaveResponse) {
@@ -352,6 +370,37 @@ func WriteListApprovedLeaveRequests(
 	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
 		return encoder.Encode(payload)
 	}, "failed to encode approved leave request list response")
+}
+
+/*
+WriteListPendingLeaveChangeRequests writes the pending leave edit request list response.
+*/
+func WriteListPendingLeaveChangeRequests(
+	w http.ResponseWriter,
+	statusCode int,
+	payload ListPendingLeaveChangeRequestsResponse,
+) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode pending leave edit request list response")
+}
+
+/*
+WriteCreateLeaveChange writes the created leave edit request response.
+*/
+func WriteCreateLeaveChange(w http.ResponseWriter, statusCode int, payload CreateLeaveChangeResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode created leave edit request response")
+}
+
+/*
+WriteDecideLeaveChange writes the leave edit request decision response.
+*/
+func WriteDecideLeaveChange(w http.ResponseWriter, statusCode int, payload DecideLeaveChangeResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode leave edit request decision response")
 }
 
 /*
@@ -435,6 +484,15 @@ func WriteUpdateStandupTemplate(w http.ResponseWriter, statusCode int, payload U
 }
 
 /*
+WriteDeleteStandupTemplate writes the deleted standup template response.
+*/
+func WriteDeleteStandupTemplate(w http.ResponseWriter, statusCode int, payload DeleteStandupTemplateResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode deleted standup template response")
+}
+
+/*
 WriteCreateStandupQuestion writes the created standup question response.
 */
 func WriteCreateStandupQuestion(w http.ResponseWriter, statusCode int, payload CreateStandupQuestionResponse) {
@@ -453,6 +511,15 @@ func WriteUpdateStandupQuestion(w http.ResponseWriter, statusCode int, payload U
 }
 
 /*
+WriteDeleteStandupQuestion writes the deleted standup question response.
+*/
+func WriteDeleteStandupQuestion(w http.ResponseWriter, statusCode int, payload DeleteStandupQuestionResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode deleted standup question response")
+}
+
+/*
 WriteCreateStandupSchedule writes the created standup schedule response.
 */
 func WriteCreateStandupSchedule(w http.ResponseWriter, statusCode int, payload CreateStandupScheduleResponse) {
@@ -468,6 +535,15 @@ func WriteUpdateStandupSchedule(w http.ResponseWriter, statusCode int, payload U
 	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
 		return encoder.Encode(payload)
 	}, "failed to encode updated standup schedule response")
+}
+
+/*
+WriteDeleteStandupSchedule writes the deleted standup schedule response.
+*/
+func WriteDeleteStandupSchedule(w http.ResponseWriter, statusCode int, payload DeleteStandupScheduleResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode deleted standup schedule response")
 }
 
 /*
@@ -706,4 +782,26 @@ func WriteDeleteSavedReportFilter(w http.ResponseWriter, statusCode int, payload
 	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
 		return encoder.Encode(payload)
 	}, "failed to encode deleted saved report filter response")
+}
+
+/*
+WriteGetDataRetentionPreview writes the data-retention preview response.
+*/
+func WriteGetDataRetentionPreview(
+	w http.ResponseWriter,
+	statusCode int,
+	payload GetDataRetentionPreviewResponse,
+) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode data-retention preview response")
+}
+
+/*
+WritePurgeWorkspaceData writes the data-retention purge response.
+*/
+func WritePurgeWorkspaceData(w http.ResponseWriter, statusCode int, payload PurgeWorkspaceDataResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode data-retention purge response")
 }

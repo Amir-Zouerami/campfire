@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/components/campfire/campfire-toast';
+import { isolateBidiText, useI18n } from '@/i18n';
 
 import { getWeeklyReportPreview, postWeeklyReportPreview } from '@/api';
 import { CAMPFIRE_APPLY_REPORT_FILTER_EVENT, isReportFilterApplyEvent } from '@/app/events';
+import { campfireQueryKeys } from '@/query';
 import { normalizeISODateInputValue } from '@/lib/dates';
 import type { ReportSortMode, WeeklyReportPreview, Workspace } from '@/types/domain';
 
@@ -46,16 +49,89 @@ export type UseWeeklyReportPreviewResult = {
 
 /**
  * useWeeklyReportPreview owns weekly report preview loading and posting.
+ *
+ * Weekly preview state uses the same query architecture as daily previews so
+ * report screens can share predictable loading, error, and invalidation behavior.
  */
 export function useWeeklyReportPreview(input: UseWeeklyReportPreviewInput): UseWeeklyReportPreviewResult {
-	const currentWeek = getCurrentWeekRange();
-
-	const [loadState, setLoadState] = useState<ReportPreviewLoadState>('idle');
+	const { t } = useI18n();
+	const queryClient = useQueryClient();
+	const currentWeek = useMemo(() => getCurrentWeekRange(), []);
 	const [periodStart, setPeriodStartState] = useState(currentWeek.startDate);
 	const [periodEnd, setPeriodEndState] = useState(currentWeek.endDate);
-	const [sortMode, setSortMode] = useState<ReportSortMode>('blockers_first');
-	const [preview, setPreview] = useState<WeeklyReportPreview | null>(null);
-	const [message, setMessage] = useState('');
+	const [sortMode, setSortModeState] = useState<ReportSortMode>('first_submitted');
+	const [manualMessage, setManualMessage] = useState('');
+	const [manualError, setManualError] = useState('');
+
+	const normalizedStartDate = normalizeISODateInputValue(periodStart);
+	const normalizedEndDate = normalizeISODateInputValue(periodEnd);
+	const validationError = reportDateRangeIsValid(normalizedStartDate, normalizedEndDate)
+		? ''
+		: t('reports.preview.validation.weeklyRange');
+
+	const previewQuery = useQuery({
+		queryKey: campfireQueryKeys.weeklyReportPreview(
+			input.workspace.id,
+			normalizedStartDate,
+			normalizedEndDate,
+			sortMode,
+			input.workspace.timezone,
+			input.refreshToken,
+		),
+		queryFn: async (): Promise<WeeklyReportPreview> => {
+			const calendarLabels = buildWeeklyReportCalendarLabels(
+				normalizedStartDate,
+				normalizedEndDate,
+				input.workspace.timezone,
+			);
+			const response = await getWeeklyReportPreview(
+				input.workspace.id,
+				normalizedStartDate,
+				normalizedEndDate,
+				sortMode,
+				calendarLabels,
+			);
+
+			return response.preview;
+		},
+		enabled: validationError === '',
+	});
+
+	const preview = previewQuery.data ?? null;
+
+	const postMutation = useMutation({
+		mutationFn: async (): Promise<void> => {
+			const calendarLabels = buildWeeklyReportCalendarLabels(
+				normalizedStartDate,
+				normalizedEndDate,
+				input.workspace.timezone,
+			);
+			await postWeeklyReportPreview(input.workspace.id, {
+				periodStart: normalizedStartDate,
+				periodEnd: normalizedEndDate,
+				sortMode,
+				calendarLabels,
+			});
+		},
+		onSuccess: async (): Promise<void> => {
+			setPeriodStartState(normalizedStartDate);
+			setPeriodEndState(normalizedEndDate);
+			setManualError('');
+			setManualMessage(t('reports.preview.message.weeklyPosted'));
+			toast.success(t('reports.preview.toast.weeklyPosted'));
+
+			await queryClient.invalidateQueries({
+				queryKey: campfireQueryKeys.reportPreviews(input.workspace.id),
+			});
+		},
+		onError: (error: unknown): void => {
+			const errorMessage = errorToMessage(error, t('reports.preview.error.fallback'));
+
+			setManualMessage('');
+			setManualError(errorMessage);
+			toast.error(errorMessage);
+		},
+	});
 
 	useEffect(() => {
 		/**
@@ -74,8 +150,8 @@ export function useWeeklyReportPreview(input: UseWeeklyReportPreviewInput): UseW
 				const parsed: unknown = JSON.parse(event.detail.filterJson);
 
 				if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-					setMessage(`Saved filter "${event.detail.name}" is not a valid weekly report filter.`);
-					setLoadState('error');
+					setManualMessage('');
+					setManualError(t('reports.preview.filter.invalidWeekly', { name: isolateBidiText(event.detail.name) }));
 					return;
 				}
 
@@ -90,14 +166,14 @@ export function useWeeklyReportPreview(input: UseWeeklyReportPreviewInput): UseW
 				}
 
 				if (typeof record.sortMode === 'string') {
-					setSortMode(toWeeklyReportSortMode(record.sortMode));
+					setSortModeState(toWeeklyReportSortMode(record.sortMode));
 				}
 
-				setMessage(`Applied saved filter "${event.detail.name}".`);
-				setLoadState('ready');
+				setManualError('');
+				setManualMessage(t('reports.preview.filter.applied', { name: isolateBidiText(event.detail.name) }));
 			} catch (_error: unknown) {
-				setMessage(`Saved filter "${event.detail.name}" is not valid JSON.`);
-				setLoadState('error');
+				setManualMessage('');
+				setManualError(t('reports.preview.filter.invalidJson', { name: isolateBidiText(event.detail.name) }));
 			}
 		}
 
@@ -106,80 +182,28 @@ export function useWeeklyReportPreview(input: UseWeeklyReportPreviewInput): UseW
 		return () => {
 			window.removeEventListener(CAMPFIRE_APPLY_REPORT_FILTER_EVENT, handleApplyReportFilter);
 		};
-	}, [input.workspace.id]);
-
-	useEffect(() => {
-		let isActive = true;
-
-		/**
-		 * loadPreview loads the weekly Markdown report preview.
-		 */
-		async function loadPreview(): Promise<void> {
-			const normalizedStartDate = normalizeISODateInputValue(periodStart);
-			const normalizedEndDate = normalizeISODateInputValue(periodEnd);
-
-			if (normalizedStartDate !== periodStart || normalizedEndDate !== periodEnd) {
-				setPeriodStartState(normalizedStartDate);
-				setPeriodEndState(normalizedEndDate);
-				return;
-			}
-
-			if (!reportDateRangeIsValid(normalizedStartDate, normalizedEndDate)) {
-				setPreview(null);
-				setMessage('Choose a real weekly report date range in YYYY-MM-DD format.');
-				setLoadState('error');
-				return;
-			}
-
-			setLoadState('loading');
-			setMessage('');
-
-			try {
-				const calendarLabels = buildWeeklyReportCalendarLabels(
-					normalizedStartDate,
-					normalizedEndDate,
-					input.workspace.timezone,
-				);
-				const response = await getWeeklyReportPreview(
-					input.workspace.id,
-					normalizedStartDate,
-					normalizedEndDate,
-					sortMode,
-					calendarLabels,
-				);
-
-				if (!isActive) {
-					return;
-				}
-
-				setPreview(response.preview);
-				setLoadState('ready');
-			} catch (error: unknown) {
-				if (!isActive) {
-					return;
-				}
-
-				setPreview(null);
-				setMessage(errorToMessage(error));
-				setLoadState('error');
-			}
-		}
-
-		void loadPreview();
-
-		return () => {
-			isActive = false;
-		};
-	}, [input.workspace.id, input.refreshToken, periodStart, periodEnd, sortMode]);
+	}, [input.workspace.id, t]);
 
 	const markdownLines = useMemo(() => {
 		return markdownLineCount(preview?.markdown ?? '');
 	}, [preview]);
 
+	const queryErrorMessage = previewQuery.isError ? errorToMessage(previewQuery.error, t('reports.preview.error.fallback')) : '';
+	const message = manualError || validationError || queryErrorMessage || manualMessage;
+	const loadState = resolveReportPreviewLoadState({
+		validationError,
+		manualError,
+		queryErrorMessage,
+		queryLoading: previewQuery.isLoading,
+		posting: postMutation.isPending,
+	});
+
 	/**
 	 * setPeriodStart updates the weekly report start date.
 	 */
 	function setPeriodStart(date: string): void {
+		setManualError('');
+		setManualMessage('');
 		setPeriodStartState(normalizeISODateInputValue(date));
 	}
 
@@ -187,7 +211,18 @@ export function useWeeklyReportPreview(input: UseWeeklyReportPreviewInput): UseW
 	 * setPeriodEnd updates the weekly report end date.
 	 */
 	function setPeriodEnd(date: string): void {
+		setManualError('');
+		setManualMessage('');
 		setPeriodEndState(normalizeISODateInputValue(date));
+	}
+
+	/**
+	 * setSortMode updates the preview sort mode and lets the query cache refetch.
+	 */
+	function setSortMode(sortModeValue: ReportSortMode): void {
+		setManualError('');
+		setManualMessage('');
+		setSortModeState(sortModeValue);
 	}
 
 	/**
@@ -196,6 +231,8 @@ export function useWeeklyReportPreview(input: UseWeeklyReportPreviewInput): UseW
 	function resetToCurrentWeek(): void {
 		const nextWeek = getCurrentWeekRange();
 
+		setManualError('');
+		setManualMessage('');
 		setPeriodStartState(nextWeek.startDate);
 		setPeriodEndState(nextWeek.endDate);
 	}
@@ -204,48 +241,26 @@ export function useWeeklyReportPreview(input: UseWeeklyReportPreviewInput): UseW
 	 * postReport posts the current weekly report preview to the workspace channel.
 	 */
 	async function postReport(): Promise<void> {
-		const normalizedStartDate = normalizeISODateInputValue(periodStart);
-		const normalizedEndDate = normalizeISODateInputValue(periodEnd);
-
-		if (!reportDateRangeIsValid(normalizedStartDate, normalizedEndDate)) {
-			setMessage('Choose a real weekly report date range in YYYY-MM-DD format before posting.');
-			setLoadState('error');
+		if (validationError !== '') {
+			setManualMessage('');
+			setManualError(t('reports.preview.validation.weeklyRangeBeforePosting'));
 			return;
 		}
 
 		if (preview === null) {
-			setMessage('Load a report preview before posting.');
-			setLoadState('error');
+			setManualMessage('');
+			setManualError(t('reports.preview.validation.loadBeforePosting'));
 			return;
 		}
 
-		setLoadState('posting');
-		setMessage('');
+		setManualMessage('');
+		setManualError('');
 
 		try {
-			const calendarLabels = buildWeeklyReportCalendarLabels(
-				normalizedStartDate,
-				normalizedEndDate,
-				input.workspace.timezone,
-			);
-			await postWeeklyReportPreview(input.workspace.id, {
-				periodStart: normalizedStartDate,
-				periodEnd: normalizedEndDate,
-				sortMode,
-				calendarLabels,
-			});
-
-			setPeriodStartState(normalizedStartDate);
-			setPeriodEndState(normalizedEndDate);
-			setLoadState('ready');
-			setMessage('Weekly report posted.');
-			toast.success('Weekly report posted');
-		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
-
-			setLoadState('error');
-			setMessage(errorMessage);
-			toast.error(errorMessage);
+			await postMutation.mutateAsync();
+		} catch (_error: unknown) {
+			// onError owns user-facing feedback. The catch only prevents the
+			// click handler from producing an unhandled rejected promise.
 		}
 	}
 
@@ -256,7 +271,7 @@ export function useWeeklyReportPreview(input: UseWeeklyReportPreviewInput): UseW
 		sortMode,
 		preview,
 		message,
-		isBusy: loadState === 'loading' || loadState === 'posting',
+		isBusy: previewQuery.isFetching || postMutation.isPending,
 		dailyPreviewCount: preview?.dailyPreviews.length ?? 0,
 		markdownLines,
 		setPeriodStart,
@@ -265,4 +280,29 @@ export function useWeeklyReportPreview(input: UseWeeklyReportPreviewInput): UseW
 		resetToCurrentWeek,
 		postReport,
 	};
+}
+
+/**
+ * resolveReportPreviewLoadState maps query and mutation state into UI state.
+ */
+function resolveReportPreviewLoadState(input: {
+	readonly validationError: string;
+	readonly manualError: string;
+	readonly queryErrorMessage: string;
+	readonly queryLoading: boolean;
+	readonly posting: boolean;
+}): ReportPreviewLoadState {
+	if (input.posting) {
+		return 'posting';
+	}
+
+	if (input.validationError !== '' || input.manualError !== '' || input.queryErrorMessage !== '') {
+		return 'error';
+	}
+
+	if (input.queryLoading) {
+		return 'loading';
+	}
+
+	return 'ready';
 }

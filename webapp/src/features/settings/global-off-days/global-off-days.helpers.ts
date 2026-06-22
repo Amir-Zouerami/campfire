@@ -1,4 +1,5 @@
 import { ApiClientError } from '@/api';
+import type { TFunction } from '@/i18n/types';
 import type { GlobalSkipDate } from '@/types/domain';
 
 import type { GlobalOffDayDraft } from './global-off-days.types';
@@ -57,20 +58,23 @@ export function globalOffDayIsPast(skipDate: GlobalSkipDate): boolean {
 /**
  * formatDateTime formats an API timestamp for compact display.
  */
-export function formatDateTime(value: string): string {
+export function formatDateTime(value: string, locale: string): string {
 	const date = new Date(value);
 
 	if (Number.isNaN(date.getTime())) {
 		return value;
 	}
 
-	return date.toLocaleString();
+	return new Intl.DateTimeFormat(locale, {
+		dateStyle: 'medium',
+		timeStyle: 'short',
+	}).format(date);
 }
 
 /**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
-export function errorToMessage(error: unknown): string {
+export function errorToMessage(error: unknown, t: TFunction): string {
 	if (error instanceof ApiClientError) {
 		return error.message;
 	}
@@ -79,5 +83,5 @@ export function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not update global off-days.';
+	return t('settings.globalOffDays.error.update');
 }

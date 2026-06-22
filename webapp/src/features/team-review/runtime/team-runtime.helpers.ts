@@ -28,9 +28,10 @@ export function collectRuntimeUserIDs(decision: StandupRunDecision | null): read
 		return [];
 	}
 
-	return uniqueStrings(
-		decision.approvedLeaves.flatMap(row => [row.leaveRequest.userId, row.leaveRequest.backupUserId]),
-	);
+	return uniqueStrings([
+		...decision.excludedUserIds,
+		...decision.approvedLeaves.flatMap(row => [row.leaveRequest.userId, row.leaveRequest.backupUserId]),
+	]);
 }
 
 /**
@@ -84,7 +85,10 @@ export function runtimeReasonDescription(reason: StandupSkipReason): string {
 			return 'The selected date matches a workspace-specific off-day.';
 
 		case 'everyone_on_leave':
-			return 'Every known workspace member is on approved leave for this date.';
+			return 'Every active standup participant is on approved leave for this date.';
+
+		case 'no_participants':
+			return 'There are no current channel members included in standups after exclusions are applied.';
 	}
 }
 
@@ -160,7 +164,7 @@ export function runtimeSignalCardClassName(active: boolean): string {
 /**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
-export function errorToMessage(error: unknown): string {
+export function errorToMessage(error: unknown, fallbackMessage: string): string {
 	if (error instanceof ApiClientError) {
 		return error.message;
 	}
@@ -169,7 +173,7 @@ export function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not evaluate standup runtime.';
+	return fallbackMessage;
 }
 
 /**

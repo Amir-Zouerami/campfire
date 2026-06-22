@@ -1,0 +1,3284 @@
+/* Source: 101-responsive-cleanup.css */
+
+/*
+ * Campfire responsive cleanup and final matte polish.
+ *
+ * This pass keeps the warm Campfire identity while tightening the app shell,
+ * table/list behavior, itemized standup rows, and mobile layouts. It is CSS-only
+ * except for small reusable layout primitives, so it does not change APIs or
+ * product behavior.
+ */
+
+.campfire-theme .campfire-workspace-topline-copy {
+	display: grid;
+	min-width: 0;
+	gap: 0.18rem;
+}
+
+.campfire-theme .campfire-workspace-topline-eyebrow {
+	color: #fdba74;
+	font-size: 0.72rem;
+	font-weight: 720;
+	letter-spacing: 0.12em;
+	line-height: 1;
+	text-transform: uppercase;
+}
+
+.campfire-theme .campfire-workflow-note {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.72rem;
+	border: 1px solid rgba(253, 186, 116, 0.14);
+	border-radius: 1rem;
+	background:
+		linear-gradient(90deg, rgba(249, 115, 22, 0.07), rgba(249, 115, 22, 0.018)),
+		rgba(0, 0, 0, 0.1);
+	padding: 0.82rem 0.95rem;
+}
+
+.campfire-theme .campfire-workflow-note-icon {
+	display: grid;
+	width: 1.85rem;
+	height: 1.85rem;
+	flex: 0 0 auto;
+	place-items: center;
+	border: 1px solid rgba(253, 186, 116, 0.18);
+	border-radius: 0.72rem;
+	background: rgba(249, 115, 22, 0.09);
+	color: #fed7aa;
+}
+
+.campfire-theme .campfire-workflow-note-copy {
+	display: grid;
+	min-width: 0;
+	gap: 0.18rem;
+	color: var(--muted-foreground);
+	font-size: 0.86rem;
+	font-weight: 520;
+	line-height: 1.45;
+}
+
+.campfire-theme .campfire-workflow-note-copy strong {
+	color: #fff7ed;
+	font-size: 0.9rem;
+	font-weight: 680;
+	line-height: 1.25;
+}
+
+.campfire-theme .campfire-submit-strip {
+	align-items: center;
+}
+
+.campfire-theme .campfire-submit-strip .campfire-workflow-note {
+	min-width: min(100%, 28rem);
+	flex: 1 1 auto;
+}
+
+.campfire-theme .campfire-question-row--tasks {
+	border-color: rgba(253, 186, 116, 0.14);
+	background:
+		radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.06), transparent 12rem),
+		rgba(255, 255, 255, 0.026);
+}
+
+.campfire-theme .campfire-task-answer-list {
+	gap: 0.65rem;
+}
+
+.campfire-theme .campfire-task-answer-row {
+	align-items: center;
+	border: 1px solid rgba(255, 255, 255, 0.075);
+	border-radius: 0.9rem;
+	background: rgba(0, 0, 0, 0.14);
+	padding: 0.35rem;
+}
+
+.campfire-theme .campfire-task-answer-index {
+	border-color: rgba(253, 186, 116, 0.18);
+	background: rgba(249, 115, 22, 0.1);
+	color: #fed7aa;
+	font-weight: 700;
+}
+
+.campfire-theme .campfire-task-answer-footer {
+	border: 1px solid rgba(255, 255, 255, 0.07);
+	border-radius: 0.9rem;
+	background: rgba(255, 255, 255, 0.024);
+	padding: 0.55rem 0.65rem;
+}
+
+.campfire-theme .campfire-data-table {
+	overflow-x: auto;
+	scrollbar-color: rgba(253, 186, 116, 0.24) transparent;
+}
+
+.campfire-theme .campfire-data-table-row {
+	min-width: 48rem;
+}
+
+.campfire-theme .campfire-data-table-row--head {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	backdrop-filter: blur(14px);
+}
+
+.campfire-theme .campfire-table-footer,
+.campfire-theme .campfire-muted-copy,
+.campfire-theme .campfire-muted-cell {
+	font-weight: 520;
+}
+
+.campfire-theme :where(.campfire-surface-title, .campfire-page-title) {
+	font-weight: 690;
+}
+
+.campfire-theme :where(.campfire-surface-description, .campfire-page-description) {
+	font-weight: 520;
+}
+
+.campfire-theme [data-slot='button'] {
+	font-weight: 590;
+	letter-spacing: -0.01em;
+}
+
+.campfire-theme [data-slot='button']:not(:disabled):active {
+	transform: translateY(1px);
+}
+
+.campfire-theme .campfire-section-tabs,
+.campfire-theme .campfire-pill-tabs {
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+
+.campfire-theme .campfire-section-tabs::-webkit-scrollbar,
+.campfire-theme .campfire-pill-tabs::-webkit-scrollbar {
+	display: none;
+}
+
+@media (max-width: 1100px) {
+	.campfire-modal--workspace-app {
+		width: min(100vw, 1100px);
+		height: min(96vh, 980px);
+		min-height: 680px;
+	}
+
+	.campfire-modal--workspace-app .campfire-workspace-shell {
+		grid-template-columns: 1fr;
+		grid-template-rows: auto minmax(0, 1fr);
+	}
+
+	.campfire-app-sidebar {
+		min-height: auto;
+		flex-direction: row;
+		align-items: center;
+		gap: 0.85rem;
+		border-right: 0;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+		padding: 0.9rem 1rem;
+	}
+
+	.campfire-sidebar-brand-title,
+	.campfire-sidebar-workspace,
+	.campfire-sidebar-user {
+		display: none;
+	}
+
+	.campfire-sidebar-logo-tile {
+		width: 2.65rem;
+		height: 2.65rem;
+	}
+
+	.campfire-sidebar-logo-image {
+		width: 2.3rem;
+		height: 2.3rem;
+	}
+
+	.campfire-sidebar-nav {
+		display: flex;
+		min-width: 0;
+		flex: 1 1 auto;
+		gap: 0.35rem;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+
+	.campfire-sidebar-nav::-webkit-scrollbar {
+		display: none;
+	}
+
+	.campfire-sidebar-nav-item {
+		width: auto;
+		flex: 0 0 auto;
+		padding: 0.66rem 0.82rem;
+	}
+}
+
+@media (max-width: 760px) {
+	.campfire-modal--workspace-app {
+		width: 100vw;
+		height: 100vh;
+		min-height: 0;
+		border-radius: 0;
+	}
+
+	.campfire-workspace-topline {
+		align-items: flex-start;
+		padding: 0.9rem 1rem 0.5rem;
+	}
+
+	.campfire-workspace-topline-label {
+		white-space: normal;
+	}
+
+	.campfire-workspace-actions [data-slot='button']:not([aria-label]) {
+		width: 2.25rem;
+		padding-inline: 0;
+	}
+
+	.campfire-workspace-actions [data-slot='button']:not([aria-label]) span,
+	.campfire-workspace-actions [data-slot='button']:not([aria-label]) :where(:not(svg)) {
+		display: none;
+	}
+
+	.campfire-workspace-content {
+		padding: 0.75rem 1rem 1rem;
+	}
+
+	.campfire-page-header {
+		display: grid;
+		gap: 0.8rem;
+	}
+
+	.campfire-page-actions {
+		justify-content: flex-start;
+		flex-wrap: wrap;
+	}
+
+	.campfire-two-column-grid,
+	.campfire-time-layout,
+	.campfire-team-detail-grid,
+	.campfire-report-focus-layout,
+	.campfire-settings-workflow-grid {
+		grid-template-columns: 1fr !important;
+	}
+
+	.campfire-submit-strip {
+		display: grid;
+		gap: 0.75rem;
+	}
+
+	.campfire-submit-strip [data-slot='button'] {
+		width: 100%;
+		justify-content: center;
+	}
+
+	.campfire-question-row {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Source: 102-standup-settings-flattening.css */
+
+/*
+ * Standup settings flattening
+ * --------------------------
+ * Keeps the form builder dense enough for admins while removing the old
+ * hero/card-inside-card structure.
+ */
+.campfire-standup-settings-page {
+	--campfire-standup-line: rgba(255, 255, 255, 0.09);
+}
+
+.campfire-standup-settings-nav-surface,
+.campfire-standup-builder-header,
+.campfire-standup-overview-surface,
+.campfire-standup-template-list-surface,
+.campfire-standup-schedules-create-surface,
+.campfire-standup-schedules-list-surface,
+.campfire-standup-create-surface {
+	display: grid;
+	gap: 1rem;
+}
+
+.campfire-surface-eyebrow {
+	margin: 0 0 0.35rem;
+	font-size: 0.68rem;
+	font-weight: 700;
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	color: rgba(253, 186, 116, 0.78);
+}
+
+.campfire-pill-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 0.5rem;
+}
+
+.campfire-standup-builder,
+.campfire-standup-schedules-workflow {
+	display: grid;
+	gap: 1rem;
+}
+
+.campfire-standup-builder-create-grid,
+.campfire-standup-schedules-workflow {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.campfire-standup-create-form,
+.campfire-standup-schedule-create-form {
+	display: grid;
+	gap: 1rem;
+}
+
+.campfire-standup-builder-create-grid {
+	display: grid;
+	gap: 1rem;
+}
+
+.campfire-flat-empty-state {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.85rem;
+	padding: 1rem;
+	border: 1px dashed rgba(251, 191, 36, 0.18);
+	border-radius: 1rem;
+	background: rgba(0, 0, 0, 0.16);
+	color: rgba(255, 247, 237, 0.7);
+}
+
+.campfire-flat-empty-state h4 {
+	margin: 0;
+	font-size: 0.95rem;
+	font-weight: 700;
+	color: rgba(255, 247, 237, 0.9);
+}
+
+.campfire-flat-empty-state p {
+	margin: 0.25rem 0 0;
+	font-size: 0.84rem;
+	font-weight: 500;
+	line-height: 1.5;
+}
+
+.campfire-flat-empty-icon,
+.campfire-standup-overview-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	width: 2.25rem;
+	height: 2.25rem;
+	border-radius: 0.8rem;
+	border: 1px solid rgba(251, 191, 36, 0.16);
+	background: rgba(251, 146, 60, 0.08);
+	color: rgba(253, 186, 116, 0.94);
+}
+
+.campfire-standup-overview-list,
+.campfire-standup-template-editor-list,
+.campfire-standup-schedule-list,
+.campfire-standup-question-editor-list {
+	display: grid;
+	gap: 0.8rem;
+}
+
+.campfire-standup-overview-row,
+.campfire-standup-template-editor,
+.campfire-standup-question-editor,
+.campfire-standup-schedule-card {
+	display: grid;
+	gap: 1rem;
+	padding: 1rem;
+	border: 1px solid var(--campfire-standup-line);
+	border-radius: 1.1rem;
+	background: rgba(0, 0, 0, 0.14);
+	box-shadow: none;
+}
+
+.campfire-standup-template-editor,
+.campfire-standup-schedule-card {
+	padding: 1.15rem;
+}
+
+.campfire-standup-overview-main {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.85rem;
+	min-width: 0;
+}
+
+.campfire-standup-overview-title-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.campfire-standup-overview-title-row h4 {
+	margin: 0;
+	font-size: 1rem;
+	font-weight: 750;
+	letter-spacing: -0.02em;
+	color: rgba(255, 247, 237, 0.92);
+}
+
+.campfire-standup-overview-description {
+	margin: 0.45rem 0 0;
+	font-size: 0.85rem;
+	font-weight: 500;
+	line-height: 1.55;
+	color: rgba(255, 247, 237, 0.62);
+}
+
+.campfire-standup-overview-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.45rem;
+	font-size: 0.76rem;
+	font-weight: 700;
+	color: rgba(255, 247, 237, 0.56);
+}
+
+.campfire-standup-overview-meta span,
+.campfire-standup-question-chip-list span {
+	display: inline-flex;
+	align-items: center;
+	min-height: 1.7rem;
+	padding: 0.25rem 0.65rem;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.035);
+}
+
+.campfire-standup-question-chip-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+	font-size: 0.74rem;
+	font-weight: 700;
+	color: rgba(255, 247, 237, 0.6);
+}
+
+.campfire-standup-template-questions {
+	display: grid;
+	gap: 0.85rem;
+	padding-top: 1rem;
+	border-top: 1px solid var(--campfire-standup-line);
+}
+
+.campfire-standup-schedule-footer {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.8rem;
+	padding-top: 0.85rem;
+	border-top: 1px solid var(--campfire-standup-line);
+}
+
+.campfire-standup-schedule-footer .cf\:text-muted-foreground,
+.campfire-standup-template-editor .cf\:text-muted-foreground,
+.campfire-standup-question-editor .cf\:text-muted-foreground {
+	font-weight: 500;
+}
+
+.campfire-standup-template-editor .cf\:font-black,
+.campfire-standup-question-editor .cf\:font-black,
+.campfire-standup-schedule-card .cf\:font-black {
+	font-weight: 750;
+}
+
+@media (min-width: 1180px) {
+	.campfire-standup-builder-create-grid,
+	.campfire-standup-schedules-workflow {
+		grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+	}
+
+	.campfire-standup-schedules-create-surface {
+		align-self: start;
+		position: sticky;
+		top: 1rem;
+	}
+}
+
+@media (max-width: 720px) {
+	.campfire-pill-row {
+		justify-content: flex-start;
+	}
+
+	.campfire-standup-overview-main,
+	.campfire-flat-empty-state {
+		align-items: flex-start;
+	}
+
+	.campfire-standup-schedule-footer {
+		align-items: stretch;
+	}
+
+	.campfire-standup-schedule-footer button {
+		width: 100%;
+	}
+}
+
+/* Source: 103-foundation-cleanup.css */
+
+.campfire-empty-state {
+	display: grid;
+	justify-items: center;
+	gap: 1rem;
+	padding: clamp(2rem, 5vw, 4rem);
+	text-align: center;
+}
+
+.campfire-empty-state-icon {
+	display: grid;
+	place-items: center;
+	width: 3.5rem;
+	height: 3.5rem;
+	border: 1px solid rgb(251 191 36 / 18%);
+	border-radius: 1.25rem;
+	background: rgb(251 191 36 / 8%);
+	color: rgb(251 191 36 / 90%);
+}
+
+.campfire-empty-state-copy {
+	display: grid;
+	max-width: 32rem;
+	gap: 0.55rem;
+}
+
+.campfire-empty-state-copy h3 {
+	margin: 0;
+	font-size: clamp(1.15rem, 2vw, 1.45rem);
+	font-weight: 720;
+	letter-spacing: -0.02em;
+	color: rgb(255 247 237);
+}
+
+.campfire-empty-state-copy p {
+	margin: 0;
+	font-size: 0.93rem;
+	font-weight: 520;
+	line-height: 1.65;
+	color: rgb(255 237 213 / 70%);
+}
+
+.campfire-empty-state-action {
+	margin-top: 0.65rem;
+	display: flex;
+	justify-content: center;
+}
+
+.campfire-restricted-surface {
+	min-height: 22rem;
+	display: grid;
+	place-items: center;
+}
+
+.campfire-workspace-overview {
+	display: grid;
+	gap: 1rem;
+}
+
+.campfire-workspace-overview-identity,
+.campfire-workspace-settings-surface,
+.campfire-workspace-danger-surface {
+	display: grid;
+	gap: 1rem;
+}
+
+.campfire-workspace-overview-heading,
+.campfire-workspace-settings-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.campfire-workspace-overview-heading h3,
+.campfire-workspace-settings-header h3 {
+	margin: 0;
+	font-size: clamp(1.18rem, 2vw, 1.55rem);
+	font-weight: 720;
+	letter-spacing: -0.025em;
+	color: rgb(255 247 237);
+}
+
+.campfire-workspace-overview-heading p:not(.campfire-page-eyebrow),
+.campfire-workspace-settings-header p:not(.campfire-page-eyebrow) {
+	max-width: 48rem;
+	margin: 0.35rem 0 0;
+	font-size: 0.92rem;
+	font-weight: 520;
+	line-height: 1.65;
+	color: rgb(255 237 213 / 68%);
+}
+
+.campfire-overview-status-pill {
+	white-space: nowrap;
+	border: 1px solid rgb(52 211 153 / 22%);
+	border-radius: 999px;
+	background: rgb(16 185 129 / 10%);
+	padding: 0.35rem 0.65rem;
+	font-size: 0.72rem;
+	font-weight: 680;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: rgb(167 243 208);
+}
+
+.campfire-workspace-facts,
+.campfire-workspace-route-summary {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0.75rem;
+}
+
+.campfire-overview-fact {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.75rem;
+	min-width: 0;
+	border: 1px solid rgb(255 255 255 / 7%);
+	border-radius: 1rem;
+	background: rgb(15 23 42 / 32%);
+	padding: 0.85rem;
+}
+
+.campfire-overview-fact-icon {
+	display: grid;
+	place-items: center;
+	width: 2rem;
+	height: 2rem;
+	flex: 0 0 auto;
+	border-radius: 0.75rem;
+	background: rgb(251 191 36 / 8%);
+	color: rgb(251 191 36 / 86%);
+}
+
+.campfire-overview-fact-copy {
+	display: grid;
+	min-width: 0;
+	gap: 0.22rem;
+}
+
+.campfire-overview-fact-copy span,
+.campfire-overview-fact-copy small {
+	font-size: 0.72rem;
+	font-weight: 680;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: rgb(255 237 213 / 50%);
+}
+
+.campfire-overview-fact-copy strong {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 0.9rem;
+	font-weight: 680;
+	letter-spacing: -0.01em;
+	color: rgb(255 247 237);
+}
+
+.campfire-overview-link-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	border-top: 1px solid rgb(255 255 255 / 7%);
+	padding-top: 0.95rem;
+}
+
+.campfire-overview-link-row span,
+.campfire-overview-link-row strong,
+.campfire-overview-link-row a {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.45rem;
+	font-size: 0.85rem;
+	font-weight: 650;
+	color: rgb(255 237 213 / 72%);
+}
+
+.campfire-overview-link-row a {
+	color: rgb(251 191 36 / 90%);
+	text-decoration: none;
+}
+
+.campfire-field-stack {
+	display: grid;
+	gap: 0.45rem;
+}
+
+.campfire-field-stack p {
+	margin: 0;
+	font-size: 0.82rem;
+	font-weight: 520;
+	line-height: 1.55;
+	color: rgb(255 237 213 / 58%);
+}
+
+.campfire-field-label span {
+	color: rgb(251 191 36 / 92%);
+}
+
+.campfire-workspace-actions-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+}
+
+.campfire-workspace-actions-row p {
+	max-width: 32rem;
+	margin: 0;
+	font-size: 0.83rem;
+	font-weight: 520;
+	line-height: 1.55;
+	color: rgb(255 237 213 / 62%);
+}
+
+@media (max-width: 720px) {
+	.campfire-workspace-overview-heading,
+	.campfire-workspace-settings-header,
+	.campfire-overview-link-row,
+	.campfire-workspace-actions-row {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.campfire-workspace-facts,
+	.campfire-workspace-route-summary {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Source: 104-final-polish.css */
+
+/*
+Final polish keeps Campfire matte, calm, and consistent after the broader
+flattening pass. These selectors intentionally sit late in the cascade so old
+compatibility primitives inherit the new design language without another large
+component rewrite.
+*/
+.campfire-theme [data-slot='button'] {
+	box-shadow: none !important;
+	font-weight: 500;
+	letter-spacing: 0;
+}
+
+.campfire-theme [data-slot='button'][data-variant='default'] {
+	background: rgba(251, 146, 60, 0.12);
+	border-color: rgba(253, 186, 116, 0.28);
+	color: rgba(255, 247, 237, 0.95);
+}
+
+.campfire-theme [data-slot='button'][data-variant='default']:hover {
+	background: rgba(251, 146, 60, 0.18);
+	border-color: rgba(253, 186, 116, 0.42);
+}
+
+.campfire-theme [data-slot='button'][data-variant='secondary'],
+.campfire-theme [data-slot='button'][data-variant='outline'] {
+	background: rgba(255, 255, 255, 0.045);
+	border-color: rgba(255, 255, 255, 0.1);
+	color: rgba(255, 247, 237, 0.88);
+}
+
+.campfire-theme [data-slot='button'][data-variant='secondary']:hover,
+.campfire-theme [data-slot='button'][data-variant='outline']:hover {
+	background: rgba(255, 255, 255, 0.075);
+	border-color: rgba(255, 255, 255, 0.16);
+}
+
+.campfire-theme [data-slot='button'][data-variant='destructive'] {
+	background: rgba(248, 113, 113, 0.1);
+	border-color: rgba(252, 165, 165, 0.24);
+	color: rgba(254, 226, 226, 0.94);
+}
+
+.campfire-theme [data-slot='button'][data-variant='destructive']:hover {
+	background: rgba(248, 113, 113, 0.16);
+	border-color: rgba(252, 165, 165, 0.38);
+}
+
+.campfire-bootstrap-state-surface {
+	margin: 0 auto;
+	max-width: 720px;
+}
+
+.campfire-theme .campfire-panel {
+	background: rgba(15, 23, 42, 0.56);
+	border-color: rgba(255, 255, 255, 0.085);
+	box-shadow: none;
+}
+
+.campfire-theme .campfire-panel::before {
+	display: none;
+}
+
+.campfire-theme .campfire-card-header {
+	border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.campfire-theme .campfire-title {
+	font-weight: 700;
+	letter-spacing: -0.02em;
+}
+
+.campfire-theme .campfire-description,
+.campfire-theme .campfire-empty p,
+.campfire-theme .campfire-empty-description {
+	font-weight: 400;
+	color: rgba(255, 237, 213, 0.68);
+}
+
+.campfire-theme .campfire-empty h3,
+.campfire-theme .campfire-empty-title {
+	font-size: 1rem;
+	font-weight: 650;
+	letter-spacing: -0.01em;
+}
+
+.campfire-theme .campfire-icon-tile--empty {
+	background: rgba(251, 146, 60, 0.1);
+	border-color: rgba(253, 186, 116, 0.18);
+	box-shadow: none;
+}
+
+.campfire-theme .campfire-status-pill {
+	font-weight: 500;
+	box-shadow: none;
+}
+
+.campfire-theme .campfire-page-title {
+	font-weight: 720;
+}
+
+.campfire-theme .campfire-section-tab,
+.campfire-theme .campfire-pill-tab {
+	box-shadow: none;
+	font-weight: 500;
+}
+
+.campfire-theme .campfire-section-tab--active,
+.campfire-theme .campfire-pill-tab--active {
+	background: linear-gradient(135deg, rgba(251, 146, 60, 0.18), rgba(245, 158, 11, 0.11));
+	border-color: rgba(253, 186, 116, 0.36);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Source: 105-setup-polish.css */
+
+/*
+Setup polish brings the first-run workspace creation screen in line with the
+flatter app shell. It avoids the old panel-inside-card feel while preserving the
+same setup behavior and local validation affordances.
+*/
+.campfire-setup-form {
+	display: grid;
+	gap: 1rem;
+	width: 100%;
+}
+
+.campfire-setup-summary-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 0.75rem;
+}
+
+.campfire-setup-grid {
+	display: grid;
+	grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+	gap: 1rem;
+	align-items: start;
+}
+
+.campfire-setup-primary-surface,
+.campfire-setup-side-stack {
+	display: grid;
+	gap: 1rem;
+}
+
+.campfire-section-heading-row--compact {
+	align-items: flex-start;
+	gap: 0.75rem;
+}
+
+.campfire-setup-weekday-grid {
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	gap: 0.5rem;
+}
+
+.campfire-theme .campfire-check-card--flat {
+	background: rgba(255, 255, 255, 0.035);
+	border-color: rgba(255, 255, 255, 0.085);
+	box-shadow: none;
+}
+
+.campfire-theme .campfire-check-card--flat:hover {
+	background: rgba(255, 255, 255, 0.055);
+	border-color: rgba(253, 186, 116, 0.18);
+}
+
+.campfire-submit-row--flat {
+	background: rgba(15, 23, 42, 0.48);
+	border: 1px solid rgba(255, 255, 255, 0.085);
+	box-shadow: none;
+}
+
+.campfire-submit-button--flat {
+	background: rgba(251, 146, 60, 0.13);
+	border: 1px solid rgba(253, 186, 116, 0.28);
+	box-shadow: none;
+	font-weight: 500;
+}
+
+.campfire-submit-button--flat:hover:not(:disabled) {
+	background: rgba(251, 146, 60, 0.18);
+	border-color: rgba(253, 186, 116, 0.42);
+	box-shadow: none;
+}
+
+.campfire-setup-message {
+	border-radius: 1rem;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	background: rgba(255, 255, 255, 0.045);
+	padding: 0.85rem 1rem;
+	color: rgba(255, 237, 213, 0.76);
+	font-size: 0.9rem;
+	font-weight: 500;
+}
+
+.campfire-setup-message--success {
+	border-color: rgba(52, 211, 153, 0.2);
+	background: rgba(16, 185, 129, 0.1);
+	color: rgba(209, 250, 229, 0.96);
+}
+
+.campfire-setup-message--error {
+	border-color: rgba(248, 113, 113, 0.22);
+	background: rgba(248, 113, 113, 0.1);
+	color: rgba(254, 226, 226, 0.96);
+}
+
+.campfire-theme .campfire-weekday-button {
+	min-height: 4.25rem;
+	border-radius: 1rem;
+	border: 1px solid rgba(255, 255, 255, 0.085);
+	background: rgba(255, 255, 255, 0.035);
+	color: rgba(255, 237, 213, 0.64);
+	box-shadow: none;
+	transition:
+		background 160ms ease,
+		border-color 160ms ease,
+		color 160ms ease,
+		transform 160ms ease;
+}
+
+.campfire-theme .campfire-weekday-button:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.06);
+	border-color: rgba(253, 186, 116, 0.2);
+	color: rgba(255, 247, 237, 0.88);
+	transform: translateY(-1px);
+}
+
+.campfire-theme .campfire-weekday-button--selected {
+	background: rgba(251, 146, 60, 0.12);
+	border-color: rgba(253, 186, 116, 0.34);
+	color: rgba(255, 247, 237, 0.96);
+}
+
+.campfire-theme .campfire-weekday-button:focus-visible,
+.campfire-theme .campfire-submit-button--flat:focus-visible,
+.campfire-theme .campfire-check-card--flat:focus-within {
+	outline: 2px solid rgba(251, 146, 60, 0.55);
+	outline-offset: 2px;
+}
+
+@media (max-width: 1180px) {
+	.campfire-setup-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.campfire-setup-side-stack {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 820px) {
+	.campfire-setup-summary-grid,
+	.campfire-setup-side-stack {
+		grid-template-columns: 1fr;
+	}
+
+	.campfire-setup-weekday-grid {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 540px) {
+	.campfire-submit-row--flat {
+		align-items: stretch;
+	}
+
+	.campfire-submit-button--flat {
+		justify-content: center;
+		width: 100%;
+	}
+
+	.campfire-setup-weekday-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+/* Source: 106-primitive-consolidation.css */
+
+.campfire-theme .campfire-empty-state--plain {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.campfire-theme .campfire-status-pill {
+	display: inline-flex;
+	min-height: 1.65rem;
+	align-items: center;
+	gap: 0.35rem;
+	border-radius: 999px;
+	border: 1px solid rgba(251, 191, 36, 0.18);
+	background: rgba(15, 23, 42, 0.42);
+	padding: 0.25rem 0.65rem;
+	font-size: 0.72rem;
+	font-weight: 560;
+	line-height: 1;
+	letter-spacing: 0.01em;
+	color: rgba(255, 247, 237, 0.74);
+	box-shadow: none;
+}
+
+.campfire-theme .campfire-status-pill--ember {
+	border-color: rgba(251, 191, 36, 0.26);
+	background: rgba(120, 53, 15, 0.24);
+	color: rgba(254, 243, 199, 0.9);
+}
+
+.campfire-theme .campfire-status-pill--green {
+	border-color: rgba(134, 239, 172, 0.24);
+	background: rgba(20, 83, 45, 0.22);
+	color: rgba(220, 252, 231, 0.88);
+}
+
+.campfire-theme .campfire-status-pill--red {
+	border-color: rgba(252, 165, 165, 0.25);
+	background: rgba(127, 29, 29, 0.22);
+	color: rgba(254, 226, 226, 0.9);
+}
+
+.campfire-theme .campfire-status-pill--blue {
+	border-color: rgba(147, 197, 253, 0.22);
+	background: rgba(30, 64, 175, 0.2);
+	color: rgba(219, 234, 254, 0.88);
+}
+
+.campfire-theme .campfire-status-pill--slate {
+	border-color: rgba(148, 163, 184, 0.2);
+	background: rgba(15, 23, 42, 0.36);
+	color: rgba(226, 232, 240, 0.72);
+}
+
+/* Source: 107-workflow-validation-polish.css */
+
+.campfire-theme .campfire-field-error {
+	display: block;
+	margin-top: 0.35rem;
+	font-size: 0.75rem;
+	font-weight: 520;
+	line-height: 1.35;
+	color: rgba(254, 202, 202, 0.9);
+}
+
+.campfire-theme [aria-invalid='true'] {
+	border-color: rgba(248, 113, 113, 0.48) !important;
+	box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.12) !important;
+}
+
+.campfire-theme .campfire-data-table-empty {
+	grid-column: 1 / -1;
+	padding: 1.25rem;
+}
+
+.campfire-theme .campfire-data-table-empty .campfire-empty-state {
+	border-style: dashed;
+	background: rgba(15, 23, 42, 0.26);
+}
+
+.campfire-theme .campfire-select-trigger,
+.campfire-theme .campfire-list-toolbar button,
+.campfire-theme .campfire-form-field button[aria-haspopup='listbox'] {
+	font-weight: 520;
+}
+
+@media (max-width: 760px) {
+	.campfire-theme .campfire-data-table-empty {
+		padding: 0.9rem;
+	}
+}
+
+/* Source: 108-feedback-consolidation.css */
+
+/*
+Feedback consolidation keeps local validation and non-blocking notices stable.
+Server/API/network failures are rendered through the bottom-right toast host.
+*/
+.campfire-theme .campfire-inline-feedback,
+.campfire-theme .campfire-loading-feedback {
+	box-shadow: none;
+	font-weight: 500;
+	letter-spacing: 0;
+	min-height: 42px;
+}
+
+.campfire-theme .campfire-inline-feedback svg,
+.campfire-theme .campfire-loading-feedback svg {
+	filter: none;
+}
+
+.campfire-theme .campfire-inline-feedback-list {
+	max-width: 100%;
+}
+
+@media (max-width: 720px) {
+	.campfire-theme .campfire-inline-feedback,
+	.campfire-theme .campfire-loading-feedback {
+		align-items: flex-start;
+		border-radius: 16px;
+		padding: 12px 14px;
+	}
+}
+
+/* Source: 109-final-qa.css */
+
+/*
+ * Final QA polish for the Campfire redesign.
+ *
+ * This file intentionally stays late in the cascade. It tightens accessibility,
+ * responsive behavior, and layout stability without changing product behavior.
+ */
+
+.campfire-theme {
+	--campfire-focus-ring: 0 0 0 3px color-mix(in srgb, var(--campfire-ember-300, #fbbf24) 26%, transparent);
+	--campfire-focus-border: color-mix(in srgb, var(--campfire-ember-300, #fbbf24) 46%, transparent);
+}
+
+.campfire-theme :is(button, a, input, textarea, select, [role='button'], [tabindex]):focus-visible {
+	outline: none;
+	box-shadow: var(--campfire-focus-ring);
+}
+
+.campfire-theme :is(input, textarea, select):focus-visible,
+.campfire-theme .campfire-date-input:focus-within,
+.campfire-theme .campfire-time-input:focus-within,
+.campfire-theme .campfire-select-trigger:focus-visible {
+	border-color: var(--campfire-focus-border) !important;
+}
+
+.campfire-theme :is(button, [role='button']) svg,
+.campfire-theme .campfire-section-tab svg,
+.campfire-theme .campfire-pill-tab svg,
+.campfire-theme .campfire-sidebar-nav-item svg {
+	stroke-width: 1.85;
+}
+
+.campfire-theme .campfire-section-tabs,
+.campfire-theme .campfire-pill-tabs {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(251, 191, 36, 0.22) transparent;
+}
+
+.campfire-theme .campfire-section-tabs::-webkit-scrollbar,
+.campfire-theme .campfire-pill-tabs::-webkit-scrollbar {
+	height: 6px;
+}
+
+.campfire-theme .campfire-section-tabs::-webkit-scrollbar-thumb,
+.campfire-theme .campfire-pill-tabs::-webkit-scrollbar-thumb {
+	background: rgba(251, 191, 36, 0.2);
+	border-radius: 999px;
+}
+
+.campfire-theme .campfire-surface {
+	min-width: 0;
+}
+
+.campfire-theme .campfire-surface :is(table, .campfire-report-table, .campfire-data-table) {
+	min-width: 100%;
+}
+
+.campfire-theme .campfire-table-scroll,
+.campfire-theme .campfire-report-table-scroll,
+.campfire-theme .campfire-workflow-table-scroll {
+	overflow-x: auto;
+	overscroll-behavior-x: contain;
+	padding-bottom: 0.25rem;
+}
+
+.campfire-divider {
+	width: 100%;
+	border: 0;
+	border-top: 1px solid rgba(255, 255, 255, 0.09);
+	margin: 0.25rem 0;
+}
+
+.campfire-divider--labeled {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	border: 0;
+	color: rgba(226, 232, 240, 0.52);
+	font-size: 0.72rem;
+	font-weight: 600;
+	letter-spacing: 0.09em;
+	text-transform: uppercase;
+}
+
+.campfire-divider--labeled::before,
+.campfire-divider--labeled::after {
+	content: '';
+	min-width: 1rem;
+	flex: 1;
+	border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.campfire-kbd {
+	display: inline-flex;
+	min-width: 1.5rem;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	border-bottom-color: rgba(255, 255, 255, 0.2);
+	border-radius: 0.55rem;
+	background: rgba(255, 255, 255, 0.055);
+	padding: 0.12rem 0.42rem;
+	color: rgba(255, 237, 213, 0.82);
+	font-size: 0.72rem;
+	font-weight: 600;
+	line-height: 1.1;
+	box-shadow: none;
+}
+
+.campfire-visually-hidden {
+	position: absolute !important;
+	width: 1px !important;
+	height: 1px !important;
+	padding: 0 !important;
+	margin: -1px !important;
+	overflow: hidden !important;
+	clip: rect(0, 0, 0, 0) !important;
+	white-space: nowrap !important;
+	border: 0 !important;
+}
+
+.campfire-inline-feedback,
+.campfire-loading-feedback,
+.campfire-workflow-note,
+.campfire-empty-state {
+	contain: layout paint;
+}
+
+.campfire-theme .campfire-page-actions,
+.campfire-theme .campfire-workflow-actions,
+.campfire-theme .campfire-form-actions {
+	min-width: 0;
+}
+
+.campfire-theme .campfire-page-actions > *,
+.campfire-theme .campfire-workflow-actions > *,
+.campfire-theme .campfire-form-actions > * {
+	min-width: fit-content;
+}
+
+@media (max-width: 860px) {
+	.campfire-theme .campfire-page-header {
+		align-items: stretch;
+	}
+
+	.campfire-theme .campfire-page-actions {
+		width: 100%;
+		justify-content: flex-start;
+		overflow-x: auto;
+		padding-bottom: 0.15rem;
+	}
+
+	.campfire-theme .campfire-stat-card {
+		min-width: min(100%, 13rem);
+	}
+}
+
+@media (max-width: 640px) {
+	.campfire-theme .campfire-section-tabs,
+	.campfire-theme .campfire-pill-tabs {
+		margin-inline: -0.25rem;
+		padding-inline: 0.25rem;
+	}
+
+	.campfire-theme .campfire-section-tab,
+	.campfire-theme .campfire-pill-tab {
+		min-height: 2.35rem;
+	}
+
+	.campfire-theme .campfire-toast-host [data-sonner-toaster] {
+		inset-inline: 0.75rem !important;
+		bottom: max(0.75rem, env(safe-area-inset-bottom)) !important;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.campfire-theme *,
+	.campfire-theme *::before,
+	.campfire-theme *::after {
+		scroll-behavior: auto !important;
+	}
+
+	.campfire-theme .campfire-logo-ember,
+	.campfire-theme .campfire-logo-ember::before,
+	.campfire-theme .campfire-logo-ember::after {
+		animation-duration: 0.001ms !important;
+		animation-iteration-count: 1 !important;
+	}
+}
+
+/* Source: 110-live-test-readiness.css */
+
+/*
+ * Final live-test readiness pass.
+ *
+ * This file intentionally sits at the end of the Campfire cascade. It tames
+ * legacy surfaces and Tailwind utility remnants without changing product
+ * behavior or removing compatibility classes that are still referenced while
+ * the UI is being verified inside Mattermost.
+ */
+
+.campfire-theme {
+	--campfire-live-surface: color-mix(in oklab, var(--card) 88%, black 12%);
+	--campfire-live-surface-soft: color-mix(in oklab, var(--card) 72%, transparent);
+	--campfire-live-border: rgba(255, 255, 255, 0.095);
+	--campfire-live-border-warm: rgba(251, 191, 36, 0.18);
+	--campfire-live-text-muted: rgba(226, 232, 240, 0.72);
+}
+
+/* Keep old compatibility panels visually flat while they are phased out. */
+.campfire-theme .campfire-panel {
+	border-color: var(--campfire-live-border) !important;
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
+		var(--campfire-live-surface) !important;
+	box-shadow: none !important;
+}
+
+.campfire-theme .campfire-panel::before {
+	display: none !important;
+}
+
+.campfire-theme .campfire-panel .campfire-panel,
+.campfire-theme .campfire-card-body .campfire-panel,
+.campfire-theme .campfire-surface .campfire-panel {
+	border-color: rgba(255, 255, 255, 0.075) !important;
+	background: rgba(255, 255, 255, 0.026) !important;
+}
+
+.campfire-theme .campfire-card-header {
+	gap: 0.55rem !important;
+	padding: 1rem 1.15rem 0.45rem !important;
+}
+
+.campfire-theme .campfire-card-body {
+	gap: 0.95rem !important;
+	padding: 0.95rem 1.15rem 1.15rem !important;
+}
+
+.campfire-theme .campfire-card-title,
+.campfire-theme .campfire-card-header h2,
+.campfire-theme .campfire-card-header h3 {
+	font-size: clamp(1rem, 0.92rem + 0.28vw, 1.18rem) !important;
+	font-weight: 680 !important;
+	letter-spacing: -0.02em !important;
+}
+
+.campfire-theme .campfire-card-description,
+.campfire-theme .campfire-card-header p,
+.campfire-theme .campfire-card-body p {
+	line-height: 1.58 !important;
+}
+
+/* Reduce legacy dashboard glow; newer stat cards still keep subtle accents. */
+.campfire-theme .campfire-metric,
+.campfire-theme .campfire-metric-link {
+	border-color: rgba(255, 255, 255, 0.085) !important;
+	background: rgba(255, 255, 255, 0.032) !important;
+	box-shadow: none !important;
+}
+
+.campfire-theme .campfire-metric:hover,
+.campfire-theme .campfire-metric-link:hover {
+	border-color: var(--campfire-live-border-warm) !important;
+	background: rgba(251, 191, 36, 0.06) !important;
+	transform: none !important;
+}
+
+.campfire-theme .campfire-metric-label,
+.campfire-theme .campfire-stat-label,
+.campfire-theme .campfire-page-eyebrow {
+	font-weight: 620 !important;
+	letter-spacing: 0.14em !important;
+}
+
+.campfire-theme .campfire-metric-value,
+.campfire-theme .campfire-stat-value {
+	font-weight: 680 !important;
+	letter-spacing: -0.025em !important;
+}
+
+/* Tailwind leftovers from older screens should not make the product shout. */
+.campfire-theme .cf\:font-black {
+	font-weight: 650 !important;
+}
+
+.campfire-theme button.cf\:font-black,
+.campfire-theme a.cf\:font-black,
+.campfire-theme label.cf\:font-black,
+.campfire-theme .campfire-status-pill.cf\:font-black,
+.campfire-theme .campfire-inline-feedback.cf\:font-black {
+	font-weight: 560 !important;
+}
+
+/* Buttons stay matte even when older utility classes leak in. */
+.campfire-theme button[class*='cf:shadow'],
+.campfire-theme a[class*='cf:shadow'] {
+	box-shadow: none !important;
+}
+
+.campfire-theme button[class*='cf:font-bold'],
+.campfire-theme button[class*='cf:font-black'],
+.campfire-theme a[class*='cf:font-bold'],
+.campfire-theme a[class*='cf:font-black'] {
+	font-weight: 560 !important;
+}
+
+.campfire-theme button[class*='cf:bg-orange'],
+.campfire-theme button[class*='cf:bg-amber'] {
+	text-shadow: none !important;
+}
+
+/* Form controls should read as quiet inputs, not shiny widgets. */
+.campfire-theme input,
+.campfire-theme textarea,
+.campfire-theme select,
+.campfire-theme [role='combobox'] {
+	box-shadow: none !important;
+}
+
+.campfire-theme input:hover,
+.campfire-theme textarea:hover,
+.campfire-theme select:hover,
+.campfire-theme [role='combobox']:hover {
+	background-color: rgba(255, 255, 255, 0.055) !important;
+}
+
+.campfire-theme input:focus-visible,
+.campfire-theme textarea:focus-visible,
+.campfire-theme select:focus-visible,
+.campfire-theme [role='combobox']:focus-visible {
+	box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.14) !important;
+}
+
+/* Tables and row lists: preserve readability on dense Mattermost screens. */
+.campfire-theme table {
+	border-collapse: separate;
+	border-spacing: 0;
+}
+
+.campfire-theme th {
+	font-weight: 620 !important;
+	letter-spacing: 0.11em !important;
+}
+
+.campfire-theme tr,
+.campfire-theme [class*='campfire-table-row'],
+.campfire-theme [class*='campfire-list-row'] {
+	transition:
+		background-color 140ms ease,
+		border-color 140ms ease;
+}
+
+.campfire-theme tr:hover,
+.campfire-theme [class*='campfire-table-row']:hover,
+.campfire-theme [class*='campfire-list-row']:hover {
+	background-color: rgba(251, 191, 36, 0.035) !important;
+}
+
+/* Compact old feedback wrappers; server errors are toast-only. */
+.campfire-theme [class*='Feedback'] .campfire-inline-feedback,
+.campfire-theme .campfire-inline-feedback {
+	font-weight: 540 !important;
+	box-shadow: none !important;
+}
+
+.campfire-theme .campfire-loading-feedback {
+	border-color: rgba(255, 255, 255, 0.085) !important;
+	background: rgba(255, 255, 255, 0.035) !important;
+	box-shadow: none !important;
+}
+
+/* Keep the official logo unchanged but make the ember feel smoother in chrome. */
+.campfire-theme .campfire-logo-ember,
+.campfire-theme [class*='logo-ember'] {
+	animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1) !important;
+	filter: drop-shadow(0 0 16px rgba(251, 146, 60, 0.34)) !important;
+}
+
+/* Scrollbars should feel integrated with the warm dark app shell. */
+.campfire-theme * {
+	scrollbar-color: rgba(251, 191, 36, 0.38) rgba(255, 255, 255, 0.055);
+	scrollbar-width: thin;
+}
+
+.campfire-theme *::-webkit-scrollbar {
+	width: 0.7rem;
+	height: 0.7rem;
+}
+
+.campfire-theme *::-webkit-scrollbar-track {
+	background: rgba(255, 255, 255, 0.045);
+	border-radius: 999px;
+}
+
+.campfire-theme *::-webkit-scrollbar-thumb {
+	border: 2px solid transparent;
+	border-radius: 999px;
+	background: rgba(251, 191, 36, 0.34);
+	background-clip: padding-box;
+}
+
+.campfire-theme *::-webkit-scrollbar-thumb:hover {
+	background: rgba(251, 191, 36, 0.5);
+	background-clip: padding-box;
+}
+
+@media (max-width: 900px) {
+	.campfire-theme .campfire-card-header,
+	.campfire-theme .campfire-card-body {
+		padding-inline: 0.95rem !important;
+	}
+
+	.campfire-theme .campfire-panel,
+	.campfire-theme .campfire-surface {
+		border-radius: 1.25rem !important;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.campfire-theme tr,
+	.campfire-theme [class*='campfire-table-row'],
+	.campfire-theme [class*='campfire-list-row'] {
+		transition: none !important;
+	}
+}
+
+/* Source: 111-final-navigation-cleanup.css */
+
+/*
+ * Final navigation cleanup
+ * ------------------------
+ * These late-cascade rules keep any remaining legacy section-navigation markup
+ * visually aligned with the shared CampfireSectionTabs primitive while the code
+ * now routes Reports, Settings, and Team Review through that reusable component.
+ */
+
+.campfire-theme .campfire-section-tabs {
+	margin-block: 0.15rem 0.35rem;
+}
+
+.campfire-theme .campfire-section-tab,
+.campfire-theme .campfire-pill-tab {
+	min-height: 2.45rem;
+	font-weight: 600;
+	letter-spacing: 0.005em;
+	box-shadow: none;
+}
+
+.campfire-theme .campfire-section-tab--active,
+.campfire-theme .campfire-pill-tab--active {
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 1px rgba(245, 158, 11, 0.06);
+}
+
+.campfire-theme .campfire-section-tabs::-webkit-scrollbar,
+.campfire-theme .campfire-pill-tabs::-webkit-scrollbar {
+	height: 0.45rem;
+}
+
+.campfire-theme .campfire-section-tabs::-webkit-scrollbar-thumb,
+.campfire-theme .campfire-pill-tabs::-webkit-scrollbar-thumb {
+	background: rgba(245, 158, 11, 0.24);
+	border-radius: 999px;
+}
+
+/*
+ * Deprecated fallback: if old section-grid markup survives in a page that has
+ * not yet been manually opened during live QA, flatten it instead of letting it
+ * reintroduce the old card-tabs-inside-cards appearance.
+ */
+.campfire-theme .campfire-section-nav {
+	display: flex;
+	gap: 0.5rem;
+	overflow-x: auto;
+	padding: 0.2rem 0 0.35rem;
+}
+
+.campfire-theme .campfire-section-nav > button {
+	min-width: max-content;
+	width: auto;
+	flex-direction: row;
+	align-items: center;
+	gap: 0.35rem;
+	border-radius: 999px;
+	padding: 0.58rem 0.92rem;
+	background: rgba(15, 23, 42, 0.56);
+	box-shadow: none;
+}
+
+.campfire-theme .campfire-section-nav > button span:first-child {
+	font-size: 0.86rem;
+	font-weight: 600;
+}
+
+.campfire-theme .campfire-section-nav > button span:last-child {
+	display: none;
+}
+
+@media (max-width: 720px) {
+	.campfire-theme .campfire-section-tab,
+	.campfire-theme .campfire-pill-tab,
+	.campfire-theme .campfire-section-nav > button {
+		min-height: 2.35rem;
+		padding-inline: 0.78rem;
+		font-size: 0.82rem;
+	}
+}
+
+/* Source: 112-mattermost-live-qa-hardening.css */
+
+/*
+ * Mattermost live-QA hardening for Campfire.
+ *
+ * This file is intentionally late in the cascade. It does not introduce new
+ * product behavior; it protects the flattened Campfire UI from host-app CSS,
+ * keeps controls matte, and improves the final live-test experience inside the
+ * Mattermost modal/overlay environment.
+ */
+.campfire-theme {
+	--campfire-live-border: rgba(255, 255, 255, 0.09);
+	--campfire-live-border-strong: rgba(255, 176, 88, 0.2);
+	--campfire-live-surface: rgba(20, 18, 16, 0.86);
+	--campfire-live-surface-soft: rgba(255, 255, 255, 0.045);
+	--campfire-live-text: rgba(255, 248, 236, 0.94);
+	--campfire-live-muted: rgba(255, 231, 199, 0.64);
+	--campfire-live-subtle: rgba(255, 231, 199, 0.46);
+	color: var(--campfire-live-text);
+	font-variant-ligatures: contextual;
+	text-rendering: optimizeLegibility;
+}
+
+/* Keep Mattermost global text and button styles from leaking into Campfire. */
+.campfire-theme,
+.campfire-theme * {
+	box-sizing: border-box;
+}
+
+.campfire-theme button,
+.campfire-theme input,
+.campfire-theme textarea,
+.campfire-theme select {
+	font: inherit;
+	letter-spacing: inherit;
+}
+
+.campfire-theme button,
+.campfire-theme [role='button'] {
+	-webkit-tap-highlight-color: transparent;
+}
+
+.campfire-theme button:not(:disabled),
+.campfire-theme [role='button']:not([aria-disabled='true']) {
+	cursor: pointer;
+}
+
+.campfire-theme button:disabled,
+.campfire-theme [aria-disabled='true'] {
+	cursor: not-allowed;
+	filter: saturate(0.72);
+}
+
+/* Late matte-button guard: old utility classes must not recreate shiny CTAs. */
+.campfire-theme .cf\:shadow,
+.campfire-theme .cf\:shadow-sm,
+.campfire-theme .cf\:shadow-md,
+.campfire-theme .cf\:shadow-lg,
+.campfire-theme .cf\:shadow-xl,
+.campfire-theme .cf\:shadow-2xl,
+.campfire-theme button[class*='shadow'],
+.campfire-theme [role='button'][class*='shadow'] {
+	box-shadow: none !important;
+}
+
+.campfire-theme .cf\:font-black,
+.campfire-theme .cf\:font-extrabold,
+.campfire-theme button.cf\:font-bold,
+.campfire-theme [role='button'].cf\:font-bold {
+	font-weight: 600 !important;
+}
+
+.campfire-theme button[class*='gradient'],
+.campfire-theme [role='button'][class*='gradient'] {
+	box-shadow: none;
+}
+
+.campfire-theme .campfire-button,
+.campfire-theme .campfire-action,
+.campfire-theme .campfire-nav-item,
+.campfire-theme .campfire-section-tab,
+.campfire-theme .campfire-quick-link,
+.campfire-theme .campfire-decision-button {
+	text-shadow: none;
+}
+
+/* Keep the app shell stable inside Mattermost's changing viewport sizes. */
+.campfire-theme .campfire-shell,
+.campfire-theme .campfire-workspace-shell,
+.campfire-theme .campfire-modal-shell {
+	isolation: isolate;
+	min-width: 0;
+}
+
+.campfire-theme .campfire-shell-main,
+.campfire-theme .campfire-workspace-main,
+.campfire-theme .campfire-page,
+.campfire-theme .campfire-page-body {
+	min-width: 0;
+}
+
+.campfire-theme .campfire-page-body {
+	contain: layout style;
+}
+
+.campfire-theme .campfire-page-header,
+.campfire-theme .campfire-page-heading,
+.campfire-theme .campfire-workflow-header {
+	min-width: 0;
+}
+
+.campfire-theme .campfire-page-header h1,
+.campfire-theme .campfire-page-heading h1,
+.campfire-theme .campfire-workflow-header h1 {
+	text-wrap: balance;
+}
+
+.campfire-theme .campfire-page-header p,
+.campfire-theme .campfire-page-heading p,
+.campfire-theme .campfire-workflow-header p {
+	max-width: 72ch;
+	text-wrap: pretty;
+}
+
+/* Make dense lists scroll without forcing the whole modal wider. */
+.campfire-theme .campfire-table-shell,
+.campfire-theme .campfire-table-wrap,
+.campfire-theme .campfire-scroll-x,
+.campfire-theme [data-campfire-scroll-x='true'] {
+	overflow-x: auto;
+	overflow-y: hidden;
+	min-width: 0;
+	scrollbar-gutter: stable;
+}
+
+.campfire-theme table,
+.campfire-theme .campfire-table,
+.campfire-theme .campfire-report-table,
+.campfire-theme .campfire-data-table {
+	border-collapse: separate;
+	border-spacing: 0;
+	min-width: max-content;
+}
+
+.campfire-theme .campfire-table-row,
+.campfire-theme .campfire-list-row,
+.campfire-theme .campfire-request-row,
+.campfire-theme .campfire-task-row,
+.campfire-theme .campfire-time-row {
+	transition:
+		background-color 150ms ease,
+		border-color 150ms ease,
+		transform 150ms ease;
+}
+
+.campfire-theme .campfire-table-row:hover,
+.campfire-theme .campfire-list-row:hover,
+.campfire-theme .campfire-request-row:hover,
+.campfire-theme .campfire-task-row:hover,
+.campfire-theme .campfire-time-row:hover {
+	background: rgba(255, 255, 255, 0.055);
+	border-color: var(--campfire-live-border-strong);
+	transform: translateY(-1px);
+}
+
+/* Inputs should remain elegant, matte, and stable during validation. */
+.campfire-theme .campfire-field,
+.campfire-theme .campfire-date-input,
+.campfire-theme .campfire-time-input,
+.campfire-theme .campfire-select,
+.campfire-theme input,
+.campfire-theme textarea,
+.campfire-theme select {
+	min-width: 0;
+}
+
+.campfire-theme input,
+.campfire-theme textarea,
+.campfire-theme select {
+	box-shadow: none;
+}
+
+.campfire-theme input::placeholder,
+.campfire-theme textarea::placeholder {
+	color: rgba(255, 231, 199, 0.38);
+}
+
+.campfire-theme textarea {
+	resize: vertical;
+}
+
+.campfire-theme .campfire-field-error,
+.campfire-theme [data-campfire-field-error='true'] {
+	min-height: 1.1rem;
+	line-height: 1.1rem;
+}
+
+/* Make status pills readable but not visually loud. */
+.campfire-theme .campfire-status-pill,
+.campfire-theme .campfire-pill,
+.campfire-theme .campfire-meta-pill {
+	font-weight: 600;
+	letter-spacing: 0.01em;
+	text-shadow: none;
+	box-shadow: none;
+}
+
+/* Keep markdown/report previews readable without adding a nested-card feel. */
+.campfire-theme .campfire-markdown-preview,
+.campfire-theme .campfire-report-preview,
+.campfire-theme .campfire-preview-surface {
+	max-width: 100%;
+	line-height: 1.65;
+	word-break: break-word;
+	overflow-wrap: anywhere;
+}
+
+.campfire-theme .campfire-markdown-preview pre,
+.campfire-theme .campfire-report-preview pre,
+.campfire-theme .campfire-preview-surface pre {
+	max-width: 100%;
+	overflow-x: auto;
+	white-space: pre-wrap;
+}
+
+/* Prevent small icon/text alignment drift. */
+.campfire-theme svg {
+	flex-shrink: 0;
+}
+
+.campfire-theme .campfire-icon-label,
+.campfire-theme .campfire-nav-item,
+.campfire-theme .campfire-section-tab,
+.campfire-theme .campfire-button-content {
+	align-items: center;
+}
+
+/* Toasts must stay inside the Campfire visual layer and never shift layout. */
+.campfire-theme .campfire-toast-host {
+	position: fixed;
+	inset: auto max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) auto;
+	z-index: 2147483000;
+	pointer-events: none;
+}
+
+.campfire-theme .campfire-toast-host * {
+	pointer-events: auto;
+}
+
+/* Host-aware fullscreen fallback for narrow Mattermost windows. */
+@media (max-width: 960px) {
+	.campfire-theme .campfire-shell,
+	.campfire-theme .campfire-workspace-shell,
+	.campfire-theme .campfire-modal-shell {
+		border-radius: 0;
+		min-height: 100dvh;
+	}
+
+	.campfire-theme .campfire-page-header,
+	.campfire-theme .campfire-page-heading,
+	.campfire-theme .campfire-workflow-header {
+		gap: 0.75rem;
+	}
+
+	.campfire-theme .campfire-section-tabs,
+	.campfire-theme .campfire-tab-list,
+	.campfire-theme [data-campfire-tabs='true'] {
+		overflow-x: auto;
+		overflow-y: hidden;
+		padding-bottom: 0.2rem;
+		scrollbar-width: none;
+	}
+
+	.campfire-theme .campfire-section-tabs::-webkit-scrollbar,
+	.campfire-theme .campfire-tab-list::-webkit-scrollbar,
+	.campfire-theme [data-campfire-tabs='true']::-webkit-scrollbar {
+		display: none;
+	}
+}
+
+@media (max-width: 720px) {
+	.campfire-theme .campfire-stat-grid,
+	.campfire-theme .campfire-summary-grid,
+	.campfire-theme .campfire-workflow-grid,
+	.campfire-theme .campfire-two-column,
+	.campfire-theme .campfire-split-layout {
+		grid-template-columns: minmax(0, 1fr) !important;
+	}
+
+	.campfire-theme .campfire-page-actions,
+	.campfire-theme .campfire-toolbar,
+	.campfire-theme .campfire-filter-bar {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.campfire-theme .campfire-page-actions > *,
+	.campfire-theme .campfire-toolbar > *,
+	.campfire-theme .campfire-filter-bar > * {
+		width: 100%;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.campfire-theme *,
+	.campfire-theme *::before,
+	.campfire-theme *::after {
+		animation-duration: 0.001ms !important;
+		animation-iteration-count: 1 !important;
+		scroll-behavior: auto !important;
+		transition-duration: 0.001ms !important;
+	}
+}
+
+/* Source: 113-live-feedback-fixes.css */
+
+/*
+ * Live feedback fixes
+ * -------------------
+ * Direct fixes from the first Mattermost live UI pass: larger content scale,
+ * warmer surfaces, stronger section tabs, calmer selects/toasts, and improved
+ * dense input behavior without changing the left navigation scale.
+ */
+
+.campfire-theme .campfire-workspace-content {
+	font-size: 1.08rem;
+}
+
+.campfire-theme .campfire-workspace-content .campfire-page-header h2,
+.campfire-theme .campfire-workspace-content .campfire-page-title,
+.campfire-theme .campfire-workspace-content h2 {
+	font-size: clamp(2.2rem, 2.2vw, 3rem);
+	line-height: 0.98;
+	letter-spacing: -0.055em;
+}
+
+.campfire-theme .campfire-surface-title,
+.campfire-theme .campfire-workspace-overview-heading h3,
+.campfire-theme .campfire-workspace-settings-header h3,
+.campfire-theme .campfire-team-list-heading h3 {
+	font-size: clamp(1.2rem, 1.15vw, 1.45rem);
+	line-height: 1.12;
+}
+
+.campfire-theme .campfire-surface-description,
+.campfire-theme .campfire-workspace-content p,
+.campfire-theme .campfire-workspace-content label,
+.campfire-theme .campfire-field-label {
+	font-size: 0.98rem;
+}
+
+.campfire-theme .campfire-stat-card {
+	min-height: 4.65rem;
+	padding: 1.08rem 1.12rem;
+	background:
+		radial-gradient(circle at 0% 0%, rgba(251, 146, 60, 0.055), transparent 38%),
+		rgba(255, 255, 255, 0.04);
+}
+
+.campfire-theme .campfire-stat-label,
+.campfire-theme .campfire-stat-helper {
+	font-size: 0.86rem;
+}
+
+.campfire-theme .campfire-stat-value {
+	font-size: 1.12rem;
+}
+
+.campfire-theme .campfire-stat-card--blue .campfire-stat-icon,
+.campfire-theme .campfire-status-pill--blue {
+	border-color: rgba(253, 186, 116, 0.2) !important;
+	background: rgba(251, 146, 60, 0.08) !important;
+	color: #fed7aa !important;
+}
+
+.campfire-theme .campfire-overview-fact,
+.campfire-theme .campfire-workspace-route-summary .campfire-overview-fact {
+	background:
+		radial-gradient(circle at 0% 0%, rgba(251, 146, 60, 0.07), transparent 42%),
+		rgba(255, 255, 255, 0.038);
+}
+
+.campfire-theme .campfire-overview-board-fact {
+	grid-column: 1 / -1;
+}
+
+.campfire-theme .campfire-overview-board-fact a {
+	color: #fed7aa;
+	text-decoration: none;
+}
+
+.campfire-theme .campfire-overview-board-fact a:hover {
+	color: #ffedd5;
+	text-decoration: underline;
+	text-underline-offset: 0.18em;
+}
+
+.campfire-theme .campfire-section-tabs,
+.campfire-theme .campfire-pill-tabs {
+	position: relative;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	overflow: visible;
+	border: 1px solid rgba(253, 186, 116, 0.14);
+	border-radius: 999px;
+	background:
+		linear-gradient(135deg, rgba(251, 146, 60, 0.13), rgba(253, 186, 116, 0.035) 48%, rgba(255, 255, 255, 0.025)),
+		rgba(8, 7, 6, 0.48);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.06),
+		0 0 30px rgba(251, 146, 60, 0.09);
+	padding: 0.25rem;
+}
+
+.campfire-theme .campfire-section-tabs::after,
+.campfire-theme .campfire-pill-tabs::after {
+	position: absolute;
+	inset: auto 1.15rem -0.18rem 1.15rem;
+	height: 0.18rem;
+	border-radius: 999px;
+	background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.42), transparent);
+	content: '';
+	pointer-events: none;
+}
+
+.campfire-theme .campfire-section-tab,
+.campfire-theme .campfire-pill-tab {
+	flex: 1 1 7.6rem;
+	justify-content: center;
+	min-height: 2.6rem;
+	border-color: transparent;
+	background: transparent;
+	font-size: 0.95rem;
+	font-weight: 600;
+}
+
+.campfire-theme .campfire-section-tab--active,
+.campfire-theme .campfire-pill-tab--active {
+	border-color: rgba(253, 186, 116, 0.34);
+	background:
+		linear-gradient(180deg, rgba(251, 146, 60, 0.24), rgba(251, 146, 60, 0.12)),
+		rgba(251, 146, 60, 0.06);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.1),
+		0 0 22px rgba(251, 146, 60, 0.15);
+	color: #fed7aa;
+}
+
+.campfire-theme .campfire-date-picker-trigger {
+	min-height: 3.1rem;
+	padding-block: 0.58rem;
+}
+
+.campfire-theme .campfire-date-picker-value-stack {
+	display: grid;
+	min-width: 0;
+	gap: 0.13rem;
+	text-align: left;
+}
+
+.campfire-theme .campfire-date-picker-value {
+	font-size: 1.04rem;
+	font-weight: 700;
+}
+
+.campfire-theme .campfire-date-picker-hint {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: rgba(255, 237, 213, 0.58);
+	font-size: 0.78rem;
+	font-weight: 560;
+	letter-spacing: 0;
+}
+
+.campfire-theme .cf\:bg-\[\#050505\],
+.campfire-theme [role='listbox'] {
+	background: rgba(16, 17, 20, 0.98) !important;
+	border-color: rgba(255, 255, 255, 0.10) !important;
+}
+
+.campfire-theme [role='option'] {
+	font-size: 0.95rem !important;
+}
+
+.campfire-theme [role='option']:hover,
+.campfire-theme [role='option']:focus-visible,
+.campfire-theme [role='option'][aria-selected='true'] {
+	background: rgba(255, 255, 255, 0.06) !important;
+	box-shadow: inset 0 0 0 1px rgba(216, 161, 90, 0.18) !important;
+	color: #ffffff !important;
+}
+
+.campfire-theme [data-sonner-toast].campfire-toast,
+.campfire-theme .campfire-toast {
+	background:
+		radial-gradient(circle at 0% 0%, rgba(251, 146, 60, 0.1), transparent 34%),
+		linear-gradient(180deg, rgba(38, 28, 20, 0.96), rgba(16, 13, 10, 0.98)) !important;
+	border-color: rgba(253, 186, 116, 0.18) !important;
+	border-radius: 1rem !important;
+	box-shadow:
+		0 1.1rem 2.6rem rgba(0, 0, 0, 0.5),
+		0 0 0 1px rgba(253, 186, 116, 0.035),
+		inset 0 1px 0 rgba(255, 255, 255, 0.07) !important;
+	padding: 0.82rem 0.95rem !important;
+}
+
+.campfire-theme [data-sonner-toast].campfire-toast::before,
+.campfire-theme .campfire-toast::before {
+	display: none !important;
+}
+
+.campfire-theme .campfire-toast-title {
+	font-size: 0.94rem !important;
+	font-weight: 620 !important;
+}
+
+.campfire-theme .campfire-toast-description {
+	font-size: 0.84rem !important;
+}
+
+.campfire-theme .campfire-toast-icon-slot {
+	width: 1.85rem !important;
+	height: 1.85rem !important;
+	border-radius: 0.7rem !important;
+	background: rgba(251, 146, 60, 0.1) !important;
+}
+
+.campfire-theme .campfire-work-item-row {
+	grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+}
+
+.campfire-theme .campfire-work-item-index {
+	min-height: 2.8rem;
+}
+
+@media (max-width: 860px) {
+	.campfire-theme .campfire-workspace-content {
+		font-size: 1rem;
+	}
+
+	.campfire-theme .campfire-section-tab,
+	.campfire-theme .campfire-pill-tab {
+		flex-basis: calc(50% - 0.35rem);
+	}
+}
+
+/* Source: 114-live-feedback-round-two.css */
+
+/*
+ * Live feedback round two
+ * -----------------------
+ * Fixes the first real Mattermost QA pass: stronger content scale, full-width
+ * pill navigation, subtler selects, valid-date standup behavior affordances, and
+ * clearer dense workflow controls without enlarging the left sidebar.
+ */
+
+.campfire-theme .campfire-workspace-content {
+	font-size: 1.18rem;
+}
+
+.campfire-theme .campfire-page-stack {
+	gap: 1.15rem;
+}
+
+.campfire-theme .campfire-workspace-content .campfire-page-title,
+.campfire-theme .campfire-workspace-content .campfire-page-header h2,
+.campfire-theme .campfire-workspace-content h2 {
+	font-size: clamp(2.75rem, 2.85vw, 3.8rem);
+	line-height: 0.96;
+	letter-spacing: -0.06em;
+}
+
+.campfire-theme .campfire-page-description,
+.campfire-theme .campfire-surface-description,
+.campfire-theme .campfire-workspace-content p,
+.campfire-theme .campfire-workspace-content label,
+.campfire-theme .campfire-field-label,
+.campfire-theme .campfire-table-footer {
+	font-size: 1.05rem;
+	line-height: 1.55;
+}
+
+.campfire-theme .campfire-page-eyebrow {
+	font-size: 0.88rem;
+	letter-spacing: 0.22em;
+}
+
+.campfire-theme .campfire-surface,
+.campfire-theme .campfire-control-surface,
+.campfire-theme .campfire-table-surface {
+	background:
+		radial-gradient(circle at 0% 0%, rgba(251, 146, 60, 0.055), transparent 34%),
+		rgba(255, 255, 255, 0.032);
+}
+
+.campfire-theme .campfire-surface-title,
+.campfire-theme .campfire-flat-section-header h3,
+.campfire-theme .campfire-workspace-overview-heading h3,
+.campfire-theme .campfire-workspace-settings-header h3,
+.campfire-theme .campfire-team-list-heading h3 {
+	font-size: clamp(1.45rem, 1.45vw, 1.85rem);
+	line-height: 1.1;
+}
+
+.campfire-theme .campfire-stat-card {
+	min-height: 5.5rem;
+	padding: 1.25rem 1.35rem;
+}
+
+.campfire-theme .campfire-stat-icon {
+	width: 2.7rem;
+	height: 2.7rem;
+}
+
+.campfire-theme .campfire-stat-icon svg {
+	width: 1.35rem;
+	height: 1.35rem;
+}
+
+.campfire-theme .campfire-stat-label,
+.campfire-theme .campfire-stat-helper {
+	font-size: 0.94rem;
+}
+
+.campfire-theme .campfire-stat-value {
+	font-size: 1.35rem;
+	line-height: 1.05;
+}
+
+.campfire-theme .campfire-workspace-content input,
+.campfire-theme .campfire-workspace-content textarea,
+.campfire-theme .campfire-workspace-content select,
+.campfire-theme .campfire-workspace-content button {
+	font-size: 1.02rem;
+}
+
+.campfire-theme .campfire-workspace-content input,
+.campfire-theme .campfire-workspace-content textarea {
+	min-height: 2.9rem;
+}
+
+.campfire-theme .campfire-workspace-content textarea {
+	min-height: 7.5rem;
+}
+
+.campfire-theme .campfire-section-tabs,
+.campfire-theme .campfire-pill-tabs {
+	width: 100%;
+	max-width: none;
+	display: flex;
+	flex-wrap: nowrap;
+	gap: 0.3rem;
+	overflow: visible;
+	border-color: rgba(253, 186, 116, 0.2);
+	background:
+		linear-gradient(135deg, rgba(251, 146, 60, 0.16), rgba(253, 186, 116, 0.045) 45%, rgba(255, 255, 255, 0.025)),
+		rgba(10, 8, 6, 0.56);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.075),
+		0 0 34px rgba(251, 146, 60, 0.12);
+}
+
+.campfire-theme .campfire-section-tab,
+.campfire-theme .campfire-pill-tab {
+	flex: 1 1 0;
+	min-width: 7.25rem;
+	min-height: 2.9rem;
+	white-space: nowrap;
+	font-size: 1.02rem;
+}
+
+.campfire-theme .campfire-section-tab--active,
+.campfire-theme .campfire-pill-tab--active {
+	background:
+		linear-gradient(180deg, rgba(251, 146, 60, 0.24), rgba(251, 146, 60, 0.105)),
+		rgba(251, 146, 60, 0.055);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.1),
+		0 0 22px rgba(251, 146, 60, 0.13);
+}
+
+.campfire-theme [role='listbox'] {
+	background:
+		radial-gradient(circle at 10% 0%, rgba(251, 146, 60, 0.075), transparent 32%),
+		linear-gradient(180deg, rgba(27, 22, 17, 0.985), rgba(15, 13, 11, 0.99)) !important;
+	border-color: rgba(253, 186, 116, 0.18) !important;
+}
+
+.campfire-theme [role='option'] {
+	font-size: 1.02rem !important;
+}
+
+.campfire-theme [role='option']:hover,
+.campfire-theme [role='option']:focus-visible {
+	background: rgba(255, 255, 255, 0.075) !important;
+	box-shadow: inset 0 0 0 1px rgba(253, 186, 116, 0.06) !important;
+	color: #ffedd5 !important;
+}
+
+.campfire-theme [role='option'][aria-selected='true'] {
+	background: rgba(251, 191, 36, 0.1) !important;
+	box-shadow: inset 0 0 0 1px rgba(253, 186, 116, 0.08) !important;
+	color: #fff7ed !important;
+}
+
+.campfire-theme .campfire-date-picker-trigger {
+	min-height: 3.4rem;
+}
+
+.campfire-theme .campfire-date-picker-value {
+	font-size: 1.12rem;
+}
+
+.campfire-theme .campfire-date-picker-hint {
+	font-size: 0.9rem;
+}
+
+.campfire-theme .campfire-team-standups-controls {
+	display: grid;
+	grid-template-columns: minmax(17rem, 19rem) minmax(16rem, 28rem);
+	align-items: end;
+	gap: 1rem;
+	width: fit-content;
+	max-width: 100%;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 1.25rem;
+	background: rgba(255, 255, 255, 0.032);
+	padding: 1rem;
+}
+
+.campfire-theme .campfire-standup-controls-grid {
+	display: grid;
+	grid-template-columns: minmax(22rem, 1fr) minmax(15rem, 18rem);
+	gap: 1rem;
+	align-items: end;
+}
+
+.campfire-theme .campfire-work-item-row {
+	grid-template-columns: 2.85rem minmax(0, 1fr) auto;
+	gap: 0.75rem;
+}
+
+.campfire-theme .campfire-work-item-index {
+	min-height: 3rem;
+	font-size: 1rem;
+}
+
+.campfire-theme .campfire-task-suggestion-list {
+	margin-top: 0.45rem;
+	border: 1px solid rgba(253, 186, 116, 0.16);
+	border-radius: 0.95rem;
+	background: rgba(16, 13, 10, 0.96);
+	padding: 0.35rem;
+}
+
+.campfire-theme .campfire-task-suggestion {
+	display: flex;
+	width: 100%;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.8rem;
+	border: 0;
+	border-radius: 0.72rem;
+	background: transparent;
+	color: #f5f5f4;
+	padding: 0.62rem 0.75rem;
+	text-align: left;
+}
+
+.campfire-theme .campfire-task-suggestion:hover {
+	background: rgba(255, 255, 255, 0.07);
+}
+
+.campfire-theme .campfire-task-suggestion small {
+	color: rgba(255, 237, 213, 0.64);
+	font-size: 0.78rem;
+	text-transform: capitalize;
+}
+
+.campfire-theme .campfire-task-match-hint {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	margin-top: 0.4rem;
+	color: #86efac;
+	font-size: 0.9rem;
+	font-weight: 650;
+}
+
+.campfire-theme .campfire-data-table-row {
+	min-height: 3.15rem;
+	font-size: 1rem;
+}
+
+.campfire-theme .campfire-overview-fact,
+.campfire-theme .campfire-workspace-route-summary .campfire-overview-fact {
+	background:
+		radial-gradient(circle at 0% 0%, rgba(251, 146, 60, 0.055), transparent 35%),
+		rgba(255, 255, 255, 0.034) !important;
+}
+
+@media (max-width: 1100px) {
+	.campfire-theme .campfire-section-tabs,
+	.campfire-theme .campfire-pill-tabs {
+		overflow-x: auto;
+		padding-bottom: 0.32rem;
+	}
+
+	.campfire-theme .campfire-section-tab,
+	.campfire-theme .campfire-pill-tab {
+		flex: 0 0 auto;
+	}
+
+	.campfire-theme .campfire-standup-controls-grid,
+	.campfire-theme .campfire-team-standups-controls {
+		width: 100%;
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (max-width: 860px) {
+	.campfire-theme .campfire-workspace-content {
+		font-size: 1.05rem;
+	}
+
+	.campfire-theme .campfire-workspace-content .campfire-page-title,
+	.campfire-theme .campfire-workspace-content .campfire-page-header h2,
+	.campfire-theme .campfire-workspace-content h2 {
+		font-size: clamp(2rem, 8vw, 2.75rem);
+	}
+}
+
+/* Source: 115-live-feedback-round-three.css */
+
+/* Live feedback round three: picker containment, role UX, readable nav, and final control polish. */
+.campfire-theme .campfire-app-sidebar {
+	width: clamp(14.5rem, 15vw, 17.5rem);
+	padding: 1.35rem 1.15rem;
+}
+
+.campfire-theme .campfire-sidebar-brand-title {
+	font-size: 1.35rem;
+}
+
+.campfire-theme .campfire-sidebar-logo-tile {
+	width: 2.65rem;
+	height: 2.65rem;
+}
+
+.campfire-theme .campfire-sidebar-workspace {
+	padding: 1rem;
+}
+
+.campfire-theme .campfire-sidebar-workspace-name {
+	font-size: 1.02rem;
+}
+
+.campfire-theme .campfire-sidebar-workspace-helper,
+.campfire-theme .campfire-sidebar-user-role {
+	font-size: 0.82rem;
+}
+
+.campfire-theme .campfire-sidebar-nav-item {
+	min-height: 3.15rem;
+	padding: 0.85rem 0.95rem;
+	font-size: 1.06rem;
+	gap: 0.85rem;
+}
+
+.campfire-theme .campfire-sidebar-nav-item svg {
+	width: 1.25rem;
+	height: 1.25rem;
+}
+
+.campfire-theme .campfire-sidebar-user {
+	padding: 0.9rem;
+}
+
+.campfire-theme .campfire-sidebar-user-name {
+	font-size: 0.94rem;
+}
+
+.campfire-theme .campfire-floating-popover {
+	z-index: 2147483647 !important;
+	isolation: isolate;
+}
+
+.campfire-theme .campfire-date-picker-popover,
+.campfire-theme .campfire-time-picker-popover {
+	background: rgba(16, 17, 20, 0.98) !important;
+	border: 1px solid rgba(255, 255, 255, 0.12) !important;
+	box-shadow: 0 32px 90px rgba(0, 0, 0, 0.86), 0 0 0 1px rgba(255, 255, 255, 0.06) inset !important;
+	backdrop-filter: none !important;
+	-webkit-backdrop-filter: none !important;
+	overflow: auto;
+}
+
+.campfire-theme .campfire-time-picker-popover {
+	width: min(22rem, calc(100vw - 2rem));
+}
+
+.campfire-theme .campfire-date-picker-popover {
+	width: min(24rem, calc(100vw - 2rem));
+}
+
+.campfire-theme .campfire-date-picker-hint {
+	direction: ltr;
+	unicode-bidi: isolate;
+	white-space: nowrap;
+}
+
+.campfire-theme .campfire-date-picker-hint bdi {
+	unicode-bidi: isolate;
+}
+
+.campfire-theme .campfire-section-tabs {
+	width: 100%;
+	max-width: none;
+	grid-template-columns: repeat(auto-fit, minmax(8.75rem, 1fr));
+	overflow: visible;
+}
+
+.campfire-theme .campfire-section-tab {
+	min-height: 2.85rem;
+	font-size: 0.96rem;
+}
+
+.campfire-theme .campfire-select-search {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	margin: 0.15rem 0.15rem 0.45rem;
+	padding: 0.65rem 0.8rem;
+	border: 1px solid rgba(255, 255, 255, 0.10);
+	border-radius: 0.85rem;
+	background: rgba(255, 255, 255, 0.03);
+	color: rgba(255, 255, 255, 0.86);
+}
+
+.campfire-theme .campfire-select-search input {
+	width: 100%;
+	min-width: 0;
+	border: 0;
+	outline: 0;
+	background: transparent;
+	color: rgba(255, 251, 235, 0.94);
+	font: inherit;
+}
+
+.campfire-theme .campfire-select-search input::placeholder {
+	color: rgba(226, 232, 240, 0.55);
+}
+
+.campfire-theme .campfire-select-hidden-count {
+	margin: 0.45rem 0.35rem 0.2rem;
+	font-size: 0.82rem;
+	font-weight: 600;
+	color: rgba(226, 232, 240, 0.68);
+}
+
+.campfire-theme [role='listbox'] button:hover,
+.campfire-theme [role='listbox'] button:focus {
+	background: rgba(255, 255, 255, 0.085) !important;
+	color: rgba(255, 251, 235, 0.98) !important;
+}
+
+.campfire-theme [role='listbox'] button[aria-selected='true'] {
+	background: rgba(255, 255, 255, 0.06) !important;
+	box-shadow: inset 0 0 0 1px rgba(216, 161, 90, 0.18) !important;
+}
+
+.campfire-theme .campfire-static-field {
+	display: grid;
+	gap: 0.35rem;
+	padding: 0.95rem 1rem;
+	border: 1px solid rgba(251, 191, 36, 0.16);
+	border-radius: 1rem;
+	background: rgba(255, 255, 255, 0.04);
+}
+
+.campfire-theme .campfire-static-field span {
+	font-size: 0.78rem;
+	font-weight: 750;
+	letter-spacing: 0.13em;
+	text-transform: uppercase;
+	color: rgba(253, 230, 138, 0.78);
+}
+
+.campfire-theme .campfire-static-field strong {
+	font-size: 1.05rem;
+	font-weight: 650;
+	color: rgba(255, 251, 235, 0.94);
+}
+
+.campfire-theme .campfire-static-field small {
+	font-size: 0.9rem;
+	font-weight: 600;
+	line-height: 1.45;
+	color: rgba(226, 232, 240, 0.72);
+}
+
+.campfire-theme .campfire-role-explainer {
+	display: grid;
+	gap: 1rem;
+	padding: 1.2rem;
+	border: 1px solid rgba(251, 191, 36, 0.17);
+	border-radius: 1.35rem;
+	background:
+		linear-gradient(135deg, rgba(120, 53, 15, 0.24), rgba(255, 255, 255, 0.035) 46%, rgba(0, 0, 0, 0.12)),
+		rgba(255, 255, 255, 0.035);
+}
+
+.campfire-theme .campfire-role-explainer-heading h3 {
+	margin: 0.1rem 0 0;
+	font-size: 1.35rem;
+	font-weight: 650;
+	letter-spacing: -0.025em;
+	color: rgba(255, 251, 235, 0.96);
+}
+
+.campfire-theme .campfire-role-explainer-heading p:last-child {
+	margin: 0.35rem 0 0;
+	font-size: 0.98rem;
+	font-weight: 600;
+	color: rgba(226, 232, 240, 0.74);
+}
+
+.campfire-theme .campfire-role-explainer-grid {
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	gap: 0.8rem;
+}
+
+.campfire-theme .campfire-role-explainer-item {
+	display: grid;
+	gap: 0.45rem;
+	align-content: start;
+	padding: 1rem;
+	border: 1px solid rgba(255, 255, 255, 0.09);
+	border-radius: 1rem;
+	background: rgba(0, 0, 0, 0.18);
+}
+
+.campfire-theme .campfire-role-explainer-item > span {
+	display: grid;
+	place-items: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	border-radius: 0.85rem;
+	background: rgba(245, 158, 11, 0.13);
+	color: rgba(253, 230, 138, 0.92);
+}
+
+.campfire-theme .campfire-role-explainer-item strong {
+	font-size: 1rem;
+	font-weight: 700;
+	color: rgba(255, 251, 235, 0.94);
+}
+
+.campfire-theme .campfire-role-explainer-item p {
+	margin: 0;
+	font-size: 0.88rem;
+	font-weight: 600;
+	line-height: 1.5;
+	color: rgba(226, 232, 240, 0.72);
+}
+
+.campfire-theme .campfire-settings-split--roles {
+	align-items: stretch;
+}
+
+.campfire-theme .campfire-settings-split--roles > *,
+.campfire-theme .campfire-role-assignment-panel {
+	height: 100%;
+}
+
+.campfire-theme .campfire-user-picker {
+	display: grid;
+	gap: 0.65rem;
+}
+
+.campfire-theme .campfire-user-picker-search,
+.campfire-theme .campfire-user-picker-selected {
+	display: flex;
+	align-items: center;
+	gap: 0.7rem;
+}
+
+.campfire-theme .campfire-user-picker-search {
+	position: relative;
+}
+
+.campfire-theme .campfire-user-picker-search > svg:first-child {
+	position: absolute;
+	left: 0.9rem;
+	color: rgba(226, 232, 240, 0.55);
+	z-index: 1;
+}
+
+.campfire-theme .campfire-user-picker-search input {
+	padding-left: 2.55rem !important;
+}
+
+.campfire-theme .campfire-user-picker-results {
+	display: grid;
+	gap: 0.35rem;
+	max-height: 16rem;
+	overflow: auto;
+	padding: 0.4rem;
+	border: 1px solid rgba(251, 191, 36, 0.15);
+	border-radius: 1rem;
+	background: rgba(0, 0, 0, 0.2);
+}
+
+.campfire-theme .campfire-user-picker-results button {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	width: 100%;
+	padding: 0.7rem 0.85rem;
+	border: 0;
+	border-radius: 0.8rem;
+	background: transparent;
+	color: rgba(255, 251, 235, 0.92);
+	font: inherit;
+	text-align: left;
+}
+
+.campfire-theme .campfire-user-picker-results button:hover,
+.campfire-theme .campfire-user-picker-results button:focus-visible {
+	background: rgba(255, 255, 255, 0.075);
+	outline: none;
+}
+
+.campfire-theme .campfire-user-picker-results small,
+.campfire-theme .campfire-user-picker-selected small {
+	color: rgba(226, 232, 240, 0.62);
+	font-size: 0.82rem;
+	font-weight: 600;
+}
+
+.campfire-theme .campfire-user-picker-selected {
+	padding: 0.75rem 0.85rem;
+	border: 1px solid rgba(16, 185, 129, 0.24);
+	border-radius: 1rem;
+	background: rgba(16, 185, 129, 0.08);
+}
+
+.campfire-theme .campfire-user-picker-selected > span {
+	display: grid;
+	gap: 0.15rem;
+	min-width: 0;
+}
+
+.campfire-theme .campfire-user-picker-selected strong {
+	color: rgba(236, 253, 245, 0.96);
+	font-weight: 700;
+}
+
+.campfire-theme .campfire-user-picker-selected button {
+	margin-left: auto;
+}
+
+.campfire-theme .campfire-user-picker-message {
+	margin: 0;
+	font-size: 0.86rem;
+	font-weight: 600;
+	color: rgba(226, 232, 240, 0.68);
+}
+
+.campfire-theme .campfire-user-picker-message--error {
+	color: rgba(254, 202, 202, 0.9);
+}
+
+.campfire-theme .campfire-inline-checkbox {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.55rem;
+	min-height: 2.65rem;
+	padding: 0.55rem 0.75rem;
+	border: 1px solid rgba(251, 191, 36, 0.13);
+	border-radius: 0.85rem;
+	background: rgba(255, 255, 255, 0.035);
+	color: rgba(255, 251, 235, 0.9);
+	font-size: 0.93rem;
+	font-weight: 650;
+}
+
+.campfire-theme .campfire-inline-checkbox--interactive {
+	cursor: pointer;
+}
+
+.campfire-theme .campfire-inline-checkbox--interactive:hover {
+	border-color: rgba(251, 191, 36, 0.25);
+	background: rgba(255, 255, 255, 0.055);
+}
+
+.campfire-theme .campfire-inline-checkbox--disabled {
+	cursor: not-allowed;
+	opacity: 0.65;
+}
+
+.campfire-theme .campfire-time-layout .campfire-table-surface,
+.campfire-theme .campfire-data-table,
+.campfire-theme .campfire-data-table-row {
+	background-color: rgba(20, 16, 12, 0.64) !important;
+}
+
+.campfire-theme .campfire-form-field,
+.campfire-theme .campfire-list-toolbar,
+.campfire-theme .campfire-form-grid {
+	align-items: center;
+}
+
+.campfire-theme .campfire-form-field > :is(input, textarea, button, .campfire-date-picker, .campfire-time-picker, .cf\:relative),
+.campfire-theme .campfire-list-toolbar > :is(label, .cf\:relative) {
+	align-self: center;
+}
+
+.campfire-theme [data-sonner-toast].campfire-toast,
+.campfire-theme .campfire-toast {
+	border: 1px solid rgba(251, 191, 36, 0.28) !important;
+	border-radius: 1.1rem !important;
+	background: linear-gradient(180deg, #241a12 0%, #15110d 100%) !important;
+	box-shadow: 0 24px 70px rgba(0, 0, 0, 0.86), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+	backdrop-filter: none !important;
+	-webkit-backdrop-filter: none !important;
+	color: rgba(255, 251, 235, 0.96) !important;
+}
+
+.campfire-theme [data-sonner-toast].campfire-toast--success,
+.campfire-theme .campfire-toast--success {
+	border-color: rgba(52, 211, 153, 0.36) !important;
+}
+
+.campfire-theme [data-sonner-toast].campfire-toast--error,
+.campfire-theme .campfire-toast--error {
+	border-color: rgba(248, 113, 113, 0.42) !important;
+}
+
+.campfire-theme .campfire-toast-title {
+	font-size: 1rem !important;
+	font-weight: 700 !important;
+}
+
+.campfire-theme .campfire-toast-description {
+	font-size: 0.9rem !important;
+	font-weight: 600 !important;
+	color: rgba(226, 232, 240, 0.78) !important;
+}
+
+.campfire-theme .campfire-submit-strip--actions-only {
+	justify-content: flex-end;
+}
+
+@media (max-width: 1180px) {
+	.campfire-theme .campfire-role-explainer-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 860px) {
+	.campfire-theme .campfire-app-sidebar {
+		width: 100%;
+	}
+
+	.campfire-theme .campfire-role-explainer-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Source: 116-picker-sidebar-emergency-fix.css */
+
+/*
+ * Patch 27 emergency live-QA fixes.
+ *
+ * Scope:
+ * - make the left workspace sidebar visibly larger, not smaller;
+ * - re-anchor date/time picker popovers to their own inputs;
+ * - keep custom picker dimensions bounded so Runtime date fields cannot stretch
+ *   a calendar across the modal.
+ */
+
+.campfire-theme .campfire-modal--workspace-app .campfire-workspace-shell {
+	grid-template-columns: minmax(20rem, 21.5rem) minmax(0, 1fr) !important;
+}
+
+.campfire-theme .campfire-app-sidebar {
+	width: auto !important;
+	padding: 1.65rem 1.35rem !important;
+	gap: 1.45rem !important;
+}
+
+.campfire-theme .campfire-sidebar-brand {
+	gap: 1rem !important;
+}
+
+.campfire-theme .campfire-sidebar-logo-tile {
+	width: 3.65rem !important;
+	height: 3.65rem !important;
+}
+
+.campfire-theme .campfire-sidebar-logo-image {
+	width: 3.25rem !important;
+	height: 3.25rem !important;
+}
+
+.campfire-theme .campfire-sidebar-brand-title {
+	font-size: 1.9rem !important;
+	letter-spacing: -0.055em !important;
+}
+
+.campfire-theme .campfire-sidebar-workspace {
+	padding: 1.1rem !important;
+	gap: 0.35rem !important;
+}
+
+.campfire-theme .campfire-sidebar-workspace-name {
+	font-size: 1.12rem !important;
+}
+
+.campfire-theme .campfire-sidebar-workspace-helper,
+.campfire-theme .campfire-sidebar-user-role {
+	font-size: 0.92rem !important;
+	line-height: 1.45 !important;
+}
+
+.campfire-theme .campfire-sidebar-nav {
+	gap: 0.6rem !important;
+}
+
+.campfire-theme .campfire-sidebar-nav-item {
+	min-height: 3.75rem !important;
+	gap: 1rem !important;
+	border-radius: 1.05rem !important;
+	padding: 1rem 1.05rem !important;
+	font-size: 1.18rem !important;
+	font-weight: 650 !important;
+}
+
+.campfire-theme .campfire-sidebar-nav-item svg {
+	width: 1.45rem !important;
+	height: 1.45rem !important;
+}
+
+.campfire-theme .campfire-sidebar-user {
+	padding: 1rem !important;
+	gap: 0.9rem !important;
+}
+
+.campfire-theme .campfire-sidebar-user-avatar {
+	width: 2.75rem !important;
+	height: 2.75rem !important;
+	font-size: 0.9rem !important;
+}
+
+.campfire-theme .campfire-sidebar-user-name {
+	font-size: 1.04rem !important;
+}
+
+.campfire-theme .campfire-date-picker,
+.campfire-theme .campfire-time-picker {
+	position: relative !important;
+	isolation: isolate;
+}
+
+.campfire-theme .campfire-date-picker:has(.campfire-date-picker-popover),
+.campfire-theme .campfire-time-picker:has(.campfire-time-picker-popover) {
+	z-index: 2147483640 !important;
+}
+
+.campfire-theme .campfire-surface,
+.campfire-theme .campfire-panel,
+.campfire-theme .campfire-card-body,
+.campfire-theme .campfire-form-field,
+.campfire-theme .campfire-settings-split,
+.campfire-theme .campfire-standup-settings-page,
+.campfire-theme .campfire-team-review-page,
+.campfire-theme .campfire-report-page {
+	overflow: visible !important;
+}
+
+.campfire-theme .campfire-date-picker-popover,
+.campfire-theme .campfire-time-picker-popover {
+	position: absolute !important;
+	inset-inline-start: auto !important;
+	inset-inline-end: 0 !important;
+	top: calc(100% + 0.5rem) !important;
+	z-index: 2147483647 !important;
+	min-width: 0 !important;
+	max-width: calc(100vw - 2rem) !important;
+	background: linear-gradient(180deg, #2b2017 0%, #17120d 62%, #100d0a 100%) !important;
+	border-color: rgba(252, 211, 77, 0.32) !important;
+	box-shadow: 0 28px 80px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.055) inset !important;
+	backdrop-filter: none !important;
+	-webkit-backdrop-filter: none !important;
+}
+
+.campfire-theme .campfire-date-picker-popover {
+	width: min(22rem, calc(100vw - 2rem)) !important;
+	max-height: min(27rem, calc(100vh - 4rem)) !important;
+	overflow: auto !important;
+}
+
+.campfire-theme .campfire-time-picker-popover {
+	width: min(17.5rem, calc(100vw - 2rem)) !important;
+	max-height: min(24rem, calc(100vh - 4rem)) !important;
+	overflow: auto !important;
+}
+
+.campfire-theme .campfire-time-picker-columns {
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+}
+
+.campfire-theme .campfire-time-picker-option-list {
+	max-height: 12.5rem !important;
+}
+
+@media (max-width: 980px) {
+	.campfire-theme .campfire-modal--workspace-app .campfire-workspace-shell {
+		grid-template-columns: 1fr !important;
+	}
+
+	.campfire-theme .campfire-app-sidebar {
+		width: 100% !important;
+	}
+}
+
+/* Source: 117-live-feedback-picker-table-fixes.css */
+
+/*
+ * Live feedback picker and table fixes.
+ *
+ * Scope:
+ * - keep existing custom date/time picker scale while flipping popovers away
+ *   from the lower modal edge;
+ * - make searchable select menus flatter and less tall;
+ * - remove blue/slate empty-table surfaces;
+ * - soften task/time table surfaces and row borders;
+ * - align select and date controls in mixed filter rows.
+ */
+
+.campfire-theme .campfire-date-picker-popover,
+.campfire-theme .campfire-time-picker-popover {
+	inset-inline-start: var(--campfire-floating-left, auto) !important;
+	inset-inline-end: var(--campfire-floating-right, 0) !important;
+	top: var(--campfire-floating-top, calc(100% + 0.5rem)) !important;
+	bottom: var(--campfire-floating-bottom, auto) !important;
+}
+
+.campfire-theme .campfire-date-picker-popover {
+	max-height: none !important;
+	overflow: hidden !important;
+}
+
+.campfire-theme .campfire-date-picker-footer {
+	background: transparent !important;
+}
+
+.campfire-theme .campfire-select-menu {
+	border-color: rgba(255, 255, 255, 0.10) !important;
+	background: rgba(16, 17, 20, 0.98) !important;
+	box-shadow: 0 24px 68px rgba(0, 0, 0, 0.74), inset 0 1px 0 rgba(255, 255, 255, 0.055) !important;
+}
+
+.campfire-theme .campfire-select-search {
+	min-height: 2.15rem !important;
+	gap: 0.45rem !important;
+	margin: 0.05rem 0.05rem 0.35rem !important;
+	padding: 0.32rem 0.55rem !important;
+	border-color: rgba(255, 255, 255, 0.10) !important;
+	border-radius: 0.7rem !important;
+	background: rgba(255, 255, 255, 0.03) !important;
+	box-shadow: none !important;
+}
+
+.campfire-theme .campfire-select-search svg {
+	width: 0.95rem !important;
+	height: 0.95rem !important;
+	min-width: 0.95rem !important;
+	min-height: 0.95rem !important;
+	color: rgba(216, 161, 90, 0.85) !important;
+}
+
+.campfire-theme .campfire-select-search input {
+	min-height: 0 !important;
+	height: 1.45rem !important;
+	padding: 0 !important;
+	border: 0 !important;
+	border-radius: 0 !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	color: rgba(255, 247, 237, 0.9) !important;
+	font-size: 0.86rem !important;
+	font-weight: 560 !important;
+	line-height: 1.2 !important;
+}
+
+.campfire-theme .campfire-select-search input::placeholder {
+	color: rgba(255, 237, 213, 0.42) !important;
+}
+
+.campfire-theme .campfire-select-option {
+	min-height: 2.35rem !important;
+	padding-block: 0.55rem !important;
+	border: 1px solid transparent !important;
+	border-radius: 0.72rem !important;
+	font-size: 0.95rem !important;
+	font-weight: 560 !important;
+}
+
+.campfire-theme .campfire-select-hidden-count {
+	margin: 0.32rem 0.25rem 0.1rem !important;
+	color: rgba(255, 237, 213, 0.58) !important;
+	font-size: 0.76rem !important;
+}
+
+.campfire-theme .campfire-table-surface {
+	border-color: rgba(255, 255, 255, 0.09) !important;
+	border-radius: 1.35rem !important;
+	background:
+		radial-gradient(circle at 0% 0%, rgba(251, 146, 60, 0.042), transparent 22rem),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.038), rgba(255, 255, 255, 0.014)),
+		rgba(9, 8, 7, 0.58) !important;
+}
+
+.campfire-theme .campfire-time-layout .campfire-table-surface,
+.campfire-theme .campfire-data-table,
+.campfire-theme .campfire-data-table-row {
+	background-color: transparent !important;
+}
+
+.campfire-theme .campfire-data-table {
+	gap: 0.34rem !important;
+	border-color: rgba(255, 255, 255, 0.07) !important;
+	border-radius: 1.18rem !important;
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0.01)),
+		rgba(0, 0, 0, 0.14) !important;
+	padding: 0.42rem !important;
+	overflow: visible !important;
+}
+
+.campfire-theme .campfire-data-table-row {
+	border: 1px solid rgba(255, 255, 255, 0.055) !important;
+	border-radius: 0.9rem !important;
+	background: rgba(255, 255, 255, 0.024) !important;
+}
+
+.campfire-theme .campfire-data-table-row:first-child {
+	border-top: 1px solid rgba(255, 255, 255, 0.055) !important;
+}
+
+.campfire-theme .campfire-data-table-row--head {
+	border-color: rgba(253, 186, 116, 0.12) !important;
+	background: rgba(253, 186, 116, 0.045) !important;
+	color: rgba(255, 237, 213, 0.68) !important;
+}
+
+.campfire-theme .campfire-data-table-empty {
+	padding: 0.85rem !important;
+}
+
+.campfire-theme .campfire-data-table-empty .campfire-empty-state,
+.campfire-theme .campfire-data-table-empty .campfire-empty {
+	border: 1px dashed rgba(253, 186, 116, 0.16) !important;
+	border-radius: 1.05rem !important;
+	background:
+		radial-gradient(circle at 50% 0%, rgba(251, 146, 60, 0.055), transparent 16rem),
+		rgba(255, 255, 255, 0.018) !important;
+}
+
+.campfire-theme .campfire-list-toolbar {
+	border: 1px solid rgba(255, 255, 255, 0.065) !important;
+	border-radius: 1rem !important;
+	background: rgba(255, 255, 255, 0.02) !important;
+	padding: 0.5rem !important;
+}
+
+.campfire-theme .campfire-search-field input {
+	border-color: rgba(255, 255, 255, 0.075) !important;
+	background: rgba(255, 255, 255, 0.024) !important;
+	box-shadow: none !important;
+}
+
+.campfire-theme .campfire-form-field > .cf\:relative,
+.campfire-theme .campfire-team-standups-controls > .cf\:grid {
+	display: grid !important;
+	align-content: end !important;
+}
+
+.campfire-theme .campfire-select-trigger {
+	min-height: 2.95rem !important;
+	align-items: center !important;
+	border-radius: 0.95rem !important;
+	background: rgba(20, 21, 24, 0.96) !important;
+}
+
+.campfire-theme .campfire-team-standups-controls {
+	align-items: end !important;
+}
+
+.campfire-theme .campfire-team-standups-controls .campfire-select-trigger,
+.campfire-theme .campfire-team-standups-controls .campfire-date-picker-trigger {
+	min-height: 3.1rem !important;
+}

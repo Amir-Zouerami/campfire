@@ -4,6 +4,7 @@ import type { KeyboardEvent, ReactElement } from 'react';
 import { Check, ChevronDown, Clock3 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/i18n';
 import { useCampfireFloatingPopover } from './useCampfireFloatingPopover';
 
 /**
@@ -39,6 +40,7 @@ const MINUTE_OPTIONS = Array.from({ length: 12 }, (_value, index) => index * 5);
  * CampfireTimeInput renders a custom styled HH:MM picker.
  */
 export function CampfireTimeInput(props: CampfireTimeInputProps): ReactElement {
+	const { t } = useI18n();
 	const rootRef = useRef<HTMLDivElement | null>(null);
 	const buttonRef = useRef<HTMLButtonElement | null>(null);
 	const popoverRef = useRef<HTMLDivElement | null>(null);
@@ -90,14 +92,17 @@ export function CampfireTimeInput(props: CampfireTimeInputProps): ReactElement {
 	}, [open]);
 
 	const selectedLabel = useMemo(() => {
-		return props.value.trim() === '' ? 'HH:MM' : props.value;
-	}, [props.value]);
+		return props.value.trim() === '' ? t('common.time.placeholder') : props.value;
+	}, [props.value, t]);
 
 	const floatingPopover = useCampfireFloatingPopover({
 		open,
 		triggerRef: buttonRef,
 		popoverRef,
-		placement: 'bottom-end',
+		placement: 'top-end',
+		minHeight: 240,
+		maxHeight: 560,
+		maxWidth: 420,
 	});
 
 	/**
@@ -150,7 +155,7 @@ export function CampfireTimeInput(props: CampfireTimeInputProps): ReactElement {
 		<div
 			ref={popoverRef}
 			role="dialog"
-			aria-label="Choose time"
+			aria-label={t('shared.time.choose')}
 			className="campfire-picker-portal-scope campfire-time-picker-popover campfire-floating-popover"
 			style={floatingPopover.style}
 		>
@@ -158,7 +163,7 @@ export function CampfireTimeInput(props: CampfireTimeInputProps): ReactElement {
 
 			<div className="campfire-time-picker-header">
 				<div>
-					<p className="campfire-time-picker-eyebrow">Choose time</p>
+					<p className="campfire-time-picker-eyebrow">{t('shared.time.choose')}</p>
 					<p className="campfire-time-picker-title">{formatTimeValue(draftHour, draftMinute)}</p>
 				</div>
 
@@ -167,7 +172,7 @@ export function CampfireTimeInput(props: CampfireTimeInputProps): ReactElement {
 
 			<div className="campfire-time-picker-columns">
 				<TimeColumn
-					label="Hour"
+					label={t('shared.time.hour')}
 					values={HOUR_OPTIONS}
 					selectedValue={draftHour}
 					formatValue={value => String(value).padStart(2, '0')}
@@ -175,7 +180,7 @@ export function CampfireTimeInput(props: CampfireTimeInputProps): ReactElement {
 				/>
 
 				<TimeColumn
-					label="Minute"
+					label={t('shared.time.minute')}
 					values={MINUTE_OPTIONS}
 					selectedValue={draftMinute}
 					formatValue={value => String(value).padStart(2, '0')}
@@ -189,7 +194,7 @@ export function CampfireTimeInput(props: CampfireTimeInputProps): ReactElement {
 					className="campfire-time-picker-footer-button campfire-time-picker-footer-button--primary"
 					onClick={selectNow}
 				>
-					Now
+					{t('common.now')}
 				</button>
 
 				<button
@@ -197,7 +202,7 @@ export function CampfireTimeInput(props: CampfireTimeInputProps): ReactElement {
 					className="campfire-time-picker-footer-button"
 					onClick={() => setOpen(false)}
 				>
-					Done
+					{t('common.done')}
 				</button>
 			</div>
 		</div>

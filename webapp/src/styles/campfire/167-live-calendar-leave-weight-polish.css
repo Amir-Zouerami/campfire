@@ -1,0 +1,133 @@
+/* Patch 45: final live polish for RTL calendar density, scoped title sizing, and Persian/Arabic emphasis. */
+
+.campfire-theme .campfire-date-picker-popover .campfire-date-picker-header {
+  direction: ltr !important;
+  display: grid !important;
+  grid-template-columns: 2.5rem minmax(0, 1fr) 2.5rem !important;
+  align-items: center !important;
+  gap: 0.85rem !important;
+}
+
+.campfire-theme .campfire-date-picker-popover .campfire-date-picker-heading {
+  direction: rtl !important;
+  min-width: 0 !important;
+  text-align: center !important;
+}
+
+.campfire-theme .campfire-date-picker-popover .campfire-date-picker-month,
+.campfire-theme .campfire-date-picker-popover .campfire-date-picker-year {
+  font-size: 0.98rem !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+}
+
+.campfire-theme:is([data-campfire-language='persian'], [data-campfire-language='arabic'], [lang='fa'], [lang='ar'])
+  .campfire-date-picker-popover .campfire-date-picker-month,
+.campfire-theme:is([data-campfire-language='persian'], [data-campfire-language='arabic'], [lang='fa'], [lang='ar'])
+  .campfire-date-picker-popover .campfire-date-picker-year {
+  font-size: 1.05rem !important;
+  font-weight: 850 !important;
+  text-shadow: 0 0.012em 0 currentColor;
+}
+
+.campfire-theme .campfire-date-picker-popover .campfire-date-picker-weekdays,
+.campfire-theme .campfire-date-picker-popover .campfire-date-picker-grid {
+  direction: ltr !important;
+  grid-template-columns: repeat(7, minmax(2.2rem, 1fr)) !important;
+  column-gap: 0.42rem !important;
+  row-gap: 0.52rem !important;
+}
+
+.campfire-theme .campfire-date-picker-popover .campfire-date-picker-weekday,
+.campfire-theme .campfire-date-picker-popover .campfire-date-picker-day {
+  direction: rtl !important;
+  min-width: 2.2rem !important;
+}
+
+.campfire-theme .campfire-date-picker-popover .campfire-date-picker-weekday {
+  overflow: visible !important;
+  white-space: nowrap !important;
+  padding-inline: 0.12rem !important;
+  text-align: center !important;
+  letter-spacing: 0 !important;
+}
+
+.campfire-theme:is([data-campfire-language='persian'], [data-campfire-language='arabic'], [lang='fa'], [lang='ar'])
+  .campfire-date-picker-popover .campfire-date-picker-weekday {
+  font-size: 0.68rem !important;
+  font-weight: 750 !important;
+}
+
+.campfire-theme .campfire-date-picker-trigger .campfire-date-picker-hint,
+.campfire-theme .campfire-date-picker-trigger .campfire-date-picker-hint-calendar {
+  font-size: 0.75rem !important;
+  line-height: 1.15 !important;
+}
+
+.campfire-theme:is([data-campfire-language='persian'], [data-campfire-language='arabic'], [lang='fa'], [lang='ar'])
+  .campfire-date-picker-trigger .campfire-date-picker-hint-calendar {
+  font-size: 0.82rem !important;
+  font-weight: 650 !important;
+}
+
+.campfire-theme:is([data-campfire-language='persian'], [data-campfire-language='arabic'], [lang='fa'], [lang='ar'])
+  :is(.campfire-segmented-tab-label, .campfire-nav-item-label) {
+  font-weight: 900 !important;
+  text-shadow: 0 0.018em 0 currentColor;
+}
+
+.campfire-theme:is([data-campfire-language='persian'], [data-campfire-language='arabic'], [lang='fa'], [lang='ar'])
+  :is(.campfire-segmented-tab-description, .campfire-nav-item-description) {
+  font-weight: 520 !important;
+  text-shadow: none !important;
+}
+
+.campfire-theme:is([data-campfire-language='persian'], [data-campfire-language='arabic'], [lang='fa'], [lang='ar'])
+  :is(.campfire-page-title, .campfire-surface-title, .campfire-panel-title, .campfire-card-title, h1, h2, h3, h4) {
+  text-shadow: 0 0.014em 0 currentColor;
+}
+
+.campfire-theme .campfire-team-review-clean-page :is(section, article) h3,
+.campfire-theme .campfire-team-review-clean-page .campfire-team-detail-grid :is(h3, h4),
+.campfire-theme .campfire-settings-page :is(section, article) h2,
+.campfire-theme .campfire-settings-page :is(section, article) h3,
+.campfire-theme .campfire-settings-page :is(section, article) h4,
+.campfire-theme .campfire-settings-workflow :is(section, article) h2,
+.campfire-theme .campfire-settings-workflow :is(section, article) h3,
+.campfire-theme .campfire-settings-workflow :is(section, article) h4 {
+  font-size: clamp(1.15rem, 1.05vw, 1.8rem) !important;
+  line-height: 1.35 !important;
+  letter-spacing: -0.015em !important;
+}
+
+.campfire-theme .campfire-team-review-clean-page .campfire-team-detail-grid .campfire-empty-title,
+.campfire-theme .campfire-settings-page .campfire-empty-title,
+.campfire-theme .campfire-settings-workflow .campfire-empty-title {
+  font-size: clamp(1.05rem, 0.9vw, 1.45rem) !important;
+  line-height: 1.45 !important;
+}
+
+.campfire-theme .campfire-availability-edit-panel :is(h3, h4, p) {
+  text-align: start;
+}
+
+@media (min-width: 1500px) {
+  .campfire-theme .campfire-date-picker-popover .campfire-date-picker-weekdays,
+  .campfire-theme .campfire-date-picker-popover .campfire-date-picker-grid {
+    grid-template-columns: repeat(7, minmax(2.45rem, 1fr)) !important;
+    column-gap: 0.55rem !important;
+  }
+
+  .campfire-theme:is([data-campfire-language='persian'], [data-campfire-language='arabic'], [lang='fa'], [lang='ar'])
+    .campfire-date-picker-popover .campfire-date-picker-weekday {
+    font-size: 0.72rem !important;
+  }
+
+  .campfire-theme .campfire-team-review-clean-page :is(section, article) h3,
+  .campfire-theme .campfire-settings-page :is(section, article) h2,
+  .campfire-theme .campfire-settings-page :is(section, article) h3,
+  .campfire-theme .campfire-settings-workflow :is(section, article) h2,
+  .campfire-theme .campfire-settings-workflow :is(section, article) h3 {
+    font-size: clamp(1.25rem, 1vw, 1.9rem) !important;
+  }
+}

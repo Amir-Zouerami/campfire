@@ -36,6 +36,25 @@ type ExecuteReminderSequenceResult struct {
 }
 
 /*
+ExecuteOpeningAnnouncementInput identifies one channel-only standup opening announcement.
+*/
+type ExecuteOpeningAnnouncementInput struct {
+	WorkspaceID    string
+	ScheduleID     string
+	ScheduleKind   domain.StandupKind
+	OccurrenceDate string
+}
+
+/*
+ExecuteOpeningAnnouncementResult summarizes one opening announcement attempt.
+*/
+type ExecuteOpeningAnnouncementResult struct {
+	Sent                bool
+	SkippedExistingRun  bool
+	SkippedNoActiveRule bool
+}
+
+/*
 ReminderExecutionService sends due standup reminders idempotently.
 */
 type ReminderExecutionService struct {
@@ -185,6 +204,121 @@ func (s *ReminderExecutionService) ExecuteSequence(
 }
 
 /*
+ExecuteOpeningAnnouncement sends the channel-only standup opening announcement.
+
+The announcement is idempotent through notification runs and deliberately does
+not send direct messages. DM reminders start only when a configured reminder
+sequence becomes due later in the standup window.
+*/
+func (s *ReminderExecutionService) ExecuteOpeningAnnouncement(
+	ctx context.Context,
+	input ExecuteOpeningAnnouncementInput,
+) (*ExecuteOpeningAnnouncementResult, error) {
+	cleanWorkspaceID := strings.TrimSpace(input.WorkspaceID)
+	if cleanWorkspaceID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
+	}
+
+	cleanScheduleID := strings.TrimSpace(input.ScheduleID)
+	if cleanScheduleID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Schedule ID is required.")
+	}
+
+	occurrenceDate := domain.LocalDate(strings.TrimSpace(input.OccurrenceDate))
+	if _, err := parseLocalDate(occurrenceDate); err != nil {
+		return nil, NewError(ErrorCodeValidationFailed, "Occurrence date must be a real YYYY-MM-DD calendar date.")
+	}
+
+	workspaceID := domain.ID(cleanWorkspaceID)
+	scheduleID := domain.ID(cleanScheduleID)
+
+	workspace, err := s.workspaceStore.GetByID(ctx, workspaceID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Workspace was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load workspace.")
+	}
+
+	rule, err := s.firstOpeningAnnouncementRule(ctx, workspaceID, scheduleID)
+	if err != nil {
+		return nil, err
+	}
+
+	if rule == nil {
+		return &ExecuteOpeningAnnouncementResult{SkippedNoActiveRule: true}, nil
+	}
+
+	key := notificationRunKey(
+		*rule,
+		domain.NotificationKindStandupOpeningAnnouncement,
+		occurrenceDate,
+		openingAnnouncementSequenceNumber,
+		"",
+	)
+
+	exists, err := s.notificationRunExists(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+
+	if exists {
+		return &ExecuteOpeningAnnouncementResult{SkippedExistingRun: true}, nil
+	}
+
+	postID, err := s.reminderPublisher.SendStandupOpeningAnnouncement(ctx, StandupOpeningAnnouncement{
+		WorkspaceID:    workspace.ID.String(),
+		WorkspaceName:  workspace.Name,
+		ChannelID:      workspace.ChannelID,
+		ScheduleID:     scheduleID.String(),
+		ScheduleKind:   input.ScheduleKind,
+		OccurrenceDate: occurrenceDate.String(),
+		Language:       workspace.GeneratedMessageLanguage,
+	})
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not send standup opening announcement.")
+	}
+
+	if _, err := s.createNotificationRun(ctx, key, postID); err != nil {
+		return nil, err
+	}
+
+	return &ExecuteOpeningAnnouncementResult{Sent: true}, nil
+}
+
+/*
+firstOpeningAnnouncementRule returns the rule that gates channel opening messages.
+
+Opening announcements are intentionally channel-only. They use an enabled
+channel reminder rule for the schedule as the workspace's signal that channel
+standup notifications are wanted, while avoiding all direct-message behavior at
+open time.
+*/
+func (s *ReminderExecutionService) firstOpeningAnnouncementRule(
+	ctx context.Context,
+	workspaceID domain.ID,
+	scheduleID domain.ID,
+) (*domain.ReminderRule, error) {
+	rules, err := s.reminderStore.ListByWorkspaceID(ctx, workspaceID)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not load reminder settings.")
+	}
+
+	for _, rule := range rules {
+		if !rule.Enabled || !rule.ChannelReminderEnabled || rule.ScheduleID != scheduleID {
+			continue
+		}
+
+		selectedRule := rule
+
+		return &selectedRule, nil
+	}
+
+	return nil, nil
+}
+
+/*
 sendDMReminders sends missing-user DM reminders for one reminder rule.
 */
 func (s *ReminderExecutionService) sendDMReminders(
@@ -228,6 +362,7 @@ func (s *ReminderExecutionService) sendDMReminders(
 			ChannelID:      workspace.ChannelID,
 			ScheduleID:     rule.ScheduleID.String(),
 			OccurrenceDate: occurrenceDate.String(),
+			Language:       workspace.GeneratedMessageLanguage,
 			TargetUserID:   cleanUserID,
 			SequenceNumber: sequenceNumber,
 		})
@@ -279,6 +414,7 @@ func (s *ReminderExecutionService) sendChannelReminder(
 		ChannelID:           workspace.ChannelID,
 		ScheduleID:          rule.ScheduleID.String(),
 		OccurrenceDate:      occurrenceDate.String(),
+		Language:            workspace.GeneratedMessageLanguage,
 		MissingUserIDs:      lastMissingUserIDs(missingUserIDs, channelMissingMentionLimit),
 		MissingUserCount:    len(missingUserIDs),
 		MentionMissingUsers: rule.MentionMissingInChannel,
@@ -313,6 +449,8 @@ func lastMissingUserIDs(userIDs []string, limit int) []string {
 }
 
 const channelMissingMentionLimit = 50
+
+const openingAnnouncementSequenceNumber = -1
 
 /*
 standupDMRemindersEnabled returns whether direct-message standup reminders may be sent.

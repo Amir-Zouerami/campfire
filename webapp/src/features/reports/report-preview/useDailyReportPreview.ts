@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/components/campfire/campfire-toast';
+import { isolateBidiText, useI18n } from '@/i18n';
 
 import { getDailyReportPreview, postDailyReportPreview } from '@/api';
 import { CAMPFIRE_APPLY_REPORT_FILTER_EVENT, isReportFilterApplyEvent } from '@/app/events';
+import { campfireQueryKeys } from '@/query';
 import { isISODateInputValue, normalizeISODateInputValue } from '@/lib/dates';
 import type { DailyReportPreview, StandupSubmissionSortMode, Workspace } from '@/types/domain';
 
@@ -44,13 +47,75 @@ export type UseDailyReportPreviewResult = {
 
 /**
  * useDailyReportPreview owns daily report preview loading and posting.
+ *
+ * Data loading is intentionally routed through TanStack Query so previews,
+ * refetches, loading states, and future cross-page invalidation use one cache
+ * contract instead of ad-hoc effect-local request state.
  */
 export function useDailyReportPreview(input: UseDailyReportPreviewInput): UseDailyReportPreviewResult {
-	const [loadState, setLoadState] = useState<ReportPreviewLoadState>('idle');
+	const { t } = useI18n();
+	const queryClient = useQueryClient();
 	const [occurrenceDate, setOccurrenceDateState] = useState(getTodayLocalDateString());
-	const [sortMode, setSortMode] = useState<StandupSubmissionSortMode>('first_submitted');
-	const [preview, setPreview] = useState<DailyReportPreview | null>(null);
-	const [message, setMessage] = useState('');
+	const [sortMode, setSortModeState] = useState<StandupSubmissionSortMode>('first_submitted');
+	const [manualMessage, setManualMessage] = useState('');
+	const [manualError, setManualError] = useState('');
+
+	const normalizedOccurrenceDate = normalizeISODateInputValue(occurrenceDate);
+	const validationError = isISODateInputValue(normalizedOccurrenceDate)
+		? ''
+		: t('reports.preview.validation.dailyDate');
+
+	const previewQuery = useQuery({
+		queryKey: campfireQueryKeys.dailyReportPreview(
+			input.workspace.id,
+			normalizedOccurrenceDate,
+			sortMode,
+			input.workspace.timezone,
+			input.refreshToken,
+		),
+		queryFn: async (): Promise<DailyReportPreview> => {
+			const calendarLabels = buildDailyReportCalendarLabels(normalizedOccurrenceDate, input.workspace.timezone);
+			const response = await getDailyReportPreview(
+				input.workspace.id,
+				normalizedOccurrenceDate,
+				sortMode,
+				calendarLabels,
+			);
+
+			return response.preview;
+		},
+		enabled: validationError === '',
+	});
+
+	const preview = previewQuery.data ?? null;
+
+	const postMutation = useMutation({
+		mutationFn: async (): Promise<void> => {
+			const calendarLabels = buildDailyReportCalendarLabels(normalizedOccurrenceDate, input.workspace.timezone);
+			await postDailyReportPreview(input.workspace.id, {
+				occurrenceDate: normalizedOccurrenceDate,
+				sortMode,
+				calendarLabels,
+			});
+		},
+		onSuccess: async (): Promise<void> => {
+			setOccurrenceDateState(normalizedOccurrenceDate);
+			setManualError('');
+			setManualMessage(t('reports.preview.message.dailyPosted'));
+			toast.success(t('reports.preview.toast.dailyPosted'));
+
+			await queryClient.invalidateQueries({
+				queryKey: campfireQueryKeys.reportPreviews(input.workspace.id),
+			});
+		},
+		onError: (error: unknown): void => {
+			const errorMessage = errorToMessage(error, t('reports.preview.error.fallback'));
+
+			setManualMessage('');
+			setManualError(errorMessage);
+			toast.error(errorMessage);
+		},
+	});
 
 	useEffect(() => {
 		/**
@@ -69,8 +134,8 @@ export function useDailyReportPreview(input: UseDailyReportPreviewInput): UseDai
 				const parsed: unknown = JSON.parse(event.detail.filterJson);
 
 				if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-					setMessage(`Saved filter "${event.detail.name}" is not a valid daily report filter.`);
-					setLoadState('error');
+					setManualMessage('');
+					setManualError(t('reports.preview.filter.invalidDaily', { name: isolateBidiText(event.detail.name) }));
 					return;
 				}
 
@@ -81,14 +146,14 @@ export function useDailyReportPreview(input: UseDailyReportPreviewInput): UseDai
 				}
 
 				if (typeof record.sortMode === 'string') {
-					setSortMode(toDailyReportSortMode(record.sortMode));
+					setSortModeState(toDailyReportSortMode(record.sortMode));
 				}
 
-				setMessage(`Applied saved filter "${event.detail.name}".`);
-				setLoadState('ready');
+				setManualError('');
+				setManualMessage(t('reports.preview.filter.applied', { name: isolateBidiText(event.detail.name) }));
 			} catch (_error: unknown) {
-				setMessage(`Saved filter "${event.detail.name}" is not valid JSON.`);
-				setLoadState('error');
+				setManualMessage('');
+				setManualError(t('reports.preview.filter.invalidJson', { name: isolateBidiText(event.detail.name) }));
 			}
 		}
 
@@ -97,115 +162,64 @@ export function useDailyReportPreview(input: UseDailyReportPreviewInput): UseDai
 		return () => {
 			window.removeEventListener(CAMPFIRE_APPLY_REPORT_FILTER_EVENT, handleApplyReportFilter);
 		};
-	}, [input.workspace.id]);
-
-	useEffect(() => {
-		let isActive = true;
-
-		/**
-		 * loadPreview loads the daily Markdown report preview.
-		 */
-		async function loadPreview(): Promise<void> {
-			const normalizedOccurrenceDate = normalizeISODateInputValue(occurrenceDate);
-
-			if (!isISODateInputValue(normalizedOccurrenceDate)) {
-				setPreview(null);
-				setMessage('Choose a real report date in YYYY-MM-DD format.');
-				setLoadState('error');
-				return;
-			}
-
-			if (normalizedOccurrenceDate !== occurrenceDate) {
-				setOccurrenceDateState(normalizedOccurrenceDate);
-				return;
-			}
-
-			setLoadState('loading');
-			setMessage('');
-
-			try {
-				const calendarLabels = buildDailyReportCalendarLabels(normalizedOccurrenceDate, input.workspace.timezone);
-				const response = await getDailyReportPreview(
-					input.workspace.id,
-					normalizedOccurrenceDate,
-					sortMode,
-					calendarLabels,
-				);
-
-				if (!isActive) {
-					return;
-				}
-
-				setPreview(response.preview);
-				setLoadState('ready');
-			} catch (error: unknown) {
-				if (!isActive) {
-					return;
-				}
-
-				setPreview(null);
-				setMessage(errorToMessage(error));
-				setLoadState('error');
-			}
-		}
-
-		void loadPreview();
-
-		return () => {
-			isActive = false;
-		};
-	}, [input.workspace.id, input.refreshToken, occurrenceDate, sortMode]);
+	}, [input.workspace.id, t]);
 
 	const markdownLines = useMemo(() => {
 		return markdownLineCount(preview?.markdown ?? '');
 	}, [preview]);
 
+	const queryErrorMessage = previewQuery.isError ? errorToMessage(previewQuery.error, t('reports.preview.error.fallback')) : '';
+	const message = manualError || validationError || queryErrorMessage || manualMessage;
+	const loadState = resolveReportPreviewLoadState({
+		validationError,
+		manualError,
+		queryErrorMessage,
+		queryLoading: previewQuery.isLoading,
+		posting: postMutation.isPending,
+	});
+
 	/**
 	 * setOccurrenceDate updates the report date after normalizing common input formats.
 	 */
 	function setOccurrenceDate(date: string): void {
+		setManualError('');
+		setManualMessage('');
 		setOccurrenceDateState(normalizeISODateInputValue(date));
+	}
+
+	/**
+	 * setSortMode updates the preview sort mode and lets the query cache refetch.
+	 */
+	function setSortMode(sortModeValue: StandupSubmissionSortMode): void {
+		setManualError('');
+		setManualMessage('');
+		setSortModeState(sortModeValue);
 	}
 
 	/**
 	 * postReport posts the current daily report preview to the workspace channel.
 	 */
 	async function postReport(): Promise<void> {
-		const normalizedOccurrenceDate = normalizeISODateInputValue(occurrenceDate);
-
-		if (!isISODateInputValue(normalizedOccurrenceDate)) {
-			setMessage('Choose a real report date in YYYY-MM-DD format before posting.');
-			setLoadState('error');
+		if (validationError !== '') {
+			setManualMessage('');
+			setManualError(t('reports.preview.validation.dailyDateBeforePosting'));
 			return;
 		}
 
 		if (preview === null) {
-			setMessage('Load a report preview before posting.');
-			setLoadState('error');
+			setManualMessage('');
+			setManualError(t('reports.preview.validation.loadBeforePosting'));
 			return;
 		}
 
-		setLoadState('posting');
-		setMessage('');
+		setManualMessage('');
+		setManualError('');
 
 		try {
-			const calendarLabels = buildDailyReportCalendarLabels(normalizedOccurrenceDate, input.workspace.timezone);
-			await postDailyReportPreview(input.workspace.id, {
-				occurrenceDate: normalizedOccurrenceDate,
-				sortMode,
-				calendarLabels,
-			});
-
-			setOccurrenceDateState(normalizedOccurrenceDate);
-			setLoadState('ready');
-			setMessage('Daily report posted.');
-			toast.success('Daily report posted');
-		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
-
-			setLoadState('error');
-			setMessage(errorMessage);
-			toast.error(errorMessage);
+			await postMutation.mutateAsync();
+		} catch (_error: unknown) {
+			// onError owns user-facing feedback. The catch only prevents the
+			// click handler from producing an unhandled rejected promise.
 		}
 	}
 
@@ -215,7 +229,7 @@ export function useDailyReportPreview(input: UseDailyReportPreviewInput): UseDai
 		sortMode,
 		preview,
 		message,
-		isBusy: loadState === 'loading' || loadState === 'posting',
+		isBusy: previewQuery.isFetching || postMutation.isPending,
 		submittedCount: preview?.submittedUserIds.length ?? 0,
 		missingCount: preview?.missingUserIds.length ?? 0,
 		onLeaveCount: preview?.onLeaveUserIds.length ?? 0,
@@ -224,4 +238,29 @@ export function useDailyReportPreview(input: UseDailyReportPreviewInput): UseDai
 		setSortMode,
 		postReport,
 	};
+}
+
+/**
+ * resolveReportPreviewLoadState maps query and mutation state into UI state.
+ */
+function resolveReportPreviewLoadState(input: {
+	readonly validationError: string;
+	readonly manualError: string;
+	readonly queryErrorMessage: string;
+	readonly queryLoading: boolean;
+	readonly posting: boolean;
+}): ReportPreviewLoadState {
+	if (input.posting) {
+		return 'posting';
+	}
+
+	if (input.validationError !== '' || input.manualError !== '' || input.queryErrorMessage !== '') {
+		return 'error';
+	}
+
+	if (input.queryLoading) {
+		return 'loading';
+	}
+
+	return 'ready';
 }

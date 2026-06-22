@@ -4,6 +4,7 @@ import type { ReactElement } from 'react';
 import { CampfireControlsPanel } from '@/components/campfire/CampfireControlsPanel';
 import { CampfireReportSummaryBar } from '@/components/campfire/CampfireReportSummaryBar';
 import { useUserProfiles } from '@/app/useUserProfiles';
+import { useI18n } from '@/i18n';
 import type { Workspace } from '@/types/domain';
 
 import { collectAvailabilityUserIDs } from './team-availability.helpers';
@@ -25,6 +26,7 @@ type TeamAvailabilityPageProps = {
  * TeamAvailabilityPage renders one focused availability planning workspace.
  */
 export function TeamAvailabilityPage(props: TeamAvailabilityPageProps): ReactElement {
+	const { t } = useI18n();
 	const availability = useTeamAvailability(props);
 
 	const userIDsForProfiles = useMemo(() => {
@@ -36,9 +38,9 @@ export function TeamAvailabilityPage(props: TeamAvailabilityPageProps): ReactEle
 	return (
 		<div className="campfire-team-workflow campfire-team-review-clean-page">
 			<CampfireControlsPanel
-				eyebrow="Availability window"
-				title="Pick the leave range"
-				description="Review approved leave for today, this week, or any custom planning window."
+				eyebrow={t('teamReview.availability.controls.eyebrow')}
+				title={t('teamReview.availability.controls.title')}
+				description={t('teamReview.availability.controls.description')}
 				controls={
 					<TeamAvailabilityRangeControls
 						range={availability.range}
@@ -50,10 +52,10 @@ export function TeamAvailabilityPage(props: TeamAvailabilityPageProps): ReactEle
 			>
 				<CampfireReportSummaryBar
 					items={[
-						{ label: 'Today', value: String(availability.todayLeaves.length) },
-						{ label: 'This week', value: String(availability.weekLeaves.length) },
-						{ label: 'Selected range', value: String(availability.leaveRequests.length), tone: availability.leaveRequests.length > 0 ? 'success' : 'neutral' },
-						{ label: 'Profiles', value: profiles.loading ? 'Loading' : 'Ready' },
+						{ label: t('teamReview.availability.summary.today'), value: String(availability.todayLeaves.length) },
+						{ label: t('teamReview.availability.summary.thisWeek'), value: String(availability.weekLeaves.length) },
+						{ label: t('teamReview.availability.summary.selectedRange'), value: String(availability.leaveRequests.length), tone: availability.leaveRequests.length > 0 ? 'success' : 'neutral' },
+						{ label: t('teamReview.availability.summary.profiles'), value: profiles.loading ? t('common.loading') : t('common.ready') },
 					]}
 				/>
 			</CampfireControlsPanel>
@@ -70,15 +72,15 @@ export function TeamAvailabilityPage(props: TeamAvailabilityPageProps): ReactEle
 				<>
 					<div className="campfire-team-detail-grid campfire-team-detail-grid--flat">
 						<TeamAvailabilitySummaryPanel
-							title="Today"
-							description="Out right now"
+							title={t('teamReview.availability.summary.today')}
+							description={t('teamReview.availability.panel.todayDescription')}
 							rows={availability.todayLeaves}
 							labelForUserID={profiles.labelForUserID}
 						/>
 
 						<TeamAvailabilitySummaryPanel
-							title="This week"
-							description="Weekly availability"
+							title={t('teamReview.availability.summary.thisWeek')}
+							description={t('teamReview.availability.panel.weekDescription')}
 							rows={availability.weekLeaves}
 							labelForUserID={profiles.labelForUserID}
 						/>
@@ -87,7 +89,11 @@ export function TeamAvailabilityPage(props: TeamAvailabilityPageProps): ReactEle
 					<TeamAvailabilityTablePanel
 						rows={availability.leaveRequests}
 						timezone={props.workspace.timezone}
+						workingDays={props.workspace.workingDays}
+						disabled={availability.isBusy}
 						labelForUserID={profiles.labelForUserID}
+						onEditLeaveRequest={availability.editLeaveRequest}
+						onCancelLeaveRequest={availability.cancelLeaveRequestByID}
 					/>
 				</>
 			)}

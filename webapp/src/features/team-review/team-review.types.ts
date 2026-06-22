@@ -1,3 +1,5 @@
+import type { TranslationKey } from '@/i18n';
+
 /**
  * TeamReviewSectionID identifies one Team Review sub-page.
  */
@@ -8,8 +10,8 @@ export type TeamReviewSectionID = 'standups' | 'availability' | 'approvals' | 'r
  */
 export type TeamReviewSection = {
 	readonly id: TeamReviewSectionID;
-	readonly label: string;
-	readonly description: string;
+	readonly labelKey: TranslationKey;
+	readonly descriptionKey: TranslationKey;
 	readonly managerOnly: boolean;
 	readonly approverOnly: boolean;
 };

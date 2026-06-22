@@ -1,11 +1,19 @@
 import type { ReactElement } from 'react';
 import { Loader2, Trash2, UsersRound } from 'lucide-react';
 
+import { CampfireBidiText } from '@/components/campfire/CampfireBidiText';
+import { CampfireEmpty, CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/i18n';
 
 import { isAssignableWorkspaceRole } from './roles-access.helpers';
+import {
+	formatRoleGroupUserCount,
+	localizedRoleGroupDescription,
+	localizedRoleGroupTitle,
+	roleGroupEmptyTitle,
+} from './roles-access.i18n';
 import type { AssignableWorkspaceRole, RoleGroup } from './roles-access.types';
-import { CampfireEmpty, CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * RoleGroupsPanelProps contains role groups and user labels.
@@ -48,6 +56,8 @@ function RoleGroupCard(props: {
 	readonly labelForUserID: (userID: string) => string;
 	readonly onRemoveRole: (role: AssignableWorkspaceRole, userID: string) => Promise<void>;
 }): ReactElement {
+	const { t } = useI18n();
+	const groupTitle = localizedRoleGroupTitle(t, props.group.id);
 	const removableRole =
 		props.canManageRoles && props.group.removable && isAssignableWorkspaceRole(props.group.role)
 			? props.group.role
@@ -58,28 +68,29 @@ function RoleGroupCard(props: {
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
 				<div>
 					<p className="cf:text-sm cf:font-semibold cf:uppercase cf:tracking-[0.18em] cf:text-amber-100">
-						{props.group.title}
+						{groupTitle}
 					</p>
 					<h3 className="cf:mt-1 cf:text-xl cf:font-semibold cf:tracking-[-0.03em] cf:text-foreground">
-						{props.group.userIDs.length} {props.group.userIDs.length === 1 ? 'user' : 'users'}
+						{formatRoleGroupUserCount(t, props.group.userIDs.length)}
 					</h3>
 					<p className="cf:mt-2 cf:text-sm cf:font-semibold cf:leading-6 cf:text-muted-foreground">
-						{props.group.description}
+						{localizedRoleGroupDescription(t, props.group.id)}
 					</p>
 				</div>
 
-				<CampfireStatusPill tone={props.group.tone}>{props.group.title}</CampfireStatusPill>
+				<CampfireStatusPill tone={props.group.tone}>{groupTitle}</CampfireStatusPill>
 			</div>
 
 			{props.group.userIDs.length === 0 ? (
 				<CampfireEmpty
 					icon={UsersRound}
-					title={`No ${props.group.title.toLowerCase()} yet`}
-					description="Named assignments will appear here after they are added."
+					title={roleGroupEmptyTitle(t, props.group)}
+					description={t('settings.roles.group.empty.description')}
 				/>
 			) : (
 				<div className="cf:flex cf:flex-wrap cf:gap-2">
 					{props.group.userIDs.map(userID => {
+						const userLabel = props.labelForUserID(userID);
 						const saving = props.savingKey === `${props.group.role}:${userID}`;
 
 						return (
@@ -88,7 +99,7 @@ function RoleGroupCard(props: {
 								className="cf:inline-flex cf:max-w-full cf:items-center cf:gap-2 cf:rounded-full cf:border cf:border-emerald-300/20 cf:bg-emerald-300/10 cf:px-3 cf:py-1.5 cf:text-xs cf:font-semibold cf:text-emerald-100"
 								title={userID}
 							>
-								<span className="cf:truncate">{props.labelForUserID(userID)}</span>
+								<CampfireBidiText className="cf:truncate">{userLabel}</CampfireBidiText>
 
 								{removableRole !== null && (
 									<Button
@@ -97,7 +108,10 @@ function RoleGroupCard(props: {
 										size="icon-xs"
 										className="cf:-mr-1 cf:size-8 cf:rounded-full cf:text-emerald-100 hover:cf:bg-red-400/15 hover:cf:text-red-100"
 										disabled={saving}
-										aria-label={`Remove ${props.labelForUserID(userID)} from ${props.group.title}`}
+										aria-label={t('settings.roles.group.remove.ariaLabel', {
+											user: userLabel,
+											group: groupTitle,
+										})}
 										onClick={() => void props.onRemoveRole(removableRole, userID)}
 									>
 										{saving ? (

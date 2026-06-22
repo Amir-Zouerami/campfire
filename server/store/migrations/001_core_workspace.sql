@@ -14,13 +14,13 @@ CREATE TABLE IF NOT EXISTS campfire_workspaces (
     is_archived BOOLEAN NOT NULL DEFAULT FALSE
 );
 
-CREATE INDEX idx_campfire_workspaces_channel_id
+CREATE INDEX IF NOT EXISTS idx_campfire_workspaces_channel_id
     ON campfire_workspaces(channel_id);
 
-CREATE INDEX idx_campfire_workspaces_team_id
+CREATE INDEX IF NOT EXISTS idx_campfire_workspaces_team_id
     ON campfire_workspaces(team_id);
 
-CREATE INDEX idx_campfire_workspaces_is_archived
+CREATE INDEX IF NOT EXISTS idx_campfire_workspaces_is_archived
     ON campfire_workspaces(is_archived);
 
 CREATE TABLE IF NOT EXISTS campfire_workspace_working_days (
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS campfire_workspace_working_days (
         ON DELETE CASCADE
 );
 
-CREATE UNIQUE INDEX ux_campfire_workspace_working_days_workspace_weekday
+CREATE UNIQUE INDEX IF NOT EXISTS ux_campfire_workspace_working_days_workspace_weekday
     ON campfire_workspace_working_days(workspace_id, weekday);
 
 CREATE TABLE IF NOT EXISTS campfire_workspace_skip_dates (
@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS campfire_workspace_skip_dates (
         ON DELETE CASCADE
 );
 
-CREATE UNIQUE INDEX ux_campfire_workspace_skip_dates_workspace_date
+CREATE UNIQUE INDEX IF NOT EXISTS ux_campfire_workspace_skip_dates_workspace_date
     ON campfire_workspace_skip_dates(workspace_id, date);
 
 CREATE TABLE IF NOT EXISTS campfire_workspace_role_settings (
@@ -84,10 +84,10 @@ CREATE TABLE IF NOT EXISTS campfire_workspace_role_assignments (
         ON DELETE CASCADE
 );
 
-CREATE UNIQUE INDEX ux_campfire_workspace_role_assignments_workspace_user_role
+CREATE UNIQUE INDEX IF NOT EXISTS ux_campfire_workspace_role_assignments_workspace_user_role
     ON campfire_workspace_role_assignments(workspace_id, user_id, role);
 
-CREATE INDEX idx_campfire_workspace_role_assignments_user
+CREATE INDEX IF NOT EXISTS idx_campfire_workspace_role_assignments_user
     ON campfire_workspace_role_assignments(user_id);
 
 CREATE TABLE IF NOT EXISTS campfire_global_skip_dates (
@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS campfire_global_skip_dates (
     created_at TIMESTAMP NOT NULL
 );
 
-CREATE UNIQUE INDEX ux_campfire_global_skip_dates_date
+CREATE UNIQUE INDEX IF NOT EXISTS ux_campfire_global_skip_dates_date
     ON campfire_global_skip_dates(date);
 
 CREATE TABLE IF NOT EXISTS campfire_audit_log (
@@ -112,10 +112,10 @@ CREATE TABLE IF NOT EXISTS campfire_audit_log (
     created_at TIMESTAMP NOT NULL
 );
 
-CREATE INDEX idx_campfire_audit_log_workspace_created
+CREATE INDEX IF NOT EXISTS idx_campfire_audit_log_workspace_created
     ON campfire_audit_log(workspace_id, created_at);
 
-CREATE INDEX idx_campfire_audit_log_actor_created
+CREATE INDEX IF NOT EXISTS idx_campfire_audit_log_actor_created
     ON campfire_audit_log(actor_user_id, created_at);
 
 -- +goose Down

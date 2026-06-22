@@ -1,6 +1,6 @@
 {
 	"name": "campfire-webapp",
-	"version": "1.0.2",
+	"version": "1.2.0",
 	"description": "React webapp bundle for the Campfire Mattermost plugin.",
 	"main": "index.js",
 	"private": true,
@@ -8,7 +8,8 @@
 		"build": "npm run check && vite build",
 		"build:dev": "npm run check && vite build --mode development",
 		"dev": "vite build --watch --mode development",
-		"check": "tsc --noEmit"
+		"check:i18n": "node scripts/check-i18n-parity.mjs",
+		"check": "npm run check:i18n && tsc --noEmit"
 	},
 	"keywords": [],
 	"author": "",
@@ -18,6 +19,7 @@
 		"@base-ui/react": "^1.5.0",
 		"@fontsource-variable/inter": "^5.2.8",
 		"@tailwindcss/vite": "^4.3.0",
+		"@tanstack/react-query": "^5.0.0",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
 		"cmdk": "^1.1.1",
@@ -30,8 +32,10 @@
 		"react": "^18.3.1",
 		"react-day-picker": "^10.0.1",
 		"react-dom": "^18.3.1",
+		"react-markdown": "^10.1.0",
 		"react-resizable-panels": "^4.11.1",
 		"recharts": "^3.8.0",
+		"remark-gfm": "^4.0.1",
 		"shadcn": "^4.8.0",
 		"sonner": "^2.0.7",
 		"tailwind-merge": "^3.6.0",

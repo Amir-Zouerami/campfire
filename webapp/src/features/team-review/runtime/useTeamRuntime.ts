@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 import { evaluateStandupDay } from '@/api';
+import { useI18n } from '@/i18n';
+import { campfireQueryKeys } from '@/query';
 import type { StandupRunDecision, Workspace } from '@/types/domain';
 
 import { collectRuntimeUserIDs, errorToMessage, getTodayLocalDateString } from './team-runtime.helpers';
@@ -32,58 +35,22 @@ export type UseTeamRuntimeResult = {
  * useTeamRuntime owns runtime decision loading for Team Review.
  */
 export function useTeamRuntime(input: UseTeamRuntimeInput): UseTeamRuntimeResult {
+	const { t } = useI18n();
 	const [date, setDate] = useState(getTodayLocalDateString());
-	const [loadState, setLoadState] = useState<TeamRuntimeLoadState>('idle');
-	const [decision, setDecision] = useState<StandupRunDecision | null>(null);
-	const [message, setMessage] = useState('');
+	const dateIsValid = date.trim() !== '';
 
-	useEffect(() => {
-		let isActive = true;
+	const runtimeQuery = useQuery({
+		queryKey: campfireQueryKeys.teamRuntime(input.workspace.id, date, input.refreshToken),
+		enabled: dateIsValid,
+		queryFn: async (): Promise<StandupRunDecision> => {
+			const response = await evaluateStandupDay(input.workspace.id, date);
 
-		/**
-		 * loadDecision evaluates whether standup automation should run for the selected date.
-		 */
-		async function loadDecision(): Promise<void> {
-			if (date.trim() === '') {
-				setDecision(null);
-				setLoadState('error');
-				setMessage('Choose a date.');
-				return;
-			}
+			return response.decision;
+		},
+	});
 
-			setLoadState('loading');
-			setMessage('');
-
-			try {
-				const response = await evaluateStandupDay(input.workspace.id, date);
-
-				if (!isActive) {
-					return;
-				}
-
-				setDecision(response.decision);
-				setLoadState('ready');
-			} catch (error: unknown) {
-				if (!isActive) {
-					return;
-				}
-
-				setDecision(null);
-				setMessage(errorToMessage(error));
-				setLoadState('error');
-			}
-		}
-
-		void loadDecision();
-
-		return () => {
-			isActive = false;
-		};
-	}, [input.workspace.id, input.refreshToken, date]);
-
-	const userIDsForProfiles = useMemo(() => {
-		return collectRuntimeUserIDs(decision);
-	}, [decision]);
+	const decision = dateIsValid ? runtimeQuery.data ?? null : null;
+	const userIDsForProfiles = useMemo(() => collectRuntimeUserIDs(decision), [decision]);
 
 	/**
 	 * resetToToday moves the runtime decision date back to today.
@@ -93,13 +60,57 @@ export function useTeamRuntime(input: UseTeamRuntimeInput): UseTeamRuntimeResult
 	}
 
 	return {
-		loadState,
+		loadState: resolveTeamRuntimeLoadState(dateIsValid, runtimeQuery.isLoading, runtimeQuery.error),
 		date,
 		decision,
-		message,
-		isBusy: loadState === 'loading',
+		message: resolveTeamRuntimeMessage(
+			dateIsValid,
+			runtimeQuery.error,
+			t('teamReview.runtime.validation.dateRequired'),
+			t('teamReview.runtime.error.fallback'),
+		),
+		isBusy: runtimeQuery.isFetching,
 		userIDsForProfiles,
 		setDate,
 		resetToToday,
 	};
+}
+
+/**
+ * resolveTeamRuntimeLoadState maps query state into the runtime workflow state.
+ */
+function resolveTeamRuntimeLoadState(
+	dateIsValid: boolean,
+	isLoading: boolean,
+	error: unknown,
+): TeamRuntimeLoadState {
+	if (!dateIsValid || error !== null) {
+		return 'error';
+	}
+
+	if (isLoading) {
+		return 'loading';
+	}
+
+	return 'ready';
+}
+
+/**
+ * resolveTeamRuntimeMessage returns localized validation and query errors.
+ */
+function resolveTeamRuntimeMessage(
+	dateIsValid: boolean,
+	error: unknown,
+	dateRequiredMessage: string,
+	fallbackErrorMessage: string,
+): string {
+	if (!dateIsValid) {
+		return dateRequiredMessage;
+	}
+
+	if (error !== null) {
+		return errorToMessage(error, fallbackErrorMessage);
+	}
+
+	return '';
 }

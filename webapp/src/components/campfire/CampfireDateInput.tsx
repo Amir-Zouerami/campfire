@@ -4,8 +4,8 @@ import type { KeyboardEvent, ReactElement } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { normalizeISODateInputValue } from '@/lib/dates';
-import { formatWorkspaceDateHint } from '@/lib/calendarLabels';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/i18n';
 import { useCampfireFloatingPopover } from './useCampfireFloatingPopover';
 
 /**
@@ -17,8 +17,16 @@ type CampfireDateInputProps = {
 	readonly disabled?: boolean;
 	readonly className?: string;
 	readonly timezone?: string;
+	readonly workingDays?: readonly number[];
+	readonly weekStartsOn?: number;
 	readonly onValueChange: (value: string) => void;
 };
+
+/**
+ * CalendarSystem identifies the user-facing calendar rendered by the picker.
+ * The stored value remains Gregorian YYYY-MM-DD for all calendars.
+ */
+type CalendarSystem = 'gregorian' | 'persian';
 
 /**
  * CalendarDayCell describes one visible calendar day.
@@ -26,22 +34,24 @@ type CampfireDateInputProps = {
 type CalendarDayCell = {
 	readonly key: string;
 	readonly dateValue: string;
-	readonly dayNumber: number;
+	readonly dayNumber: string;
 	readonly inCurrentMonth: boolean;
 	readonly selected: boolean;
 	readonly today: boolean;
+	readonly alternativeTitle: string;
 };
 
 /**
- * AlternateCalendarHintParts keeps RTL calendar text isolated from English labels.
+ * CalendarParts contains numeric calendar fields in the active display calendar.
  */
-type AlternateCalendarHintParts = {
-	readonly label: string;
-	readonly calendarDate: string;
+type CalendarParts = {
+	readonly year: number;
+	readonly month: number;
+	readonly day: number;
 };
 
 /**
- * MONTH_NAMES contains month labels.
+ * MONTH_NAMES contains Gregorian fallback month labels.
  */
 const MONTH_NAMES = [
 	'January',
@@ -59,7 +69,7 @@ const MONTH_NAMES = [
 ] as const;
 
 /**
- * WEEKDAY_NAMES contains compact weekday labels.
+ * WEEKDAY_NAMES contains compact Gregorian fallback weekday labels.
  */
 const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
@@ -67,18 +77,25 @@ const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
  * CampfireDateInput renders a custom styled date picker.
  */
 export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
+	const { direction, htmlLang, t } = useI18n();
 	const rootRef = useRef<HTMLDivElement | null>(null);
 	const buttonRef = useRef<HTMLButtonElement | null>(null);
 	const popoverRef = useRef<HTMLDivElement | null>(null);
 	const selectedDate = parseDateValue(props.value);
+	const displayCalendar = useMemo(() => resolveDisplayCalendar(htmlLang), [htmlLang]);
 	const [open, setOpen] = useState(false);
-	const [visibleMonth, setVisibleMonth] = useState<Date>(() => startOfMonth(selectedDate ?? new Date()));
+	const [visibleMonth, setVisibleMonth] = useState<Date>(() => startOfDisplayMonth(selectedDate ?? new Date(), displayCalendar));
 
 	useEffect(() => {
-		if (selectedDate !== null) {
-			setVisibleMonth(startOfMonth(selectedDate));
+		const nextSelectedDate = parseDateValue(props.value);
+		if (nextSelectedDate !== null) {
+			setVisibleMonth(startOfDisplayMonth(nextSelectedDate, displayCalendar));
 		}
-	}, [props.value]);
+	}, [props.value, displayCalendar]);
+
+	useEffect(() => {
+		setVisibleMonth(month => startOfDisplayMonth(month, displayCalendar));
+	}, [displayCalendar]);
 
 	useEffect(() => {
 		if (!open) {
@@ -111,13 +128,37 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 		};
 	}, [open]);
 
-	const cells = useMemo(() => {
-		return buildCalendarCells(visibleMonth, selectedDate);
-	}, [visibleMonth, selectedDate]);
+	const weekStartsOn = useMemo(() => {
+		return resolveWeekStartsOn(props.weekStartsOn, props.workingDays, props.timezone, htmlLang);
+	}, [props.weekStartsOn, props.workingDays, props.timezone, htmlLang]);
 
-	const alternateCalendarHintParts = useMemo(() => {
-		return splitAlternateCalendarHint(formatWorkspaceDateHint(props.value, props.timezone));
-	}, [props.value, props.timezone]);
+	const cells = useMemo(() => {
+		return buildCalendarCells(visibleMonth, selectedDate, weekStartsOn, htmlLang, displayCalendar);
+	}, [visibleMonth, selectedDate, weekStartsOn, htmlLang, displayCalendar]);
+
+	const visibleMonthLabel = useMemo(() => {
+		return formatLocalizedMonthName(visibleMonth, htmlLang, displayCalendar);
+	}, [visibleMonth, htmlLang, displayCalendar]);
+
+	const visibleYearLabel = useMemo(() => {
+		return formatLocalizedYear(visibleMonth, htmlLang, displayCalendar);
+	}, [visibleMonth, htmlLang, displayCalendar]);
+
+	const weekdayLabels = useMemo(() => {
+		return buildLocalizedWeekdayLabels(htmlLang, weekStartsOn);
+	}, [htmlLang, weekStartsOn]);
+
+	const triggerDisplayValue = useMemo(() => {
+		return formatDateTriggerValue(props.value, htmlLang, displayCalendar);
+	}, [props.value, htmlLang, displayCalendar]);
+
+	const triggerSecondaryValue = useMemo(() => {
+		return displayCalendar === 'persian' && props.value.trim() !== '' ? props.value : '';
+	}, [displayCalendar, props.value]);
+
+	const hoverTitle = useMemo(() => {
+		return buildAlternativeDateTitle(props.value, htmlLang, displayCalendar);
+	}, [props.value, htmlLang, displayCalendar]);
 
 	const floatingPopover = useCampfireFloatingPopover({
 		open,
@@ -125,6 +166,8 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 		popoverRef,
 		placement: 'bottom-end',
 	});
+	const PreviousMonthIcon = direction === 'rtl' ? ChevronRight : ChevronLeft;
+	const NextMonthIcon = direction === 'rtl' ? ChevronLeft : ChevronRight;
 
 	/**
 	 * handleKeyDown supports keyboard toggle/close behavior.
@@ -153,8 +196,12 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 		<div
 			ref={popoverRef}
 			role="dialog"
-			aria-label="Choose date"
+			dir={direction}
+			lang={htmlLang}
+			aria-label={t('shared.date.choose')}
 			className="campfire-picker-portal-scope campfire-date-picker-popover campfire-floating-popover"
+			data-calendar={displayCalendar}
+			data-week-start={weekStartsOn}
 			style={floatingPopover.style}
 		>
 			<div className="campfire-date-picker-glow" />
@@ -163,29 +210,29 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 				<button
 					type="button"
 					className="campfire-date-picker-nav-button"
-					aria-label="Previous month"
-					onClick={() => setVisibleMonth(month => addMonths(month, -1))}
+					aria-label={t('shared.date.previousMonth')}
+					onClick={() => setVisibleMonth(month => addDisplayMonths(month, -1, displayCalendar))}
 				>
-					<ChevronLeft className="cf:size-5" />
+					<PreviousMonthIcon className="cf:size-5" />
 				</button>
 
 				<div className="campfire-date-picker-heading">
-					<p className="campfire-date-picker-month">{MONTH_NAMES[visibleMonth.getMonth()]}</p>
-					<p className="campfire-date-picker-year">{visibleMonth.getFullYear()}</p>
+					<p className="campfire-date-picker-month">{visibleMonthLabel}</p>
+					<p className="campfire-date-picker-year">{visibleYearLabel}</p>
 				</div>
 
 				<button
 					type="button"
 					className="campfire-date-picker-nav-button"
-					aria-label="Next month"
-					onClick={() => setVisibleMonth(month => addMonths(month, 1))}
+					aria-label={t('shared.date.nextMonth')}
+					onClick={() => setVisibleMonth(month => addDisplayMonths(month, 1, displayCalendar))}
 				>
-					<ChevronRight className="cf:size-5" />
+					<NextMonthIcon className="cf:size-5" />
 				</button>
 			</div>
 
 			<div className="campfire-date-picker-weekdays">
-				{WEEKDAY_NAMES.map(day => (
+				{weekdayLabels.map(day => (
 					<div key={day} className="campfire-date-picker-weekday">
 						{day}
 					</div>
@@ -199,6 +246,9 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 						type="button"
 						className={calendarDayClassName(cell)}
 						aria-pressed={cell.selected}
+						title={cell.alternativeTitle || undefined}
+						data-alt-title={cell.alternativeTitle || undefined}
+						aria-label={cell.alternativeTitle === '' ? cell.dayNumber : `${cell.dayNumber} — ${cell.alternativeTitle}`}
 						onClick={() => selectDate(cell.dateValue)}
 					>
 						<span>{cell.dayNumber}</span>
@@ -212,7 +262,7 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 					className="campfire-date-picker-footer-button campfire-date-picker-footer-button--primary"
 					onClick={() => selectDate(formatDateValue(new Date()))}
 				>
-					Today
+					{t('common.today')}
 				</button>
 
 				<button
@@ -220,7 +270,7 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 					className="campfire-date-picker-footer-button"
 					onClick={() => setOpen(false)}
 				>
-					Close
+					{t('common.close')}
 				</button>
 			</div>
 		</div>
@@ -232,6 +282,7 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 				ref={buttonRef}
 				id={props.id}
 				type="button"
+				title={hoverTitle === '' ? undefined : hoverTitle}
 				disabled={props.disabled}
 				aria-haspopup="dialog"
 				aria-expanded={open}
@@ -246,13 +297,13 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 							props.value.trim() === '' && 'campfire-date-picker-value--empty',
 						)}
 					>
-						{props.value.trim() === '' ? 'YYYY-MM-DD' : props.value}
+						{props.value.trim() === '' ? t('common.date.placeholder') : triggerDisplayValue}
 					</span>
 
-					{alternateCalendarHintParts !== null && (
-						<span className="campfire-date-picker-hint" dir="rtl">
-							<bdi className="campfire-date-picker-hint-calendar" dir="rtl">
-								{alternateCalendarHintParts.calendarDate}
+					{triggerSecondaryValue !== '' && (
+						<span className="campfire-date-picker-hint" dir={direction}>
+							<bdi className="campfire-date-picker-hint-calendar" dir="ltr">
+								{triggerSecondaryValue}
 							</bdi>
 						</span>
 					)}
@@ -269,39 +320,236 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 }
 
 /**
- * splitAlternateCalendarHint separates the English label from RTL calendar text.
- *
- * Rendering the pieces separately prevents Persian/Arabic day, month, and year
- * text from visually reordering when it is placed beside an English label.
+ * buildAlternativeDateTitle returns a native browser tooltip only when the
+ * visible calendar is not the user's operational calendar. Persian shows the
+ * canonical Gregorian date; Arabic keeps the Gregorian picker but exposes an
+ * Islamic-calendar hint on hover.
  */
-function splitAlternateCalendarHint(hint: string): AlternateCalendarHintParts | null {
-	const cleanHint = hint.trim();
-	if (cleanHint === '') {
+function buildAlternativeDateTitle(dateValue: string, locale: string, calendar: CalendarSystem): string {
+	const date = parseDateValue(dateValue);
+	if (date === null) {
+		return '';
+	}
+
+	if (calendar === 'persian') {
+		return formatDateValue(date);
+	}
+
+	if (locale.toLowerCase().startsWith('ar')) {
+		try {
+			return new Intl.DateTimeFormat('ar-SA-u-ca-islamic', {
+				day: 'numeric',
+				month: 'long',
+				year: 'numeric',
+			}).format(date);
+		} catch (_error: unknown) {
+			return '';
+		}
+	}
+
+	return '';
+}
+
+/**
+ * resolveDisplayCalendar enables a true Persian picker for Persian UI only.
+ * Arabic deliberately remains Gregorian per product direction.
+ */
+function resolveDisplayCalendar(locale: string): CalendarSystem {
+	return locale.toLowerCase().startsWith('fa') ? 'persian' : 'gregorian';
+}
+
+/**
+ * formatLocalizedMonthName returns a month label in the active display calendar.
+ */
+function formatLocalizedMonthName(date: Date, locale: string, calendar: CalendarSystem): string {
+	try {
+		return new Intl.DateTimeFormat(displayCalendarLocale(locale, calendar), { month: 'long' }).format(date);
+	} catch (_error: unknown) {
+		return MONTH_NAMES[date.getMonth()] ?? MONTH_NAMES[0];
+	}
+}
+
+/**
+ * formatLocalizedYear returns a year label using locale digits when available.
+ */
+function formatLocalizedYear(date: Date, locale: string, calendar: CalendarSystem): string {
+	try {
+		return new Intl.DateTimeFormat(displayCalendarLocale(locale, calendar), { year: 'numeric' }).format(date);
+	} catch (_error: unknown) {
+		return String(date.getFullYear());
+	}
+}
+
+/**
+ * formatDateTriggerValue returns the localized visible value for the trigger.
+ */
+function formatDateTriggerValue(value: string, locale: string, calendar: CalendarSystem): string {
+	const date = parseDateValue(value);
+	if (date === null) {
+		return value.trim();
+	}
+
+	if (calendar !== 'persian') {
+		return formatDateValue(date);
+	}
+
+	try {
+		return new Intl.DateTimeFormat(displayCalendarLocale(locale, calendar), {
+			day: 'numeric',
+			month: 'long',
+			year: 'numeric',
+		}).format(date);
+	} catch (_error: unknown) {
+		return formatDateValue(date);
+	}
+}
+
+/**
+ * buildLocalizedWeekdayLabels returns compact labels starting from the workspace workweek.
+ */
+function buildLocalizedWeekdayLabels(locale: string, weekStartsOn: number): readonly string[] {
+	const weekdayIndexes = orderedWeekdays(weekStartsOn);
+
+	try {
+		const formatter = new Intl.DateTimeFormat(gregorianLocale(locale), {
+			timeZone: 'UTC',
+			weekday: 'short',
+		});
+
+		return weekdayIndexes.map(index => {
+			const baseSunday = new Date(Date.UTC(2024, 0, 7 + index, 12, 0, 0));
+
+			return formatter.format(baseSunday);
+		});
+	} catch (_error: unknown) {
+		return weekdayIndexes.map(index => WEEKDAY_NAMES[index] ?? WEEKDAY_NAMES[0]);
+	}
+}
+
+/**
+ * orderedWeekdays returns weekday indexes starting from the workspace workweek.
+ */
+function orderedWeekdays(weekStartsOn: number): readonly number[] {
+	return Array.from({ length: 7 }, (_value, index) => (weekStartsOn + index) % 7);
+}
+
+/**
+ * resolveWeekStartsOn prefers explicit workspace working days, then timezone.
+ */
+function resolveWeekStartsOn(
+	weekStartsOn: number | undefined,
+	workingDays: readonly number[] | undefined,
+	timezone: string | undefined,
+	locale: string,
+): number {
+	const explicitWeekStart = normalizeWeekday(weekStartsOn);
+	if (explicitWeekStart !== null) {
+		return explicitWeekStart;
+	}
+
+	const workingWeekStart = firstWorkingWeekday(workingDays, locale, timezone);
+	if (workingWeekStart !== null) {
+		return workingWeekStart;
+	}
+
+	return defaultWeekStartForTimezone(timezone, locale);
+}
+
+/**
+ * firstWorkingWeekday returns the first enabled day in the locale workweek order.
+ */
+function firstWorkingWeekday(
+	workingDays: readonly number[] | undefined,
+	locale: string,
+	timezone: string | undefined,
+): number | null {
+	const enabled = new Set<number>();
+	for (const weekday of workingDays ?? []) {
+		const normalizedWeekday = normalizeWeekday(weekday);
+		if (normalizedWeekday !== null) {
+			enabled.add(normalizedWeekday);
+		}
+	}
+
+	if (enabled.size === 0 || enabled.size === 7) {
 		return null;
 	}
 
-	const separatorIndex = cleanHint.indexOf(':');
-	if (separatorIndex < 0) {
-		return {
-			label: 'Calendar',
-			calendarDate: cleanHint,
-		};
+	for (const weekday of workweekPreference(locale, timezone)) {
+		if (enabled.has(weekday)) {
+			return weekday;
+		}
 	}
 
-	const label = cleanHint.slice(0, separatorIndex).trim();
-	const calendarDate = cleanHint.slice(separatorIndex + 1).trim();
+	return Math.min(...enabled);
+}
 
-	if (label === '' || calendarDate === '') {
-		return {
-			label: 'Calendar',
-			calendarDate: cleanHint,
-		};
+/**
+ * workweekPreference lists weekday ordering for locating a workspace's first workday.
+ */
+function workweekPreference(locale: string, timezone: string | undefined): readonly number[] {
+	const cleanTimezone = timezone?.trim().toLowerCase() ?? '';
+	if (locale.toLowerCase().startsWith('fa') || cleanTimezone === 'asia/tehran') {
+		return [6, 0, 1, 2, 3, 4, 5];
 	}
 
-	return {
-		label,
-		calendarDate,
-	};
+	return [0, 1, 2, 3, 4, 5, 6];
+}
+
+/**
+ * normalizeWeekday validates Go/Mattermost weekday numbering.
+ */
+function normalizeWeekday(value: number | undefined): number | null {
+	if (value === undefined || !Number.isInteger(value) || value < 0 || value > 6) {
+		return null;
+	}
+
+	return value;
+}
+
+/**
+ * defaultWeekStartForTimezone is a fallback before workspace settings load.
+ */
+function defaultWeekStartForTimezone(timezone: string | undefined, locale: string): number {
+	const normalizedTimezone = timezone?.trim().toLowerCase() ?? '';
+	if (locale.toLowerCase().startsWith('fa') || normalizedTimezone === 'asia/tehran') {
+		return 6;
+	}
+
+	return 0;
+}
+
+/**
+ * gregorianLocale keeps Gregorian labels explicit for non-Persian calendars.
+ */
+function gregorianLocale(locale: string): string {
+	if (locale.trim() === '') {
+		return 'en-US-u-ca-gregory';
+	}
+
+	if (locale.includes('-u-')) {
+		return locale;
+	}
+
+	return `${locale}-u-ca-gregory`;
+}
+
+/**
+ * displayCalendarLocale returns an Intl locale for the visual calendar only.
+ */
+function displayCalendarLocale(locale: string, calendar: CalendarSystem): string {
+	if (calendar === 'persian') {
+		return 'fa-IR-u-ca-persian';
+	}
+
+	return gregorianLocale(locale);
+}
+
+/**
+ * calendarPartsLocale returns ASCII numeric parts for calendar calculations.
+ */
+function calendarPartsLocale(calendar: CalendarSystem): string {
+	return calendar === 'persian' ? 'fa-IR-u-ca-persian-nu-latn' : 'en-US-u-ca-gregory-nu-latn';
 }
 
 /**
@@ -319,10 +567,17 @@ function calendarDayClassName(cell: CalendarDayCell): string {
 /**
  * buildCalendarCells returns six weeks of visible calendar days.
  */
-function buildCalendarCells(visibleMonth: Date, selectedDate: Date | null): readonly CalendarDayCell[] {
+function buildCalendarCells(
+	visibleMonth: Date,
+	selectedDate: Date | null,
+	weekStartsOn: number,
+	locale: string,
+	calendar: CalendarSystem,
+): readonly CalendarDayCell[] {
 	const todayValue = formatDateValue(new Date());
 	const selectedValue = selectedDate === null ? '' : formatDateValue(selectedDate);
-	const firstVisibleDate = startOfCalendarGrid(visibleMonth);
+	const firstVisibleDate = startOfCalendarGrid(visibleMonth, weekStartsOn);
+	const currentMonthKey = calendarMonthKey(visibleMonth, calendar);
 	const cells: CalendarDayCell[] = [];
 
 	for (let index = 0; index < 42; index += 1) {
@@ -332,15 +587,31 @@ function buildCalendarCells(visibleMonth: Date, selectedDate: Date | null): read
 		cells.push({
 			key: dateValue,
 			dateValue,
-			dayNumber: date.getDate(),
-			inCurrentMonth:
-				date.getMonth() === visibleMonth.getMonth() && date.getFullYear() === visibleMonth.getFullYear(),
+			dayNumber: formatLocalizedDayNumber(date, locale, calendar),
+			alternativeTitle: buildAlternativeDateTitle(dateValue, locale, calendar),
+			inCurrentMonth: calendarMonthKey(date, calendar) === currentMonthKey,
 			selected: dateValue === selectedValue,
 			today: dateValue === todayValue,
 		});
 	}
 
 	return cells;
+}
+
+/**
+ * formatLocalizedDayNumber returns a localized day number for one date cell.
+ */
+function formatLocalizedDayNumber(date: Date, locale: string, calendar: CalendarSystem): string {
+	if (calendar === 'persian') {
+		const parts = calendarParts(date, calendar);
+		return new Intl.NumberFormat('fa-IR', { useGrouping: false }).format(parts.day);
+	}
+
+	try {
+		return new Intl.NumberFormat(gregorianLocale(locale), { useGrouping: false }).format(date.getDate());
+	} catch (_error: unknown) {
+		return String(date.getDate());
+	}
 }
 
 /**
@@ -372,7 +643,19 @@ function parseDateValue(value: string): Date | null {
 }
 
 /**
- * startOfMonth returns the first local day of the month.
+ * startOfDisplayMonth returns the first Gregorian date shown for the active calendar month.
+ */
+function startOfDisplayMonth(date: Date, calendar: CalendarSystem): Date {
+	if (calendar === 'gregorian') {
+		return startOfMonth(date);
+	}
+
+	const parts = calendarParts(date, calendar);
+	return addDays(date, 1 - parts.day);
+}
+
+/**
+ * startOfMonth returns the first local day of the Gregorian month.
  */
 function startOfMonth(date: Date): Date {
 	return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -381,14 +664,36 @@ function startOfMonth(date: Date): Date {
 /**
  * startOfCalendarGrid returns the first visible day in the calendar grid.
  */
-function startOfCalendarGrid(date: Date): Date {
-	const firstDay = startOfMonth(date);
+function startOfCalendarGrid(date: Date, weekStartsOn: number): Date {
+	const firstDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+	const leadingDays = (firstDay.getDay() - weekStartsOn + 7) % 7;
 
-	return addDays(firstDay, -firstDay.getDay());
+	return addDays(firstDay, -leadingDays);
 }
 
 /**
- * addMonths returns a date moved by whole months.
+ * addDisplayMonths moves by one or more months in the active calendar.
+ */
+function addDisplayMonths(date: Date, months: number, calendar: CalendarSystem): Date {
+	if (calendar === 'gregorian') {
+		return addMonths(date, months);
+	}
+
+	let result = startOfDisplayMonth(date, calendar);
+	const direction = months >= 0 ? 1 : -1;
+	const count = Math.abs(months);
+
+	for (let index = 0; index < count; index += 1) {
+		result = direction > 0
+			? startOfDisplayMonth(addDays(result, 31), calendar)
+			: startOfDisplayMonth(addDays(result, -1), calendar);
+	}
+
+	return result;
+}
+
+/**
+ * addMonths returns a Gregorian date moved by whole Gregorian months.
  */
 function addMonths(date: Date, months: number): Date {
 	return new Date(date.getFullYear(), date.getMonth() + months, 1);
@@ -399,6 +704,56 @@ function addMonths(date: Date, months: number): Date {
  */
 function addDays(date: Date, days: number): Date {
 	return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+}
+
+/**
+ * calendarParts returns numeric year/month/day for the active display calendar.
+ */
+function calendarParts(date: Date, calendar: CalendarSystem): CalendarParts {
+	if (calendar === 'gregorian') {
+		return {
+			year: date.getFullYear(),
+			month: date.getMonth() + 1,
+			day: date.getDate(),
+		};
+	}
+
+	try {
+		const formatter = new Intl.DateTimeFormat(calendarPartsLocale(calendar), {
+			day: 'numeric',
+			month: 'numeric',
+			year: 'numeric',
+		});
+		const parts = formatter.formatToParts(date);
+
+		return {
+			year: parseCalendarNumber(parts.find(part => part.type === 'year')?.value ?? ''),
+			month: parseCalendarNumber(parts.find(part => part.type === 'month')?.value ?? ''),
+			day: parseCalendarNumber(parts.find(part => part.type === 'day')?.value ?? ''),
+		};
+	} catch (_error: unknown) {
+		return {
+			year: date.getFullYear(),
+			month: date.getMonth() + 1,
+			day: date.getDate(),
+		};
+	}
+}
+
+/**
+ * parseCalendarNumber parses ASCII Intl parts produced with nu-latn.
+ */
+function parseCalendarNumber(value: string): number {
+	const parsed = Number.parseInt(value.replace(/[^0-9]/g, ''), 10);
+	return Number.isFinite(parsed) ? parsed : 1;
+}
+
+/**
+ * calendarMonthKey returns a stable year-month key for the active calendar.
+ */
+function calendarMonthKey(date: Date, calendar: CalendarSystem): string {
+	const parts = calendarParts(date, calendar);
+	return `${parts.year}-${parts.month}`;
 }
 
 /**

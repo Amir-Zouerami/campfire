@@ -27,6 +27,7 @@ type StandupRuntimeService struct {
 	workspaceCalendarStore store.WorkspaceCalendarStore
 	globalSkipDateStore    store.GlobalSkipDateStore
 	leaveStore             store.LeaveStore
+	workspaceRoleStore     store.WorkspaceRoleStore
 	memberProvider         WorkspaceMemberProvider
 }
 
@@ -38,6 +39,7 @@ func NewStandupRuntimeService(
 	workspaceCalendarStore store.WorkspaceCalendarStore,
 	globalSkipDateStore store.GlobalSkipDateStore,
 	leaveStore store.LeaveStore,
+	workspaceRoleStore store.WorkspaceRoleStore,
 	memberProvider WorkspaceMemberProvider,
 ) *StandupRuntimeService {
 	return &StandupRuntimeService{
@@ -45,6 +47,7 @@ func NewStandupRuntimeService(
 		workspaceCalendarStore: workspaceCalendarStore,
 		globalSkipDateStore:    globalSkipDateStore,
 		leaveStore:             leaveStore,
+		workspaceRoleStore:     workspaceRoleStore,
 		memberProvider:         memberProvider,
 	}
 }
@@ -111,6 +114,16 @@ func (s *StandupRuntimeService) EvaluateDay(
 		return nil, NewError(ErrorCodeInternal, "Could not evaluate workspace members.")
 	}
 
+	memberUserIDs, excludedUserIDs, err := standupParticipantsFromMembers(
+		ctx,
+		s.workspaceRoleStore,
+		workspace.ID,
+		memberUserIDs,
+	)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not evaluate standup exclusions.")
+	}
+
 	return buildStandupRunDecision(
 		workspace.ID,
 		dateValue,
@@ -120,6 +133,7 @@ func (s *StandupRuntimeService) EvaluateDay(
 		workspaceOffDays,
 		approvedLeaves,
 		memberUserIDs,
+		excludedUserIDs,
 	), nil
 }
 
@@ -155,6 +169,7 @@ func buildStandupRunDecision(
 	workspaceOffDays []domain.WorkspaceOffDay,
 	approvedLeaves []domain.LeaveRequestWithType,
 	memberUserIDs []string,
+	excludedUserIDs []string,
 ) *domain.StandupRunDecision {
 	memberIDs := uniqueNonEmptyStrings(memberUserIDs)
 	onLeaveUserIDs := approvedLeaveUserIDSet(approvedLeaves)
@@ -172,6 +187,8 @@ func buildStandupRunDecision(
 		IsLastWorkingDayOfWeek: isLastWorkingDayOfWeek,
 		MemberCount:            len(memberIDs),
 		OnLeaveMemberCount:     onLeaveMemberCount,
+		ExcludedMemberCount:    len(uniqueNonEmptyStrings(excludedUserIDs)),
+		ExcludedUserIDs:        uniqueNonEmptyStrings(excludedUserIDs),
 
 		GlobalOffDays:    globalOffDays,
 		WorkspaceOffDays: workspaceOffDays,
@@ -202,10 +219,18 @@ func buildStandupRunDecision(
 		return decision
 	}
 
-	if len(memberIDs) > 0 && onLeaveMemberCount == len(memberIDs) {
+	if len(memberIDs) == 0 {
+		decision.ShouldRun = false
+		decision.Reason = domain.StandupSkipReasonNoParticipants
+		decision.Message = "Standup should not run because no current workspace channel members are included in standups."
+
+		return decision
+	}
+
+	if onLeaveMemberCount == len(memberIDs) {
 		decision.ShouldRun = false
 		decision.Reason = domain.StandupSkipReasonEveryoneOnLeave
-		decision.Message = "Standup should not run because every current workspace channel member is on approved leave."
+		decision.Message = "Standup should not run because every active standup participant is on approved leave."
 
 		return decision
 	}

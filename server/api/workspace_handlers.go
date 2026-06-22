@@ -154,6 +154,48 @@ func handleUpdateWorkspaceNotificationSettings(
 }
 
 /*
+handleUpdateWorkspaceTimezone handles workspace timezone updates.
+*/
+func handleUpdateWorkspaceTimezone(
+	log logger.Logger,
+	mm mattermost.Client,
+	workspaceService *service.WorkspaceService,
+	permissionService *service.PermissionService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		if !requireManageWorkspace(w, r, log, permissionService, user, workspaceID) {
+			return
+		}
+
+		var request UpdateWorkspaceTimezoneRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			WriteError(w, http.StatusBadRequest, "invalid_request", "Request body must be valid JSON.")
+			return
+		}
+
+		workspace, err := workspaceService.UpdateTimezone(
+			r.Context(),
+			request.ToServiceInput(user.ID, workspaceID),
+		)
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		WriteUpdateWorkspaceTimezone(w, http.StatusOK, UpdateWorkspaceTimezoneResponse{
+			Workspace: WorkspaceToPayload(*workspace),
+		})
+	}
+}
+
+/*
 logServiceError writes service failures to plugin logs.
 */
 func logServiceError(log logger.Logger, err error) {

@@ -15,7 +15,7 @@
   <a href="https://github.com/Amir-Zouerami/campfire/releases">
     <img alt="Release" src="https://img.shields.io/github/v/release/Amir-Zouerami/campfire?label=Release&style=for-the-badge" />
   </a>
-  <img alt="Version" src="https://img.shields.io/badge/version-1.0.0-f0a85a?style=for-the-badge" />
+  <img alt="Version" src="https://img.shields.io/badge/version-1.2.0-f0a85a?style=for-the-badge" />
   <img alt="Mattermost" src="https://img.shields.io/badge/Mattermost-Plugin-2b2b2b?style=for-the-badge" />
   <img alt="Go" src="https://img.shields.io/badge/Go-Server-2b2b2b?style=for-the-badge" />
   <img alt="React" src="https://img.shields.io/badge/React-Webapp-2b2b2b?style=for-the-badge" />
@@ -36,8 +36,9 @@
   - [🧩 Standup Forms](#-standup-forms)
   - [🌴 Leave and availability](#-leave-and-availability)
   - [🗓️ Working calendar](#️-working-calendar)
+  - [🌐 Language, direction, and regional support](#-language-direction-and-regional-support)
 - [Screens and workflows](#screens-and-workflows)
-- [Persian and regional support](#persian-and-regional-support)
+- [Language and regional support](#language-and-regional-support)
 - [Installation](#installation)
 - [Configuration overview](#configuration-overview)
 - [Permissions and roles](#permissions-and-roles)
@@ -65,8 +66,9 @@ It brings together:
 - 🔔 DM and channel reminders
 - 📊 daily, weekly, time, missing, blocker, and CSV reports
 - 🧩 workspace-level configuration
-- 🗓️ working calendars and off-days
-- 🌐 Persian calendar display and Persian/Arabic-friendly inputs
+- 🗓️ working calendars, workspace timezones, and off-days
+- 🌐 English, Persian, and Arabic UI support with RTL-aware layouts
+- 📅 Persian calendar display beside Gregorian dates
 
 Campfire is designed for teams that want the structure of a lightweight operations dashboard without moving work discussion out of Mattermost.
 
@@ -81,7 +83,9 @@ Campfire is useful for:
 - operations teams that need simple leave visibility
 - team leads who need daily missing/blocker reports
 - organizations using Mattermost as their primary internal workspace
-- Persian-speaking or mixed-language teams that need better RTL/Persian support
+- Persian-speaking, Arabic-speaking, English-speaking, or mixed-language teams
+- teams that need RTL-aware UI while keeping Mattermost channel discussion unchanged
+- teams that use non-Western working weeks, such as Saturday to Wednesday or Saturday to Thursday
 
 ---
 
@@ -99,6 +103,8 @@ Users can:
 - review their active tasks
 - log time against tasks
 - request leave
+- edit or delete eligible leave requests
+- request changes for approved leave that is already in progress
 - review their leave history
 
 ---
@@ -114,7 +120,8 @@ Team reviewers can:
 - see who is on approved leave
 - review availability windows
 - approve or reject leave requests
-- inspect runtime decisions around standups and reminders
+- inspect runtime decisions around standups, reminders, working days, and off-days
+- review leave approval queues in a compact, operational view
 
 ---
 
@@ -130,6 +137,8 @@ Campfire can generate and preview multiple report types:
 - CSV export
 - saved report filters
 - global workspace reports
+- global time reports across workspaces
+- global leave reports across workspaces
 
 Reports are designed for Mattermost channels, so the output is readable as Markdown and useful for team review.
 
@@ -150,6 +159,8 @@ A schedule can have:
 
 Only users who have not submitted and are not on approved leave should be reminded.
 
+Weekly reminders and weekly report automation run on the workspace's last working day, based on that workspace's working calendar and timezone.
+
 ---
 
 ### 🧩 Standup Forms
@@ -164,6 +175,7 @@ Supported question behavior includes:
 - multiple options
 - required questions
 - report visibility
+- private answers
 - task creation from answers
 
 Templates can be daily or weekly and can be attached to schedules.
@@ -175,10 +187,15 @@ Templates can be daily or weekly and can be attached to schedules.
 Campfire includes a lightweight leave workflow:
 
 - users request leave
-- approvers review requests
+- users can directly edit or delete pending leave requests
+- users can directly edit or delete approved leave requests before the leave starts
+- users request a change when approved leave is already in progress
+- admins, leads, and approvers can edit or delete leave requests regardless of the requester-side condition
+- approvers review requests and approve or reject them
 - approved leave is reflected in availability screens
 - missing-standup logic skips approved leave users
 - approved leave announcements can be posted to a configured channel
+- hourly leave includes start and end times in forms, approval views, and notifications
 
 ---
 
@@ -192,10 +209,33 @@ Campfire supports:
 - Saturday to Wednesday teams
 - Saturday to Thursday teams
 - custom working-day patterns
+- workspace-level timezone settings
 - workspace off-days
 - global off-days
 
-These settings affect reminders, standup availability, and weekly report timing.
+These settings affect reminders, standup availability, leave timing, and weekly report timing.
+
+---
+
+### 🌐 Language, direction, and regional support
+
+Campfire supports language and direction settings across the webapp and generated messages.
+
+Supported languages include:
+
+- English
+- Persian
+- Arabic
+
+The UI supports:
+
+- LTR layouts for English
+- RTL layouts for Persian and Arabic
+- localized labels and page copy
+- bidi-safe rendering for mixed Persian, Arabic, and English text
+- workspace-generated message language settings
+- Persian calendar labels next to canonical Gregorian dates
+- timezone selection independent of UI language
 
 ---
 
@@ -210,21 +250,27 @@ Campfire is organized around four primary areas:
 | **Reports**     | Markdown previews, CSV exports, saved filters, and report posting        |
 | **Settings**    | Roles, calendar, forms, reminders, report rules, audit log, and off-days |
 
-The UI is built as a focused full-screen workspace inside Mattermost, with dark styling, compact navigation, and reusable form controls.
+The UI is built as a focused full-screen workspace inside Mattermost, with dark styling, compact navigation, reusable form controls, and channel-aware bootstrap behavior.
+
+When Campfire opens from a Mattermost channel, it loads the workspace context for that channel instead of reusing stale state from a previously opened channel.
 
 ---
 
-## Persian and regional support
+## Language and regional support
 
 Campfire includes first-class support for Persian/Arabic-heavy workflows:
 
+- English, Persian, and Arabic UI catalogs
 - Persian calendar display beside Gregorian dates
-- Vazirmatn/Vazir font support inside Campfire UI controls
-- bidi-safe rendering for mixed Persian and English text
-- RTL-aware question and option rendering
-- Persian-friendly standup questions, labels, and user-entered answers
+- workspace timezone editing from Settings
+- generated message language settings for workspace notifications
+- Vazirmatn font support inside Campfire UI controls
+- bidi-safe rendering for mixed Persian, Arabic, and English text
+- RTL-aware navigation, form controls, selects, date pickers, and time pickers
+- localized weekday cards with native labels and English references
+- Persian-friendly standup questions, labels, leave reasons, notes, and user-entered answers
 
-This support is scoped to the Campfire UI and does not modify normal Mattermost channel messages outside the plugin.
+This support is scoped to the Campfire UI and Campfire-generated messages. It does not modify normal Mattermost channel messages outside the plugin.
 
 ---
 
@@ -236,7 +282,7 @@ This support is scoped to the Campfire UI and does not modify normal Mattermost 
 4. Upload the plugin bundle.
 5. Enable the plugin.
 6. Open the Campfire workspace from the plugin entry point.
-7. Configure roles, working days, forms, schedules, reminders, and reports.
+7. Configure roles, working days, timezone, forms, schedules, reminders, leave notifications, and reports.
 
 Campfire is intended for self-hosted Mattermost deployments where plugin uploads are enabled.
 
@@ -248,28 +294,31 @@ After installation, configure Campfire from **Settings**.
 
 Recommended setup order:
 
-1. **Overview**  
-   Confirm workspace identity, channel context, and timezone.
+1. **Overview**
+   Confirm workspace identity, channel context, timezone, and generated message language.
 
-2. **Roles & Access**  
+2. **Roles & Access**
    Assign explicit Campfire roles such as Lead, Approver, Viewer, Member, or Admin.
 
-3. **Working Calendar**  
+3. **Working Calendar**
    Select active working days and add workspace off-days.
 
-4. **Standup Forms**  
+4. **Standup Forms**
    Create or edit daily/weekly templates and questions.
 
-5. **Schedules**  
+5. **Schedules**
    Attach templates to daily or weekly schedules and set open/close times.
 
-6. **Reminders**  
+6. **Reminders**
    Configure DM/channel reminders before the standup closes.
 
-7. **Report Rules**  
+7. **Leave Notifications**
+   Configure approved-leave announcement channels, direct-message recipients, and notification language.
+
+8. **Report Rules**
    Choose sorting, report language, blocker behavior, and posting rules.
 
-8. **Global Off-days**  
+9. **Global Off-days**
    Add organization-wide holidays or no-standup dates.
 
 ---
@@ -284,11 +333,13 @@ Typical roles:
 | ------------ | --------------------------------------------------------------- |
 | **Member**   | Submit standups, manage personal tasks/time/leave               |
 | **Lead**     | Review submissions, missing users, availability, and team state |
-| **Approver** | Approve or reject leave requests                                |
+| **Approver** | Approve or reject leave requests and manage leave corrections   |
 | **Viewer**   | View reports and dashboards without changing settings           |
-| **Admin**    | Configure workspace rules, schedules, forms, and access         |
+| **Admin**    | Configure workspace rules, schedules, forms, access, and leave  |
 
 Campfire can also inherit access from Mattermost roles depending on backend settings, such as channel admins or system admins. The current UI displays inherited access behavior; changing those inherited rules requires backend/settings support.
+
+Admins and privileged reviewers can manage leave requests directly when normal users would need to request a change.
 
 ---
 
@@ -305,8 +356,12 @@ Supported report workflows include:
 - time totals by person/project/task/day/week
 - CSV export
 - saved report views
+- global time reports across workspaces
+- global leave reports across workspaces
 
 Reports can be manually reviewed before posting, which helps avoid noisy or incorrect channel output.
+
+Weekly report automation follows the workspace working calendar and runs on the workspace's last working day.
 
 ---
 
@@ -320,7 +375,6 @@ campfire/
 ├── server/                  # Go plugin backend
 ├── webapp/                  # React + TypeScript frontend
 ├── assets/                  # Plugin assets and logo
-├── migrations/              # Database migrations
 ├── Makefile                 # Build, check, and bundle commands
 └── .github/workflows/       # CI and release automation
 ```
@@ -331,11 +385,14 @@ The backend is written in Go and handles:
 
 - Mattermost plugin lifecycle
 - HTTP API routes
-- database access
+- database access and migrations
 - workspace configuration
+- workspace timezone and generated-message language settings
 - standup submission storage
 - task/time/leave logic
+- leave approval, deletion, and change-request rules
 - scheduled reminders
+- working-calendar runtime decisions
 - report generation
 - audit logging
 
@@ -353,9 +410,10 @@ The UI uses shared Campfire components for:
 - question cards
 - report panels
 - layout sections
+- title cards and data cards
 - bidi-safe text rendering
 
-The UI is intentionally component-driven so behavior and styling stay consistent across pages.
+The UI is intentionally component-driven so behavior, typography, RTL handling, and styling stay consistent across pages.
 
 ---
 
@@ -391,7 +449,7 @@ The release bundle includes:
 - server binaries
 - webapp build output
 - assets
-- migrations
+- migrations embedded in the server package
 
 The release workflow is tag-based and publishes the generated `.tar.gz` bundle as a GitHub Release asset.
 
@@ -407,7 +465,9 @@ It stores operational workspace data such as:
 - generated tasks
 - time entries
 - leave requests
+- leave decisions and change requests
 - reminder/report settings
+- timezone and generated-message language settings
 - role assignments
 - audit entries
 
@@ -417,6 +477,4 @@ Campfire does not require an external SaaS service to operate.
 
 ## Status
 
-Campfire is released as **v1.0.0**.
-
-The current focus is stability, predictable team workflows, and clean Mattermost-native reporting.
+The current focus is stability, predictable team workflows, clean Mattermost-native reporting, consistent multilingual UI, and reliable workspace-specific automation.

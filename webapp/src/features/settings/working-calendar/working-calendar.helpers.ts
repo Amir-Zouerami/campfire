@@ -1,4 +1,5 @@
 import { ApiClientError } from '@/api';
+import type { TFunction } from '@/i18n/types';
 import { cn } from '@/lib/utils';
 import type { WorkspaceOffDay, WorkspaceWorkingDay } from '@/types/domain';
 
@@ -101,9 +102,9 @@ export function weekdayShortName(weekday: number): string {
 /**
  * selectedWeekdayLabel returns a compact selected-days label.
  */
-export function selectedWeekdayLabel(selectedWeekdays: readonly number[]): string {
+export function selectedWeekdayLabel(selectedWeekdays: readonly number[], t: TFunction): string {
 	if (selectedWeekdays.length === 0) {
-		return 'No working days';
+		return t('settings.workingCalendar.error.weekdayRequired');
 	}
 
 	return selectedWeekdays.map(weekdayShortName).join(', ');
@@ -135,14 +136,17 @@ export function workspaceOffDayIsPast(offDay: WorkspaceOffDay): boolean {
 /**
  * formatDateTime formats an API timestamp for compact display.
  */
-export function formatDateTime(value: string): string {
+export function formatDateTime(value: string, locale: string): string {
 	const date = new Date(value);
 
 	if (Number.isNaN(date.getTime())) {
 		return value;
 	}
 
-	return date.toLocaleString();
+	return new Intl.DateTimeFormat(locale, {
+		dateStyle: 'medium',
+		timeStyle: 'short',
+	}).format(date);
 }
 
 /**
@@ -159,7 +163,7 @@ export function weekdayButtonClassName(active: boolean): string {
 /**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
-export function errorToMessage(error: unknown): string {
+export function errorToMessage(error: unknown, t: TFunction): string {
 	if (error instanceof ApiClientError) {
 		return error.message;
 	}
@@ -168,5 +172,5 @@ export function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not update the working calendar.';
+	return t('settings.workingCalendar.error.update');
 }

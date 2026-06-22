@@ -2,12 +2,14 @@ import { memo, startTransition, useEffect, useMemo, useRef, useState, type Keybo
 import { CheckCircle2, Plus, Trash2 } from 'lucide-react';
 
 import { CampfireBidiText } from '@/components/campfire/CampfireBidiText';
+import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
 import { CampfireFormQuestionCard } from '@/components/campfire/CampfireFormQuestionCard';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
+import { CampfireTimeInput } from '@/components/campfire/CampfireTimeInput';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CampfireResponsiveInput, CampfireResponsiveTextarea } from '@/components/campfire/CampfireResponsiveInput';
-import { Input } from '@/components/ui/input';
+import { useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/types/domain';
 
@@ -90,12 +92,14 @@ function textDirectionFor(values: readonly string[]): 'ltr' | 'rtl' {
  * QuestionControl renders the input control for a question type.
  */
 function QuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID: string }): ReactElement {
+	const { t } = useI18n();
+
 	if (isTaskListQuestion(props.question)) {
 		return (
 			<TaskListQuestionControl
 				disabled={props.disabled}
 				inputID={props.inputID}
-				placeholder={props.question.placeholder}
+				placeholder={props.question.placeholder || t('myDay.standup.question.workItems.placeholder')}
 				tasks={props.tasks}
 				value={questionValueAsString(props.value)}
 				onChange={props.onChange}
@@ -131,7 +135,7 @@ function QuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID
 					value={questionValueAsString(props.value)}
 					onValueChange={value => props.onChange(value)}
 				>
-					<option value="">Choose…</option>
+					<option value="">{t('myDay.standup.question.dropdown.placeholder')}</option>
 					{props.question.options.map(option => (
 						<option key={option} value={option}>
 							<CampfireBidiText className="campfire-standup-option-label">{option}</CampfireBidiText>
@@ -142,6 +146,30 @@ function QuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID
 
 		case 'multi_select':
 			return <MultiSelectQuestionControl {...props} />;
+
+		case 'date':
+			return (
+				<CampfireDateInput
+					id={props.inputID}
+					disabled={props.disabled}
+					value={questionValueAsString(props.value)}
+					timezone={props.timezone}
+					onValueChange={value => props.onChange(value)}
+				/>
+			);
+
+		case 'time':
+			return (
+				<CampfireTimeInput
+					id={props.inputID}
+					disabled={props.disabled}
+					value={questionValueAsString(props.value)}
+					onValueChange={value => props.onChange(value)}
+				/>
+			);
+
+		case 'datetime':
+			return <DateTimeQuestionControl {...props} />;
 
 		case 'number':
 			return (
@@ -163,7 +191,7 @@ function QuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID
 					min="0"
 					step="5"
 					disabled={props.disabled}
-					placeholder={props.question.placeholder || 'Minutes'}
+					placeholder={props.question.placeholder || t('myDay.standup.question.duration.placeholder')}
 					value={questionValueAsString(props.value)}
 					onValueChange={value => props.onChange(value)}
 				/>
@@ -203,6 +231,10 @@ function normalizedQuestionType(value: string): string {
 		case 'dropdown':
 		case 'number':
 		case 'duration':
+		case 'work_items':
+		case 'date':
+		case 'time':
+		case 'datetime':
 		case 'text':
 			return value.trim().toLowerCase();
 
@@ -211,14 +243,80 @@ function normalizedQuestionType(value: string): string {
 	}
 }
 
+
+/**
+ * DateTimeQuestionControl renders one date-time answer as coordinated Campfire
+ * date and time pickers while storing one API-safe YYYY-MM-DDTHH:mm string.
+ */
+function DateTimeQuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID: string }): ReactElement {
+	const value = questionValueAsString(props.value);
+	const [initialDateValue, initialTimeValue] = splitDateTimeValue(value);
+	const [dateDraft, setDateDraft] = useState(initialDateValue);
+	const [timeDraft, setTimeDraft] = useState(initialTimeValue);
+
+	useEffect(() => {
+		const [nextDateValue, nextTimeValue] = splitDateTimeValue(questionValueAsString(props.value));
+		setDateDraft(nextDateValue);
+		setTimeDraft(nextTimeValue);
+	}, [props.inputID, props.value]);
+
+	function commit(nextDate: string, nextTime: string): void {
+		if (nextDate.trim() === '' || nextTime.trim() === '') {
+			props.onChange('');
+			return;
+		}
+
+		props.onChange(`${nextDate}T${nextTime}`);
+	}
+
+	function handleDateChange(nextDate: string): void {
+		setDateDraft(nextDate);
+		commit(nextDate, timeDraft);
+	}
+
+	function handleTimeChange(nextTime: string): void {
+		setTimeDraft(nextTime);
+		commit(dateDraft, nextTime);
+	}
+
+	return (
+		<div className="cf:grid cf:gap-3 md:cf:grid-cols-2">
+			<CampfireDateInput
+				id={`${props.inputID}-date`}
+				disabled={props.disabled}
+				value={dateDraft}
+				timezone={props.timezone}
+				onValueChange={handleDateChange}
+			/>
+
+			<CampfireTimeInput
+				id={`${props.inputID}-time`}
+				disabled={props.disabled}
+				value={timeDraft}
+				onValueChange={handleTimeChange}
+			/>
+		</div>
+	);
+}
+
+/**
+ * splitDateTimeValue safely separates a local date-time answer.
+ */
+function splitDateTimeValue(value: string): readonly [string, string] {
+	const [dateValue = '', timeValue = ''] = value.split('T');
+
+	return [dateValue, timeValue];
+}
+
 /**
  * BooleanQuestionControl renders true/false questions as a first-class answer
  * control. It intentionally does not use CampfireSelect; a boolean question is
  * not an option picker and must not show a fake "Choose option" row.
  */
 function BooleanQuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID: string }): ReactElement {
+	const { t } = useI18n();
 	const selectedValue = questionValueAsBoolean(props.value);
-	const labels = booleanOptionLabels(props.question.options);
+	const labels = booleanOptionLabels(props.question.options, t('common.no'), t('common.yes'));
 	const direction = textDirectionFor([props.question.label, labels.falseLabel, labels.trueLabel]);
 
 	return (
@@ -275,24 +373,29 @@ function BooleanAnswerButton(props: {
  * booleanOptionLabels lets admins localize boolean labels by entering exactly
  * two options on the question. Otherwise Campfire keeps a clear default.
  */
-function booleanOptionLabels(options: readonly string[]): { readonly falseLabel: string; readonly trueLabel: string } {
+function booleanOptionLabels(
+	options: readonly string[],
+	defaultFalseLabel: string,
+	defaultTrueLabel: string,
+): { readonly falseLabel: string; readonly trueLabel: string } {
 	const cleanOptions = options.map(option => option.trim()).filter(Boolean);
 
 	if (cleanOptions.length >= 2) {
 		return {
-			falseLabel: cleanOptions[0] ?? 'No',
-			trueLabel: cleanOptions[1] ?? 'Yes',
+			falseLabel: cleanOptions[0] ?? defaultFalseLabel,
+			trueLabel: cleanOptions[1] ?? defaultTrueLabel,
 		};
 	}
 
-	return { falseLabel: 'No', trueLabel: 'Yes' };
+	return { falseLabel: defaultFalseLabel, trueLabel: defaultTrueLabel };
 }
 
 /**
  * CheckboxQuestionControl renders checkbox option questions.
  */
 function CheckboxQuestionControl(props: MyStandupQuestionFieldProps & { readonly inputID: string }): ReactElement {
-	const options = props.question.options.length > 0 ? props.question.options : ['Yes'];
+	const { t } = useI18n();
+	const options = props.question.options.length > 0 ? props.question.options : [t('myDay.standup.question.checkbox.default')];
 
 	return (
 		<div className={cn('campfire-standup-option-list', textDirectionFor([props.question.label, ...options]) === 'rtl' && 'campfire-standup-option-list--rtl')}>
@@ -377,6 +480,7 @@ function TaskListQuestionControl(props: {
 	readonly tasks: readonly Task[];
 	readonly onChange: (value: string) => void;
 }): ReactElement {
+	const { t } = useI18n();
 	const [draftItems, setDraftItems] = useState<readonly string[]>(() => {
 		const items = parseTaskListItems(props.value);
 		return items.length > 0 ? editableTaskItems(items) : [''];
@@ -462,23 +566,23 @@ function TaskListQuestionControl(props: {
 							</div>
 
 							<div className="campfire-work-item-input-wrap">
-								<Input
+								<CampfireResponsiveInput
 									id={index === 0 ? props.inputID : undefined}
 									disabled={props.disabled}
-									placeholder={props.placeholder || 'Add one work item'}
+									placeholder={props.placeholder || t('myDay.standup.question.workItems.placeholder')}
 									value={item}
-									onChange={event => updateItem(index, event.currentTarget.value)}
+									onValueChange={value => updateItem(index, value)}
 									onKeyDown={event => handleItemKeyDown(event, index)}
 								/>
 
 								{exactMatch !== null && (
 									<p className="campfire-task-match-hint">
-										<CheckCircle2 className="cf:size-4" /> Existing task selected
+										<CheckCircle2 className="cf:size-4" /> {t('myDay.standup.question.workItems.existingTask')}
 									</p>
 								)}
 
 								{suggestions.length > 0 && exactMatch === null && (
-									<div className="campfire-task-suggestion-list" role="listbox" aria-label="Matching existing tasks">
+									<div className="campfire-task-suggestion-list" role="listbox" aria-label={t('myDay.standup.question.workItems.suggestionsLabel')}>
 										{suggestions.map(task => (
 											<button
 												key={task.id}
@@ -506,7 +610,7 @@ function TaskListQuestionControl(props: {
 								onClick={() => removeItem(index)}
 							>
 								<Trash2 className="cf:size-4" />
-								Remove
+								{t('myDay.standup.question.workItems.remove')}
 							</Button>
 						</div>
 					);
@@ -516,7 +620,7 @@ function TaskListQuestionControl(props: {
 			<div className="cf:flex cf:justify-end">
 				<Button type="button" variant="secondary" disabled={props.disabled} onClick={() => addItem()}>
 					<Plus className="cf:size-4" />
-					Add item
+					{t('myDay.standup.question.workItems.add')}
 				</Button>
 			</div>
 		</div>

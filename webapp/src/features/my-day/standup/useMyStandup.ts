@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from '@/components/campfire/campfire-toast';
+import { isolateBidiText, useI18n } from '@/i18n';
+import type { CampfireLanguage, TranslationKey } from '@/i18n';
 
 import { evaluateStandupDay, getMyStandupSubmission, listMyTasks, listStandupConfiguration, submitStandup } from '@/api';
 import type { StandupAnswer, StandupQuestion, StandupRunDecision, StandupSchedule, StandupTemplate, Task, Workspace } from '@/types/domain';
@@ -57,6 +59,7 @@ export type UseMyStandupResult = {
  * eligibility, and submission for the My Day check-in form.
  */
 export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
+	const { language, t } = useI18n();
 	const today = useMemo(() => todayForWorkspace(input.workspace.timezone), [input.workspace.timezone]);
 	const [loadState, setLoadState] = useState<MyStandupLoadState>('idle');
 	const [templates, setTemplates] = useState<readonly StandupTemplate[]>([]);
@@ -110,7 +113,7 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 					return;
 				}
 
-				setMessage(errorToMessage(error));
+				setMessage(errorToMessage(error, t));
 				setLoadState('error');
 			}
 		}
@@ -120,7 +123,7 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 		return () => {
 			isActive = false;
 		};
-	}, [input.workspace.id]);
+	}, [input.workspace.id, t]);
 
 	useEffect(() => {
 		let isActive = true;
@@ -146,7 +149,7 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 				}
 
 				setRuntimeDecision(null);
-				toast.error(errorToMessage(error));
+				toast.error(errorToMessage(error, t));
 			}
 		}
 
@@ -155,10 +158,10 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 		return () => {
 			isActive = false;
 		};
-	}, [input.workspace.id, occurrenceDate]);
+	}, [input.workspace.id, occurrenceDate, t]);
 
 	const availableSchedules = useMemo(() => {
-		return schedules.filter(schedule => scheduleAllowsDate(schedule, schedules, runtimeDecision));
+		return schedules.filter(schedule => scheduleAllowsDate(schedule, runtimeDecision));
 	}, [runtimeDecision, schedules]);
 
 	useEffect(() => {
@@ -218,13 +221,16 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 				}
 
 				setAnswers(storedAnswersToDrafts(visibleQuestions, response.answers));
-				setMessage(`Editing saved standup from ${occurrenceDate}. Last updated ${formatSubmittedAt(response.submission.lastUpdatedAt)}.`);
+				setMessage(t('myDay.standup.saved.editing', {
+					date: isolateBidiText(occurrenceDate),
+					time: isolateBidiText(formatSubmittedAt(response.submission.lastUpdatedAt, language, t)),
+				}));
 			} catch (error: unknown) {
 				if (!isActive) {
 					return;
 				}
 
-				toast.error(errorToMessage(error));
+				toast.error(errorToMessage(error, t));
 			}
 		}
 
@@ -233,10 +239,10 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 		return () => {
 			isActive = false;
 		};
-	}, [input.workspace.id, occurrenceDate, questions, selectedTemplate, today, visibleQuestions]);
+	}, [input.workspace.id, language, occurrenceDate, questions, selectedTemplate, t, today, visibleQuestions]);
 
 	const isBusy = loadState === 'loading' || loadState === 'saving';
-	const dateBlockedMessage = blockedDateMessage(occurrenceDate, today, runtimeDecision, availableSchedules);
+	const dateBlockedMessage = blockedDateMessage(occurrenceDate, today, runtimeDecision, availableSchedules, t);
 	const canSubmitToday = dateBlockedMessage === '' && selectedSchedule !== null;
 
 	/**
@@ -286,14 +292,14 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 		}
 
 		if (selectedSchedule === null || selectedTemplate === null) {
-			const scheduleMessage = 'Choose a standup schedule before submitting.';
+			const scheduleMessage = t('myDay.standup.error.chooseSchedule');
 			setMessage(scheduleMessage);
 			setLoadState('error');
 			toast.error(scheduleMessage);
 			return;
 		}
 
-		const validationMessage = validateRequiredAnswers(visibleQuestions, answers);
+		const validationMessage = validateRequiredAnswers(visibleQuestions, answers, t);
 		if (validationMessage !== null) {
 			setMessage(validationMessage);
 			setLoadState('error');
@@ -317,17 +323,23 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 			});
 
 			const createdTaskCount = response.createdTasks.length;
-			const updatedAt = formatSubmittedAt(response.submission.lastUpdatedAt);
+			const updatedAt = isolateBidiText(formatSubmittedAt(response.submission.lastUpdatedAt, language, t));
 			const successMessage = createdTaskCount > 0
-				? `Standup saved. ${createdTaskCount} ${createdTaskCount === 1 ? 'task' : 'tasks'} created from work items. Updated ${updatedAt}.`
-				: `Standup saved. Updated ${updatedAt}.`;
+				? t('myDay.standup.saved.successWithTasks', {
+					taskCount: createdTaskCount,
+					taskLabel: createdTaskCount === 1
+						? t('myDay.standup.saved.task.singular')
+						: t('myDay.standup.saved.task.plural'),
+					time: updatedAt,
+				})
+				: t('myDay.standup.saved.success', { time: updatedAt });
 
 			setLoadState('ready');
 			setMessage(successMessage);
 			toast.success(successMessage);
 			input.onStandupSubmitted();
 		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
+			const errorMessage = errorToMessage(error, t);
 			setMessage(errorMessage);
 			setLoadState('error');
 			toast.error(errorMessage);
@@ -434,7 +446,6 @@ function storedAnswerToDraftValue(question: StandupQuestion, valueJSON: string |
  */
 function scheduleAllowsDate(
 	schedule: StandupSchedule,
-	schedules: readonly StandupSchedule[],
 	runtimeDecision: StandupRunDecision | null,
 ): boolean {
 	if (!schedule.enabled || runtimeDecision?.shouldRun !== true) {
@@ -446,17 +457,10 @@ function scheduleAllowsDate(
 	}
 
 	if (schedule.kind === 'daily') {
-		return !(schedule.skipDailyWhenWeeklyRuns && runtimeDecision.isLastWorkingDayOfWeek && hasWeeklySchedule(schedules));
+		return true;
 	}
 
 	return true;
-}
-
-/**
- * hasWeeklySchedule reports whether a workspace has an enabled weekly schedule.
- */
-function hasWeeklySchedule(schedules: readonly StandupSchedule[]): boolean {
-	return schedules.some(schedule => schedule.enabled && schedule.kind === 'weekly' && schedule.weeklyMode === 'last_working_day');
 }
 
 /**
@@ -467,21 +471,22 @@ function blockedDateMessage(
 	today: string,
 	runtimeDecision: StandupRunDecision | null,
 	availableSchedules: readonly StandupSchedule[],
+	t: (key: TranslationKey, values?: Record<string, string | number | boolean>) => string,
 ): string {
 	if (occurrenceDate.trim() === '') {
-		return 'Choose a standup date.';
+		return t('myDay.standup.error.chooseDate');
 	}
 
 	if (occurrenceDate > today) {
-		return 'Future standups cannot be submitted.';
+		return t('myDay.standup.error.futureDate');
 	}
 
 	if (runtimeDecision !== null && !runtimeDecision.shouldRun) {
-		return runtimeDecision.message || 'Standup does not run on this date.';
+		return runtimeDecision.message || t('myDay.standup.error.notRunning');
 	}
 
 	if (runtimeDecision?.shouldRun === true && availableSchedules.length === 0) {
-		return 'No enabled standup schedule runs on this workspace date.';
+		return t('myDay.standup.error.noScheduleForDate');
 	}
 
 	return '';
@@ -521,14 +526,36 @@ function todayForWorkspace(timezone: string): string {
 /**
  * formatSubmittedAt returns a compact updated-at label for submit success.
  */
-function formatSubmittedAt(value: string): string {
+function formatSubmittedAt(
+	value: string,
+	language: CampfireLanguage,
+	t: (key: TranslationKey, values?: Record<string, string | number | boolean>) => string,
+): string {
 	const date = new Date(value);
 	if (Number.isNaN(date.getTime())) {
-		return 'just now';
+		return t('myDay.standup.saved.justNow');
 	}
 
-	return new Intl.DateTimeFormat('en-US', {
+	return new Intl.DateTimeFormat(localeForLanguage(language), {
 		hour: '2-digit',
 		minute: '2-digit',
 	}).format(date);
+}
+
+
+/**
+ * localeForLanguage returns a browser Intl locale matching Campfire UI language.
+ */
+function localeForLanguage(language: CampfireLanguage): string {
+	switch (language) {
+		case 'persian':
+			return 'fa-IR';
+
+		case 'arabic':
+			return 'ar';
+
+		case 'english':
+		default:
+			return 'en-US';
+	}
 }

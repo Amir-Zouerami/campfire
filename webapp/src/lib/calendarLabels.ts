@@ -2,9 +2,9 @@
  * formatWorkspaceDateHint formats exactly one alternate local-calendar label for
  * a stored ISO date without changing the canonical YYYY-MM-DD API value.
  *
- * Campfire stores dates as Gregorian local dates. The hint is intentionally
- * timezone-driven: Tehran workspaces get the Persian/Jalali calendar, Arabic
- * region workspaces get a Hijri label, and other workspaces stay uncluttered.
+ * Campfire stores dates as Gregorian local dates. Current product behavior only
+ * exposes a Persian/Jalali alternate label for Tehran/Persian workspaces. Arabic
+ * workspaces intentionally remain Gregorian.
  */
 export function formatWorkspaceDateHint(dateValue: string, timezone?: string): string {
 	const date = parseISODateAsUTCNoon(dateValue);
@@ -12,16 +12,11 @@ export function formatWorkspaceDateHint(dateValue: string, timezone?: string): s
 		return '';
 	}
 
-	const calendar = calendarForTimezone(timezone);
-	if (calendar === 'none') {
+	if (calendarForTimezone(timezone) !== 'persian') {
 		return '';
 	}
 
-	if (calendar === 'persian') {
-		return formatCalendarLabel(date, timezone ?? '', 'fa-IR-u-ca-persian', 'persian');
-	}
-
-	return formatCalendarLabel(date, timezone ?? '', 'ar-SA-u-ca-islamic', 'islamic');
+	return formatCalendarLabel(date, timezone ?? '', 'fa-IR-u-ca-persian', 'persian');
 }
 
 /**
@@ -53,7 +48,7 @@ export function buildWorkspaceDateLabelMap(
  * calendarForTimezone returns the one alternate calendar that should be shown
  * for a workspace timezone.
  */
-function calendarForTimezone(timezone?: string): 'persian' | 'hijri' | 'none' {
+function calendarForTimezone(timezone?: string): 'persian' | 'none' {
 	const cleanTimezone = timezone?.trim() ?? '';
 	if (cleanTimezone === '') {
 		return 'none';
@@ -61,10 +56,6 @@ function calendarForTimezone(timezone?: string): 'persian' | 'hijri' | 'none' {
 
 	if (persianCalendarTimezones.has(cleanTimezone)) {
 		return 'persian';
-	}
-
-	if (hijriCalendarTimezones.has(cleanTimezone)) {
-		return 'hijri';
 	}
 
 	return 'none';
@@ -78,7 +69,7 @@ function formatCalendarLabel(
 	date: Date,
 	timezone: string,
 	locale: string,
-	calendar: 'persian' | 'islamic',
+	calendar: 'persian',
 ): string {
 	try {
 		const parts = new Intl.DateTimeFormat(locale, {
@@ -127,22 +118,3 @@ function parseISODateAsUTCNoon(value: string): Date | null {
 }
 
 const persianCalendarTimezones = new Set(['Asia/Tehran']);
-
-const hijriCalendarTimezones = new Set([
-	'Africa/Algiers',
-	'Africa/Cairo',
-	'Africa/Casablanca',
-	'Africa/Khartoum',
-	'Africa/Tripoli',
-	'Africa/Tunis',
-	'Asia/Amman',
-	'Asia/Baghdad',
-	'Asia/Bahrain',
-	'Asia/Beirut',
-	'Asia/Dubai',
-	'Asia/Jeddah',
-	'Asia/Kuwait',
-	'Asia/Muscat',
-	'Asia/Qatar',
-	'Asia/Riyadh',
-]);

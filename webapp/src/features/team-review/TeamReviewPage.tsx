@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 
 import { CampfirePageHeader } from '@/components/campfire/CampfireLayoutPrimitives';
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
+import { useI18n } from '@/i18n';
 
 import { TeamAvailabilityPage } from './availability/TeamAvailabilityPage';
 import { TeamLeaveApprovalsPage } from './leave-approvals/TeamLeaveApprovalsPage';
@@ -17,6 +18,7 @@ import type { TeamReviewSectionID } from './team-review.types';
  * TeamReviewPage renders operational review pages for Leads, Approvers, and Admins.
  */
 export function TeamReviewPage(props: WorkspaceShellProps): ReactElement {
+	const { t } = useI18n();
 	const [activeSection, setActiveSection] = useState<TeamReviewSectionID>('standups');
 
 	const visibleSections = useMemo(() => {
@@ -34,9 +36,9 @@ export function TeamReviewPage(props: WorkspaceShellProps): ReactElement {
 	return (
 		<div className="campfire-page-stack">
 			<CampfirePageHeader
-				eyebrow="Team Review"
-				title={resolvedSection.label}
-				description={resolvedSection.description}
+				eyebrow={t('teamReview.page.eyebrow')}
+				title={t(resolvedSection.labelKey)}
+				description={t(resolvedSection.descriptionKey)}
 			/>
 
 			<TeamReviewSectionNavigation

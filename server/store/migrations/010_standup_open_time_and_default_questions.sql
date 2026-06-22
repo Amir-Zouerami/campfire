@@ -1,6 +1,6 @@
 -- +goose Up
 ALTER TABLE campfire_standup_schedules
-    ADD COLUMN opens_at VARCHAR(5) NOT NULL DEFAULT '09:30';
+    ADD COLUMN IF NOT EXISTS opens_at VARCHAR(5) NOT NULL DEFAULT '09:30';
 
 UPDATE campfire_standup_schedules
 SET opens_at = CASE

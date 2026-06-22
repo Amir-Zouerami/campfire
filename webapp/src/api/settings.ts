@@ -5,6 +5,7 @@ import type {
 	CreateWorkspaceOffDayResponse,
 	DeleteGlobalSkipDateResponse,
 	DeleteWorkspaceOffDayResponse,
+	GetDataRetentionPreviewResponse,
 	ListGlobalSkipDatesResponse,
 	ListReminderRulesResponse,
 	ListReportRulesResponse,
@@ -14,11 +15,13 @@ import type {
 	UpdateReminderRuleResponse,
 	UpdateReportRuleRequest,
 	UpdateReportRuleResponse,
+	PurgeWorkspaceDataRequest,
+	PurgeWorkspaceDataResponse,
 	UpdateWorkspaceWorkingDaysRequest,
 	UpdateWorkspaceWorkingDaysResponse,
 } from '@/types/api';
 
-import { encodePath, requestJson } from './http';
+import { encodePath, requestJson, withQuery } from './http';
 
 /**
  * listGlobalSkipDates calls GET /settings/global/skip-dates.
@@ -141,6 +144,35 @@ export function updateReportRule(
 		`/workspaces/${encodePath(workspaceID)}/reports/rules/${encodePath(reportRuleID)}`,
 		{
 			method: 'PUT',
+			body: request,
+		},
+	);
+}
+
+
+/**
+ * getDataRetentionPreview calls GET /workspaces/{workspaceID}/admin/data-retention/preview.
+ */
+export function getDataRetentionPreview(
+	workspaceID: string,
+	cutoffDate: string,
+): Promise<GetDataRetentionPreviewResponse> {
+	return requestJson<GetDataRetentionPreviewResponse>(
+		withQuery(`/workspaces/${encodePath(workspaceID)}/admin/data-retention/preview`, { cutoffDate }),
+	);
+}
+
+/**
+ * purgeWorkspaceData calls POST /workspaces/{workspaceID}/admin/data-retention/purge.
+ */
+export function purgeWorkspaceData(
+	workspaceID: string,
+	request: PurgeWorkspaceDataRequest,
+): Promise<PurgeWorkspaceDataResponse> {
+	return requestJson<PurgeWorkspaceDataResponse>(
+		`/workspaces/${encodePath(workspaceID)}/admin/data-retention/purge`,
+		{
+			method: 'POST',
 			body: request,
 		},
 	);

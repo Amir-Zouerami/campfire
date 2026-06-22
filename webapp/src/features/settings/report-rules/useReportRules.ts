@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { toast } from '@/components/campfire/campfire-toast';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { listReportRules, listStandupConfiguration, updateReportRule } from '@/api';
+import { toast } from '@/components/campfire/campfire-toast';
+import { useI18n } from '@/i18n';
+import { campfireQueryKeys } from '@/query';
 import type { ReportRule, Workspace } from '@/types/domain';
 
 import { buildStandupScheduleLabelLookup, type StandupScheduleLabelLookup } from '../standup-schedule-labels';
@@ -34,6 +37,14 @@ type UseReportRulesInput = {
 };
 
 /**
+ * ReportRulesSettingsSnapshot is the query-owned report-rule aggregate.
+ */
+type ReportRulesSettingsSnapshot = {
+	readonly rules: readonly ReportRule[];
+	readonly scheduleLabels: StandupScheduleLabelLookup;
+};
+
+/**
  * UseReportRulesResult contains report rules state and actions.
  */
 export type UseReportRulesResult = {
@@ -45,6 +56,7 @@ export type UseReportRulesResult = {
 	readonly scheduleLabels: StandupScheduleLabelLookup;
 	readonly savingRuleID: string;
 	readonly message: string;
+	readonly messageTone: 'success' | 'error';
 	readonly isBusy: boolean;
 	readonly enabledCount: number;
 	readonly autoPostCount: number;
@@ -55,59 +67,94 @@ export type UseReportRulesResult = {
 };
 
 /**
- * useReportRules owns report-rule loading, schedule labeling, draft editing, and saving.
+ * useReportRules owns report-rule query state, drafts, and mutations.
  */
 export function useReportRules(input: UseReportRulesInput): UseReportRulesResult {
-	const [loadState, setLoadState] = useState<ReportRulesLoadState>('idle');
-	const [rules, setRules] = useState<readonly ReportRule[]>([]);
+	const { t } = useI18n();
+	const queryClient = useQueryClient();
 	const [drafts, setDrafts] = useState<ReportRuleDraftsByID>({});
-	const [scheduleLabels, setScheduleLabels] = useState<StandupScheduleLabelLookup>({});
 	const [savingRuleID, setSavingRuleID] = useState('');
 	const [message, setMessage] = useState('');
+	const [messageTone, setMessageTone] = useState<'success' | 'error'>('success');
+
+	const queryKey = campfireQueryKeys.reportRulesSettings(input.workspace.id);
+	const settingsQuery = useQuery({
+		queryKey,
+		queryFn: async (): Promise<ReportRulesSettingsSnapshot> => {
+			const [rulesResponse, configurationResponse] = await Promise.all([
+				listReportRules(input.workspace.id),
+				listStandupConfiguration(input.workspace.id),
+			]);
+
+			return {
+				rules: rulesResponse.reportRules,
+				scheduleLabels: buildStandupScheduleLabelLookup(
+					configurationResponse.templates,
+					configurationResponse.schedules,
+				),
+			};
+		},
+	});
 
 	useEffect(() => {
-		let isActive = true;
-
-		/**
-		 * loadReportRules loads workspace report rules and readable standup schedule labels.
-		 */
-		async function loadReportRules(): Promise<void> {
-			setLoadState('loading');
-			setMessage('');
-
-			try {
-				const [rulesResponse, configurationResponse] = await Promise.all([
-					listReportRules(input.workspace.id),
-					listStandupConfiguration(input.workspace.id),
-				]);
-
-				if (!isActive) {
-					return;
-				}
-
-				setRules(rulesResponse.reportRules);
-				setDrafts(buildReportRuleDrafts(rulesResponse.reportRules));
-				setScheduleLabels(
-					buildStandupScheduleLabelLookup(configurationResponse.templates, configurationResponse.schedules),
-				);
-				setLoadState('ready');
-			} catch (error: unknown) {
-				if (!isActive) {
-					return;
-				}
-
-				setMessage(errorToMessage(error));
-				setLoadState('error');
-			}
+		if (settingsQuery.data === undefined) {
+			return;
 		}
 
-		void loadReportRules();
+		setDrafts(buildReportRuleDrafts(settingsQuery.data.rules));
+	}, [settingsQuery.data]);
 
-		return () => {
-			isActive = false;
-		};
-	}, [input.workspace.id]);
+	const updateMutation = useMutation({
+		mutationFn: async (rule: ReportRule) => {
+			const draft = drafts[rule.id];
+			if (draft === undefined) {
+				throw new Error(t('settings.reportRules.error.draftMissing'));
+			}
 
+			return updateReportRule(input.workspace.id, rule.id, {
+				enabled: draft.enabled,
+				postToChannel: draft.postToChannel,
+				previewRequired: draft.previewRequired,
+				sortMode: draft.sortMode,
+				reportLanguage: draft.reportLanguage,
+				includeOnLeave: draft.includeOnLeave,
+				includeMissing: draft.includeMissing,
+				includeTime: draft.includeTime,
+				includeBlockers: draft.includeBlockers,
+			});
+		},
+		onSuccess: response => {
+			queryClient.setQueryData<ReportRulesSettingsSnapshot>(queryKey, current => {
+				if (current === undefined) {
+					return current;
+				}
+
+				return {
+					...current,
+					rules: replaceReportRule(current.rules, response.reportRule),
+				};
+			});
+
+			setDrafts(current => ({
+				...current,
+				[response.reportRule.id]: reportRuleToDraft(response.reportRule),
+			}));
+			setSavingRuleID('');
+			setMessage(t('settings.reportRules.toast.updated'));
+			setMessageTone('success');
+			toast.success(t('settings.reportRules.toast.updated'));
+		},
+		onError: error => {
+			const errorMessage = errorToMessage(error, t);
+			setSavingRuleID('');
+			setMessage(errorMessage);
+			setMessageTone('error');
+			toast.error(errorMessage);
+		},
+	});
+
+	const rules = settingsQuery.data?.rules ?? [];
+	const scheduleLabels = settingsQuery.data?.scheduleLabels ?? {};
 	const sortedRules = useMemo(() => sortReportRules(rules), [rules]);
 	const rulesWithDrafts = useMemo(() => pairRulesWithDrafts(sortedRules, drafts), [sortedRules, drafts]);
 
@@ -115,7 +162,9 @@ export function useReportRules(input: UseReportRulesInput): UseReportRulesResult
 	const autoPostCount = useMemo(() => autoPostReportRuleCount(rules), [rules]);
 	const previewRequiredCount = useMemo(() => previewRequiredReportRuleCount(rules), [rules]);
 	const blockerCount = useMemo(() => blockerReportRuleCount(rules), [rules]);
-	const isBusy = loadState === 'loading' || loadState === 'saving';
+	const loadState = deriveReportRulesLoadState(settingsQuery.isLoading, settingsQuery.isError, updateMutation.isPending, rules);
+	const isBusy = settingsQuery.isLoading || updateMutation.isPending;
+	const currentMessage = settingsQuery.isError ? errorToMessage(settingsQuery.error, t) : message;
 
 	/**
 	 * updateDraft patches one report-rule draft.
@@ -143,53 +192,15 @@ export function useReportRules(input: UseReportRulesInput): UseReportRulesResult
 	 */
 	async function saveRule(rule: ReportRule): Promise<void> {
 		if (!input.canManageReportRules) {
-			setLoadState('error');
-			setMessage('Only workspace Leads and system admins can manage report rules.');
+			setMessage(t('settings.reportRules.error.permission'));
+			setMessageTone('error');
 			return;
 		}
 
-		const draft = drafts[rule.id];
-
-		if (draft === undefined) {
-			setLoadState('error');
-			setMessage('Report rule draft was not found.');
-			return;
-		}
-
-		setLoadState('saving');
 		setSavingRuleID(rule.id);
 		setMessage('');
-
-		try {
-			const response = await updateReportRule(input.workspace.id, rule.id, {
-				enabled: draft.enabled,
-				postToChannel: draft.postToChannel,
-				previewRequired: draft.previewRequired,
-				sortMode: draft.sortMode,
-				reportLanguage: draft.reportLanguage,
-				includeOnLeave: draft.includeOnLeave,
-				includeMissing: draft.includeMissing,
-				includeTime: draft.includeTime,
-				includeBlockers: draft.includeBlockers,
-			});
-
-			setRules(current => replaceReportRule(current, response.reportRule));
-			setDrafts(current => ({
-				...current,
-				[response.reportRule.id]: reportRuleToDraft(response.reportRule),
-			}));
-			setSavingRuleID('');
-			setLoadState('ready');
-			setMessage('Report rule updated.');
-			toast.success('Report rule updated');
-		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
-
-			setSavingRuleID('');
-			setLoadState('error');
-			setMessage(errorMessage);
-			toast.error(errorMessage);
-		}
+		setMessageTone('success');
+		await updateMutation.mutateAsync(rule).catch(() => undefined);
 	}
 
 	return {
@@ -200,7 +211,8 @@ export function useReportRules(input: UseReportRulesInput): UseReportRulesResult
 		rulesWithDrafts,
 		scheduleLabels,
 		savingRuleID,
-		message,
+		message: currentMessage,
+		messageTone: settingsQuery.isError ? 'error' : messageTone,
 		isBusy,
 		enabledCount,
 		autoPostCount,
@@ -209,4 +221,32 @@ export function useReportRules(input: UseReportRulesInput): UseReportRulesResult
 		updateDraft,
 		saveRule,
 	};
+}
+
+/**
+ * deriveReportRulesLoadState keeps rendering independent from TanStack internals.
+ */
+function deriveReportRulesLoadState(
+	isLoading: boolean,
+	isError: boolean,
+	isSaving: boolean,
+	rules: readonly ReportRule[],
+): ReportRulesLoadState {
+	if (isSaving) {
+		return 'saving';
+	}
+
+	if (isLoading) {
+		return 'loading';
+	}
+
+	if (isError) {
+		return 'error';
+	}
+
+	if (rules.length > 0) {
+		return 'ready';
+	}
+
+	return 'idle';
 }

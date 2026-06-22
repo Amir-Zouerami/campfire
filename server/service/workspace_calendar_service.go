@@ -314,13 +314,19 @@ func buildWorkspaceCalendarWorkingDays(
 /*
 expandWorkingDays returns exactly seven weekday rows for API rendering.
 
-Missing weekdays are returned as disabled synthetic rows so the frontend can
-render stable Sunday-Saturday toggles.
+When a legacy workspace has no stored calendar rows, Campfire exposes the
+product default Monday-Friday rhythm instead of rendering an empty pattern. If
+only some rows are missing, the missing weekdays remain disabled so partial
+stored configuration is never silently widened.
 */
 func expandWorkingDays(
 	workspaceID domain.ID,
 	workingDays []domain.WorkspaceWorkingDay,
 ) []domain.WorkspaceWorkingDay {
+	if len(workingDays) == 0 {
+		return expandDefaultWorkingDays(workspaceID)
+	}
+
 	byWeekday := map[int]domain.WorkspaceWorkingDay{}
 	for _, workingDay := range workingDays {
 		byWeekday[int(workingDay.Weekday)] = workingDay
@@ -333,17 +339,39 @@ func expandWorkingDays(
 			continue
 		}
 
-		expanded = append(expanded, domain.WorkspaceWorkingDay{
-			ID:          "",
-			WorkspaceID: workspaceID,
-			Weekday:     time.Weekday(weekday),
-			Enabled:     false,
-			CreatedAt:   time.Time{},
-			UpdatedAt:   time.Time{},
-		})
+		expanded = append(expanded, syntheticWorkingDay(workspaceID, weekday, false))
 	}
 
 	return expanded
+}
+
+/*
+expandDefaultWorkingDays returns Campfire's safe default weekday pattern.
+
+The rows are synthetic because this function is used for display/runtime safety
+only. A later explicit save replaces them with persisted rows for all weekdays.
+*/
+func expandDefaultWorkingDays(workspaceID domain.ID) []domain.WorkspaceWorkingDay {
+	expanded := make([]domain.WorkspaceWorkingDay, 0, 7)
+	for weekday := int(time.Sunday); weekday <= int(time.Saturday); weekday++ {
+		expanded = append(expanded, syntheticWorkingDay(workspaceID, weekday, weekday >= int(time.Monday) && weekday <= int(time.Friday)))
+	}
+
+	return expanded
+}
+
+/*
+syntheticWorkingDay creates one non-persisted calendar row for stable API shape.
+*/
+func syntheticWorkingDay(workspaceID domain.ID, weekday int, enabled bool) domain.WorkspaceWorkingDay {
+	return domain.WorkspaceWorkingDay{
+		ID:          "",
+		WorkspaceID: workspaceID,
+		Weekday:     time.Weekday(weekday),
+		Enabled:     enabled,
+		CreatedAt:   time.Time{},
+		UpdatedAt:   time.Time{},
+	}
 }
 
 /*

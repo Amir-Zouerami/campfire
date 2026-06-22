@@ -1,4 +1,5 @@
 import { ApiClientError } from '@/api';
+import type { TFunction } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type {
 	GlobalLeaveReportSummary,
@@ -82,27 +83,27 @@ export function defaultGlobalTimeFilter(): GlobalTimeReportFilter {
 /**
  * validateGlobalDateRange returns a user-facing validation message.
  */
-export function validateGlobalDateRange(range: GlobalDateRange): string | null {
+export function validateGlobalDateRange(range: GlobalDateRange, t: TFunction): string | null {
 	const normalizedRange = normalizeGlobalDateRange(range);
 
 	if (normalizedRange.startDate.trim() === '') {
-		return 'Start date is required.';
+		return t('reports.global.validation.startRequired');
 	}
 
 	if (normalizedRange.endDate.trim() === '') {
-		return 'End date is required.';
+		return t('reports.global.validation.endRequired');
 	}
 
 	if (!isISODateInputValue(normalizedRange.startDate)) {
-		return 'Start date must be a real YYYY-MM-DD calendar date.';
+		return t('reports.global.validation.startInvalid');
 	}
 
 	if (!isISODateInputValue(normalizedRange.endDate)) {
-		return 'End date must be a real YYYY-MM-DD calendar date.';
+		return t('reports.global.validation.endInvalid');
 	}
 
 	if (normalizedRange.endDate < normalizedRange.startDate) {
-		return 'End date cannot be before start date.';
+		return t('reports.global.validation.rangeOrder');
 	}
 
 	return null;
@@ -188,6 +189,7 @@ export function globalTimeRowTitle(
 	row: TimeReportRow,
 	groupBy: TimeReportGroupBy,
 	labelForUserID: (userID: string) => string,
+	fallback: string,
 ): string {
 	if (groupBy === 'person' && row.userId.trim() !== '') {
 		return labelForUserID(row.userId);
@@ -201,7 +203,7 @@ export function globalTimeRowTitle(
 		return row.key;
 	}
 
-	return 'Unlabeled';
+	return fallback;
 }
 
 /**
@@ -322,7 +324,7 @@ export function globalReportTabClassName(active: boolean): string {
 /**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
-export function errorToMessage(error: unknown): string {
+export function errorToMessage(error: unknown, fallback: string): string {
 	if (error instanceof ApiClientError) {
 		return error.message;
 	}
@@ -331,7 +333,7 @@ export function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not load global reports.';
+	return fallback;
 }
 
 /**

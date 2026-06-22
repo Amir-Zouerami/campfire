@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { CampfireFeedbackList, CampfireLoadingFeedback } from '@/components/campfire/CampfireFeedback';
+import { useI18n } from '@/i18n';
 
 import type { AuditLogLoadState } from './audit-log.types';
 
@@ -39,5 +40,7 @@ export function AuditLogFeedback(props: AuditLogFeedbackProps): ReactElement | n
  * AuditLogLoading renders a compact loading state.
  */
 export function AuditLogLoading(): ReactElement {
-	return <CampfireLoadingFeedback message="Loading audit log…" />;
+	const { t } = useI18n();
+
+	return <CampfireLoadingFeedback message={t('settings.audit.loading')} />;
 }

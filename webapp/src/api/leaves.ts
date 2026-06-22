@@ -1,14 +1,21 @@
 import type {
 	CancelLeaveRequestResponse,
+	CreateLeaveChangeRequest,
+	CreateLeaveChangeResponse,
 	CreateLeaveRequest,
 	CreateLeaveResponse,
+	DecideLeaveChangeRequest,
+	DecideLeaveChangeResponse,
 	DecideLeaveRequest,
 	DecideLeaveResponse,
 	ListApprovedLeaveRequestsResponse,
 	ListLeaveTypesResponse,
 	ListMyActiveLeaveRequestsResponse,
+	ListPendingLeaveChangeRequestsResponse,
 	ListMyPendingLeaveRequestsResponse,
 	ListPendingLeaveRequestsResponse,
+	UpdateLeaveRequest,
+	UpdateLeaveResponse,
 	ValidateLeaveRequest,
 	ValidateLeaveResponse,
 } from '@/types/api';
@@ -27,6 +34,14 @@ export function listLeaveTypes(workspaceID: string): Promise<ListLeaveTypesRespo
  */
 export function listPendingLeaveRequests(workspaceID: string): Promise<ListPendingLeaveRequestsResponse> {
 	return requestJson<ListPendingLeaveRequestsResponse>(`/workspaces/${encodePath(workspaceID)}/leaves/pending`);
+}
+
+
+/**
+ * listPendingLeaveChangeRequests calls GET /workspaces/{workspaceID}/leaves/change-requests/pending.
+ */
+export function listPendingLeaveChangeRequests(workspaceID: string): Promise<ListPendingLeaveChangeRequestsResponse> {
+	return requestJson<ListPendingLeaveChangeRequestsResponse>(`/workspaces/${encodePath(workspaceID)}/leaves/change-requests/pending`);
 }
 
 /**
@@ -80,10 +95,51 @@ export function createLeaveRequest(request: CreateLeaveRequest): Promise<CreateL
 }
 
 /**
+ * updateLeaveRequest calls PUT /leaves/{leaveRequestID}.
+ */
+export function updateLeaveRequest(
+	leaveRequestID: string,
+	request: UpdateLeaveRequest,
+): Promise<UpdateLeaveResponse> {
+	return requestJson<UpdateLeaveResponse>(`/leaves/${encodePath(leaveRequestID)}`, {
+		method: 'PUT',
+		body: request,
+	});
+}
+
+
+/**
+ * createLeaveChangeRequest calls POST /leaves/{leaveRequestID}/change-requests.
+ */
+export function createLeaveChangeRequest(
+	leaveRequestID: string,
+	request: CreateLeaveChangeRequest,
+): Promise<CreateLeaveChangeResponse> {
+	return requestJson<CreateLeaveChangeResponse>(`/leaves/${encodePath(leaveRequestID)}/change-requests`, {
+		method: 'POST',
+		body: request,
+	});
+}
+
+/**
  * decideLeaveRequest calls POST /leaves/{leaveRequestID}/decision.
  */
 export function decideLeaveRequest(leaveRequestID: string, request: DecideLeaveRequest): Promise<DecideLeaveResponse> {
 	return requestJson<DecideLeaveResponse>(`/leaves/${encodePath(leaveRequestID)}/decision`, {
+		method: 'POST',
+		body: request,
+	});
+}
+
+
+/**
+ * decideLeaveChangeRequest calls POST /leaves/change-requests/{changeRequestID}/decision.
+ */
+export function decideLeaveChangeRequest(
+	changeRequestID: string,
+	request: DecideLeaveChangeRequest,
+): Promise<DecideLeaveChangeResponse> {
+	return requestJson<DecideLeaveChangeResponse>(`/leaves/change-requests/${encodePath(changeRequestID)}/decision`, {
 		method: 'POST',
 		body: request,
 	});
@@ -97,3 +153,4 @@ export function cancelLeaveRequest(leaveRequestID: string): Promise<CancelLeaveR
 		method: 'POST',
 	});
 }
+

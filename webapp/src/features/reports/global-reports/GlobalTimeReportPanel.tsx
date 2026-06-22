@@ -6,8 +6,10 @@ import { CampfireControlsPanel } from '@/components/campfire/CampfireControlsPan
 import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
 import { CampfirePageIntro } from '@/components/campfire/CampfirePageIntro';
 import { CampfireReportSummaryBar } from '@/components/campfire/CampfireReportSummaryBar';
+import { useI18n } from '@/i18n';
 
-import { formatGroupBy, formatMinutes } from './global-reports.helpers';
+import { formatMinutes } from './global-reports.helpers';
+import { globalReportGroupByLabel } from './global-reports.i18n';
 import { GlobalReportsFeedback, GlobalReportsLoading } from './GlobalReportsFeedback';
 import { GlobalTimeControls } from './GlobalTimeControls';
 import { GlobalTimeRowsPanel } from './GlobalTimeRowsPanel';
@@ -25,21 +27,22 @@ type GlobalTimeReportPanelProps = {
  * GlobalTimeReportPanel renders global time reports across workspaces.
  */
 export function GlobalTimeReportPanel(props: GlobalTimeReportPanelProps): ReactElement {
+	const { t } = useI18n();
 	const report = useGlobalTimeReport(props.isSystemAdmin);
 	const profiles = useUserProfiles(report.userIDsForProfiles);
 
 	return (
 		<div className="campfire-page-stack campfire-report-page-stack">
 			<CampfirePageIntro
-				eyebrow="Global time"
-				title="Cross-workspace time"
-				description="System admins can load and export time totals across active Campfire workspaces."
+				eyebrow={t('reports.global.time.eyebrow')}
+				title={t('reports.global.time.title')}
+				description={t('reports.global.time.description')}
 			/>
 
 			<CampfireControlsPanel
-				eyebrow="Filters"
-				title="Global time filters"
-				description="Choose a date range and grouping dimension."
+				eyebrow={t('reports.global.controls.eyebrow')}
+				title={t('reports.global.time.filters.title')}
+				description={t('reports.global.time.filters.description')}
 				controls={(
 					<GlobalTimeControls
 						filter={report.filter}
@@ -62,10 +65,10 @@ export function GlobalTimeReportPanel(props: GlobalTimeReportPanelProps): ReactE
 			{report.summary !== null && (
 				<CampfireReportSummaryBar
 					items={[
-						{ label: 'Total time', value: formatMinutes(report.summary.totalMinutes), tone: 'success' },
-						{ label: 'Entries', value: String(report.summary.entryCount), tone: 'neutral' },
-						{ label: 'Workspaces', value: String(report.summary.workspaceCount), tone: 'neutral' },
-						{ label: 'Grouped by', value: formatGroupBy(report.filter.groupBy), tone: 'neutral' },
+						{ label: t('reports.global.summary.totalTime'), value: formatMinutes(report.summary.totalMinutes), tone: 'success' },
+						{ label: t('reports.global.summary.entries'), value: String(report.summary.entryCount), tone: 'neutral' },
+						{ label: t('reports.global.summary.workspaces'), value: String(report.summary.workspaceCount), tone: 'neutral' },
+						{ label: t('reports.global.summary.groupedBy'), value: globalReportGroupByLabel(report.filter.groupBy, t), tone: 'neutral' },
 					]}
 				/>
 			)}
@@ -73,8 +76,8 @@ export function GlobalTimeReportPanel(props: GlobalTimeReportPanelProps): ReactE
 			{report.loadState !== 'loading' && report.summary === null && (
 				<CampfireEmpty
 					icon={Globe2}
-					title="No global time report loaded"
-					description="Choose a date range and load the global time report."
+					title={t('reports.global.time.empty.title')}
+					description={t('reports.global.time.empty.description')}
 				/>
 			)}
 

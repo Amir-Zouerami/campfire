@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { CampfirePageIntro } from '@/components/campfire/CampfirePageIntro';
+import { useI18n } from '@/i18n';
 
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
 
@@ -12,6 +13,7 @@ import { useReminderSettings } from './useReminderSettings';
  * ReminderSettingsPage renders workspace reminder settings.
  */
 export function ReminderSettingsPage(props: WorkspaceShellProps): ReactElement {
+	const { t } = useI18n();
 	const canManageReminders = props.canManageWorkspace || props.isSystemAdmin;
 
 	const reminders = useReminderSettings({
@@ -22,17 +24,22 @@ export function ReminderSettingsPage(props: WorkspaceShellProps): ReactElement {
 	return (
 		<div className="campfire-page-stack campfire-settings-workflow campfire-settings-workflow--minimal">
 			<CampfirePageIntro
-				eyebrow="Reminders"
-				title="DM and channel reminder rules"
-				description="Configure when Campfire nudges people who have not submitted. Submitted users and approved-leave users are skipped automatically."
+				eyebrow={t('settings.reminders.page.eyebrow')}
+				title={t('settings.reminders.page.title')}
+				description={t('settings.reminders.page.description')}
 			/>
 
-			<ReminderSettingsFeedback state={reminders.loadState} message={reminders.message} />
+			<ReminderSettingsFeedback
+				state={reminders.loadState}
+				message={reminders.message}
+				messageTone={reminders.messageTone}
+			/>
 
 			{!canManageReminders && (
 				<ReminderSettingsFeedback
 					state="error"
-					message="You can view reminder settings, but only workspace Leads and system admins can edit them."
+					message={t('settings.reminders.error.permissionViewOnly')}
+					messageTone="error"
 				/>
 			)}
 

@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { CampfireSegmentedTabs, type CampfireSegmentedTab } from '@/components/campfire/CampfireSegmentedTabs';
+import { useI18n } from '@/i18n';
 
 import type { TeamReviewSection, TeamReviewSectionID } from './team-review.types';
 
@@ -18,17 +19,18 @@ type TeamReviewSectionNavigationProps = {
  * shared Campfire segmented-tab primitive.
  */
 export function TeamReviewSectionNavigation(props: TeamReviewSectionNavigationProps): ReactElement {
+	const { t } = useI18n();
 	const tabs: CampfireSegmentedTab<TeamReviewSectionID>[] = props.sections.map(section => ({
 		value: section.id,
-		label: section.label,
-		description: section.description,
+		label: t(section.labelKey),
+		description: t(section.descriptionKey),
 	}));
 
 	return (
 		<CampfireSegmentedTabs
 			tabs={tabs}
 			activeValue={props.activeSection}
-			label="Team Review sections"
+			label={t('teamReview.sections.ariaLabel')}
 			onChange={props.onSelectSection}
 		/>
 	);

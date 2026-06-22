@@ -3,6 +3,7 @@ import { RefreshCcw } from 'lucide-react';
 
 import { CampfireControlButton } from '@/components/campfire/CampfireControlButton';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
+import { useI18n } from '@/i18n';
 
 import { auditLimitOptions, toAuditLimitOption } from './audit-log.helpers';
 import type { AuditLimitOption } from './audit-log.types';
@@ -21,10 +22,12 @@ type AuditLogControlsProps = {
  * AuditLogControls renders audit-log filter controls.
  */
 export function AuditLogControls(props: AuditLogControlsProps): ReactElement {
+	const { t } = useI18n();
+
 	return (
 		<div className="campfire-audit-controls campfire-audit-controls--flat">
 			<label htmlFor="campfire-audit-limit" className="campfire-compact-control-label">
-				Rows
+				{t('settings.audit.controls.rows')}
 			</label>
 			<CampfireSelect
 				id="campfire-audit-limit"
@@ -34,14 +37,14 @@ export function AuditLogControls(props: AuditLogControlsProps): ReactElement {
 			>
 				{auditLimitOptions.map(limit => (
 					<option key={limit} value={String(limit)}>
-						Last {limit}
+						{t('settings.audit.controls.lastRows', { limit })}
 					</option>
 				))}
 			</CampfireSelect>
 
 			<CampfireControlButton type="button" variant="secondary" disabled={props.disabled} onClick={() => void props.onReload()}>
 				<RefreshCcw className="cf:size-4" />
-				Reload
+				{t('settings.audit.controls.reload')}
 			</CampfireControlButton>
 		</div>
 	);

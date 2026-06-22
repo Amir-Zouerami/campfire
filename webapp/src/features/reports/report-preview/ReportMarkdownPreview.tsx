@@ -1,9 +1,10 @@
 import type { ReactElement } from 'react';
-import { Copy, FileText, Send } from 'lucide-react';
+import { Copy, Send } from 'lucide-react';
 import { toast } from '@/components/campfire/campfire-toast';
 
+import { CampfireMarkdownDocument } from '@/components/campfire/CampfireMarkdownDocument';
 import { Button } from '@/components/ui/button';
-import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
+import { useI18n } from '@/i18n';
 
 /**
  * ReportMarkdownPreviewProps contains Markdown and report actions.
@@ -15,13 +16,13 @@ type ReportMarkdownPreviewProps = {
 };
 
 /**
- * ReportMarkdownPreview renders the generated Markdown and its actions.
+ * ReportMarkdownPreview renders generated reports as Markdown documents.
  *
- * The preview and action rail are intentionally one reusable component so daily
- * and weekly reports keep the same flat visual rhythm and do not rebuild their
- * own nested action cards.
+ * The visible preview is rendered for humans, while the copy action preserves
+ * the raw Markdown because that is still the channel payload Campfire posts.
  */
 export function ReportMarkdownPreview(props: ReportMarkdownPreviewProps): ReactElement {
+	const { t } = useI18n();
 	const hasMarkdown = props.markdown.trim() !== '';
 	const actionDisabled = props.disabled || !hasMarkdown;
 
@@ -30,15 +31,15 @@ export function ReportMarkdownPreview(props: ReportMarkdownPreviewProps): ReactE
 	 */
 	async function handleCopy(): Promise<void> {
 		if (!hasMarkdown) {
-			toast.error('There is no report to copy');
+			toast.error(t('reports.preview.toast.noReportToCopy'));
 			return;
 		}
 
 		try {
 			await navigator.clipboard.writeText(props.markdown);
-			toast.success('Report copied');
+			toast.success(t('reports.preview.toast.copied'));
 		} catch (_error: unknown) {
-			toast.error('Could not copy report');
+			toast.error(t('reports.preview.toast.copyFailed'));
 		}
 	}
 
@@ -47,40 +48,34 @@ export function ReportMarkdownPreview(props: ReportMarkdownPreviewProps): ReactE
 			<div className="campfire-report-preview-panel">
 				<header className="campfire-flat-section-header">
 					<div>
-						<p className="campfire-page-eyebrow">Markdown preview</p>
-						<h3 className="campfire-surface-title">Generated report</h3>
+						<p className="campfire-page-eyebrow">{t('reports.preview.markdown.eyebrow')}</p>
+						<h3 className="campfire-surface-title">{t('reports.preview.markdown.title')}</h3>
 					</div>
 				</header>
 
-				{hasMarkdown ? (
-					<pre className="campfire-report-markdown-pre" aria-label="Generated Markdown report">
-						{props.markdown}
-					</pre>
-				) : (
-					<CampfireEmpty
-						icon={FileText}
-						title="No report preview"
-						description="Adjust the report filters or wait for Campfire to load the generated Markdown."
-					/>
-				)}
+				<CampfireMarkdownDocument
+					markdown={props.markdown}
+					emptyTitle={t('reports.preview.markdown.emptyTitle')}
+					emptyDescription={t('reports.preview.markdown.emptyDescription')}
+				/>
 			</div>
 
-			<aside className="campfire-report-action-rail" aria-label="Report actions">
+			<aside className="campfire-report-action-rail" aria-label={t('reports.preview.actions.ariaLabel')}>
 				<div>
-					<p className="campfire-page-eyebrow">Actions</p>
-					<h3 className="campfire-surface-title">Share</h3>
-					<p className="campfire-muted-copy">Copy the Markdown or post the approved preview to the workspace channel.</p>
+					<p className="campfire-page-eyebrow">{t('reports.preview.actions.eyebrow')}</p>
+					<h3 className="campfire-surface-title">{t('reports.preview.actions.title')}</h3>
+					<p className="campfire-muted-copy">{t('reports.preview.actions.description')}</p>
 				</div>
 
 				<div className="campfire-report-action-buttons">
 					<Button type="button" variant="secondary" disabled={actionDisabled} onClick={() => void handleCopy()}>
 						<Copy className="cf:size-4" />
-						Copy report
+						{t('reports.preview.action.copyMarkdown')}
 					</Button>
 
 					<Button type="button" disabled={actionDisabled} onClick={() => void props.onPost()}>
 						<Send className="cf:size-4" />
-						Post to channel
+						{t('reports.preview.action.postToChannel')}
 					</Button>
 				</div>
 			</aside>

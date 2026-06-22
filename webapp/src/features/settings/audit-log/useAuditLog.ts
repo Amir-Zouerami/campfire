@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 import { listAuditLog } from '@/api';
+import { useI18n } from '@/i18n';
+import { campfireQueryKeys } from '@/query';
 import type { AuditLogEntry, Workspace } from '@/types/domain';
 
 import { collectAuditActorUserIDs, countAuditActions, errorToMessage } from './audit-log.helpers';
@@ -29,69 +32,30 @@ export type UseAuditLogResult = {
 };
 
 /**
- * useAuditLog owns audit-log loading and limit controls.
+ * useAuditLog owns audit-log query state and limit controls.
  */
 export function useAuditLog(input: UseAuditLogInput): UseAuditLogResult {
-	const [loadState, setLoadState] = useState<AuditLogLoadState>('idle');
+	const { t } = useI18n();
 	const [limit, setLimit] = useState<AuditLimitOption>(50);
-	const [entries, setEntries] = useState<readonly AuditLogEntry[]>([]);
-	const [message, setMessage] = useState('');
+	const [refreshToken, setRefreshToken] = useState(0);
+	const query = useQuery({
+		queryKey: campfireQueryKeys.auditLog(input.workspace.id, limit, refreshToken),
+		queryFn: () => listAuditLog(input.workspace.id, limit),
+		enabled: input.workspace.id.trim() !== '',
+	});
 
-	useEffect(() => {
-		let isActive = true;
-
-		/**
-		 * loadEntries loads recent audit entries.
-		 */
-		async function loadEntries(): Promise<void> {
-			setLoadState('loading');
-			setMessage('');
-
-			try {
-				const response = await listAuditLog(input.workspace.id, limit);
-
-				if (!isActive) {
-					return;
-				}
-
-				setEntries(response.entries);
-				setLoadState('ready');
-			} catch (error: unknown) {
-				if (!isActive) {
-					return;
-				}
-
-				setMessage(errorToMessage(error));
-				setLoadState('error');
-			}
-		}
-
-		void loadEntries();
-
-		return () => {
-			isActive = false;
-		};
-	}, [input.workspace.id, limit]);
-
+	const entries = query.data?.entries ?? [];
 	const actionCounts = useMemo(() => countAuditActions(entries), [entries]);
 	const actorUserIDs = useMemo(() => collectAuditActorUserIDs(entries), [entries]);
+	const loadState = deriveAuditLogLoadState(query.isLoading || query.isFetching, query.isError);
+	const message = query.isError ? errorToMessage(query.error, t) : '';
 
 	/**
 	 * reload reloads audit entries with the current limit.
 	 */
 	async function reload(): Promise<void> {
-		setLoadState('loading');
-		setMessage('');
-
-		try {
-			const response = await listAuditLog(input.workspace.id, limit);
-
-			setEntries(response.entries);
-			setLoadState('ready');
-		} catch (error: unknown) {
-			setMessage(errorToMessage(error));
-			setLoadState('error');
-		}
+		setRefreshToken(current => current + 1);
+		await query.refetch();
 	}
 
 	return {
@@ -101,8 +65,23 @@ export function useAuditLog(input: UseAuditLogInput): UseAuditLogResult {
 		actionCounts,
 		actorUserIDs,
 		message,
-		isBusy: loadState === 'loading',
+		isBusy: query.isLoading || query.isFetching,
 		setLimit,
 		reload,
 	};
+}
+
+/**
+ * deriveAuditLogLoadState keeps page rendering independent from query internals.
+ */
+function deriveAuditLogLoadState(isLoading: boolean, isError: boolean): AuditLogLoadState {
+	if (isLoading) {
+		return 'loading';
+	}
+
+	if (isError) {
+		return 'error';
+	}
+
+	return 'ready';
 }

@@ -1,4 +1,5 @@
 import { ApiClientError } from '@/api';
+import type { TFunction } from '@/i18n';
 import type { TimeReportGroupBy, TimeReportRow, TimeReportSummary } from '@/types/domain';
 
 import type { TimeReportFilterDraft, TimeReportSavedFilter } from './time-report.types';
@@ -64,19 +65,19 @@ export function defaultTimeReportFilter(): TimeReportFilterDraft {
 }
 
 /**
- * validateTimeReportFilter returns a user-facing validation message.
+ * validateTimeReportFilter returns a localized validation message.
  */
-export function validateTimeReportFilter(filter: TimeReportFilterDraft): string | null {
+export function validateTimeReportFilter(filter: TimeReportFilterDraft, t: TFunction): string | null {
 	if (filter.startDate.trim() === '') {
-		return 'Start date is required.';
+		return t('reports.time.validation.startDateRequired');
 	}
 
 	if (filter.endDate.trim() === '') {
-		return 'End date is required.';
+		return t('reports.time.validation.endDateRequired');
 	}
 
 	if (filter.endDate < filter.startDate) {
-		return 'End date cannot be before start date.';
+		return t('reports.time.validation.endBeforeStart');
 	}
 
 	return null;
@@ -160,19 +161,13 @@ export function formatMinutes(minutes: number): string {
 }
 
 /**
- * formatTimeReportGroupBy returns a readable group-by label.
- */
-export function formatTimeReportGroupBy(groupBy: TimeReportGroupBy): string {
-	return formatLabel(groupBy);
-}
-
-/**
  * timeReportRowTitle returns the best display label for a row.
  */
 export function timeReportRowTitle(
 	row: TimeReportRow,
 	groupBy: TimeReportGroupBy,
 	labelForUserID: (userID: string) => string,
+	unlabeledFallback: string,
 ): string {
 	if (groupBy === 'person' && row.userId.trim() !== '') {
 		return labelForUserID(row.userId);
@@ -186,39 +181,13 @@ export function timeReportRowTitle(
 		return row.key;
 	}
 
-	return 'Unlabeled';
-}
-
-/**
- * timeReportRowSubtitle returns compact row metadata.
- */
-export function timeReportRowSubtitle(row: TimeReportRow): string {
-	const pieces = [
-		row.periodStart === row.periodEnd ? row.periodStart : `${row.periodStart} → ${row.periodEnd}`,
-		row.entryCount === 1 ? '1 entry' : `${row.entryCount} entries`,
-	].filter(Boolean);
-
-	return pieces.join(' · ');
-}
-
-/**
- * timeReportRowMetaChips returns visible row metadata chips.
- */
-export function timeReportRowMetaChips(
-	row: TimeReportRow,
-): readonly { readonly label: string; readonly value: string }[] {
-	return [
-		{ label: 'User', value: row.userId },
-		{ label: 'Task', value: row.taskId },
-		{ label: 'Project', value: row.projectId },
-		{ label: 'Category', value: row.categoryId },
-	].filter(item => item.value.trim() !== '');
+	return unlabeledFallback;
 }
 
 /**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
-export function errorToMessage(error: unknown): string {
+export function errorToMessage(error: unknown, fallback: string): string {
 	if (error instanceof ApiClientError) {
 		return error.message;
 	}
@@ -227,7 +196,7 @@ export function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not load the time report.';
+	return fallback;
 }
 
 /**
@@ -235,16 +204,6 @@ export function errorToMessage(error: unknown): string {
  */
 function uniqueStrings(values: readonly string[]): readonly string[] {
 	return [...new Set(values.map(value => value.trim()).filter(Boolean))];
-}
-
-/**
- * formatLabel converts enum-like values to readable labels.
- */
-function formatLabel(value: string): string {
-	return value
-		.split('_')
-		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
-		.join(' ');
 }
 
 /**

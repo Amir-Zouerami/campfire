@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { toast } from '@/components/campfire/campfire-toast';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
 	createWorkspaceOffDay,
@@ -8,6 +8,9 @@ import {
 	listWorkspaceWorkingDays,
 	updateWorkspaceWorkingDays,
 } from '@/api';
+import { toast } from '@/components/campfire/campfire-toast';
+import { useI18n } from '@/i18n';
+import { campfireQueryKeys } from '@/query';
 import type { Workspace, WorkspaceOffDay, WorkspaceWorkingDay } from '@/types/domain';
 
 import {
@@ -20,10 +23,19 @@ import {
 	upcomingWorkspaceOffDayCount,
 } from './working-calendar.helpers';
 import type {
+	WorkingCalendarFeedbackTone,
 	WorkingCalendarLoadState,
 	WorkspaceOffDayDraft,
 	WorkspaceOffDayDraftPatch,
 } from './working-calendar.types';
+
+/**
+ * WorkingCalendarSnapshot is the server-owned calendar state for one workspace.
+ */
+type WorkingCalendarSnapshot = {
+	readonly workingDays: readonly WorkspaceWorkingDay[];
+	readonly offDays: readonly WorkspaceOffDay[];
+};
 
 /**
  * UseWorkingCalendarInput contains workspace context and mutation callbacks.
@@ -40,6 +52,8 @@ type UseWorkingCalendarInput = {
  */
 export type UseWorkingCalendarResult = {
 	readonly loadState: WorkingCalendarLoadState;
+	readonly message: string;
+	readonly messageTone: WorkingCalendarFeedbackTone;
 	readonly workingDays: readonly WorkspaceWorkingDay[];
 	readonly selectedWeekdays: readonly number[];
 	readonly savedWeekdays: readonly number[];
@@ -47,7 +61,6 @@ export type UseWorkingCalendarResult = {
 	readonly sortedOffDays: readonly WorkspaceOffDay[];
 	readonly offDayDraft: WorkspaceOffDayDraft;
 	readonly deletingOffDayID: string;
-	readonly message: string;
 	readonly isBusy: boolean;
 	readonly changed: boolean;
 	readonly selectedWeekdayLabel: string;
@@ -60,65 +73,128 @@ export type UseWorkingCalendarResult = {
 };
 
 /**
- * useWorkingCalendar owns workspace working days and workspace off-days.
+ * useWorkingCalendar owns local form draft state and delegates server state to TanStack Query.
  */
 export function useWorkingCalendar(input: UseWorkingCalendarInput): UseWorkingCalendarResult {
-	const [loadState, setLoadState] = useState<WorkingCalendarLoadState>('idle');
-	const [workingDays, setWorkingDays] = useState<readonly WorkspaceWorkingDay[]>([]);
+	const { t } = useI18n();
+	const queryClient = useQueryClient();
+	const calendarQueryKey = campfireQueryKeys.workingCalendar(input.workspace.id, input.refreshToken);
+	const calendarCollectionKey = campfireQueryKeys.workingCalendars(input.workspace.id);
 	const [selectedWeekdays, setSelectedWeekdays] = useState<readonly number[]>([]);
-	const [offDays, setOffDays] = useState<readonly WorkspaceOffDay[]>([]);
 	const [offDayDraft, setOffDayDraft] = useState<WorkspaceOffDayDraft>(emptyWorkspaceOffDayDraft);
 	const [deletingOffDayID, setDeletingOffDayID] = useState('');
-	const [message, setMessage] = useState('');
+	const [feedback, setFeedback] = useState<{
+		readonly message: string;
+		readonly tone: WorkingCalendarFeedbackTone;
+	}>({ message: '', tone: 'success' });
+
+	const calendarQuery = useQuery({
+		queryKey: calendarQueryKey,
+		queryFn: () => loadWorkingCalendarSnapshot(input.workspace.id),
+		enabled: input.workspace.id.trim() !== '',
+		staleTime: 30_000,
+	});
+
+	const workingDays = calendarQuery.data?.workingDays ?? [];
+	const offDays = calendarQuery.data?.offDays ?? [];
 
 	useEffect(() => {
-		let isActive = true;
-
-		/**
-		 * loadCalendar loads working days and workspace off-days together.
-		 */
-		async function loadCalendar(): Promise<void> {
-			setLoadState('loading');
-			setMessage('');
-
-			try {
-				const [workingDaysResponse, offDaysResponse] = await Promise.all([
-					listWorkspaceWorkingDays(input.workspace.id),
-					listWorkspaceOffDays(input.workspace.id),
-				]);
-
-				if (!isActive) {
-					return;
-				}
-
-				const enabledWeekdays = enabledWeekdaysFromWorkingDays(workingDaysResponse.workingDays);
-
-				setWorkingDays(workingDaysResponse.workingDays);
-				setSelectedWeekdays(enabledWeekdays);
-				setOffDays(offDaysResponse.offDays);
-				setLoadState('ready');
-			} catch (error: unknown) {
-				if (!isActive) {
-					return;
-				}
-
-				setMessage(errorToMessage(error));
-				setLoadState('error');
-			}
+		if (calendarQuery.data === undefined) {
+			return;
 		}
 
-		void loadCalendar();
+		setSelectedWeekdays(enabledWeekdaysFromWorkingDays(calendarQuery.data.workingDays));
+	}, [calendarQuery.data]);
 
-		return () => {
-			isActive = false;
-		};
-	}, [input.workspace.id, input.refreshToken]);
+	const saveWorkingDaysMutation = useMutation({
+		mutationFn: async (weekdays: readonly number[]) => {
+			return updateWorkspaceWorkingDays(input.workspace.id, {
+				workingDays: [...weekdays],
+			});
+		},
+		onSuccess: response => {
+			const enabledWeekdays = enabledWeekdaysFromWorkingDays(response.workingDays);
+
+			setSelectedWeekdays(enabledWeekdays);
+			setFeedback({ message: t('settings.workingCalendar.toast.saved'), tone: 'success' });
+			toast.success(t('settings.workingCalendar.toast.saved'));
+			setWorkingCalendarSnapshot(queryClient, calendarQueryKey, current => ({
+				workingDays: response.workingDays,
+				offDays: current?.offDays ?? offDays,
+			}));
+			void queryClient.invalidateQueries({ queryKey: calendarCollectionKey });
+			input.onCalendarChanged();
+		},
+		onError: error => {
+			const errorMessage = errorToMessage(error, t);
+
+			setFeedback({ message: errorMessage, tone: 'error' });
+			toast.error(errorMessage);
+		},
+	});
+
+	const createOffDayMutation = useMutation({
+		mutationFn: async (draft: WorkspaceOffDayDraft) => {
+			return createWorkspaceOffDay(input.workspace.id, {
+				date: draft.date,
+				label: draft.label.trim(),
+			});
+		},
+		onSuccess: response => {
+			setOffDayDraft(emptyWorkspaceOffDayDraft());
+			setFeedback({ message: t('settings.workingCalendar.toast.offDayCreated'), tone: 'success' });
+			toast.success(t('settings.workingCalendar.toast.offDayCreated'));
+			setWorkingCalendarSnapshot(queryClient, calendarQueryKey, current => ({
+				workingDays: current?.workingDays ?? workingDays,
+				offDays: [...(current?.offDays ?? offDays), response.offDay],
+			}));
+			void queryClient.invalidateQueries({ queryKey: calendarCollectionKey });
+			input.onCalendarChanged();
+		},
+		onError: error => {
+			const errorMessage = errorToMessage(error, t);
+
+			setFeedback({ message: errorMessage, tone: 'error' });
+			toast.error(errorMessage);
+		},
+	});
+
+	const deleteOffDayMutation = useMutation({
+		mutationFn: async (offDayID: string) => {
+			setDeletingOffDayID(offDayID);
+			await deleteWorkspaceOffDay(input.workspace.id, offDayID);
+
+			return offDayID;
+		},
+		onSuccess: offDayID => {
+			setFeedback({ message: t('settings.workingCalendar.toast.offDayDeleted'), tone: 'success' });
+			toast.success(t('settings.workingCalendar.toast.offDayDeleted'));
+			setWorkingCalendarSnapshot(queryClient, calendarQueryKey, current => ({
+				workingDays: current?.workingDays ?? workingDays,
+				offDays: (current?.offDays ?? offDays).filter(offDay => offDay.id !== offDayID),
+			}));
+			void queryClient.invalidateQueries({ queryKey: calendarCollectionKey });
+			input.onCalendarChanged();
+		},
+		onError: error => {
+			const errorMessage = errorToMessage(error, t);
+
+			setFeedback({ message: errorMessage, tone: 'error' });
+			toast.error(errorMessage);
+		},
+		onSettled: () => {
+			setDeletingOffDayID('');
+		},
+	});
 
 	const savedWeekdays = useMemo(() => enabledWeekdaysFromWorkingDays(workingDays), [workingDays]);
 	const sortedOffDays = useMemo(() => sortWorkspaceOffDays(offDays), [offDays]);
 	const changed = useMemo(() => !sameWeekdays(savedWeekdays, selectedWeekdays), [savedWeekdays, selectedWeekdays]);
 	const upcomingOffDayCount = useMemo(() => upcomingWorkspaceOffDayCount(offDays), [offDays]);
-	const isBusy = loadState === 'loading' || loadState === 'saving' || loadState === 'deleting';
+	const mutationBusy = saveWorkingDaysMutation.isPending || createOffDayMutation.isPending || deleteOffDayMutation.isPending;
+	const loadState = workingCalendarLoadState(calendarQuery.isLoading, calendarQuery.isError, saveWorkingDaysMutation.isPending, createOffDayMutation.isPending, deleteOffDayMutation.isPending);
+	const message = calendarQuery.isError ? errorToMessage(calendarQuery.error, t) : feedback.message;
+	const messageTone = calendarQuery.isError ? 'error' : feedback.tone;
 
 	/**
 	 * updateOffDayDraft patches the create off-day form.
@@ -135,40 +211,17 @@ export function useWorkingCalendar(input: UseWorkingCalendarInput): UseWorkingCa
 	 */
 	async function saveWorkingDays(): Promise<void> {
 		if (!input.canManageCalendar) {
-			setLoadState('error');
-			setMessage('You do not have permission to update the working calendar.');
+			showValidationError(t('settings.workingCalendar.error.permission'));
 			return;
 		}
 
 		if (selectedWeekdays.length === 0) {
-			setLoadState('error');
-			setMessage('Choose at least one working day.');
+			showValidationError(t('settings.workingCalendar.error.weekdayRequired'));
 			return;
 		}
 
-		setLoadState('saving');
-		setMessage('');
-
-		try {
-			const response = await updateWorkspaceWorkingDays(input.workspace.id, {
-				workingDays: [...selectedWeekdays],
-			});
-
-			const enabledWeekdays = enabledWeekdaysFromWorkingDays(response.workingDays);
-
-			setWorkingDays(response.workingDays);
-			setSelectedWeekdays(enabledWeekdays);
-			setLoadState('ready');
-			setMessage('Working days saved.');
-			toast.success('Working days saved');
-			input.onCalendarChanged();
-		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
-
-			setLoadState('error');
-			setMessage(errorMessage);
-			toast.error(errorMessage);
-		}
+		setFeedback({ message: '', tone: 'success' });
+		await saveWorkingDaysMutation.mutateAsync(selectedWeekdays).catch(() => undefined);
 	}
 
 	/**
@@ -176,47 +229,27 @@ export function useWorkingCalendar(input: UseWorkingCalendarInput): UseWorkingCa
 	 */
 	async function createOffDay(): Promise<void> {
 		if (!input.canManageCalendar) {
-			setLoadState('error');
-			setMessage('You do not have permission to add workspace off-days.');
+			showValidationError(t('settings.workingCalendar.error.permission'));
 			return;
 		}
 
 		const cleanLabel = offDayDraft.label.trim();
 
 		if (offDayDraft.date.trim() === '') {
-			setLoadState('error');
-			setMessage('Off-day date is required.');
+			showValidationError(t('settings.workingCalendar.error.offDayDateRequired'));
 			return;
 		}
 
 		if (cleanLabel === '') {
-			setLoadState('error');
-			setMessage('Off-day label is required.');
+			showValidationError(t('settings.workingCalendar.error.offDayLabelRequired'));
 			return;
 		}
 
-		setLoadState('saving');
-		setMessage('');
-
-		try {
-			const response = await createWorkspaceOffDay(input.workspace.id, {
-				date: offDayDraft.date,
-				label: cleanLabel,
-			});
-
-			setOffDays(current => [...current, response.offDay]);
-			setOffDayDraft(emptyWorkspaceOffDayDraft());
-			setLoadState('ready');
-			setMessage('Workspace off-day added.');
-			toast.success('Workspace off-day added');
-			input.onCalendarChanged();
-		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
-
-			setLoadState('error');
-			setMessage(errorMessage);
-			toast.error(errorMessage);
-		}
+		setFeedback({ message: '', tone: 'success' });
+		await createOffDayMutation.mutateAsync({
+			...offDayDraft,
+			label: cleanLabel,
+		}).catch(() => undefined);
 	}
 
 	/**
@@ -224,36 +257,26 @@ export function useWorkingCalendar(input: UseWorkingCalendarInput): UseWorkingCa
 	 */
 	async function deleteOffDay(offDayID: string): Promise<void> {
 		if (!input.canManageCalendar) {
-			setLoadState('error');
-			setMessage('You do not have permission to delete workspace off-days.');
+			showValidationError(t('settings.workingCalendar.error.permission'));
 			return;
 		}
 
-		setLoadState('deleting');
-		setDeletingOffDayID(offDayID);
-		setMessage('');
+		setFeedback({ message: '', tone: 'success' });
+		await deleteOffDayMutation.mutateAsync(offDayID).catch(() => undefined);
+	}
 
-		try {
-			await deleteWorkspaceOffDay(input.workspace.id, offDayID);
-
-			setOffDays(current => current.filter(offDay => offDay.id !== offDayID));
-			setDeletingOffDayID('');
-			setLoadState('ready');
-			setMessage('Workspace off-day deleted.');
-			toast.success('Workspace off-day deleted');
-			input.onCalendarChanged();
-		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
-
-			setDeletingOffDayID('');
-			setLoadState('error');
-			setMessage(errorMessage);
-			toast.error(errorMessage);
-		}
+	/**
+	 * showValidationError renders and toasts a local preflight error.
+	 */
+	function showValidationError(messageText: string): void {
+		setFeedback({ message: messageText, tone: 'error' });
+		toast.error(messageText);
 	}
 
 	return {
 		loadState,
+		message,
+		messageTone,
 		workingDays,
 		selectedWeekdays,
 		savedWeekdays,
@@ -261,10 +284,9 @@ export function useWorkingCalendar(input: UseWorkingCalendarInput): UseWorkingCa
 		sortedOffDays,
 		offDayDraft,
 		deletingOffDayID,
-		message,
-		isBusy,
+		isBusy: calendarQuery.isLoading || mutationBusy,
 		changed,
-		selectedWeekdayLabel: selectedWeekdayLabel(selectedWeekdays),
+		selectedWeekdayLabel: selectedWeekdayLabel(selectedWeekdays, t),
 		upcomingOffDayCount,
 		setSelectedWeekdays,
 		updateOffDayDraft,
@@ -272,4 +294,59 @@ export function useWorkingCalendar(input: UseWorkingCalendarInput): UseWorkingCa
 		createOffDay,
 		deleteOffDay,
 	};
+}
+
+/**
+ * loadWorkingCalendarSnapshot reads all calendar settings needed by the page.
+ */
+async function loadWorkingCalendarSnapshot(workspaceID: string): Promise<WorkingCalendarSnapshot> {
+	const [workingDaysResponse, offDaysResponse] = await Promise.all([
+		listWorkspaceWorkingDays(workspaceID),
+		listWorkspaceOffDays(workspaceID),
+	]);
+
+	return {
+		workingDays: workingDaysResponse.workingDays,
+		offDays: offDaysResponse.offDays,
+	};
+}
+
+/**
+ * setWorkingCalendarSnapshot updates the cached calendar snapshot immutably.
+ */
+function setWorkingCalendarSnapshot(
+	queryClient: ReturnType<typeof useQueryClient>,
+	queryKey: ReturnType<typeof campfireQueryKeys.workingCalendar>,
+	buildNext: (current: WorkingCalendarSnapshot | undefined) => WorkingCalendarSnapshot,
+): void {
+	queryClient.setQueryData<WorkingCalendarSnapshot>(queryKey, current => buildNext(current));
+}
+
+/**
+ * workingCalendarLoadState maps query/mutation state to the legacy page state.
+ */
+function workingCalendarLoadState(
+	isLoading: boolean,
+	isError: boolean,
+	isSavingWorkingDays: boolean,
+	isCreatingOffDay: boolean,
+	isDeletingOffDay: boolean,
+): WorkingCalendarLoadState {
+	if (isLoading) {
+		return 'loading';
+	}
+
+	if (isError) {
+		return 'error';
+	}
+
+	if (isDeletingOffDay) {
+		return 'deleting';
+	}
+
+	if (isSavingWorkingDays || isCreatingOffDay) {
+		return 'saving';
+	}
+
+	return 'ready';
 }

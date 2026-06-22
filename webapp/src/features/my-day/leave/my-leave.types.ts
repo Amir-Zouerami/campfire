@@ -18,6 +18,7 @@ export type MyLeaveDraft = {
 	readonly endTime: string;
 	readonly reason: string;
 	readonly backupUserId: string;
+	readonly canContactIfNeeded: boolean;
 };
 
 /**

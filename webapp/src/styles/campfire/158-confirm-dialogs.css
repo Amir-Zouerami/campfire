@@ -1,0 +1,177 @@
+.campfire-theme .campfire-confirm-dialog-layer {
+	position: fixed;
+	inset: 0;
+	z-index: 2147483647;
+	display: grid;
+	place-items: center;
+	padding: 24px;
+	background: rgba(6, 8, 13, 0.76);
+	backdrop-filter: blur(16px);
+}
+
+.campfire-theme .campfire-confirm-dialog {
+	width: min(560px, 100%);
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	border-radius: 28px;
+	background:
+		linear-gradient(145deg, rgba(37, 31, 28, 0.98), rgba(13, 15, 22, 0.98)),
+		rgba(15, 18, 27, 0.96);
+	box-shadow: 0 32px 90px rgba(0, 0, 0, 0.48);
+	color: var(--foreground);
+	overflow: hidden;
+}
+
+.campfire-theme .campfire-confirm-dialog-header {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	gap: 16px;
+	align-items: start;
+	padding: 22px 22px 18px;
+}
+
+.campfire-theme .campfire-confirm-dialog-icon {
+	display: inline-grid;
+	place-items: center;
+	width: 44px;
+	height: 44px;
+	border: 1px solid rgba(251, 191, 36, 0.26);
+	border-radius: 16px;
+	background: rgba(251, 191, 36, 0.12);
+	color: #facc15;
+}
+
+.campfire-theme .campfire-confirm-dialog--danger .campfire-confirm-dialog-icon {
+	border-color: rgba(248, 113, 113, 0.28);
+	background: rgba(248, 113, 113, 0.12);
+	color: #fca5a5;
+}
+
+.campfire-theme .campfire-confirm-dialog-copy {
+	min-width: 0;
+}
+
+.campfire-theme .campfire-confirm-dialog-eyebrow {
+	margin: 0 0 8px;
+	font-size: 0.72rem;
+	font-weight: 900;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	color: rgba(251, 191, 36, 0.92);
+}
+
+.campfire-theme .campfire-confirm-dialog--danger .campfire-confirm-dialog-eyebrow {
+	color: rgba(252, 165, 165, 0.96);
+}
+
+.campfire-theme .campfire-confirm-dialog-copy h3 {
+	margin: 0;
+	font-size: clamp(1.25rem, 2.2vw, 1.7rem);
+	font-weight: 850;
+	letter-spacing: -0.04em;
+	color: var(--foreground);
+}
+
+.campfire-theme .campfire-confirm-dialog-copy p:not(.campfire-confirm-dialog-eyebrow) {
+	margin: 10px 0 0;
+	font-size: 0.96rem;
+	font-weight: 650;
+	line-height: 1.65;
+	color: rgba(235, 229, 219, 0.72);
+}
+
+.campfire-theme .campfire-confirm-dialog-body {
+	margin: 0 22px 20px;
+	padding: 16px;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 20px;
+	background: rgba(255, 255, 255, 0.045);
+}
+
+.campfire-theme .campfire-confirm-dialog-body p {
+	margin: 0;
+	font-size: 0.92rem;
+	font-weight: 650;
+	line-height: 1.6;
+	color: rgba(235, 229, 219, 0.74);
+}
+
+.campfire-theme .campfire-confirm-dialog-body ul {
+	margin: 0;
+	padding-inline-start: 1.2rem;
+}
+
+.campfire-theme .campfire-confirm-dialog-body li {
+	margin: 6px 0;
+	font-size: 0.92rem;
+	font-weight: 650;
+	line-height: 1.55;
+	color: rgba(235, 229, 219, 0.76);
+}
+
+.campfire-theme .campfire-confirm-dialog-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+	padding: 16px 22px 22px;
+	border-top: 1px solid rgba(255, 255, 255, 0.08);
+	background: rgba(255, 255, 255, 0.03);
+}
+
+.campfire-theme .campfire-destructive-inline-note {
+	margin: 0;
+	font-size: 0.88rem;
+	font-weight: 750;
+	line-height: 1.6;
+	color: rgba(252, 165, 165, 0.94);
+}
+
+.campfire-theme .campfire-directory-row-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+@media (max-width: 640px) {
+	.campfire-theme .campfire-confirm-dialog-layer {
+		padding: 14px;
+	}
+
+	.campfire-theme .campfire-confirm-dialog-header {
+		grid-template-columns: minmax(0, 1fr) auto;
+	}
+
+	.campfire-theme .campfire-confirm-dialog-icon {
+		display: none;
+	}
+
+	.campfire-theme .campfire-confirm-dialog-actions {
+		flex-direction: column-reverse;
+	}
+
+	.campfire-theme .campfire-confirm-dialog-actions > * {
+		width: 100%;
+	}
+}
+
+.campfire-theme button.campfire-standup-question-row-main {
+	appearance: none;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	text-align: inherit;
+	cursor: pointer;
+}
+
+.campfire-theme button.campfire-standup-question-row-main:disabled {
+	cursor: not-allowed;
+	opacity: 0.72;
+}
+
+.campfire-theme .campfire-standup-question-row:has(button.campfire-standup-question-row-main:disabled) {
+	cursor: default;
+}
+.campfire-theme button.campfire-standup-question-row-main {
+	padding: 0;
+}

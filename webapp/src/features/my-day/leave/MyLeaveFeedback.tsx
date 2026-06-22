@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { CampfireFeedback, CampfireFeedbackList, CampfireLoadingFeedback } from '@/components/campfire/CampfireFeedback';
+import { useI18n } from '@/i18n';
 
 import type { MyLeaveLoadState, MyLeaveWarning } from './my-leave.types';
 
@@ -38,5 +39,7 @@ export function MyLeaveWarnings(props: { readonly warnings: readonly MyLeaveWarn
  * MyLeaveLoading renders a compact loading state.
  */
 export function MyLeaveLoading(): ReactElement {
-	return <CampfireLoadingFeedback message="Loading your leave options…" />;
+	const { t } = useI18n();
+
+	return <CampfireLoadingFeedback message={t('myDay.leave.loading')} />;
 }

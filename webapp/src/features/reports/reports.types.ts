@@ -1,3 +1,5 @@
+import type { TranslationKey } from '@/i18n';
+
 /**
  * ReportsSectionID identifies one report sub-page.
  */
@@ -8,7 +10,7 @@ export type ReportsSectionID = 'daily' | 'weekly' | 'time' | 'exports' | 'saved'
  */
 export type ReportsSection = {
 	readonly id: ReportsSectionID;
-	readonly label: string;
-	readonly description: string;
+	readonly labelKey: TranslationKey;
+	readonly descriptionKey: TranslationKey;
 	readonly globalOnly: boolean;
 };

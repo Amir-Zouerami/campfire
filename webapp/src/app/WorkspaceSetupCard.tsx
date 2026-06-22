@@ -3,6 +3,7 @@ import type { FormEvent, ReactElement } from 'react';
 import { CalendarDays, Check, Hash, Info, Loader2, ShieldCheck } from 'lucide-react';
 
 import { createWorkspace } from '@/api';
+import { CampfireLanguageSelect } from '@/components/campfire/CampfireLanguageSelect';
 import { CampfirePageHeader, CampfireStatCard, CampfireStatusPill, CampfireSurface, CampfireWorkflowNote } from '@/components/campfire/CampfireLayoutPrimitives';
 import { toast } from '@/components/campfire/campfire-toast';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -18,8 +19,9 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { getBrowserTimezone, inferLanguageFromTimezone, useI18n } from '@/i18n';
+import type { CampfireLanguage, TranslationKey } from '@/i18n';
 import type { Workspace } from '@/types/domain';
-
 
 /**
  * WorkspaceSetupCardProps contains Mattermost context needed to create a workspace.
@@ -39,6 +41,8 @@ type WorkspaceSetupFormState = {
 	readonly workingDays: readonly number[];
 	readonly channelAdminsAreLeads: boolean;
 	readonly createDefaultTemplates: boolean;
+	readonly generatedMessageLanguage: CampfireLanguage;
+	readonly generatedMessageLanguageWasEdited: boolean;
 };
 
 /**
@@ -51,8 +55,8 @@ type SaveState = 'idle' | 'saving' | 'error' | 'created';
  */
 type WeekdayOption = {
 	readonly value: number;
-	readonly shortLabel: string;
-	readonly label: string;
+	readonly shortLabelKey: TranslationKey;
+	readonly labelKey: TranslationKey;
 };
 
 /**
@@ -73,13 +77,13 @@ type IntlWithSupportedValuesOf = typeof Intl & {
 const defaultWorkingDays = [1, 2, 3, 4, 5] as const;
 
 const weekdayOptions: readonly WeekdayOption[] = [
-	{ value: 0, shortLabel: 'Sun', label: 'Sunday' },
-	{ value: 1, shortLabel: 'Mon', label: 'Monday' },
-	{ value: 2, shortLabel: 'Tue', label: 'Tuesday' },
-	{ value: 3, shortLabel: 'Wed', label: 'Wednesday' },
-	{ value: 4, shortLabel: 'Thu', label: 'Thursday' },
-	{ value: 5, shortLabel: 'Fri', label: 'Friday' },
-	{ value: 6, shortLabel: 'Sat', label: 'Saturday' },
+	{ value: 0, shortLabelKey: 'setup.weekday.sunday.short', labelKey: 'setup.weekday.sunday' },
+	{ value: 1, shortLabelKey: 'setup.weekday.monday.short', labelKey: 'setup.weekday.monday' },
+	{ value: 2, shortLabelKey: 'setup.weekday.tuesday.short', labelKey: 'setup.weekday.tuesday' },
+	{ value: 3, shortLabelKey: 'setup.weekday.wednesday.short', labelKey: 'setup.weekday.wednesday' },
+	{ value: 4, shortLabelKey: 'setup.weekday.thursday.short', labelKey: 'setup.weekday.thursday' },
+	{ value: 5, shortLabelKey: 'setup.weekday.friday.short', labelKey: 'setup.weekday.friday' },
+	{ value: 6, shortLabelKey: 'setup.weekday.saturday.short', labelKey: 'setup.weekday.saturday' },
 ];
 
 const fallbackTimezoneValues = [
@@ -108,14 +112,21 @@ const timezoneGroups = buildTimezoneGroups();
  * WorkspaceSetupCard creates a Campfire workspace for the current channel.
  */
 export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement {
-	const defaultName = useMemo(() => buildDefaultWorkspaceName(props.channelName), [props.channelName]);
+	const { t } = useI18n();
+	const defaultName = useMemo(() => buildDefaultWorkspaceName(props.channelName, t), [props.channelName, t]);
 	const [saveState, setSaveState] = useState<SaveState>('idle');
 	const [message, setMessage] = useState('');
-	const [form, setForm] = useState<WorkspaceSetupFormState>({
-		timezone: getBrowserTimezone(),
-		workingDays: defaultWorkingDays,
-		channelAdminsAreLeads: true,
-		createDefaultTemplates: true,
+	const [form, setForm] = useState<WorkspaceSetupFormState>(() => {
+		const timezone = getBrowserTimezone();
+
+		return {
+			timezone,
+			workingDays: defaultWorkingDays,
+			channelAdminsAreLeads: true,
+			createDefaultTemplates: true,
+			generatedMessageLanguage: inferLanguageFromTimezone(timezone),
+			generatedMessageLanguageWasEdited: false,
+		};
 	});
 
 	async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -128,19 +139,19 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 
 		if (name === '') {
 			setSaveState('error');
-			setMessage('Workspace name is required.');
+			setMessage(t('setup.error.nameRequired'));
 			return;
 		}
 
 		if (form.timezone.trim() === '') {
 			setSaveState('error');
-			setMessage('Timezone is required.');
+			setMessage(t('setup.error.timezoneRequired'));
 			return;
 		}
 
 		if (form.workingDays.length === 0) {
 			setSaveState('error');
-			setMessage('Choose at least one working day.');
+			setMessage(t('setup.error.workingDayRequired'));
 			return;
 		}
 
@@ -160,16 +171,17 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 				namedLeadUserIds: [],
 				namedApproverUserIds: [],
 				createDefaultTemplates: form.createDefaultTemplates,
+				generatedMessageLanguage: form.generatedMessageLanguage,
 			});
 
 			setSaveState('created');
-			setMessage('Workspace created. Loading Campfire workspace…');
+			setMessage(t('setup.success.created'));
 			props.onWorkspaceCreated(response.workspace);
 		} catch (error: unknown) {
 			setSaveState('idle');
 			setMessage('');
 			toast.error(error, {
-				fallbackMessage: 'Could not create the Campfire workspace.',
+				fallbackMessage: t('setup.toast.createError'),
 			});
 		}
 	}
@@ -179,6 +191,20 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 			...current,
 			...update,
 		}));
+	}
+
+	function handleTimezoneChange(timezone: string): void {
+		setForm(current => {
+			const nextLanguage = current.generatedMessageLanguageWasEdited
+				? current.generatedMessageLanguage
+				: inferLanguageFromTimezone(timezone);
+
+			return {
+				...current,
+				timezone,
+				generatedMessageLanguage: nextLanguage,
+			};
+		});
 	}
 
 	function toggleWorkingDay(weekday: number): void {
@@ -197,57 +223,55 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 	return (
 		<form className="campfire-setup-form" onSubmit={handleSubmit}>
 			<CampfirePageHeader
-				eyebrow="Workspace setup"
-				title="Turn this channel into a Campfire workspace"
-				description="Connect this Mattermost channel to standups, tasks, time, leave planning, reminders, and reports."
-				actions={<CampfireStatusPill tone="ember">New workspace</CampfireStatusPill>}
+				eyebrow={t('setup.page.eyebrow')}
+				title={t('setup.page.title')}
+				description={t('setup.page.description')}
+				actions={<CampfireStatusPill tone="ember">{t('setup.page.status')}</CampfireStatusPill>}
 			/>
 
 			<div className="campfire-setup-summary-grid">
 				<CampfireStatCard
 					icon={Hash}
-					label="Channel"
-					value={props.channelName ?? 'Current channel'}
+					label={t('setup.stat.channel.label')}
+					value={props.channelName ?? t('common.currentChannel')}
 					helper={shortID(props.channelID)}
 				/>
 				<CampfireStatCard
 					icon={CalendarDays}
-					label="Working days"
-					value={`${form.workingDays.length} selected`}
-					helper={workingDaysLabel(form.workingDays)}
+					label={t('setup.stat.workingDays.label')}
+					value={t('setup.stat.workingDays.value', { count: form.workingDays.length })}
+					helper={workingDaysLabel(form.workingDays, t)}
 					tone="green"
 				/>
 				<CampfireStatCard
 					icon={ShieldCheck}
-					label="Defaults"
-					value={form.createDefaultTemplates ? 'Seeded setup' : 'Empty setup'}
-					helper="Templates, reminders, reports"
+					label={t('setup.defaults.label')}
+					value={form.createDefaultTemplates ? t('setup.defaults.seeded') : t('setup.defaults.empty')}
+					helper={t('setup.defaults.helper')}
 				/>
 			</div>
 
 			<CampfireWorkflowNote
 				icon={Info}
-				title="Startup behavior"
-				description="This setup keeps local validation inline, while server and permission errors appear as bottom-right Campfire toasts."
+				title={t('setup.workflow.title')}
+				description={t('setup.workflow.description')}
 			/>
 
 			<div className="campfire-setup-grid">
 				<CampfireSurface className="campfire-setup-primary-surface">
 					<div className="campfire-section-heading-row">
 						<div>
-							<h3 className="campfire-section-title">Workspace identity</h3>
-							<p className="campfire-section-description">
-								These values can be cleaned up later in workspace settings.
-							</p>
+							<h3 className="campfire-section-title">{t('setup.surface.identity.title')}</h3>
+							<p className="campfire-section-description">{t('setup.surface.identity.description')}</p>
 						</div>
 
-						<CampfireStatusPill>Team {shortID(props.teamID)}</CampfireStatusPill>
+						<CampfireStatusPill>{t('setup.stat.team', { teamId: shortID(props.teamID) })}</CampfireStatusPill>
 					</div>
 
 					<div className="cf:grid cf:gap-6 cf:md:grid-cols-2">
 						<div className="cf:grid cf:gap-3">
 							<Label htmlFor="campfire-workspace-name" className="campfire-field-label">
-								Workspace name
+								{t('setup.name.label')}
 							</Label>
 							<Input
 								id="campfire-workspace-name"
@@ -260,25 +284,45 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 
 						<div className="cf:grid cf:gap-3">
 							<Label htmlFor="campfire-workspace-timezone" className="campfire-field-label">
-								Timezone
+								{t('setup.timezone.label')}
 							</Label>
 							<TimezoneSelect
 								id="campfire-workspace-timezone"
 								value={form.timezone}
 								disabled={isBusy}
-								onChange={timezone => updateForm({ timezone })}
+								onChange={handleTimezoneChange}
 							/>
+						</div>
+
+						<div className="cf:grid cf:gap-3">
+							<Label htmlFor="campfire-workspace-generated-language" className="campfire-field-label">
+								{t('setup.field.language.label')}
+							</Label>
+							<CampfireLanguageSelect
+								id="campfire-workspace-generated-language"
+								value={form.generatedMessageLanguage}
+								disabled={isBusy}
+								onChange={language => updateForm({
+									generatedMessageLanguage: language,
+									generatedMessageLanguageWasEdited: true,
+								})}
+							/>
+							<p className="campfire-field-help">
+								{form.generatedMessageLanguageWasEdited ? t('setup.language.selected') : t('setup.language.inferred')}
+								{' · '}
+								{t('setup.field.language.helper')}
+							</p>
 						</div>
 					</div>
 
 					<div className="cf:grid cf:gap-3">
 						<Label htmlFor="campfire-workspace-board-url" className="campfire-field-label">
-							Board URL
+							{t('setup.boardUrl.label')}
 						</Label>
 						<Input
 							id="campfire-workspace-board-url"
 							name="workspace-board-url"
-							placeholder="Optional board, Jira, Linear, GitHub project, or task source URL"
+							placeholder={t('setup.boardUrl.placeholder')}
 							disabled={isBusy}
 							className="campfire-input"
 						/>
@@ -286,12 +330,12 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 
 					<div className="cf:grid cf:gap-3">
 						<Label htmlFor="campfire-workspace-description" className="campfire-field-label">
-							Description
+							{t('setup.description.label')}
 						</Label>
 						<Textarea
 							id="campfire-workspace-description"
 							name="workspace-description"
-							placeholder="Optional workspace note…"
+							placeholder={t('setup.description.placeholder')}
 							disabled={isBusy}
 							className="campfire-textarea"
 						/>
@@ -302,11 +346,11 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 					<CampfireSurface>
 						<div className="campfire-section-heading-row campfire-section-heading-row--compact">
 							<div>
-								<h3 className="campfire-section-title">Working calendar</h3>
-								<p className="campfire-section-description">Choose the default rhythm for standups.</p>
+								<h3 className="campfire-section-title">{t('setup.workingCalendar.title')}</h3>
+								<p className="campfire-section-description">{t('setup.workingCalendar.description')}</p>
 							</div>
 
-							<CampfireStatusPill tone="green">{workingDaysLabel(form.workingDays)}</CampfireStatusPill>
+							<CampfireStatusPill tone="green">{workingDaysLabel(form.workingDays, t)}</CampfireStatusPill>
 						</div>
 
 						<div className="campfire-setup-weekday-grid">
@@ -321,9 +365,9 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 										className={weekdayButtonClassName(isSelected)}
 										onClick={() => toggleWorkingDay(option.value)}
 									>
-										<span className="cf:block cf:text-sm cf:font-semibold">{option.shortLabel}</span>
+										<span className="cf:block cf:text-sm cf:font-semibold">{t(option.shortLabelKey)}</span>
 										<span className="cf:mt-1 cf:block cf:text-[0.68rem] cf:font-medium cf:uppercase cf:tracking-[0.16em]">
-											{option.label}
+											{t(option.labelKey)}
 										</span>
 									</button>
 								);
@@ -334,10 +378,8 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 					<CampfireSurface>
 						<div className="cf:grid cf:gap-5">
 							<div>
-								<h3 className="campfire-section-title">Role and template defaults</h3>
-								<p className="campfire-section-description">
-									These defaults make the workspace usable immediately after creation.
-								</p>
+								<h3 className="campfire-section-title">{t('setup.surface.roles.title')}</h3>
+								<p className="campfire-section-description">{t('setup.surface.roles.description')}</p>
 							</div>
 
 							<label className="campfire-check-card campfire-check-card--flat">
@@ -348,11 +390,8 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 									className="campfire-check-box"
 								/>
 								<span>
-									<span className="campfire-check-title">Treat channel admins as Leads</span>
-									<span className="campfire-check-description">
-										Channel admins can manage workspace settings, templates, schedules, reminders,
-										reports, and calendar rules.
-									</span>
+									<span className="campfire-check-title">{t('setup.roleAdmins.title')}</span>
+									<span className="campfire-check-description">{t('setup.roleAdmins.description')}</span>
 								</span>
 							</label>
 
@@ -364,11 +403,8 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 									className="campfire-check-box"
 								/>
 								<span>
-									<span className="campfire-check-title">Create default templates and schedules</span>
-									<span className="campfire-check-description">
-										Seeds daily and weekly standup templates, reminder rules, report rules, working
-										days, and leave defaults.
-									</span>
+									<span className="campfire-check-title">{t('setup.templateDefaults.title')}</span>
+									<span className="campfire-check-description">{t('setup.templateDefaults.description')}</span>
 								</span>
 							</label>
 						</div>
@@ -378,15 +414,13 @@ export function WorkspaceSetupCard(props: WorkspaceSetupCardProps): ReactElement
 
 			<div className="campfire-submit-row campfire-submit-row--flat">
 				<div>
-					<p className="campfire-submit-title">Ready to light the fire?</p>
-					<p className="campfire-submit-description">
-						This creates the Campfire workspace for the current Mattermost channel.
-					</p>
+					<p className="campfire-submit-title">{t('setup.submit.title')}</p>
+					<p className="campfire-submit-description">{t('setup.submit.description')}</p>
 				</div>
 
 				<button type="submit" disabled={isBusy} className="campfire-submit-button campfire-submit-button--flat">
 					{isBusy ? <Loader2 className="cf:size-5 cf:animate-spin" /> : <Check className="cf:size-5" />}
-					<span>Create workspace</span>
+					<span>{t('setup.createButton')}</span>
 				</button>
 			</div>
 
@@ -417,10 +451,12 @@ function TimezoneSelect(props: {
 	readonly disabled: boolean;
 	readonly onChange: (timezone: string) => void;
 }): ReactElement {
+	const { t } = useI18n();
+
 	return (
 		<Select value={props.value} onValueChange={props.onChange} disabled={props.disabled}>
 			<SelectTrigger id={props.id} className="cf:w-full">
-				<SelectValue placeholder="Select a timezone" />
+				<SelectValue placeholder={t('setup.timezone.placeholder')} />
 			</SelectTrigger>
 			<SelectContent
 				position="popper"
@@ -460,37 +496,32 @@ function weekdayButtonClassName(isSelected: boolean): string {
 /**
  * workingDaysLabel returns a compact working-day label.
  */
-function workingDaysLabel(workingDays: readonly number[]): string {
+function workingDaysLabel(
+	workingDays: readonly number[],
+	t: ReturnType<typeof useI18n>['t'],
+): string {
 	if (workingDays.length === 0) {
-		return 'None';
+		return t('common.none');
 	}
 
 	return weekdayOptions
 		.filter(option => workingDays.includes(option.value))
-		.map(option => option.shortLabel)
+		.map(option => t(option.shortLabelKey))
 		.join(', ');
 }
 
 /**
  * buildDefaultWorkspaceName builds a sensible default workspace name.
  */
-function buildDefaultWorkspaceName(channelName: string | null): string {
+function buildDefaultWorkspaceName(
+	channelName: string | null,
+	t: ReturnType<typeof useI18n>['t'],
+): string {
 	if (channelName === null || channelName.trim() === '') {
-		return 'Campfire workspace';
+		return t('setup.name.default');
 	}
 
-	return `${channelName.trim()} Campfire`;
-}
-
-/**
- * getBrowserTimezone returns the browser timezone when available.
- */
-function getBrowserTimezone(): string {
-	try {
-		return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-	} catch (_error: unknown) {
-		return 'UTC';
-	}
+	return t('setup.name.fromChannel', { channelName: channelName.trim() });
 }
 
 /**

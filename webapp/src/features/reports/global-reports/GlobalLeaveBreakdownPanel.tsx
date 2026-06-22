@@ -3,6 +3,8 @@ import { Globe2, Tags } from 'lucide-react';
 
 import { CampfireEllipsisText } from '@/components/campfire/CampfireBidiText';
 import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
+import { useI18n } from '@/i18n';
+import { localizedLeaveTypeName } from '@/features/my-day/leave/my-leave.i18n';
 import type { GlobalLeaveReportTypeSummary, GlobalLeaveReportWorkspaceSummary } from '@/types/domain';
 
 /**
@@ -17,9 +19,16 @@ type GlobalLeaveBreakdownPanelProps = {
  * GlobalLeaveBreakdownPanel renders workspace and leave-type global summaries.
  */
 export function GlobalLeaveBreakdownPanel(props: GlobalLeaveBreakdownPanelProps): ReactElement {
+	const { t } = useI18n();
+
 	return (
 		<div className="campfire-report-breakdown-grid">
-			<BreakdownPanel title="Workspaces" description="Leave by workspace" icon={Globe2} emptyTitle="No workspace breakdown">
+			<BreakdownPanel
+				title={t('reports.global.leave.breakdown.workspaces.eyebrow')}
+				description={t('reports.global.leave.breakdown.workspaces.title')}
+				icon={Globe2}
+				emptyTitle={t('reports.global.leave.breakdown.workspaces.empty')}
+			>
 				{[...props.workspaces]
 					.sort((left, right) => right.approvedCount + right.pendingCount - (left.approvedCount + left.pendingCount))
 					.map(workspace => (
@@ -32,13 +41,18 @@ export function GlobalLeaveBreakdownPanel(props: GlobalLeaveBreakdownPanelProps)
 					))}
 			</BreakdownPanel>
 
-			<BreakdownPanel title="Leave types" description="Leave by type" icon={Tags} emptyTitle="No leave-type breakdown">
+			<BreakdownPanel
+				title={t('reports.global.leave.breakdown.types.eyebrow')}
+				description={t('reports.global.leave.breakdown.types.title')}
+				icon={Tags}
+				emptyTitle={t('reports.global.leave.breakdown.types.empty')}
+			>
 				{[...props.types]
 					.sort((left, right) => right.approvedCount + right.pendingCount - (left.approvedCount + left.pendingCount))
 					.map(typeSummary => (
 						<BreakdownRow
 							key={`${typeSummary.leaveTypeName}-${typeSummary.leaveTypeColor}`}
-							title={typeSummary.leaveTypeName}
+							title={localizedLeaveTypeName({ code: '', name: typeSummary.leaveTypeName }, t)}
 							approvedCount={typeSummary.approvedCount}
 							pendingCount={typeSummary.pendingCount}
 						/>
@@ -58,6 +72,7 @@ function BreakdownPanel(props: {
 	readonly emptyTitle: string;
 	readonly children: readonly ReactElement[];
 }): ReactElement {
+	const { t } = useI18n();
 	const Icon = props.icon;
 
 	return (
@@ -76,7 +91,7 @@ function BreakdownPanel(props: {
 				<CampfireEmpty
 					icon={Icon}
 					title={props.emptyTitle}
-					description="Load a report with matching rows to see a breakdown."
+					description={t('reports.global.leave.breakdown.empty.description')}
 				/>
 			) : (
 				<div className="campfire-report-row-list">{props.children}</div>
@@ -93,13 +108,16 @@ function BreakdownRow(props: {
 	readonly approvedCount: number;
 	readonly pendingCount: number;
 }): ReactElement {
+	const { t } = useI18n();
+
 	return (
 		<article className="campfire-report-compact-card campfire-report-compact-card--row">
 			<CampfireEllipsisText value={props.title} className="campfire-report-compact-title" />
 			<div className="campfire-report-compact-meta">
-				<span>{props.approvedCount} approved</span>
-				<span>{props.pendingCount} pending</span>
+				<span>{t('reports.global.leave.count.approved', { count: props.approvedCount })}</span>
+				<span>{t('reports.global.leave.count.pending', { count: props.pendingCount })}</span>
 			</div>
 		</article>
 	);
 }
+

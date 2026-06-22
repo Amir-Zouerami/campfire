@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import { CampfireControlsPanel } from '@/components/campfire/CampfireControlsPanel';
 import { CampfireReportSummaryBar } from '@/components/campfire/CampfireReportSummaryBar';
 import { useUserProfiles } from '@/app/useUserProfiles';
+import { useI18n } from '@/i18n';
 import type { Workspace } from '@/types/domain';
 
 import { TeamRuntimeControls } from './TeamRuntimeControls';
@@ -10,7 +11,7 @@ import { TeamRuntimeDecisionPanel } from './TeamRuntimeDecisionPanel';
 import { TeamRuntimeFeedback, TeamRuntimeLoading } from './TeamRuntimeFeedback';
 import { TeamRuntimeLeavePanel } from './TeamRuntimeLeavePanel';
 import { TeamRuntimeOffDaysPanel } from './TeamRuntimeOffDaysPanel';
-import { runtimeDecisionLabel, runtimeReasonLabel } from './team-runtime.helpers';
+import { runtimeDecisionLabel, runtimeReasonLabel } from './team-runtime.i18n';
 import { useTeamRuntime } from './useTeamRuntime';
 
 /**
@@ -25,15 +26,16 @@ type TeamRuntimePageProps = {
  * TeamRuntimePage renders one focused runtime-decision workspace.
  */
 export function TeamRuntimePage(props: TeamRuntimePageProps): ReactElement {
+	const { t } = useI18n();
 	const runtime = useTeamRuntime(props);
 	const profiles = useUserProfiles(runtime.userIDsForProfiles);
 
 	return (
 		<div className="campfire-team-workflow campfire-team-review-clean-page">
 			<CampfireControlsPanel
-				eyebrow="Runtime check"
-				title="Evaluate one standup date"
-				description="Check whether Campfire should run or skip standup automation for a specific date."
+				eyebrow={t('teamReview.runtime.panel.eyebrow')}
+				title={t('teamReview.runtime.panel.title')}
+				description={t('teamReview.runtime.panel.description')}
 				controls={
 					<TeamRuntimeControls
 						date={runtime.date}
@@ -46,11 +48,21 @@ export function TeamRuntimePage(props: TeamRuntimePageProps): ReactElement {
 			>
 				<CampfireReportSummaryBar
 					items={[
-						{ label: 'Decision', value: runtimeDecisionLabel(runtime.decision), tone: runtime.decision?.shouldRun === false ? 'danger' : 'success' },
-						{ label: 'Reason', value: runtime.decision === null ? 'Not evaluated' : runtimeReasonLabel(runtime.decision.reason) },
-						{ label: 'Members', value: String(runtime.decision?.memberCount ?? 0) },
-						{ label: 'On leave', value: String(runtime.decision?.onLeaveMemberCount ?? 0) },
-						{ label: 'Profiles', value: profiles.loading ? 'Loading' : 'Ready' },
+						{
+							label: t('teamReview.runtime.summary.decision'),
+							value: runtimeDecisionLabel(runtime.decision, t),
+							tone: runtime.decision?.shouldRun === false ? 'danger' : 'success',
+						},
+						{
+							label: t('teamReview.runtime.summary.reason'),
+							value: runtime.decision === null
+								? t('teamReview.runtime.decision.notEvaluated')
+								: runtimeReasonLabel(runtime.decision.reason, t),
+						},
+						{ label: t('teamReview.runtime.summary.participants'), value: String(runtime.decision?.memberCount ?? 0) },
+						{ label: t('teamReview.runtime.summary.onLeave'), value: String(runtime.decision?.onLeaveMemberCount ?? 0) },
+						{ label: t('teamReview.runtime.summary.excluded'), value: String(runtime.decision?.excludedMemberCount ?? 0) },
+						{ label: t('teamReview.runtime.summary.profiles'), value: profiles.loading ? t('common.loading') : t('common.ready') },
 					]}
 				/>
 			</CampfireControlsPanel>

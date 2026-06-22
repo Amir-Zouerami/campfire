@@ -63,6 +63,7 @@ type App struct {
 	ExportService                   *service.ExportService
 	TaskService                     *service.TaskService
 	AuditService                    *service.AuditService
+	DataRetentionService            *service.DataRetentionService
 	Scheduler                       *scheduler.Runner
 }
 
@@ -171,6 +172,7 @@ func New(config Config) (*App, error) {
 		workspaceCalendarStore,
 		globalSkipDateStore,
 		leaveStore,
+		workspaceRoleStore,
 		workspaceMemberProvider,
 	)
 
@@ -248,11 +250,17 @@ func New(config Config) (*App, error) {
 	)
 
 	auditStore := store.NewSQLAuditStore(database)
+	dataRetentionStore := store.NewSQLDataRetentionStore(database)
 
 	auditService := service.NewAuditService(
 		workspaceStore,
 		workspaceRoleStore,
 		auditStore,
+	)
+
+	dataRetentionService := service.NewDataRetentionService(
+		workspaceStore,
+		dataRetentionStore,
 	)
 
 	schedulerRunner := scheduler.NewRunner(scheduler.Config{
@@ -290,6 +298,7 @@ func New(config Config) (*App, error) {
 		ExportService:                   exportService,
 		TaskService:                     taskService,
 		AuditService:                    auditService,
+		DataRetentionService:            dataRetentionService,
 	})
 
 	return &App{
@@ -319,6 +328,7 @@ func New(config Config) (*App, error) {
 		ExportService:                   exportService,
 		TaskService:                     taskService,
 		AuditService:                    auditService,
+		DataRetentionService:            dataRetentionService,
 		Scheduler:                       schedulerRunner,
 	}, nil
 }

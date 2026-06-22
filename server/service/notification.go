@@ -16,19 +16,20 @@ type LeaveRequestNotification struct {
 	ChannelID      string
 	Language       domain.ReportLanguage
 
-	RequesterUserID string
-	ApproverUserIDs []string
+	RequesterUserID  string
+	RecipientUserIDs []string
 
-	LeaveTypeName string
-	StartDate     string
-	EndDate       string
-	DurationMode  string
-	HalfDayPart   string
-	StartTime     string
-	EndTime       string
-	Reason        string
-	BackupUserID  string
-	Status        string
+	LeaveTypeName      string
+	StartDate          string
+	EndDate            string
+	DurationMode       string
+	HalfDayPart        string
+	StartTime          string
+	EndTime            string
+	Reason             string
+	BackupUserID       string
+	CanContactIfNeeded bool
+	Status             string
 }
 
 /*
@@ -51,15 +52,16 @@ type LeaveDecisionNotification struct {
 	RequesterUserID string
 	DeciderUserID   string
 
-	LeaveTypeName string
-	StartDate     string
-	EndDate       string
-	DurationMode  string
-	HalfDayPart   string
-	StartTime     string
-	EndTime       string
-	Decision      string
-	Comment       string
+	LeaveTypeName      string
+	StartDate          string
+	EndDate            string
+	DurationMode       string
+	HalfDayPart        string
+	StartTime          string
+	EndTime            string
+	CanContactIfNeeded bool
+	Decision           string
+	Comment            string
 }
 
 /*
@@ -79,18 +81,97 @@ type LeaveCancellationNotification struct {
 	*/
 	AnnouncementChannelID string
 
-	RequesterUserID string
-	ApproverUserIDs []string
+	RequesterUserID  string
+	RecipientUserIDs []string
 
-	LeaveTypeName string
-	StartDate     string
-	EndDate       string
-	DurationMode  string
-	HalfDayPart   string
-	StartTime     string
-	EndTime       string
-	Status        string
-	WasApproved   bool
+	LeaveTypeName      string
+	StartDate          string
+	EndDate            string
+	DurationMode       string
+	HalfDayPart        string
+	StartTime          string
+	EndTime            string
+	CanContactIfNeeded bool
+	Status             string
+	WasApproved        bool
+}
+
+/*
+LeaveChangeRequestNotification contains the data needed to notify approvers that
+a member requested an edit to an existing leave request.
+*/
+type LeaveChangeRequestNotification struct {
+	ChangeRequestID string
+	LeaveRequestID  string
+	WorkspaceID     string
+	WorkspaceName   string
+	ChannelID       string
+	Language        domain.ReportLanguage
+
+	RequesterUserID  string
+	RecipientUserIDs []string
+
+	LeaveTypeName      string
+	StartDate          string
+	EndDate            string
+	DurationMode       string
+	HalfDayPart        string
+	StartTime          string
+	EndTime            string
+	Reason             string
+	BackupUserID       string
+	CanContactIfNeeded bool
+}
+
+/*
+LeaveChangeDecisionNotification contains the data needed to notify a member that
+an approver accepted or rejected their requested leave correction.
+*/
+type LeaveChangeDecisionNotification struct {
+	ChangeRequestID string
+	LeaveRequestID  string
+	WorkspaceID     string
+	WorkspaceName   string
+	ChannelID       string
+	Language        domain.ReportLanguage
+
+	RequesterUserID string
+	DeciderUserID   string
+
+	LeaveTypeName      string
+	StartDate          string
+	EndDate            string
+	DurationMode       string
+	HalfDayPart        string
+	StartTime          string
+	EndTime            string
+	CanContactIfNeeded bool
+	Decision           string
+	Comment            string
+}
+
+/*
+LeaveUpdatedNotification contains the data needed to notify a requester after an
+approver directly corrects an existing leave request.
+*/
+type LeaveUpdatedNotification struct {
+	LeaveRequestID string
+	WorkspaceID    string
+	WorkspaceName  string
+	ChannelID      string
+	Language       domain.ReportLanguage
+
+	RequesterUserID string
+	EditorUserID    string
+
+	LeaveTypeName      string
+	StartDate          string
+	EndDate            string
+	DurationMode       string
+	HalfDayPart        string
+	StartTime          string
+	EndTime            string
+	CanContactIfNeeded bool
 }
 
 /*
@@ -102,6 +183,9 @@ type NotificationPublisher interface {
 	NotifyLeaveRequested(ctx context.Context, notification LeaveRequestNotification) error
 	NotifyLeaveDecided(ctx context.Context, notification LeaveDecisionNotification) error
 	NotifyLeaveCancelled(ctx context.Context, notification LeaveCancellationNotification) error
+	NotifyLeaveChangeRequested(ctx context.Context, notification LeaveChangeRequestNotification) error
+	NotifyLeaveChangeDecided(ctx context.Context, notification LeaveChangeDecisionNotification) error
+	NotifyLeaveUpdated(ctx context.Context, notification LeaveUpdatedNotification) error
 }
 
 /*
@@ -145,6 +229,36 @@ NotifyLeaveCancelled intentionally does nothing.
 func (p *NoopNotificationPublisher) NotifyLeaveCancelled(
 	_ context.Context,
 	_ LeaveCancellationNotification,
+) error {
+	return nil
+}
+
+/*
+NotifyLeaveChangeRequested intentionally does nothing.
+*/
+func (p *NoopNotificationPublisher) NotifyLeaveChangeRequested(
+	_ context.Context,
+	_ LeaveChangeRequestNotification,
+) error {
+	return nil
+}
+
+/*
+NotifyLeaveChangeDecided intentionally does nothing.
+*/
+func (p *NoopNotificationPublisher) NotifyLeaveChangeDecided(
+	_ context.Context,
+	_ LeaveChangeDecisionNotification,
+) error {
+	return nil
+}
+
+/*
+NotifyLeaveUpdated intentionally does nothing.
+*/
+func (p *NoopNotificationPublisher) NotifyLeaveUpdated(
+	_ context.Context,
+	_ LeaveUpdatedNotification,
 ) error {
 	return nil
 }

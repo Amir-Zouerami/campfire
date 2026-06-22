@@ -5,6 +5,9 @@ import type {
 	CreateStandupScheduleResponse,
 	CreateStandupTemplateRequest,
 	CreateStandupTemplateResponse,
+	DeleteStandupQuestionResponse,
+	DeleteStandupScheduleResponse,
+	DeleteStandupTemplateResponse,
 	EvaluateStandupDayResponse,
 	GetMyStandupSubmissionRequest,
 	GetMyStandupSubmissionResponse,
@@ -75,6 +78,19 @@ export function updateStandupTemplate(
 }
 
 /**
+ * deleteStandupTemplate calls DELETE /workspaces/{workspaceID}/standups/templates/{templateID}.
+ */
+export function deleteStandupTemplate(
+	workspaceID: string,
+	templateID: string,
+): Promise<DeleteStandupTemplateResponse> {
+	return requestJson<DeleteStandupTemplateResponse>(
+		`/workspaces/${encodePath(workspaceID)}/standups/templates/${encodePath(templateID)}`,
+		{ method: 'DELETE' },
+	);
+}
+
+/**
  * createStandupQuestion calls POST /workspaces/{workspaceID}/standups/questions.
  */
 export function createStandupQuestion(
@@ -105,6 +121,19 @@ export function updateStandupQuestion(
 }
 
 /**
+ * deleteStandupQuestion calls DELETE /workspaces/{workspaceID}/standups/questions/{questionID}.
+ */
+export function deleteStandupQuestion(
+	workspaceID: string,
+	questionID: string,
+): Promise<DeleteStandupQuestionResponse> {
+	return requestJson<DeleteStandupQuestionResponse>(
+		`/workspaces/${encodePath(workspaceID)}/standups/questions/${encodePath(questionID)}`,
+		{ method: 'DELETE' },
+	);
+}
+
+/**
  * createStandupSchedule calls POST /workspaces/{workspaceID}/standups/schedules.
  */
 export function createStandupSchedule(
@@ -131,6 +160,19 @@ export function updateStandupSchedule(
 			method: 'PUT',
 			body: request,
 		},
+	);
+}
+
+/**
+ * deleteStandupSchedule calls DELETE /workspaces/{workspaceID}/standups/schedules/{scheduleID}.
+ */
+export function deleteStandupSchedule(
+	workspaceID: string,
+	scheduleID: string,
+): Promise<DeleteStandupScheduleResponse> {
+	return requestJson<DeleteStandupScheduleResponse>(
+		`/workspaces/${encodePath(workspaceID)}/standups/schedules/${encodePath(scheduleID)}`,
+		{ method: 'DELETE' },
 	);
 }
 

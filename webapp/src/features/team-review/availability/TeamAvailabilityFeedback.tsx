@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { CampfireFeedbackList, CampfireLoadingFeedback } from '@/components/campfire/CampfireFeedback';
+import { useI18n } from '@/i18n';
 
 import type { TeamAvailabilityLoadState } from './team-availability.types';
 
@@ -24,6 +25,7 @@ export function TeamAvailabilityFeedback(props: TeamAvailabilityFeedbackProps): 
 					key: 'workflow-message',
 					message: props.message,
 					tone: props.state === 'error' ? 'error' as const : 'success' as const,
+					showInlineError: props.state === 'error',
 				},
 				{
 					key: 'profile-warning',
@@ -39,5 +41,7 @@ export function TeamAvailabilityFeedback(props: TeamAvailabilityFeedbackProps): 
  * TeamAvailabilityLoading renders a compact loading state.
  */
 export function TeamAvailabilityLoading(): ReactElement {
-	return <CampfireLoadingFeedback message="Loading team availability…" />;
+	const { t } = useI18n();
+
+	return <CampfireLoadingFeedback message={t('teamReview.availability.loading')} />;
 }

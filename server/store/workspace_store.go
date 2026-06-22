@@ -3,8 +3,10 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/amir-zouerami/campfire/server/domain"
@@ -48,9 +50,12 @@ type WorkspaceStore interface {
 		ctx context.Context,
 		workspaceID domain.ID,
 		channelID string,
+		leaveRequestNotificationRecipientIDs []string,
 		leaveNotificationLanguage domain.ReportLanguage,
+		generatedMessageLanguage domain.Language,
 		updatedAt time.Time,
 	) (*domain.Workspace, error)
+	UpdateTimezone(ctx context.Context, workspaceID domain.ID, timezone string, updatedAt time.Time) (*domain.Workspace, error)
 	ArchiveByID(ctx context.Context, workspaceID domain.ID, archivedAt time.Time) (bool, error)
 }
 
@@ -89,6 +94,39 @@ func (s *SQLWorkspaceStore) ArchiveByID(
 }
 
 /*
+UpdateTimezone updates the workspace IANA timezone used by schedules and reports.
+*/
+func (s *SQLWorkspaceStore) UpdateTimezone(
+	ctx context.Context,
+	workspaceID domain.ID,
+	timezone string,
+	updatedAt time.Time,
+) (*domain.Workspace, error) {
+	query := s.db.Rebind(`
+		UPDATE campfire_workspaces
+		SET timezone = ?,
+			updated_at = ?
+		WHERE id = ? AND is_archived = FALSE
+	`)
+
+	result, err := s.db.ExecContext(ctx, query, timezone, updatedAt, workspaceID.String())
+	if err != nil {
+		return nil, fmt.Errorf("update workspace timezone: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("read workspace timezone update rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return nil, ErrNotFound
+	}
+
+	return s.GetByID(ctx, workspaceID)
+}
+
+/*
 UpdateNotificationSettings updates workspace leave notification routing and copy language.
 
 An empty channel ID means Campfire falls back to the workspace channel.
@@ -97,12 +135,23 @@ func (s *SQLWorkspaceStore) UpdateNotificationSettings(
 	ctx context.Context,
 	workspaceID domain.ID,
 	channelID string,
+	leaveRequestNotificationRecipientIDs []string,
 	leaveNotificationLanguage domain.ReportLanguage,
+	generatedMessageLanguage domain.Language,
 	updatedAt time.Time,
 ) (*domain.Workspace, error) {
+	recipientIDsJSON, err := encodeWorkspaceUserIDs(leaveRequestNotificationRecipientIDs)
+	if err != nil {
+		return nil, err
+	}
+
 	query := s.db.Rebind(`
 		UPDATE campfire_workspaces
-		SET approved_leave_notification_channel_id = ?, leave_notification_language = ?, updated_at = ?
+		SET approved_leave_notification_channel_id = ?,
+			leave_request_notification_recipient_ids = ?,
+			leave_notification_language = ?,
+			generated_message_language = ?,
+			updated_at = ?
 		WHERE id = ? AND is_archived = FALSE
 	`)
 
@@ -110,7 +159,9 @@ func (s *SQLWorkspaceStore) UpdateNotificationSettings(
 		ctx,
 		query,
 		channelID,
+		recipientIDsJSON,
 		string(leaveNotificationLanguage),
+		string(generatedMessageLanguage),
 		updatedAt,
 		workspaceID.String(),
 	)
@@ -140,6 +191,34 @@ func NewSQLWorkspaceStore(database *Database) *SQLWorkspaceStore {
 }
 
 /*
+loadEnabledWorkingDays returns enabled weekdays for one workspace.
+
+Workspace rows are often used by the UI before the dedicated working-calendar
+page is opened, so the core workspace payload must carry the saved workweek.
+*/
+func (s *SQLWorkspaceStore) loadEnabledWorkingDays(ctx context.Context, workspaceID domain.ID) ([]time.Weekday, error) {
+	weekdays := []int{}
+
+	query := s.db.Rebind(`
+		SELECT weekday
+		FROM campfire_workspace_working_days
+		WHERE workspace_id = ? AND enabled = TRUE
+		ORDER BY weekday ASC
+	`)
+
+	if err := s.db.SelectContext(ctx, &weekdays, query, workspaceID.String()); err != nil {
+		return nil, fmt.Errorf("load workspace working days: %w", err)
+	}
+
+	workingDays := make([]time.Weekday, 0, len(weekdays))
+	for _, weekday := range weekdays {
+		workingDays = append(workingDays, time.Weekday(weekday))
+	}
+
+	return workingDays, nil
+}
+
+/*
 GetByID returns an active Campfire workspace by ID.
 */
 func (s *SQLWorkspaceStore) GetByID(ctx context.Context, workspaceID domain.ID) (*domain.Workspace, error) {
@@ -154,7 +233,9 @@ func (s *SQLWorkspaceStore) GetByID(ctx context.Context, workspaceID domain.ID) 
 			description,
 			board_url,
 			approved_leave_notification_channel_id,
+			leave_request_notification_recipient_ids,
 			leave_notification_language,
+			generated_message_language,
 			timezone,
 			created_by,
 			created_at,
@@ -175,6 +256,11 @@ func (s *SQLWorkspaceStore) GetByID(ctx context.Context, workspaceID domain.ID) 
 	}
 
 	workspace := record.toDomain()
+	workingDays, err := s.loadEnabledWorkingDays(ctx, workspace.ID)
+	if err != nil {
+		return nil, err
+	}
+	workspace.WorkingDays = workingDays
 
 	return &workspace, nil
 }
@@ -194,7 +280,9 @@ func (s *SQLWorkspaceStore) GetByChannelID(ctx context.Context, channelID string
 			description,
 			board_url,
 			approved_leave_notification_channel_id,
+			leave_request_notification_recipient_ids,
 			leave_notification_language,
+			generated_message_language,
 			timezone,
 			created_by,
 			created_at,
@@ -215,6 +303,11 @@ func (s *SQLWorkspaceStore) GetByChannelID(ctx context.Context, channelID string
 	}
 
 	workspace := record.toDomain()
+	workingDays, err := s.loadEnabledWorkingDays(ctx, workspace.ID)
+	if err != nil {
+		return nil, err
+	}
+	workspace.WorkingDays = workingDays
 
 	return &workspace, nil
 }
@@ -234,7 +327,9 @@ func (s *SQLWorkspaceStore) ListActive(ctx context.Context) ([]domain.Workspace,
 			description,
 			board_url,
 			approved_leave_notification_channel_id,
+			leave_request_notification_recipient_ids,
 			leave_notification_language,
+			generated_message_language,
 			timezone,
 			created_by,
 			created_at,
@@ -251,7 +346,13 @@ func (s *SQLWorkspaceStore) ListActive(ctx context.Context) ([]domain.Workspace,
 
 	workspaces := make([]domain.Workspace, 0, len(records))
 	for _, record := range records {
-		workspaces = append(workspaces, record.toDomain())
+		workspace := record.toDomain()
+		workingDays, err := s.loadEnabledWorkingDays(ctx, workspace.ID)
+		if err != nil {
+			return nil, err
+		}
+		workspace.WorkingDays = workingDays
+		workspaces = append(workspaces, workspace)
 	}
 
 	return workspaces, nil
@@ -357,13 +458,15 @@ func (s *SQLWorkspaceStore) insertWorkspace(ctx context.Context, tx *sqlx.Tx, wo
 				description,
 				board_url,
 				approved_leave_notification_channel_id,
+				leave_request_notification_recipient_ids,
 				leave_notification_language,
+				generated_message_language,
 				timezone,
 				created_by,
 				created_at,
 				updated_at,
 				is_archived
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`),
 		workspace.ID.String(),
 		workspace.TeamID,
@@ -372,7 +475,9 @@ func (s *SQLWorkspaceStore) insertWorkspace(ctx context.Context, tx *sqlx.Tx, wo
 		workspace.Description,
 		workspace.BoardURL,
 		workspace.ApprovedLeaveNotificationChannelID,
+		mustEncodeWorkspaceUserIDs(workspace.LeaveRequestNotificationRecipientIDs),
 		string(workspace.LeaveNotificationLanguage),
+		string(workspace.GeneratedMessageLanguage),
 		workspace.Timezone,
 		workspace.CreatedBy,
 		workspace.CreatedAt,
@@ -768,19 +873,21 @@ func (s *SQLWorkspaceStore) insertReportRule(
 workspaceRecord represents a row from campfire_workspaces.
 */
 type workspaceRecord struct {
-	ID                                 string    `db:"id"`
-	TeamID                             string    `db:"team_id"`
-	ChannelID                          string    `db:"channel_id"`
-	Name                               string    `db:"name"`
-	Description                        string    `db:"description"`
-	BoardURL                           string    `db:"board_url"`
-	ApprovedLeaveNotificationChannelID string    `db:"approved_leave_notification_channel_id"`
-	LeaveNotificationLanguage          string    `db:"leave_notification_language"`
-	Timezone                           string    `db:"timezone"`
-	CreatedBy                          string    `db:"created_by"`
-	CreatedAt                          time.Time `db:"created_at"`
-	UpdatedAt                          time.Time `db:"updated_at"`
-	IsArchived                         bool      `db:"is_archived"`
+	ID                                   string    `db:"id"`
+	TeamID                               string    `db:"team_id"`
+	ChannelID                            string    `db:"channel_id"`
+	Name                                 string    `db:"name"`
+	Description                          string    `db:"description"`
+	BoardURL                             string    `db:"board_url"`
+	ApprovedLeaveNotificationChannelID   string    `db:"approved_leave_notification_channel_id"`
+	LeaveRequestNotificationRecipientIDs string    `db:"leave_request_notification_recipient_ids"`
+	LeaveNotificationLanguage            string    `db:"leave_notification_language"`
+	GeneratedMessageLanguage             string    `db:"generated_message_language"`
+	Timezone                             string    `db:"timezone"`
+	CreatedBy                            string    `db:"created_by"`
+	CreatedAt                            time.Time `db:"created_at"`
+	UpdatedAt                            time.Time `db:"updated_at"`
+	IsArchived                           bool      `db:"is_archived"`
 }
 
 /*
@@ -788,18 +895,104 @@ toDomain maps a workspace database record to the domain model.
 */
 func (r workspaceRecord) toDomain() domain.Workspace {
 	return domain.Workspace{
-		ID:                                 domain.ID(r.ID),
-		TeamID:                             r.TeamID,
-		ChannelID:                          r.ChannelID,
-		Name:                               r.Name,
-		Description:                        r.Description,
-		BoardURL:                           r.BoardURL,
-		ApprovedLeaveNotificationChannelID: r.ApprovedLeaveNotificationChannelID,
-		LeaveNotificationLanguage:          domain.ReportLanguage(r.LeaveNotificationLanguage),
-		Timezone:                           r.Timezone,
-		CreatedBy:                          r.CreatedBy,
-		CreatedAt:                          parseStoredTime(r.CreatedAt),
-		UpdatedAt:                          parseStoredTime(r.UpdatedAt),
-		IsArchived:                         r.IsArchived,
+		ID:                                   domain.ID(r.ID),
+		TeamID:                               r.TeamID,
+		ChannelID:                            r.ChannelID,
+		Name:                                 r.Name,
+		Description:                          r.Description,
+		BoardURL:                             r.BoardURL,
+		ApprovedLeaveNotificationChannelID:   r.ApprovedLeaveNotificationChannelID,
+		LeaveRequestNotificationRecipientIDs: decodeWorkspaceUserIDs(r.LeaveRequestNotificationRecipientIDs),
+		LeaveNotificationLanguage:            domain.ReportLanguage(r.LeaveNotificationLanguage),
+		GeneratedMessageLanguage:             storedWorkspaceLanguage(r.GeneratedMessageLanguage, r.LeaveNotificationLanguage),
+		Timezone:                             r.Timezone,
+		CreatedBy:                            r.CreatedBy,
+		CreatedAt:                            parseStoredTime(r.CreatedAt),
+		UpdatedAt:                            parseStoredTime(r.UpdatedAt),
+		IsArchived:                           r.IsArchived,
+	}
+}
+
+/*
+encodeWorkspaceUserIDs stores ordered, de-duplicated Mattermost user IDs as JSON.
+*/
+func encodeWorkspaceUserIDs(userIDs []string) (string, error) {
+	normalized := normalizeWorkspaceUserIDs(userIDs)
+	if len(normalized) == 0 {
+		return "", nil
+	}
+
+	encoded, err := json.Marshal(normalized)
+	if err != nil {
+		return "", fmt.Errorf("encode workspace user ids: %w", err)
+	}
+
+	return string(encoded), nil
+}
+
+/*
+mustEncodeWorkspaceUserIDs encodes trusted domain user IDs for insert paths.
+*/
+func mustEncodeWorkspaceUserIDs(userIDs []string) string {
+	encoded, err := encodeWorkspaceUserIDs(userIDs)
+	if err != nil {
+		return ""
+	}
+
+	return encoded
+}
+
+/*
+decodeWorkspaceUserIDs decodes optional JSON-stored Mattermost user IDs.
+*/
+func decodeWorkspaceUserIDs(value string) []string {
+	cleanValue := strings.TrimSpace(value)
+	if cleanValue == "" {
+		return []string{}
+	}
+
+	var decoded []string
+	if err := json.Unmarshal([]byte(cleanValue), &decoded); err != nil {
+		return []string{}
+	}
+
+	return normalizeWorkspaceUserIDs(decoded)
+}
+
+/*
+normalizeWorkspaceUserIDs trims and de-duplicates Mattermost user IDs while preserving order.
+*/
+func normalizeWorkspaceUserIDs(userIDs []string) []string {
+	normalized := make([]string, 0, len(userIDs))
+	seen := map[string]bool{}
+
+	for _, userID := range userIDs {
+		cleanUserID := strings.TrimSpace(userID)
+		if cleanUserID == "" || seen[cleanUserID] {
+			continue
+		}
+
+		normalized = append(normalized, cleanUserID)
+		seen[cleanUserID] = true
+	}
+
+	return normalized
+}
+
+/*
+storedWorkspaceLanguage keeps older rows readable when optional language columns
+were empty before the current migration added generated_message_language.
+*/
+func storedWorkspaceLanguage(value string, fallback string) domain.Language {
+	switch domain.Language(value) {
+	case domain.LanguagePersian, domain.LanguageArabic, domain.LanguageEnglish:
+		return domain.Language(value)
+	}
+
+	switch domain.Language(fallback) {
+	case domain.LanguagePersian, domain.LanguageArabic, domain.LanguageEnglish:
+		return domain.Language(fallback)
+	default:
+		return domain.LanguageEnglish
 	}
 }

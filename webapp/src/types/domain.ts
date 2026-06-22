@@ -11,7 +11,7 @@ export type TimeOfDay = string;
 /**
  * Role represents Campfire's simple role model.
  */
-export type Role = 'member' | 'lead' | 'approver' | 'admin' | 'viewer';
+export type Role = 'member' | 'lead' | 'approver' | 'admin' | 'viewer' | 'excluded';
 
 /**
  * QuestionType identifies the supported dynamic standup question type.
@@ -19,6 +19,10 @@ export type Role = 'member' | 'lead' | 'approver' | 'admin' | 'viewer';
 export type QuestionType =
 	| 'text'
 	| 'long_text'
+	| 'work_items'
+	| 'date'
+	| 'time'
+	| 'datetime'
 	| 'checkbox'
 	| 'boolean'
 	| 'dropdown'
@@ -67,9 +71,14 @@ export type ReportKind = 'daily' | 'weekly' | 'blockers' | 'missing' | 'time';
 export type ReportSortMode = 'name' | 'first_submitted' | 'last_submitted' | 'missing_first' | 'blockers_first';
 
 /**
+ * CampfireLanguage identifies generated UI and message copy language.
+ */
+export type CampfireLanguage = 'english' | 'persian' | 'arabic';
+
+/**
  * ReportLanguage identifies generated report copy language.
  */
-export type ReportLanguage = 'english' | 'persian' | 'arabic';
+export type ReportLanguage = CampfireLanguage;
 
 /**
  * ReportRunStatus identifies the lifecycle state of a generated report run.
@@ -97,7 +106,10 @@ export type Workspace = {
 	readonly description: string;
 	readonly boardUrl: string;
 	readonly approvedLeaveNotificationChannelId: string;
+	readonly leaveRequestNotificationRecipientIds: readonly string[];
 	readonly leaveNotificationLanguage: ReportLanguage;
+	readonly generatedMessageLanguage: CampfireLanguage;
+	readonly workingDays: readonly number[];
 	readonly timezone: string;
 	readonly createdBy: string;
 	readonly createdAt: string;
@@ -140,6 +152,7 @@ export type WorkspaceRoleOverview = {
 	readonly approverUserIds: readonly string[];
 	readonly adminUserIds: readonly string[];
 	readonly viewerUserIds: readonly string[];
+	readonly excludedUserIds: readonly string[];
 };
 
 /**
@@ -212,6 +225,7 @@ export type LeaveRequest = {
 	readonly endTime: TimeOfDay | '';
 	readonly reason: string;
 	readonly backupUserId: string;
+	readonly canContactIfNeeded: boolean;
 	readonly status: LeaveStatus;
 	readonly createdAt: string;
 	readonly updatedAt: string;
@@ -237,10 +251,58 @@ export type PendingLeaveRequest = LeaveRequestWithType;
  */
 export type ApprovedLeaveRequest = LeaveRequestWithType;
 
+
+/**
+ * LeaveChangeRequestStatus identifies approval state for a requested edit to an existing leave request.
+ */
+export type LeaveChangeRequestStatus = 'pending' | 'approved' | 'rejected';
+
+/**
+ * LeaveChangeRequest represents a member-requested correction to an existing leave request.
+ */
+export type LeaveChangeRequest = {
+	readonly id: string;
+	readonly leaveRequestId: string;
+	readonly workspaceId: string;
+	readonly requesterUserId: string;
+	readonly leaveTypeId: string;
+	readonly startDate: LocalDate;
+	readonly endDate: LocalDate;
+	readonly durationMode: LeaveDurationMode;
+	readonly halfDayPart: LeaveHalfDayPart | '';
+	readonly startTime: TimeOfDay | '';
+	readonly endTime: TimeOfDay | '';
+	readonly reason: string;
+	readonly backupUserId: string;
+	readonly canContactIfNeeded: boolean;
+	readonly status: LeaveChangeRequestStatus;
+	readonly createdBy: string;
+	readonly decidedBy: string;
+	readonly decisionComment: string;
+	readonly createdAt: string;
+	readonly updatedAt: string;
+	readonly decidedAt: string;
+};
+
+/**
+ * PendingLeaveChangeRequest is an edit request row with proposed leave type display data.
+ */
+export type PendingLeaveChangeRequest = {
+	readonly changeRequest: LeaveChangeRequest;
+	readonly leaveTypeName: string;
+	readonly leaveTypeColor: string;
+};
+
 /**
  * StandupSkipReason identifies why a standup should not run.
  */
-export type StandupSkipReason = '' | 'non_working_day' | 'global_off_day' | 'workspace_off_day' | 'everyone_on_leave';
+export type StandupSkipReason =
+	| ''
+	| 'non_working_day'
+	| 'global_off_day'
+	| 'workspace_off_day'
+	| 'everyone_on_leave'
+	| 'no_participants';
 
 /**
  * StandupRunDecision describes whether standup automation should run for a date.
@@ -255,6 +317,8 @@ export type StandupRunDecision = {
 	readonly isLastWorkingDayOfWeek: boolean;
 	readonly memberCount: number;
 	readonly onLeaveMemberCount: number;
+	readonly excludedMemberCount: number;
+	readonly excludedUserIds: readonly string[];
 	readonly globalOffDays: readonly GlobalSkipDate[];
 	readonly workspaceOffDays: readonly WorkspaceOffDay[];
 	readonly approvedLeaves: readonly ApprovedLeaveRequest[];
@@ -376,6 +440,7 @@ export type StandupOccurrenceSummary = {
 	readonly submittedUserIds: readonly string[];
 	readonly missingUserIds: readonly string[];
 	readonly onLeaveUserIds: readonly string[];
+	readonly excludedUserIds: readonly string[];
 	readonly submissions: readonly StandupSubmissionWithAnswers[];
 };
 
@@ -655,3 +720,4 @@ export type AuditLogEntry = {
 	readonly metadata: Readonly<Record<string, string>>;
 	readonly createdAt: string;
 };
+

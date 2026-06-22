@@ -1,4 +1,5 @@
 import { ApiClientError } from '@/api';
+import type { TFunction } from '@/i18n';
 import type { ReportKind, SavedReportFilter } from '@/types/domain';
 
 /**
@@ -117,20 +118,23 @@ export function toReportKind(value: string): ReportKind {
 /**
  * formatDateTime formats an API timestamp for compact display.
  */
-export function formatDateTime(value: string): string {
+export function formatDateTime(value: string, locale: string): string {
 	const date = new Date(value);
 
 	if (Number.isNaN(date.getTime())) {
 		return value;
 	}
 
-	return date.toLocaleString();
+	return new Intl.DateTimeFormat(locale, {
+		dateStyle: 'medium',
+		timeStyle: 'short',
+	}).format(date);
 }
 
 /**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
-export function errorToMessage(error: unknown): string {
+export function errorToMessage(error: unknown, t: TFunction): string {
 	if (error instanceof ApiClientError) {
 		return error.message;
 	}
@@ -139,5 +143,5 @@ export function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not update saved report filters.';
+	return t('reports.saved.error.fallback');
 }

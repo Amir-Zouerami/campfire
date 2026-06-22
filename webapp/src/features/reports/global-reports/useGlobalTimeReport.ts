@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
-import { toast } from '@/components/campfire/campfire-toast';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
 import { exportGlobalTimeReportCSV, getGlobalTimeReportSummary } from '@/api';
+import { toast } from '@/components/campfire/campfire-toast';
+import { useI18n } from '@/i18n';
+import { campfireQueryKeys } from '@/query';
 import type { GlobalTimeReportSummary } from '@/types/domain';
 
 import {
@@ -35,21 +38,86 @@ export type UseGlobalTimeReportResult = {
 };
 
 /**
- * useGlobalTimeReport owns global time report loading and CSV export.
+ * useGlobalTimeReport owns filter drafts and query-backed global time loading.
+ *
+ * Global reports remain explicit-load because they can span every workspace in
+ * the Mattermost instance and should not refetch on every draft keystroke.
  */
 export function useGlobalTimeReport(isSystemAdmin: boolean): UseGlobalTimeReportResult {
-	const [loadState, setLoadState] = useState<GlobalReportLoadState>('idle');
+	const { t } = useI18n();
 	const [filter, setFilter] = useState<GlobalTimeReportFilter>(defaultGlobalTimeFilter);
-	const [summary, setSummary] = useState<GlobalTimeReportSummary | null>(null);
-	const [message, setMessage] = useState('');
+	const [queryFilter, setQueryFilter] = useState<GlobalTimeReportFilter | null>(null);
+	const [refreshToken, setRefreshToken] = useState(0);
+	const [manualError, setManualError] = useState('');
+	const [manualMessage, setManualMessage] = useState('');
 
+	const reportQuery = useQuery({
+		queryKey: campfireQueryKeys.globalTimeReportSummary(
+			queryFilter?.startDate ?? '',
+			queryFilter?.endDate ?? '',
+			queryFilter?.groupBy ?? 'person',
+			refreshToken,
+		),
+		queryFn: async (): Promise<GlobalTimeReportSummary> => {
+			if (queryFilter === null) {
+				throw new Error(t('reports.global.validation.loadReportFirst'));
+			}
+
+			const response = await getGlobalTimeReportSummary(
+				queryFilter.startDate,
+				queryFilter.endDate,
+				queryFilter.groupBy,
+			);
+
+			return response.summary;
+		},
+		enabled: queryFilter !== null,
+	});
+
+	const exportMutation = useMutation({
+		mutationFn: async (exportFilter: GlobalTimeReportFilter): Promise<void> => {
+			const blob = await exportGlobalTimeReportCSV(
+				exportFilter.startDate,
+				exportFilter.endDate,
+				exportFilter.groupBy,
+			);
+
+			downloadGlobalCSVBlob(blob, buildGlobalExportFilename('campfire-global-time', exportFilter));
+		},
+		onSuccess: () => {
+			setManualError('');
+			setManualMessage(t('reports.global.time.csv.downloaded'));
+			toast.success(t('reports.global.time.csv.downloaded'));
+		},
+		onError: (error: unknown) => {
+			const errorMessage = errorToMessage(error, t('reports.global.error.fallback'));
+
+			setManualMessage('');
+			setManualError(errorMessage);
+			toast.error(errorMessage);
+		},
+	});
+
+	const summary = reportQuery.data ?? null;
 	const userIDsForProfiles = useMemo(() => collectGlobalTimeUserIDs(summary), [summary]);
-	const isBusy = loadState === 'loading' || loadState === 'exporting';
+	const queryErrorMessage = reportQuery.isError
+		? errorToMessage(reportQuery.error, t('reports.global.error.fallback'))
+		: '';
+	const message = manualError || queryErrorMessage || manualMessage;
+	const loadState = resolveGlobalReportLoadState({
+		manualError,
+		queryErrorMessage,
+		queryLoading: reportQuery.isFetching,
+		exporting: exportMutation.isPending,
+		queryLoaded: queryFilter !== null && summary !== null,
+	});
 
 	/**
 	 * updateFilter patches global time report filters.
 	 */
 	function updateFilter(patch: GlobalTimeReportFilterPatch): void {
+		setManualError('');
+		setManualMessage('');
 		setFilter(current => ({
 			...current,
 			...patch,
@@ -57,12 +125,12 @@ export function useGlobalTimeReport(isSystemAdmin: boolean): UseGlobalTimeReport
 	}
 
 	/**
-	 * loadReport loads the global time report.
+	 * loadReport validates the draft and runs the global time query.
 	 */
 	async function loadReport(): Promise<void> {
 		if (!isSystemAdmin) {
-			setLoadState('error');
-			setMessage('Only system admins can view global time reports.');
+			setManualMessage('');
+			setManualError(t('reports.global.time.permission.view'));
 			return;
 		}
 
@@ -71,36 +139,19 @@ export function useGlobalTimeReport(isSystemAdmin: boolean): UseGlobalTimeReport
 			...filter,
 			...normalizedRange,
 		};
+		const validationMessage = validateGlobalDateRange(normalizedFilter, t);
 
-		const validationMessage = validateGlobalDateRange(normalizedFilter);
 		if (validationMessage !== null) {
-			setLoadState('error');
-			setMessage(validationMessage);
+			setManualMessage('');
+			setManualError(validationMessage);
 			return;
 		}
 
+		setManualError('');
+		setManualMessage('');
 		setFilter(normalizedFilter);
-		setLoadState('loading');
-		setMessage('');
-
-		try {
-			const response = await getGlobalTimeReportSummary(
-				normalizedFilter.startDate,
-				normalizedFilter.endDate,
-				normalizedFilter.groupBy,
-			);
-
-			setSummary(response.summary);
-			setLoadState('ready');
-			setMessage('Global time report loaded.');
-		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
-
-			setSummary(null);
-			setLoadState('error');
-			setMessage(errorMessage);
-			toast.error(errorMessage);
-		}
+		setQueryFilter(normalizedFilter);
+		setRefreshToken(current => current + 1);
 	}
 
 	/**
@@ -108,8 +159,8 @@ export function useGlobalTimeReport(isSystemAdmin: boolean): UseGlobalTimeReport
 	 */
 	async function exportCSV(): Promise<void> {
 		if (!isSystemAdmin) {
-			setLoadState('error');
-			setMessage('Only system admins can export global time reports.');
+			setManualMessage('');
+			setManualError(t('reports.global.time.permission.export'));
 			return;
 		}
 
@@ -118,36 +169,18 @@ export function useGlobalTimeReport(isSystemAdmin: boolean): UseGlobalTimeReport
 			...filter,
 			...normalizedRange,
 		};
+		const validationMessage = validateGlobalDateRange(normalizedFilter, t);
 
-		const validationMessage = validateGlobalDateRange(normalizedFilter);
 		if (validationMessage !== null) {
-			setLoadState('error');
-			setMessage(validationMessage);
+			setManualMessage('');
+			setManualError(validationMessage);
 			return;
 		}
 
+		setManualError('');
+		setManualMessage('');
 		setFilter(normalizedFilter);
-		setLoadState('exporting');
-		setMessage('');
-
-		try {
-			const blob = await exportGlobalTimeReportCSV(
-				normalizedFilter.startDate,
-				normalizedFilter.endDate,
-				normalizedFilter.groupBy,
-			);
-
-			downloadGlobalCSVBlob(blob, buildGlobalExportFilename('campfire-global-time', normalizedFilter));
-			setLoadState('ready');
-			setMessage('Global time CSV downloaded.');
-			toast.success('Global time CSV downloaded');
-		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
-
-			setLoadState('error');
-			setMessage(errorMessage);
-			toast.error(errorMessage);
-		}
+		await exportMutation.mutateAsync(normalizedFilter);
 	}
 
 	return {
@@ -155,10 +188,39 @@ export function useGlobalTimeReport(isSystemAdmin: boolean): UseGlobalTimeReport
 		filter,
 		summary,
 		message,
-		isBusy,
+		isBusy: reportQuery.isFetching || exportMutation.isPending,
 		userIDsForProfiles,
 		updateFilter,
 		loadReport,
 		exportCSV,
 	};
+}
+
+/**
+ * resolveGlobalReportLoadState maps query/mutation state into UI state.
+ */
+function resolveGlobalReportLoadState(input: {
+	readonly manualError: string;
+	readonly queryErrorMessage: string;
+	readonly queryLoading: boolean;
+	readonly exporting: boolean;
+	readonly queryLoaded: boolean;
+}): GlobalReportLoadState {
+	if (input.manualError !== '' || input.queryErrorMessage !== '') {
+		return 'error';
+	}
+
+	if (input.exporting) {
+		return 'exporting';
+	}
+
+	if (input.queryLoading) {
+		return 'loading';
+	}
+
+	if (input.queryLoaded) {
+		return 'ready';
+	}
+
+	return 'idle';
 }

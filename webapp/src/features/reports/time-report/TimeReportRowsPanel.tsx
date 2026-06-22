@@ -3,14 +3,11 @@ import { Clock3, Rows3 } from 'lucide-react';
 
 import { CampfireEllipsisText } from '@/components/campfire/CampfireBidiText';
 import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
+import { useI18n } from '@/i18n';
 import type { TimeReportGroupBy, TimeReportRow } from '@/types/domain';
 
-import {
-	formatMinutes,
-	timeReportRowMetaChips,
-	timeReportRowSubtitle,
-	timeReportRowTitle,
-} from './time-report.helpers';
+import { formatMinutes, timeReportRowTitle } from './time-report.helpers';
+import { timeReportRowMetaChips, timeReportRowSubtitle } from './time-report.i18n';
 
 /**
  * TimeReportRowsPanelProps contains grouped time report rows.
@@ -25,22 +22,23 @@ type TimeReportRowsPanelProps = {
  * TimeReportRowsPanel renders grouped workspace time report rows in a readable flat list.
  */
 export function TimeReportRowsPanel(props: TimeReportRowsPanelProps): ReactElement {
+	const { t } = useI18n();
 	const rows = sortReportRowsNewestFirst(props.rows);
 
 	return (
 		<section className="campfire-report-list-panel">
 			<header className="campfire-report-section-header">
 				<div>
-					<p className="campfire-page-eyebrow">Grouped results</p>
-					<h3 className="campfire-surface-title">Time rows</h3>
+					<p className="campfire-page-eyebrow">{t('reports.time.rows.eyebrow')}</p>
+					<h3 className="campfire-surface-title">{t('reports.time.rows.title')}</h3>
 				</div>
 			</header>
 
 			{rows.length === 0 ? (
 				<CampfireEmpty
 					icon={Rows3}
-					title="No time entries in this range"
-					description="Try another date range or log time against tasks first."
+					title={t('reports.time.empty.title')}
+					description={t('reports.time.empty.description')}
 				/>
 			) : (
 				<div className="campfire-report-row-list">
@@ -66,8 +64,12 @@ function TimeReportRowCard(props: {
 	readonly groupBy: TimeReportGroupBy;
 	readonly labelForUserID: (userID: string) => string;
 }): ReactElement {
-	const metaChips = timeReportRowMetaChips(props.row);
-	const title = timeReportRowTitle(props.row, props.groupBy, props.labelForUserID);
+	const { t } = useI18n();
+	const metaChips = timeReportRowMetaChips(props.row, t);
+	const title = timeReportRowTitle(props.row, props.groupBy, props.labelForUserID, t('reports.time.row.unlabeled'));
+	const entryLabel = props.row.entryCount === 1
+		? t('reports.time.row.entrySingular')
+		: t('reports.time.row.entryPlural', { count: props.row.entryCount });
 
 	return (
 		<article className="campfire-report-row-card">
@@ -80,7 +82,7 @@ function TimeReportRowCard(props: {
 					</span>
 				</div>
 
-				<p className="campfire-report-row-subtitle">{timeReportRowSubtitle(props.row)}</p>
+				<p className="campfire-report-row-subtitle">{timeReportRowSubtitle(props.row, t)}</p>
 
 				{metaChips.length > 0 && (
 					<div className="campfire-report-row-meta">
@@ -91,9 +93,9 @@ function TimeReportRowCard(props: {
 				)}
 			</div>
 
-			<div className="campfire-report-row-count" aria-label={`${props.row.entryCount} entries`}>
+			<div className="campfire-report-row-count" aria-label={entryLabel}>
 				<strong>{props.row.entryCount}</strong>
-				<span>{props.row.entryCount === 1 ? 'entry' : 'entries'}</span>
+				<span>{entryLabel}</span>
 			</div>
 		</article>
 	);

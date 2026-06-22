@@ -1,0 +1,16 @@
+/*
+ * RTL date-picker arrow semantics.
+ * In RTL calendars, backward navigation is visually represented by > and
+ * forward navigation by <. Keep the first DOM button as "previous" and the
+ * second as "next", but let the header flow right-to-left so those controls
+ * sit on the expected sides of the month heading.
+ */
+.campfire-picker-portal-scope.campfire-date-picker-popover[dir='rtl'] .campfire-date-picker-header,
+.campfire-theme .campfire-date-picker-popover.campfire-floating-popover[dir='rtl'] .campfire-date-picker-header {
+  direction: rtl !important;
+}
+
+.campfire-picker-portal-scope.campfire-date-picker-popover[dir='rtl'] .campfire-date-picker-heading,
+.campfire-theme .campfire-date-picker-popover.campfire-floating-popover[dir='rtl'] .campfire-date-picker-heading {
+  direction: rtl !important;
+}

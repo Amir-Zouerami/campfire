@@ -1,5 +1,5 @@
-import { startTransition, useEffect, useState } from 'react';
-import type { ChangeEvent, ComponentProps, ReactElement } from 'react';
+import { startTransition, useEffect, useRef, useState } from 'react';
+import type { ChangeEvent, ComponentProps, FocusEvent, ReactElement } from 'react';
 
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,11 +16,12 @@ type CampfireResponsiveInputProps = Omit<ComponentProps<typeof Input>, 'defaultV
 
 /**
  * CampfireResponsiveTextareaProps mirrors the shared Textarea primitive with
- * the same local-keystroke buffering strategy as CampfireResponsiveInput.
+ * local-keystroke buffering and debounced owner updates for heavy modal pages.
  */
 type CampfireResponsiveTextareaProps = Omit<ComponentProps<typeof Textarea>, 'defaultValue' | 'onChange' | 'value'> & {
 	readonly value: string;
 	readonly onValueChange: (value: string) => void;
+	readonly commitDelayMs?: number;
 };
 
 /**
@@ -53,28 +54,100 @@ export function CampfireResponsiveInput(props: CampfireResponsiveInputProps): Re
 }
 
 /**
- * CampfireResponsiveTextarea keeps textarea typing responsive when the owner
- * component contains expensive lists, cards, or derived state.
+ * CampfireResponsiveTextarea keeps textarea typing local first. The owner page
+ * is updated after a short debounce and immediately on blur, avoiding expensive
+ * derived-state work on every keystroke while preserving submit correctness.
  */
 export function CampfireResponsiveTextarea(props: CampfireResponsiveTextareaProps): ReactElement {
-	const { onValueChange, value, ...textareaProps } = props;
+	const { commitDelayMs = 240, onBlur, onValueChange, value, ...textareaProps } = props;
 	const [draftValue, setDraftValue] = useState(value);
+	const draftValueRef = useRef(value);
+	const committedValueRef = useRef(value);
+	const onValueChangeRef = useRef(onValueChange);
+	const timeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
 
 	useEffect(() => {
+		onValueChangeRef.current = onValueChange;
+	}, [onValueChange]);
+
+	useEffect(() => {
+		if (value === committedValueRef.current) {
+			return;
+		}
+
+		committedValueRef.current = value;
+		draftValueRef.current = value;
 		setDraftValue(value);
 	}, [value]);
 
+	useEffect(() => {
+		return () => {
+			clearPendingCommit();
+		};
+	}, []);
+
 	/**
-	 * handleChange updates the visible textarea immediately and schedules the
-	 * parent draft update as low-priority work.
+	 * clearPendingCommit clears a scheduled parent update.
 	 */
-	function handleChange(event: ChangeEvent<HTMLTextAreaElement>): void {
-		const nextValue = event.currentTarget.value;
-		setDraftValue(nextValue);
+	function clearPendingCommit(): void {
+		if (timeoutRef.current === null) {
+			return;
+		}
+
+		window.clearTimeout(timeoutRef.current);
+		timeoutRef.current = null;
+	}
+
+	/**
+	 * commitValue sends the latest textarea value to the owning page once.
+	 */
+	function commitValue(nextValue: string): void {
+		clearPendingCommit();
+		if (nextValue === committedValueRef.current) {
+			return;
+		}
+
+		committedValueRef.current = nextValue;
 		startTransition(() => {
-			onValueChange(nextValue);
+			onValueChangeRef.current(nextValue);
 		});
 	}
 
-	return <Textarea {...textareaProps} dir={textareaProps.dir ?? 'auto'} value={draftValue} onChange={handleChange} />;
+	/**
+	 * scheduleCommit debounces owner-page updates for textarea typing.
+	 */
+	function scheduleCommit(nextValue: string): void {
+		clearPendingCommit();
+		timeoutRef.current = window.setTimeout(() => {
+			commitValue(nextValue);
+		}, commitDelayMs);
+	}
+
+	/**
+	 * handleChange updates only the textarea's local value immediately.
+	 */
+	function handleChange(event: ChangeEvent<HTMLTextAreaElement>): void {
+		const nextValue = event.currentTarget.value;
+		draftValueRef.current = nextValue;
+		setDraftValue(nextValue);
+		scheduleCommit(nextValue);
+	}
+
+	/**
+	 * handleBlur flushes pending textarea text before submit buttons run.
+	 */
+	function handleBlur(event: FocusEvent<HTMLTextAreaElement>): void {
+		commitValue(draftValueRef.current);
+		onBlur?.(event);
+	}
+
+	return (
+		<Textarea
+			{...textareaProps}
+			dir={textareaProps.dir ?? 'auto'}
+			value={draftValue}
+			onBlur={handleBlur}
+			onChange={handleChange}
+		/>
+	);
 }

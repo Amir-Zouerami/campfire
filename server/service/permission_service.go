@@ -58,6 +58,11 @@ const (
 	AccessSourceExplicitViewer AccessSource = "explicit_viewer"
 
 	/*
+		AccessSourceExplicitExcluded means standup participation was disabled by a named exclusion.
+	*/
+	AccessSourceExplicitExcluded AccessSource = "explicit_excluded"
+
+	/*
 		AccessSourceMember means access comes from being an authenticated workspace participant.
 	*/
 	AccessSourceMember AccessSource = "member"
@@ -183,6 +188,11 @@ func (s *PermissionService) GetWorkspaceAccess(
 		return nil, err
 	}
 
+	hasExplicitExcluded, err := s.userHasRole(ctx, workspace.ID, cleanUserID, domain.RoleExcluded)
+	if err != nil {
+		return nil, err
+	}
+
 	isChannelAdmin := false
 	if settings.ChannelAdminsAreLeads {
 		channelAdmin, err := s.safeIsChannelAdmin(workspace.ChannelID, cleanUserID)
@@ -200,6 +210,7 @@ func (s *PermissionService) GetWorkspaceAccess(
 		hasExplicitLead,
 		hasExplicitApprover,
 		hasExplicitViewer,
+		hasExplicitExcluded,
 	)
 	sources := buildEffectiveSources(
 		systemAdminApplies,
@@ -208,6 +219,7 @@ func (s *PermissionService) GetWorkspaceAccess(
 		hasExplicitLead,
 		hasExplicitApprover,
 		hasExplicitViewer,
+		hasExplicitExcluded,
 	)
 
 	capabilities := capabilitiesFromEffectiveRoles(
@@ -217,6 +229,7 @@ func (s *PermissionService) GetWorkspaceAccess(
 		hasExplicitLead,
 		hasExplicitApprover,
 		hasExplicitViewer,
+		hasExplicitExcluded,
 	)
 
 	return &EffectiveWorkspaceAccess{
@@ -394,6 +407,7 @@ func buildEffectiveRoles(
 	hasExplicitLead bool,
 	hasExplicitApprover bool,
 	hasExplicitViewer bool,
+	hasExplicitExcluded bool,
 ) []domain.Role {
 	roles := []domain.Role{domain.RoleMember}
 
@@ -413,6 +427,10 @@ func buildEffectiveRoles(
 		roles = append(roles, domain.RoleViewer)
 	}
 
+	if hasExplicitExcluded {
+		roles = append(roles, domain.RoleExcluded)
+	}
+
 	return roles
 }
 
@@ -426,6 +444,7 @@ func buildEffectiveSources(
 	hasExplicitLead bool,
 	hasExplicitApprover bool,
 	hasExplicitViewer bool,
+	hasExplicitExcluded bool,
 ) []AccessSource {
 	sources := []AccessSource{AccessSourceMember}
 
@@ -453,6 +472,10 @@ func buildEffectiveSources(
 		sources = append(sources, AccessSourceExplicitViewer)
 	}
 
+	if hasExplicitExcluded {
+		sources = append(sources, AccessSourceExplicitExcluded)
+	}
+
 	return sources
 }
 
@@ -469,12 +492,15 @@ func capabilitiesFromEffectiveRoles(
 	hasExplicitLead bool,
 	hasExplicitApprover bool,
 	hasExplicitViewer bool,
+	hasExplicitExcluded bool,
 ) WorkspaceCapabilities {
 	isAdmin := isSystemAdmin || hasExplicitAdmin
 	isLead := isChannelAdminLead || hasExplicitLead
 
+	var capabilities WorkspaceCapabilities
+
 	if isAdmin {
-		return WorkspaceCapabilities{
+		capabilities = WorkspaceCapabilities{
 			CanSubmitStandup:        true,
 			CanManageWorkspace:      true,
 			CanManageStandups:       true,
@@ -483,10 +509,8 @@ func capabilitiesFromEffectiveRoles(
 			CanViewGlobalReports:    true,
 			CanExportReports:        true,
 		}
-	}
-
-	if isLead {
-		return WorkspaceCapabilities{
+	} else if isLead {
+		capabilities = WorkspaceCapabilities{
 			CanSubmitStandup:        true,
 			CanManageWorkspace:      true,
 			CanManageStandups:       true,
@@ -495,10 +519,8 @@ func capabilitiesFromEffectiveRoles(
 			CanViewGlobalReports:    false,
 			CanExportReports:        true,
 		}
-	}
-
-	if hasExplicitApprover {
-		return WorkspaceCapabilities{
+	} else if hasExplicitApprover {
+		capabilities = WorkspaceCapabilities{
 			CanSubmitStandup:        true,
 			CanManageWorkspace:      false,
 			CanManageStandups:       false,
@@ -507,10 +529,8 @@ func capabilitiesFromEffectiveRoles(
 			CanViewGlobalReports:    false,
 			CanExportReports:        false,
 		}
-	}
-
-	if hasExplicitViewer {
-		return WorkspaceCapabilities{
+	} else if hasExplicitViewer {
+		capabilities = WorkspaceCapabilities{
 			CanSubmitStandup:        true,
 			CanManageWorkspace:      false,
 			CanManageStandups:       false,
@@ -519,17 +539,23 @@ func capabilitiesFromEffectiveRoles(
 			CanViewGlobalReports:    false,
 			CanExportReports:        false,
 		}
+	} else {
+		capabilities = WorkspaceCapabilities{
+			CanSubmitStandup:        true,
+			CanManageWorkspace:      false,
+			CanManageStandups:       false,
+			CanViewWorkspaceReports: false,
+			CanApproveLeaves:        false,
+			CanViewGlobalReports:    false,
+			CanExportReports:        false,
+		}
 	}
 
-	return WorkspaceCapabilities{
-		CanSubmitStandup:        true,
-		CanManageWorkspace:      false,
-		CanManageStandups:       false,
-		CanViewWorkspaceReports: false,
-		CanApproveLeaves:        false,
-		CanViewGlobalReports:    false,
-		CanExportReports:        false,
+	if hasExplicitExcluded {
+		capabilities.CanSubmitStandup = false
 	}
+
+	return capabilities
 }
 
 /*
@@ -550,6 +576,10 @@ func roleLabelFromCapabilities(capabilities WorkspaceCapabilities) string {
 
 	if capabilities.CanViewWorkspaceReports {
 		return "Viewer"
+	}
+
+	if !capabilities.CanSubmitStandup {
+		return "Excluded"
 	}
 
 	return "Member"

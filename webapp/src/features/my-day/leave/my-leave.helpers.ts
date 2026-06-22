@@ -13,12 +13,34 @@ import type { MyLeaveDraft, MyLeaveWarning } from './my-leave.types';
 /**
  * leaveDurationModes lists supported leave duration modes.
  */
-export const leaveDurationModes: readonly LeaveDurationMode[] = ['full_day', 'half_day', 'hourly'];
+export const leaveDurationModes: readonly LeaveDurationMode[] = ['full_day', 'hourly'];
 
 /**
  * leaveHalfDayParts lists supported half-day parts.
  */
 export const leaveHalfDayParts: readonly LeaveHalfDayPart[] = ['morning', 'afternoon'];
+
+/**
+ * MyLeaveValidationText contains localized validation messages for leave forms.
+ */
+export type MyLeaveValidationText = {
+	readonly chooseLeaveType: string;
+	readonly startDateRequired: string;
+	readonly endDateRequired: string;
+	readonly endBeforeStart: string;
+	readonly chooseHalfDayPart: string;
+	readonly hourlyTimesRequired: string;
+	readonly hourlyEndAfterStart: string;
+};
+
+/**
+ * MyLeaveWarningText contains localized warning message templates.
+ */
+export type MyLeaveWarningText = {
+	readonly ownOverlap: string;
+	readonly approvedOverlapOne: string;
+	readonly approvedOverlapMany: (count: number) => string;
+};
 
 /**
  * emptyLeaveDraft returns the default leave request form state.
@@ -34,6 +56,7 @@ export function emptyLeaveDraft(): MyLeaveDraft {
 		endTime: '',
 		reason: '',
 		backupUserId: '',
+		canContactIfNeeded: false,
 	};
 }
 
@@ -85,36 +108,37 @@ export function normalizeLeaveDraftForMode(draft: MyLeaveDraft): MyLeaveDraft {
 }
 
 /**
- * validateLeaveDraft returns a user-facing validation error when the form is incomplete.
+ * validateLeaveDraft returns a localized user-facing validation error when the
+ * form is incomplete.
  */
-export function validateLeaveDraft(draft: MyLeaveDraft): string | null {
+export function validateLeaveDraft(draft: MyLeaveDraft, text: MyLeaveValidationText): string | null {
 	if (draft.leaveTypeId.trim() === '') {
-		return 'Choose a leave type.';
+		return text.chooseLeaveType;
 	}
 
 	if (draft.startDate.trim() === '') {
-		return 'Start date is required.';
+		return text.startDateRequired;
 	}
 
 	if (draft.endDate.trim() === '') {
-		return 'End date is required.';
+		return text.endDateRequired;
 	}
 
 	if (draft.endDate < draft.startDate) {
-		return 'End date cannot be before start date.';
+		return text.endBeforeStart;
 	}
 
 	if (draft.durationMode === 'half_day' && draft.halfDayPart === '') {
-		return 'Choose morning or afternoon for half-day leave.';
+		return text.chooseHalfDayPart;
 	}
 
 	if (draft.durationMode === 'hourly') {
 		if (draft.startTime.trim() === '' || draft.endTime.trim() === '') {
-			return 'Start time and end time are required for hourly leave.';
+			return text.hourlyTimesRequired;
 		}
 
 		if (draft.endTime <= draft.startTime) {
-			return 'Hourly leave end time must be after start time.';
+			return text.hourlyEndAfterStart;
 		}
 	}
 
@@ -122,12 +146,13 @@ export function validateLeaveDraft(draft: MyLeaveDraft): string | null {
 }
 
 /**
- * localLeaveWarnings returns simple local warnings before backend validation.
+ * localLeaveWarnings returns simple localized local warnings before backend validation.
  */
 export function localLeaveWarnings(
 	draft: MyLeaveDraft,
 	myActiveLeaves: readonly PendingLeaveRequest[],
 	approvedLeaves: readonly ApprovedLeaveRequest[],
+	text: MyLeaveWarningText,
 ): readonly MyLeaveWarning[] {
 	if (!draftHasDateRange(draft)) {
 		return [];
@@ -139,14 +164,14 @@ export function localLeaveWarnings(
 	if (ownOverlap) {
 		warnings.push({
 			kind: 'local',
-			message: 'You already have an active leave request overlapping this date range.',
+			message: text.ownOverlap,
 		});
 	}
 
 	if (approvedLeaves.length > 0) {
 		warnings.push({
 			kind: 'local',
-			message: `${approvedLeaves.length} approved leave request${approvedLeaves.length === 1 ? '' : 's'} already overlap this range.`,
+			message: approvedLeaves.length === 1 ? text.approvedOverlapOne : text.approvedOverlapMany(approvedLeaves.length),
 		});
 	}
 
@@ -161,20 +186,6 @@ export function rangesOverlap(startDate: string, endDate: string, leaveRequest: 
 }
 
 /**
- * formatDurationMode returns a readable duration mode.
- */
-export function formatDurationMode(mode: LeaveDurationMode): string {
-	return formatLabel(mode);
-}
-
-/**
- * formatLeaveStatus returns a readable leave status.
- */
-export function formatLeaveStatus(status: LeaveStatus): string {
-	return formatLabel(status);
-}
-
-/**
  * formatLeaveRange returns a compact leave date range.
  */
 export function formatLeaveRange(leaveRequest: LeaveRequest): string {
@@ -183,22 +194,6 @@ export function formatLeaveRange(leaveRequest: LeaveRequest): string {
 	}
 
 	return `${leaveRequest.startDate} → ${leaveRequest.endDate}`;
-}
-
-/**
- * formatLeaveDurationDetails returns compact duration-specific display text.
- */
-export function formatLeaveDurationDetails(leaveRequest: LeaveRequest): string {
-	switch (leaveRequest.durationMode) {
-		case 'half_day':
-			return leaveRequest.halfDayPart === '' ? 'Half day' : `Half day · ${formatLabel(leaveRequest.halfDayPart)}`;
-
-		case 'hourly':
-			return `${leaveRequest.startTime} → ${leaveRequest.endTime}`;
-
-		case 'full_day':
-			return 'Full day';
-	}
 }
 
 /**
@@ -223,7 +218,7 @@ export function leaveStatusTone(status: LeaveStatus): 'green' | 'ember' | 'red' 
 /**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
-export function errorToMessage(error: unknown): string {
+export function errorToMessage(error: unknown, fallbackMessage: string): string {
 	if (error instanceof ApiClientError) {
 		return error.message;
 	}
@@ -232,22 +227,6 @@ export function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not update your leave request.';
+	return fallbackMessage;
 }
 
-/**
- * formatLabel converts enum-like values to readable labels.
- */
-function formatLabel(value: string): string {
-	return value
-		.split('_')
-		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
-		.join(' ');
-}
-
-/**
- * formatLeaveOptionLabel converts leave enum-like values to readable labels.
- */
-export function formatLeaveOptionLabel(value: string): string {
-	return formatLabel(value);
-}

@@ -1,0 +1,44 @@
+import type { ReactElement } from 'react';
+import { FileText } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
+import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
+import { cn } from '@/lib/utils';
+
+/**
+ * CampfireMarkdownDocumentProps contains a trusted-by-Campfire Markdown string.
+ */
+type CampfireMarkdownDocumentProps = {
+	readonly markdown: string;
+	readonly className?: string;
+	readonly emptyTitle: string;
+	readonly emptyDescription: string;
+};
+
+/**
+ * CampfireMarkdownDocument renders generated Markdown as readable HTML.
+ *
+ * User-authored HTML is intentionally not enabled. Campfire reports are Markdown
+ * documents and React Markdown escapes raw HTML by default, keeping the preview
+ * usable without widening the webapp attack surface.
+ */
+export function CampfireMarkdownDocument(props: CampfireMarkdownDocumentProps): ReactElement {
+	const cleanMarkdown = props.markdown.trim();
+
+	if (cleanMarkdown === '') {
+		return (
+			<CampfireEmpty
+				icon={FileText}
+				title={props.emptyTitle}
+				description={props.emptyDescription}
+			/>
+		);
+	}
+
+	return (
+		<div className={cn('campfire-markdown-document', props.className)}>
+			<ReactMarkdown remarkPlugins={[remarkGfm]}>{cleanMarkdown}</ReactMarkdown>
+		</div>
+	);
+}

@@ -1,8 +1,9 @@
 import type { ReactElement, ReactNode } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/i18n';
 
 /**
  * StandupFormsPageHeaderProps contains shared dedicated-editor header content.
@@ -21,12 +22,15 @@ type StandupFormsPageHeaderProps = {
  * StandupFormsPageHeader renders a spacious header for full-page form builder flows.
  */
 export function StandupFormsPageHeader(props: StandupFormsPageHeaderProps): ReactElement {
+	const { direction } = useI18n();
+	const BackIcon = direction === 'rtl' ? ArrowRight : ArrowLeft;
+
 	return (
 		<header className={cn('campfire-standup-editor-header', props.className)}>
 			<div className="campfire-standup-editor-heading">
 				{props.onBack !== undefined && (
 					<Button type="button" variant="ghost" className="campfire-standup-editor-back" onClick={props.onBack}>
-						<ArrowLeft className="cf:size-4" />
+						<BackIcon className="cf:size-4" />
 						{props.backLabel ?? 'Back'}
 					</Button>
 				)}

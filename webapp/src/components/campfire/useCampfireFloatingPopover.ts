@@ -3,12 +3,12 @@ import { useLayoutEffect, useState, type CSSProperties, type RefObject } from 'r
 /**
  * FloatingPlacement controls how the popover is aligned to its trigger.
  */
-type FloatingPlacement = 'bottom-start' | 'bottom-end';
+type FloatingPlacement = 'bottom-start' | 'bottom-end' | 'top-start' | 'top-end';
 
 /**
  * FloatingPopoverStyle contains viewport-fixed geometry for a portaled picker.
  */
-type FloatingPopoverStyle = CSSProperties;
+type FloatingPopoverStyle = CSSProperties & Record<`--${string}`, string | number>;
 
 /**
  * UseCampfireFloatingPopoverInput contains refs for one custom Campfire picker.
@@ -70,7 +70,7 @@ export function useCampfireFloatingPopover(input: UseCampfireFloatingPopoverInpu
 			return;
 		}
 
-		setPortalHost((input.triggerRef.current?.ownerDocument ?? document).body);
+		setPortalHost(resolveFloatingPopoverHost(input.triggerRef.current));
 	}, [input.open, input.triggerRef]);
 
 	useLayoutEffect(() => {
@@ -118,27 +118,42 @@ export function useCampfireFloatingPopover(input: UseCampfireFloatingPopoverInpu
 				? triggerWidth
 				: Math.min(Math.max(triggerWidth, measuredPopoverWidth), maxWidth, Math.max(1, rightEdge - leftEdge));
 			const popoverWidth = Math.min(requestedWidth, Math.max(1, rightEdge - leftEdge));
-			const preferredLeft = placement === 'bottom-start' ? triggerRect.left : triggerRect.right - popoverWidth;
+			const alignToStart = placement.endsWith('start');
+			const preferAbove = placement.startsWith('top');
+			const preferredLeft = alignToStart ? triggerRect.left : triggerRect.right - popoverWidth;
 			const left = clamp(preferredLeft, leftEdge, Math.max(leftEdge, rightEdge - popoverWidth));
 
 			const measuredPopoverHeight = Math.max(1, Math.ceil(popoverRect.height));
 			const availableBelow = bottomEdge - triggerRect.bottom - gap;
 			const availableAbove = triggerRect.top - topEdge - gap;
-			const shouldOpenAbove = availableBelow < Math.min(measuredPopoverHeight, minHeight) && availableAbove > availableBelow;
+			const shouldOpenAbove = preferAbove
+				? availableAbove >= Math.min(measuredPopoverHeight, minHeight) || availableAbove >= availableBelow
+				: availableBelow < Math.min(measuredPopoverHeight, minHeight) && availableAbove > availableBelow;
 			const availableHeight = shouldOpenAbove ? availableAbove : availableBelow;
-			const clampedMaxHeight = Math.max(minHeight, Math.min(maxHeight, Math.floor(availableHeight)));
+			const clampedMaxHeight = Math.max(minHeight, Math.min(maxHeight, Math.floor(Math.max(1, availableHeight))));
 			const renderedHeight = Math.min(measuredPopoverHeight, clampedMaxHeight);
 			const preferredTop = shouldOpenAbove ? triggerRect.top - gap - renderedHeight : triggerRect.bottom + gap;
 			const top = clamp(preferredTop, topEdge, Math.max(topEdge, bottomEdge - renderedHeight));
 
+			const roundedLeft = `${Math.round(left)}px`;
+			const roundedTop = `${Math.round(top)}px`;
+			const renderedMaxHeight = `${clampedMaxHeight}px`;
+			const renderedMinWidth = `${triggerWidth}px`;
+			const renderedWidth = `${popoverWidth}px`;
+
 			setStyle({
-				left: `${Math.round(left)}px`,
-				maxHeight: `${clampedMaxHeight}px`,
-				minWidth: `${triggerWidth}px`,
+				'--campfire-floating-left': roundedLeft,
+				'--campfire-floating-max-height': renderedMaxHeight,
+				'--campfire-floating-min-width': renderedMinWidth,
+				'--campfire-floating-top': roundedTop,
+				'--campfire-floating-width': renderedWidth,
+				left: roundedLeft,
+				maxHeight: renderedMaxHeight,
+				minWidth: renderedMinWidth,
 				position: 'fixed',
-				top: `${Math.round(top)}px`,
+				top: roundedTop,
 				visibility: 'visible',
-				width: `${popoverWidth}px`,
+				width: renderedWidth,
 				zIndex: 2147483647,
 			});
 		}
@@ -179,4 +194,18 @@ export function useCampfireFloatingPopover(input: UseCampfireFloatingPopoverInpu
  */
 function clamp(value: number, min: number, max: number): number {
 	return Math.min(Math.max(value, min), max);
+}
+
+/**
+ * resolveFloatingPopoverHost keeps portaled pickers inside the Campfire overlay
+ * so theme, direction, and picker hardening CSS continue to apply. Falling back
+ * to document.body preserves behavior for isolated component tests.
+ */
+function resolveFloatingPopoverHost(trigger: HTMLElement | null): HTMLElement {
+	const overlay = trigger?.closest('.campfire-overlay');
+	if (overlay instanceof HTMLElement) {
+		return overlay;
+	}
+
+	return (trigger?.ownerDocument ?? document).body;
 }

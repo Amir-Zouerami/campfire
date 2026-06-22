@@ -1,4 +1,5 @@
 import { ApiClientError } from '@/api';
+import type { TranslationKey } from '@/i18n';
 import type {
 	StandupAnswer,
 	StandupOccurrenceSummary,
@@ -14,23 +15,23 @@ import type { TeamStandupSortOption } from './team-standups.types';
 export const teamStandupSortOptions: readonly TeamStandupSortOption[] = [
 	{
 		value: 'first_submitted',
-		label: 'First submitted',
-		helper: 'Earliest updates first',
+		labelKey: 'teamReview.standups.sort.firstSubmitted.label',
+		helperKey: 'teamReview.standups.sort.firstSubmitted.helper',
 	},
 	{
 		value: 'last_submitted',
-		label: 'Last updated',
-		helper: 'Recent edits first',
+		labelKey: 'teamReview.standups.sort.lastSubmitted.label',
+		helperKey: 'teamReview.standups.sort.lastSubmitted.helper',
 	},
 	{
 		value: 'name',
-		label: 'Name',
-		helper: 'Stable user order',
+		labelKey: 'teamReview.standups.sort.name.label',
+		helperKey: 'teamReview.standups.sort.name.helper',
 	},
 	{
 		value: 'missing_first',
-		label: 'Missing first',
-		helper: 'Focus on gaps',
+		labelKey: 'teamReview.standups.sort.missingFirst.label',
+		helperKey: 'teamReview.standups.sort.missingFirst.helper',
 	},
 ];
 
@@ -59,6 +60,7 @@ export function collectStandupReviewUserIDs(summary: StandupOccurrenceSummary | 
 		...summary.submittedUserIds,
 		...summary.missingUserIds,
 		...summary.onLeaveUserIds,
+		...summary.excludedUserIds,
 		...summary.submissions.map(row => row.submission.userId),
 	]);
 }
@@ -88,32 +90,28 @@ export function submittedPercent(summary: StandupOccurrenceSummary | null): numb
 }
 
 /**
- * formatAnswerValue decodes stored JSON answer values for display.
+ * formatAnswerValue decodes stored JSON answer values for localized display.
  */
-export function formatAnswerValue(valueJson: string): string {
-	try {
-		const parsed: unknown = JSON.parse(valueJson);
+export function formatAnswerValue(valueJson: string, yesLabel: string, noLabel: string): string {
+	const parsed = parseAnswerValue(valueJson);
 
-		if (typeof parsed === 'string') {
-			return parsed;
-		}
-
-		if (typeof parsed === 'boolean') {
-			return parsed ? 'Yes' : 'No';
-		}
-
-		if (typeof parsed === 'number') {
-			return String(parsed);
-		}
-
-		if (Array.isArray(parsed)) {
-			return parsed.map(value => String(value)).join(', ');
-		}
-
-		return JSON.stringify(parsed);
-	} catch (_error: unknown) {
-		return valueJson;
+	if (typeof parsed === 'string') {
+		return parsed;
 	}
+
+	if (typeof parsed === 'boolean') {
+		return parsed ? yesLabel : noLabel;
+	}
+
+	if (typeof parsed === 'number') {
+		return String(parsed);
+	}
+
+	if (Array.isArray(parsed)) {
+		return formatArrayAnswer(parsed);
+	}
+
+	return JSON.stringify(parsed);
 }
 
 /**
@@ -121,20 +119,25 @@ export function formatAnswerValue(valueJson: string): string {
  */
 export function answerShouldHighlight(answer: StandupAnswer, question: StandupQuestion | undefined): boolean {
 	const label = question?.label.toLowerCase() ?? '';
-	const value = formatAnswerValue(answer.valueJson).toLowerCase();
+	const rawValue = plainAnswerValue(answer.valueJson).toLowerCase();
 
 	if (label.includes('blocker') || label.includes('blocked')) {
-		return value.trim() !== '' && value !== 'no' && value !== 'false';
+		return rawValue.trim() !== '' && rawValue !== 'no' && rawValue !== 'false';
 	}
 
-	return value.includes('blocked') || value.includes('blocker');
+	return rawValue.includes('blocked') || rawValue.includes('blocker');
 }
 
 /**
- * sortModeLabel returns a readable sort label.
+ * sortModeLabel returns a readable localized sort label.
  */
-export function sortModeLabel(sortMode: StandupSubmissionSortMode): string {
-	return teamStandupSortOptions.find(option => option.value === sortMode)?.label ?? sortMode;
+export function sortModeLabel(
+	sortMode: StandupSubmissionSortMode,
+	t: (key: TranslationKey) => string,
+): string {
+	const option = teamStandupSortOptions.find(candidate => candidate.value === sortMode);
+
+	return option === undefined ? sortMode : t(option.labelKey);
 }
 
 /**
@@ -151,14 +154,20 @@ export function toStandupSortMode(value: string): StandupSubmissionSortMode {
 /**
  * formatDateTime formats an API timestamp for compact display.
  */
-export function formatDateTime(value: string): string {
+export function formatDateTime(value: string, locale: string): string {
 	const date = new Date(value);
 
 	if (Number.isNaN(date.getTime())) {
 		return value;
 	}
 
-	return date.toLocaleString();
+	return date.toLocaleString(locale, {
+		year: 'numeric',
+		month: 'short',
+		day: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+	});
 }
 
 /**
@@ -179,7 +188,10 @@ export function userChipClassName(tone: 'green' | 'red' | 'slate'): string {
 /**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
-export function errorToMessage(error: unknown): string {
+export function errorToMessage(
+	error: unknown,
+	fallbackMessage: string,
+): string {
 	if (error instanceof ApiClientError) {
 		return error.message;
 	}
@@ -188,7 +200,61 @@ export function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not load standup submissions.';
+	return fallbackMessage;
+}
+
+/**
+ * parseAnswerValue decodes a stored answer while preserving malformed values.
+ */
+function parseAnswerValue(valueJson: string): unknown {
+	try {
+		return JSON.parse(valueJson);
+	} catch (_error: unknown) {
+		return valueJson;
+	}
+}
+
+/**
+ * plainAnswerValue returns an untranslated string for rule checks.
+ */
+function plainAnswerValue(valueJson: string): string {
+	const parsed = parseAnswerValue(valueJson);
+
+	if (typeof parsed === 'string') {
+		return parsed;
+	}
+
+	if (typeof parsed === 'boolean' || typeof parsed === 'number') {
+		return String(parsed);
+	}
+
+	if (Array.isArray(parsed)) {
+		return formatArrayAnswer(parsed);
+	}
+
+	return JSON.stringify(parsed);
+}
+
+/**
+ * formatArrayAnswer maps simple and object-shaped arrays into readable rows.
+ */
+function formatArrayAnswer(values: readonly unknown[]): string {
+	return values.map(value => {
+		if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+			return String(value);
+		}
+
+		if (typeof value === 'object' && value !== null) {
+			const record = value as Record<string, unknown>;
+			const title = record.title ?? record.text ?? record.value ?? record.label;
+
+			if (typeof title === 'string' && title.trim() !== '') {
+				return title;
+			}
+		}
+
+		return JSON.stringify(value);
+	}).join(', ');
 }
 
 /**

@@ -23,7 +23,9 @@ export const CAMPFIRE_APPLY_REPORT_FILTER_EVENT = 'campfire:apply-report-filter'
  */
 export type CampfireOpenDetail = {
 	readonly channelID?: string;
+	readonly channelName?: string;
 	readonly channelType?: string;
+	readonly teamID?: string;
 	readonly targetTab?: string;
 	readonly targetSection?: string;
 };
@@ -102,7 +104,9 @@ function isOpenDetail(value: unknown): value is CampfireOpenDetail {
 
 	return (
 		isOptionalString(value.channelID) &&
+		isOptionalString(value.channelName) &&
 		isOptionalString(value.channelType) &&
+		isOptionalString(value.teamID) &&
 		isOptionalString(value.targetTab) &&
 		isOptionalString(value.targetSection)
 	);

@@ -165,6 +165,13 @@ type UpdateStandupTemplateResponse struct {
 }
 
 /*
+DeleteStandupTemplateResponse is returned by DELETE /workspaces/{workspaceID}/standups/templates/{templateID}.
+*/
+type DeleteStandupTemplateResponse struct {
+	Deleted bool `json:"deleted"`
+}
+
+/*
 CreateStandupQuestionRequest is accepted by POST /workspaces/{workspaceID}/standups/questions.
 */
 type CreateStandupQuestionRequest struct {
@@ -215,6 +222,13 @@ type UpdateStandupQuestionResponse struct {
 }
 
 /*
+DeleteStandupQuestionResponse is returned by DELETE /workspaces/{workspaceID}/standups/questions/{questionID}.
+*/
+type DeleteStandupQuestionResponse struct {
+	Deleted bool `json:"deleted"`
+}
+
+/*
 CreateStandupScheduleRequest is accepted by POST /workspaces/{workspaceID}/standups/schedules.
 */
 type CreateStandupScheduleRequest struct {
@@ -257,6 +271,13 @@ type UpdateStandupScheduleResponse struct {
 }
 
 /*
+DeleteStandupScheduleResponse is returned by DELETE /workspaces/{workspaceID}/standups/schedules/{scheduleID}.
+*/
+type DeleteStandupScheduleResponse struct {
+	Deleted bool `json:"deleted"`
+}
+
+/*
 ListStandupSubmissionsResponse is returned by GET /workspaces/{workspaceID}/standups/submissions.
 */
 type ListStandupSubmissionsResponse struct {
@@ -268,6 +289,7 @@ type ListStandupSubmissionsResponse struct {
 	SubmittedUserIDs []string `json:"submittedUserIds"`
 	MissingUserIDs   []string `json:"missingUserIds"`
 	OnLeaveUserIDs   []string `json:"onLeaveUserIds"`
+	ExcludedUserIDs  []string `json:"excludedUserIds"`
 
 	Submissions []StandupSubmissionWithAnswersPayload `json:"submissions"`
 }
@@ -393,6 +415,7 @@ func StandupOccurrenceSummaryToPayload(
 		SubmittedUserIDs: summary.SubmittedUserIDs,
 		MissingUserIDs:   summary.MissingUserIDs,
 		OnLeaveUserIDs:   summary.OnLeaveUserIDs,
+		ExcludedUserIDs:  summary.ExcludedUserIDs,
 
 		Submissions: StandupSubmissionsWithAnswersToPayload(summary.Submissions),
 	}

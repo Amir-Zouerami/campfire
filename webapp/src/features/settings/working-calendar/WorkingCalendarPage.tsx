@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { CampfirePageIntro } from '@/components/campfire/CampfirePageIntro';
+import { useI18n } from '@/i18n';
 
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
 
@@ -14,6 +15,7 @@ import { useWorkingCalendar } from './useWorkingCalendar';
  * WorkingCalendarPage renders workspace working-day and off-day settings.
  */
 export function WorkingCalendarPage(props: WorkspaceShellProps): ReactElement {
+	const { t } = useI18n();
 	const canManageCalendar = props.canManageWorkspace || props.isSystemAdmin;
 
 	const calendar = useWorkingCalendar({
@@ -26,12 +28,12 @@ export function WorkingCalendarPage(props: WorkspaceShellProps): ReactElement {
 	return (
 		<div className="campfire-page-stack campfire-settings-workflow campfire-settings-workflow--minimal">
 			<CampfirePageIntro
-				eyebrow="Working calendar"
-				title="Working days and workspace off-days"
-				description="Choose the weekly pattern Campfire should respect, then add dates that should be skipped for this workspace."
+				eyebrow={t('settings.workingCalendar.page.eyebrow')}
+				title={t('settings.workingCalendar.page.title')}
+				description={t('settings.workingCalendar.page.description')}
 			/>
 
-			<WorkingCalendarFeedback state={calendar.loadState} message={calendar.message} />
+			<WorkingCalendarFeedback state={calendar.loadState} message={calendar.message} tone={calendar.messageTone} />
 			{calendar.loadState === 'loading' && <WorkingCalendarLoading />}
 
 			{calendar.loadState !== 'loading' && (

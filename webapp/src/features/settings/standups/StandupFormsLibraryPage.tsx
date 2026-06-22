@@ -5,8 +5,9 @@ import { CampfireBidiText } from '@/components/campfire/CampfireBidiText';
 import { CampfireEmpty, CampfireSurface } from '@/components/campfire/CampfireLayoutPrimitives';
 import { CampfirePageIntro } from '@/components/campfire/CampfirePageIntro';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/i18n';
 
-import { formatLabel } from './standup-settings.helpers';
+import { countLabel, standupKindLabel } from './standup-settings.i18n';
 import type { StandupTemplateWithDraft } from './standup-settings.types';
 
 /**
@@ -23,23 +24,25 @@ type StandupFormsLibraryPageProps = {
  * StandupFormsLibraryPage renders the dedicated standup form directory.
  */
 export function StandupFormsLibraryPage(props: StandupFormsLibraryPageProps): ReactElement {
+	const { t } = useI18n();
+
 	return (
 		<div className="campfire-standup-editor-stack">
 			<CampfirePageIntro
-				eyebrow="Standup forms"
-				title="Choose one form to edit"
-				description="Keep each template focused. Open a form, then edit its questions on a dedicated page."
+				eyebrow={t('settings.standups.forms.library.eyebrow')}
+				title={t('settings.standups.forms.library.title')}
+				description={t('settings.standups.forms.library.description')}
 				actions={(
 					<Button type="button" disabled={!props.canManageStandups} onClick={props.onCreateTemplate}>
 						<Plus className="cf:size-4" />
-						New template
+						{t('settings.standups.actions.newTemplate')}
 					</Button>
 				)}
 			/>
 
 			<CampfireSurface className="campfire-standup-editor-surface">
 				{props.templatesWithDrafts.length === 0 ? (
-					<CampfireEmpty icon={FileQuestion} title="No templates yet" description="Create your first daily or weekly standup form." />
+					<CampfireEmpty icon={FileQuestion} title={t('settings.standups.forms.empty.title')} description={t('settings.standups.forms.empty.description')} />
 				) : (
 					<div className="campfire-standup-template-directory" role="list">
 						{props.templatesWithDrafts.map(pair => (
@@ -52,11 +55,11 @@ export function StandupFormsLibraryPage(props: StandupFormsLibraryPageProps): Re
 								<span className="campfire-standup-template-row-main">
 									<CampfireBidiText className="campfire-standup-template-row-title">{pair.template.name}</CampfireBidiText>
 									<span className="campfire-standup-template-row-meta">
-										{formatLabel(pair.template.kind)} · {pair.questions.length} questions · {pair.schedules.length} schedules
+										{standupKindLabel(t, pair.template.kind)} · {countLabel(t, pair.questions.length, 'settings.standups.count.question.one', 'settings.standups.count.question.many')} · {countLabel(t, pair.schedules.length, 'settings.standups.count.schedule.one', 'settings.standups.count.schedule.many')}
 									</span>
 								</span>
 
-								<span className="campfire-standup-template-row-action">Open</span>
+								<span className="campfire-standup-template-row-action">{t('settings.standups.actions.open')}</span>
 							</button>
 						))}
 					</div>

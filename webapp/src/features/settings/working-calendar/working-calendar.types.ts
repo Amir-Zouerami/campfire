@@ -4,6 +4,11 @@
 export type WorkingCalendarLoadState = 'idle' | 'loading' | 'ready' | 'saving' | 'deleting' | 'error';
 
 /**
+ * WorkingCalendarFeedbackTone describes how local workflow feedback should render.
+ */
+export type WorkingCalendarFeedbackTone = 'success' | 'error';
+
+/**
  * WeekdayOption describes one selectable weekday.
  */
 export type WeekdayOption = {

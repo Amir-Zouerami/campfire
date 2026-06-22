@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { CampfirePageIntro } from '@/components/campfire/CampfirePageIntro';
+import { useI18n } from '@/i18n';
 
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
 
@@ -13,6 +14,7 @@ import { useGlobalOffDays } from './useGlobalOffDays';
  * GlobalOffDaysPage renders global Campfire off-day settings.
  */
 export function GlobalOffDaysPage(props: WorkspaceShellProps): ReactElement {
+	const { t } = useI18n();
 	const offDays = useGlobalOffDays({
 		isSystemAdmin: props.isSystemAdmin,
 	});
@@ -20,9 +22,9 @@ export function GlobalOffDaysPage(props: WorkspaceShellProps): ReactElement {
 	return (
 		<div className="campfire-page-stack campfire-settings-workflow campfire-settings-workflow--minimal">
 			<CampfirePageIntro
-				eyebrow="Global off-days"
-				title="Organization-wide skip dates"
-				description="Manage holidays and no-standup dates that apply across every Campfire workspace."
+				eyebrow={t('settings.globalOffDays.page.eyebrow')}
+				title={t('settings.globalOffDays.page.title')}
+				description={t('settings.globalOffDays.page.description')}
 			/>
 
 			<GlobalOffDaysFeedback state={offDays.loadState} message={offDays.message} />
@@ -30,7 +32,7 @@ export function GlobalOffDaysPage(props: WorkspaceShellProps): ReactElement {
 			{!props.isSystemAdmin && (
 				<GlobalOffDaysFeedback
 					state="error"
-					message="You can view global off-days, but only system admins can edit them."
+					message={t('settings.globalOffDays.permission.viewOnly')}
 				/>
 			)}
 

@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { CampfireFeedback, CampfireLoadingFeedback } from '@/components/campfire/CampfireFeedback';
+import { useI18n } from '@/i18n';
 
 import type { SavedFiltersLoadState } from './saved-filters.types';
 
@@ -23,5 +24,7 @@ export function SavedFiltersFeedback(props: SavedFiltersFeedbackProps): ReactEle
  * SavedFiltersLoading renders a compact loading state.
  */
 export function SavedFiltersLoading(): ReactElement {
-	return <CampfireLoadingFeedback message="Loading saved report filters…" />;
+	const { t } = useI18n();
+
+	return <CampfireLoadingFeedback message={t('reports.saved.loading')} />;
 }

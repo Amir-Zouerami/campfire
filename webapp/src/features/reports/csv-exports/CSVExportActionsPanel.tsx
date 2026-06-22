@@ -1,11 +1,13 @@
 import type { ReactElement } from 'react';
 import { Download, FileDown, Loader2 } from 'lucide-react';
 
+import { CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/i18n';
 
 import { csvExportActions, exportActionCardClassName } from './csv-exports.helpers';
+import { csvExportActionDescription, csvExportActionTitle } from './csv-exports.i18n';
 import type { CSVExportKind } from './csv-exports.types';
-import { CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 
 /**
  * CSVExportActionsPanelProps contains export actions and state.
@@ -20,6 +22,8 @@ type CSVExportActionsPanelProps = {
  * CSVExportActionsPanel renders downloadable CSV actions with clear vertical separation.
  */
 export function CSVExportActionsPanel(props: CSVExportActionsPanelProps): ReactElement {
+	const { t } = useI18n();
+
 	return (
 		<section className="campfire-csv-action-list">
 			{csvExportActions.map(action => {
@@ -30,19 +34,19 @@ export function CSVExportActionsPanel(props: CSVExportActionsPanelProps): ReactE
 						<div className="cf:flex cf:flex-wrap cf:items-center cf:justify-between cf:gap-4">
 							<div className="cf:min-w-0 cf:flex-1">
 								<p className="cf:m-0 campfire-page-eyebrow">
-									{action.includesSortMode ? 'Standup export' : 'Data export'}
+									{action.includesSortMode ? t('reports.csv.action.type.standup') : t('reports.csv.action.type.data')}
 								</p>
 								<h3 className="campfire-surface-title">
-									{action.title}
+									{csvExportActionTitle(action.kind, t)}
 								</h3>
 								<p className="campfire-surface-description">
-									{action.description}
+									{csvExportActionDescription(action.kind, t)}
 								</p>
 							</div>
 
 							<div className="cf:flex cf:shrink-0 cf:flex-col cf:items-end cf:gap-3">
 								<CampfireStatusPill tone={action.includesSortMode ? 'ember' : 'green'}>
-									{action.includesSortMode ? 'Uses sort' : 'Date range'}
+									{action.includesSortMode ? t('reports.csv.action.badge.usesSort') : t('reports.csv.action.badge.dateRange')}
 								</CampfireStatusPill>
 
 								<Button
@@ -57,7 +61,7 @@ export function CSVExportActionsPanel(props: CSVExportActionsPanelProps): ReactE
 									) : (
 										<Download className="cf:size-4" />
 									)}
-									Export CSV
+									{t('reports.csv.action.export')}
 								</Button>
 							</div>
 						</div>

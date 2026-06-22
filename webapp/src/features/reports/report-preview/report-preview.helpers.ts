@@ -101,16 +101,6 @@ export function reportDateRangeIsValid(startDate: string, endDate: string): bool
 }
 
 /**
- * formatReportSortMode returns a readable report sort label.
- */
-export function formatReportSortMode(sortMode: string): string {
-	return sortMode
-		.split('_')
-		.map(part => part.charAt(0).toUpperCase() + part.slice(1))
-		.join(' ');
-}
-
-/**
  * toDailyReportSortMode narrows a select value to a daily sort mode.
  */
 export function toDailyReportSortMode(value: string): StandupSubmissionSortMode {
@@ -180,7 +170,7 @@ export function markdownLineCount(markdown: string): number {
 /**
  * errorToMessage converts unknown thrown values into a safe UI message.
  */
-export function errorToMessage(error: unknown): string {
+export function errorToMessage(error: unknown, fallback: string): string {
 	if (error instanceof ApiClientError) {
 		return error.message;
 	}
@@ -189,5 +179,5 @@ export function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not load report preview.';
+	return fallback;
 }

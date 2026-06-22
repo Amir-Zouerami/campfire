@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/i18n';
 
 /**
  * CampfireReportSummaryItem is one compact report summary datum.
@@ -17,6 +18,7 @@ export type CampfireReportSummaryItem = {
 export type CampfireReportSummaryBarProps = {
 	readonly items: readonly CampfireReportSummaryItem[];
 	readonly className?: string;
+	readonly ariaLabel?: string;
 };
 
 /**
@@ -24,6 +26,7 @@ export type CampfireReportSummaryBarProps = {
  * of a noisy dashboard of statistic cards.
  */
 export function CampfireReportSummaryBar(props: CampfireReportSummaryBarProps): ReactElement | null {
+	const { t } = useI18n();
 	const visibleItems = props.items.filter(item => item.value.trim() !== '');
 
 	if (visibleItems.length === 0) {
@@ -31,7 +34,7 @@ export function CampfireReportSummaryBar(props: CampfireReportSummaryBarProps): 
 	}
 
 	return (
-		<div className={cn('campfire-report-summary-bar', props.className)} aria-label="Report summary">
+		<div className={cn('campfire-report-summary-bar', props.className)} aria-label={props.ariaLabel ?? t('shared.reportSummary.ariaLabel')}>
 			{visibleItems.map(item => (
 				<span
 					key={`${item.label}-${item.value}`}

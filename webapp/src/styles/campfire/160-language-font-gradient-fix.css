@@ -1,0 +1,161 @@
+/*
+ * Campfire CSS module: 160-language-font-gradient-fix.css
+ * Final locale-scoped typography and RTL emphasis cleanup.
+ *
+ * Persian and Arabic must use the bundled Vazirmatn face across the entire
+ * Campfire modal, even when Mattermost app-shell rules target headings/buttons
+ * with their own font families. English keeps the existing Latin stack.
+ */
+
+:root,
+body {
+	--campfire-latin-font-stack: var(--font-sans, 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif);
+	--campfire-vazir-font-stack: 'CampfireVazir', 'Vazirmatn', 'Vazir', var(--campfire-latin-font-stack);
+	--campfire-persian-font: var(--campfire-latin-font-stack);
+	--campfire-vazir-font: var(--campfire-latin-font-stack);
+}
+
+.campfire-picker-portal-scope {
+	--campfire-latin-font-stack: var(--font-sans, 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif);
+	--campfire-vazir-font-stack: 'CampfireVazir', 'Vazirmatn', 'Vazir', var(--campfire-latin-font-stack);
+	--campfire-active-locale-font: var(--campfire-latin-font-stack);
+	--campfire-persian-font: var(--campfire-latin-font-stack);
+	--campfire-vazir-font: var(--campfire-latin-font-stack);
+	font-family: var(--campfire-active-locale-font) !important;
+}
+
+.campfire-overlay.campfire-theme[dir='rtl'] .campfire-picker-portal-scope,
+.campfire-overlay.campfire-theme:is([data-campfire-language='fa'], [data-campfire-language='ar']) .campfire-picker-portal-scope,
+.campfire-picker-portal-scope[dir='rtl'] {
+	--campfire-active-locale-font: var(--campfire-vazir-font-stack);
+	--campfire-persian-font: var(--campfire-vazir-font-stack);
+	--campfire-vazir-font: var(--campfire-vazir-font-stack);
+	font-family: var(--campfire-active-locale-font) !important;
+}
+
+.campfire-overlay.campfire-theme {
+	--campfire-latin-font-stack: var(--font-sans, 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif);
+	--campfire-vazir-font-stack: 'CampfireVazir', 'Vazirmatn', 'Vazir', var(--campfire-latin-font-stack);
+	--campfire-active-locale-font: var(--campfire-latin-font-stack);
+	--campfire-persian-font: var(--campfire-latin-font-stack);
+	--campfire-vazir-font: var(--campfire-latin-font-stack);
+	font-family: var(--campfire-active-locale-font) !important;
+}
+
+.campfire-overlay.campfire-theme[data-campfire-language='en'] {
+	--campfire-active-locale-font: var(--campfire-latin-font-stack);
+	--campfire-persian-font: var(--campfire-latin-font-stack);
+	--campfire-vazir-font: var(--campfire-latin-font-stack);
+	font-family: var(--campfire-active-locale-font) !important;
+}
+
+.campfire-overlay.campfire-theme:is([data-campfire-language='fa'], [data-campfire-language='ar']),
+.campfire-overlay.campfire-theme[dir='rtl'] {
+	--campfire-active-locale-font: var(--campfire-vazir-font-stack);
+	--campfire-persian-font: var(--campfire-vazir-font-stack);
+	--campfire-vazir-font: var(--campfire-vazir-font-stack);
+	font-family: var(--campfire-active-locale-font) !important;
+}
+
+/*
+ * Keep this selector intentionally specific. Mattermost injects rules such as
+ * `.app__body h1, .app__body h2, .app__body h3 { font-family: Metropolis; }`.
+ * The final modal layer must win for every rendered Campfire control in RTL
+ * locales, without changing the host application or the English Campfire UI.
+ */
+.app__body .campfire-overlay.campfire-theme:is([data-campfire-language='fa'], [data-campfire-language='ar']),
+.app__body .campfire-overlay.campfire-theme:is([data-campfire-language='fa'], [data-campfire-language='ar']) :not(svg):not(path):not(pre):not(code):not(kbd):not(samp),
+.app__body .campfire-overlay.campfire-theme[dir='rtl'],
+.app__body .campfire-overlay.campfire-theme[dir='rtl'] :not(svg):not(path):not(pre):not(code):not(kbd):not(samp),
+.campfire-overlay.campfire-theme:is([data-campfire-language='fa'], [data-campfire-language='ar']),
+.campfire-overlay.campfire-theme:is([data-campfire-language='fa'], [data-campfire-language='ar']) :not(svg):not(path):not(pre):not(code):not(kbd):not(samp),
+.campfire-overlay.campfire-theme[dir='rtl'],
+.campfire-overlay.campfire-theme[dir='rtl'] :not(svg):not(path):not(pre):not(code):not(kbd):not(samp) {
+	font-family: var(--campfire-vazir-font-stack) !important;
+}
+
+.campfire-overlay.campfire-theme[data-campfire-language='en'],
+.campfire-overlay.campfire-theme[data-campfire-language='en'] :not(svg):not(path):not(pre):not(code):not(kbd):not(samp) {
+	font-family: var(--campfire-latin-font-stack) !important;
+}
+
+.campfire-overlay.campfire-theme :where(pre, code, kbd, samp) {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace !important;
+}
+
+.campfire-overlay.campfire-theme[dir='rtl'] :where(.campfire-segmented-tab, .campfire-tab-button, .campfire-quick-link) {
+	text-align: right;
+}
+
+.campfire-overlay.campfire-theme[dir='rtl'] .campfire-segmented-tabs {
+	background:
+		radial-gradient(circle at 90% 0%, rgba(251, 146, 60, 0.11), transparent 30%),
+		linear-gradient(225deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018)),
+		rgba(8, 7, 6, 0.58) !important;
+}
+
+.campfire-overlay.campfire-theme[dir='rtl'] .campfire-segmented-tab::before {
+	inset: 0 0 0 auto !important;
+}
+
+.campfire-overlay.campfire-theme[dir='rtl'] .campfire-segmented-tab:hover {
+	background:
+		radial-gradient(circle at 85% 0%, rgba(251, 146, 60, 0.11), transparent 42%),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025)),
+		rgba(23, 19, 16, 0.86) !important;
+}
+
+.campfire-overlay.campfire-theme[dir='rtl'] .campfire-segmented-tab--active,
+.campfire-overlay.campfire-theme[dir='rtl'] .campfire-segmented-tab--active:hover {
+	background:
+		radial-gradient(circle at 82% 0%, rgba(251, 146, 60, 0.22), transparent 44%),
+		linear-gradient(225deg, rgba(251, 146, 60, 0.16), rgba(245, 158, 11, 0.065)),
+		rgba(28, 19, 13, 0.92) !important;
+}
+
+.campfire-overlay.campfire-theme[dir='rtl'] .campfire-tab-button--active,
+.campfire-overlay.campfire-theme[dir='rtl'] .campfire-tab-button--active:hover {
+	background:
+		radial-gradient(circle at 82% 16%, rgba(249, 115, 22, 0.18), transparent 10rem),
+		linear-gradient(180deg, rgba(249, 115, 22, 0.18), rgba(249, 115, 22, 0.08)),
+		rgba(25, 18, 13, 0.92) !important;
+}
+
+.campfire-overlay.campfire-theme[dir='rtl'] .campfire-tab-button:hover {
+	background:
+		radial-gradient(circle at 86% 16%, rgba(249, 115, 22, 0.08), transparent 10rem),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.035)),
+		rgba(24, 20, 18, 0.9) !important;
+}
+
+.campfire-overlay.campfire-theme[dir='rtl'] .campfire-quick-link:hover {
+	background:
+		radial-gradient(circle at 88% 20%, rgba(253, 186, 116, 0.08), transparent 52%),
+		rgba(253, 186, 116, 0.052) !important;
+}
+
+.campfire-overlay.campfire-theme[dir='rtl'] :where(.campfire-section-tabs, .campfire-pill-tabs) {
+	background:
+		radial-gradient(circle at 90% 0%, rgba(251, 146, 60, 0.08), transparent 38%),
+		linear-gradient(225deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.018)),
+		rgba(10, 8, 6, 0.56) !important;
+}
+
+.campfire-overlay.campfire-theme[dir='rtl'] :where(.campfire-section-tab, .campfire-pill-tab) {
+	text-align: right;
+}
+
+.campfire-overlay.campfire-theme[dir='rtl'] :where(.campfire-section-tab:hover, .campfire-pill-tab:hover) {
+	background:
+		radial-gradient(circle at 85% 0%, rgba(249, 115, 22, 0.095), transparent 44%),
+		linear-gradient(225deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02)),
+		rgba(24, 20, 18, 0.78) !important;
+}
+
+.campfire-overlay.campfire-theme[dir='rtl'] :where(.campfire-section-tab--active, .campfire-pill-tab--active),
+.campfire-overlay.campfire-theme[dir='rtl'] .campfire-section-nav > button[aria-current='page'] {
+	background:
+		radial-gradient(circle at 82% 0%, rgba(249, 115, 22, 0.14), transparent 46%),
+		linear-gradient(225deg, rgba(249, 115, 22, 0.16), rgba(245, 158, 11, 0.08)),
+		rgba(249, 115, 22, 0.075) !important;
+}

@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { CampfireRoot } from './app/CampfireRoot';
+import { CampfireQueryProvider } from './query';
 import { openCampfire } from './app/events';
 import { setMattermostHostStore } from './app/mattermostHost';
 import type {
@@ -37,6 +38,46 @@ function FlameIcon(props: PluginIconProps): ReactElement {
 	);
 }
 
+
+/**
+ * CampfirePluginRoot wires application-wide frontend infrastructure.
+ *
+ * Keeping providers outside CampfireRoot lets feature code use query hooks
+ * without coupling the Mattermost plugin registration class to React state.
+ */
+function CampfirePluginRoot(): ReactElement {
+	return (
+		<CampfireQueryProvider>
+			<CampfireRoot />
+		</CampfireQueryProvider>
+	);
+}
+
+/**
+ * channelDisplayName resolves a stable label from the Mattermost channel object passed by the header action.
+ */
+function channelDisplayName(channel: MattermostChannel | undefined): string | undefined {
+	const value = channel?.display_name ?? channel?.displayName ?? channel?.name;
+
+	return cleanOptionalString(value);
+}
+
+/**
+ * channelTeamID resolves the team identifier from the Mattermost channel object passed by the header action.
+ */
+function channelTeamID(channel: MattermostChannel | undefined): string | undefined {
+	return cleanOptionalString(channel?.team_id ?? channel?.teamId);
+}
+
+/**
+ * cleanOptionalString removes blank strings from optional event payload fields.
+ */
+function cleanOptionalString(value: string | undefined): string | undefined {
+	const cleanValue = value?.trim() ?? '';
+
+	return cleanValue === '' ? undefined : cleanValue;
+}
+
 /**
  * CampfirePlugin is the Mattermost webapp plugin class.
  */
@@ -47,14 +88,16 @@ export class CampfirePlugin implements MattermostWebappPlugin {
 	public initialize(registry: MattermostPluginRegistry, store: MattermostStore): void {
 		setMattermostHostStore(store);
 
-		registry.registerRootComponent(CampfireRoot);
+		registry.registerRootComponent(CampfirePluginRoot);
 
 		registry.registerChannelHeaderButtonAction(
 			<FlameIcon />,
 			(channel?: MattermostChannel) => {
 				openCampfire({
 					channelID: channel?.id,
+					channelName: channelDisplayName(channel),
 					channelType: channel?.type,
+					teamID: channelTeamID(channel),
 				});
 			},
 			'Open Campfire',

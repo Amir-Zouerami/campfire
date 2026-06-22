@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 
 import { useUserProfiles } from '@/app/useUserProfiles';
 import { CampfirePageIntro } from '@/components/campfire/CampfirePageIntro';
+import { useI18n } from '@/i18n';
 
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
 
@@ -14,6 +15,7 @@ import { useAuditLog } from './useAuditLog';
  * AuditLogPage renders workspace audit history.
  */
 export function AuditLogPage(props: WorkspaceShellProps): ReactElement {
+	const { t } = useI18n();
 	const audit = useAuditLog({
 		workspace: props.workspace,
 	});
@@ -23,9 +25,9 @@ export function AuditLogPage(props: WorkspaceShellProps): ReactElement {
 	return (
 		<div className="campfire-page-stack campfire-settings-workflow campfire-settings-workflow--minimal campfire-audit-page">
 			<CampfirePageIntro
-				eyebrow="Audit log"
-				title="Recent workspace activity"
-				description="Review important Campfire changes in a flat timeline. Newest activity is shown first."
+				eyebrow={t('settings.audit.page.eyebrow')}
+				title={t('settings.audit.page.title')}
+				description={t('settings.audit.page.description')}
 				actions={
 					<AuditLogControls
 						limit={audit.limit}

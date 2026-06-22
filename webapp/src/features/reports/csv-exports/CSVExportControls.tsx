@@ -3,9 +3,11 @@ import type { ReactElement } from 'react';
 import { CampfireField } from '@/components/campfire/CampfireField';
 import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { CampfireDateInput } from '@/components/campfire/CampfireDateInput';
+import { useI18n } from '@/i18n';
 
 import type { CSVExportFilterDraft, CSVExportFilterPatch } from './csv-exports.types';
-import { csvExportSortOptions, formatCSVExportSortMode, toCSVExportSortMode } from './csv-exports.helpers';
+import { csvExportSortOptions, toCSVExportSortMode } from './csv-exports.helpers';
+import { csvExportSortModeLabel } from './csv-exports.i18n';
 
 /**
  * CSVExportControlsProps contains CSV export filters.
@@ -21,9 +23,11 @@ type CSVExportControlsProps = {
  * CSVExportControls renders shared CSV export filters.
  */
 export function CSVExportControls(props: CSVExportControlsProps): ReactElement {
+	const { t } = useI18n();
+
 	return (
 		<div className="campfire-control-grid campfire-control-grid--csv-export">
-			<CampfireField id="campfire-csv-export-start" label="Start date">
+			<CampfireField id="campfire-csv-export-start" label={t('reports.csv.field.startDate')}>
 				<CampfireDateInput
 					id="campfire-csv-export-start"
 					disabled={props.disabled}
@@ -33,7 +37,7 @@ export function CSVExportControls(props: CSVExportControlsProps): ReactElement {
 				/>
 			</CampfireField>
 
-			<CampfireField id="campfire-csv-export-end" label="End date">
+			<CampfireField id="campfire-csv-export-end" label={t('reports.csv.field.endDate')}>
 				<CampfireDateInput
 					id="campfire-csv-export-end"
 					disabled={props.disabled}
@@ -43,7 +47,7 @@ export function CSVExportControls(props: CSVExportControlsProps): ReactElement {
 				/>
 			</CampfireField>
 
-			<CampfireField id="campfire-csv-export-sort" label="Sort mode">
+			<CampfireField id="campfire-csv-export-sort" label={t('reports.csv.field.sortMode')}>
 				<CampfireSelect
 					id="campfire-csv-export-sort"
 					disabled={props.disabled}
@@ -52,7 +56,7 @@ export function CSVExportControls(props: CSVExportControlsProps): ReactElement {
 				>
 					{csvExportSortOptions.map(sortMode => (
 						<option key={sortMode} value={sortMode}>
-							{formatCSVExportSortMode(sortMode)}
+							{csvExportSortModeLabel(sortMode, t)}
 						</option>
 					))}
 				</CampfireSelect>

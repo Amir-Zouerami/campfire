@@ -31,16 +31,33 @@ type ListLeaveTypesResponse struct {
 CreateLeaveRequest is accepted by POST /leaves.
 */
 type CreateLeaveRequest struct {
-	WorkspaceID  string `json:"workspaceId"`
-	LeaveTypeID  string `json:"leaveTypeId"`
-	StartDate    string `json:"startDate"`
-	EndDate      string `json:"endDate"`
-	DurationMode string `json:"durationMode"`
-	HalfDayPart  string `json:"halfDayPart"`
-	StartTime    string `json:"startTime"`
-	EndTime      string `json:"endTime"`
-	Reason       string `json:"reason"`
-	BackupUserID string `json:"backupUserId"`
+	WorkspaceID        string `json:"workspaceId"`
+	LeaveTypeID        string `json:"leaveTypeId"`
+	StartDate          string `json:"startDate"`
+	EndDate            string `json:"endDate"`
+	DurationMode       string `json:"durationMode"`
+	HalfDayPart        string `json:"halfDayPart"`
+	StartTime          string `json:"startTime"`
+	EndTime            string `json:"endTime"`
+	Reason             string `json:"reason"`
+	BackupUserID       string `json:"backupUserId"`
+	CanContactIfNeeded bool   `json:"canContactIfNeeded"`
+}
+
+/*
+UpdateLeaveRequest is accepted by PUT /leaves/{leaveRequestID}.
+*/
+type UpdateLeaveRequest struct {
+	LeaveTypeID        string `json:"leaveTypeId"`
+	StartDate          string `json:"startDate"`
+	EndDate            string `json:"endDate"`
+	DurationMode       string `json:"durationMode"`
+	HalfDayPart        string `json:"halfDayPart"`
+	StartTime          string `json:"startTime"`
+	EndTime            string `json:"endTime"`
+	Reason             string `json:"reason"`
+	BackupUserID       string `json:"backupUserId"`
+	CanContactIfNeeded bool   `json:"canContactIfNeeded"`
 }
 
 /*
@@ -62,22 +79,23 @@ type CancelLeaveRequestResponse struct {
 LeaveRequestPayload is the API representation of a leave request.
 */
 type LeaveRequestPayload struct {
-	ID           string `json:"id"`
-	WorkspaceID  string `json:"workspaceId"`
-	UserID       string `json:"userId"`
-	LeaveTypeID  string `json:"leaveTypeId"`
-	StartDate    string `json:"startDate"`
-	EndDate      string `json:"endDate"`
-	DurationMode string `json:"durationMode"`
-	HalfDayPart  string `json:"halfDayPart"`
-	StartTime    string `json:"startTime"`
-	EndTime      string `json:"endTime"`
-	Reason       string `json:"reason"`
-	BackupUserID string `json:"backupUserId"`
-	Status       string `json:"status"`
-	CreatedAt    string `json:"createdAt"`
-	UpdatedAt    string `json:"updatedAt"`
-	CancelledAt  string `json:"cancelledAt"`
+	ID                 string `json:"id"`
+	WorkspaceID        string `json:"workspaceId"`
+	UserID             string `json:"userId"`
+	LeaveTypeID        string `json:"leaveTypeId"`
+	StartDate          string `json:"startDate"`
+	EndDate            string `json:"endDate"`
+	DurationMode       string `json:"durationMode"`
+	HalfDayPart        string `json:"halfDayPart"`
+	StartTime          string `json:"startTime"`
+	EndTime            string `json:"endTime"`
+	Reason             string `json:"reason"`
+	BackupUserID       string `json:"backupUserId"`
+	CanContactIfNeeded bool   `json:"canContactIfNeeded"`
+	Status             string `json:"status"`
+	CreatedAt          string `json:"createdAt"`
+	UpdatedAt          string `json:"updatedAt"`
+	CancelledAt        string `json:"cancelledAt"`
 }
 
 /*
@@ -125,6 +143,13 @@ type ListApprovedLeaveRequestsResponse struct {
 }
 
 /*
+UpdateLeaveResponse is returned by PUT /leaves/{leaveRequestID}.
+*/
+type UpdateLeaveResponse struct {
+	LeaveRequest LeaveRequestPayload `json:"leaveRequest"`
+}
+
+/*
 DecideLeaveResponse is returned by POST /leaves/{leaveRequestID}/decision.
 */
 type DecideLeaveResponse struct {
@@ -164,22 +189,23 @@ LeaveRequestToPayload maps a domain leave request to its API representation.
 */
 func LeaveRequestToPayload(leaveRequest domain.LeaveRequest) LeaveRequestPayload {
 	return LeaveRequestPayload{
-		ID:           leaveRequest.ID.String(),
-		WorkspaceID:  leaveRequest.WorkspaceID.String(),
-		UserID:       leaveRequest.UserID,
-		LeaveTypeID:  leaveRequest.LeaveTypeID.String(),
-		StartDate:    leaveRequest.StartDate.String(),
-		EndDate:      leaveRequest.EndDate.String(),
-		DurationMode: string(leaveRequest.DurationMode),
-		HalfDayPart:  string(leaveRequest.HalfDayPart),
-		StartTime:    leaveRequest.StartTime.String(),
-		EndTime:      leaveRequest.EndTime.String(),
-		Reason:       leaveRequest.Reason,
-		BackupUserID: leaveRequest.BackupUserID,
-		Status:       string(leaveRequest.Status),
-		CreatedAt:    formatAPITime(leaveRequest.CreatedAt),
-		UpdatedAt:    formatAPITime(leaveRequest.UpdatedAt),
-		CancelledAt:  formatOptionalAPITime(leaveRequest.CancelledAt),
+		ID:                 leaveRequest.ID.String(),
+		WorkspaceID:        leaveRequest.WorkspaceID.String(),
+		UserID:             leaveRequest.UserID,
+		LeaveTypeID:        leaveRequest.LeaveTypeID.String(),
+		StartDate:          leaveRequest.StartDate.String(),
+		EndDate:            leaveRequest.EndDate.String(),
+		DurationMode:       string(leaveRequest.DurationMode),
+		HalfDayPart:        string(leaveRequest.HalfDayPart),
+		StartTime:          leaveRequest.StartTime.String(),
+		EndTime:            leaveRequest.EndTime.String(),
+		Reason:             leaveRequest.Reason,
+		BackupUserID:       leaveRequest.BackupUserID,
+		CanContactIfNeeded: leaveRequest.CanContactIfNeeded,
+		Status:             string(leaveRequest.Status),
+		CreatedAt:          formatAPITime(leaveRequest.CreatedAt),
+		UpdatedAt:          formatAPITime(leaveRequest.UpdatedAt),
+		CancelledAt:        formatOptionalAPITime(leaveRequest.CancelledAt),
 	}
 }
 
@@ -207,17 +233,43 @@ ToServiceInput maps an API create-leave request to service input.
 */
 func (r CreateLeaveRequest) ToServiceInput(actorUserID string) service.CreateLeaveInput {
 	return service.CreateLeaveInput{
-		ActorUserID:  actorUserID,
-		WorkspaceID:  r.WorkspaceID,
-		LeaveTypeID:  r.LeaveTypeID,
-		StartDate:    r.StartDate,
-		EndDate:      r.EndDate,
-		DurationMode: r.DurationMode,
-		HalfDayPart:  r.HalfDayPart,
-		StartTime:    r.StartTime,
-		EndTime:      r.EndTime,
-		Reason:       r.Reason,
-		BackupUserID: r.BackupUserID,
+		ActorUserID:        actorUserID,
+		WorkspaceID:        r.WorkspaceID,
+		LeaveTypeID:        r.LeaveTypeID,
+		StartDate:          r.StartDate,
+		EndDate:            r.EndDate,
+		DurationMode:       r.DurationMode,
+		HalfDayPart:        r.HalfDayPart,
+		StartTime:          r.StartTime,
+		EndTime:            r.EndTime,
+		Reason:             r.Reason,
+		BackupUserID:       r.BackupUserID,
+		CanContactIfNeeded: r.CanContactIfNeeded,
+	}
+}
+
+/*
+ToServiceInput maps an API update-leave request to service input.
+*/
+func (r UpdateLeaveRequest) ToServiceInput(
+	actorUserID string,
+	isSystemAdmin bool,
+	leaveRequestID string,
+) service.UpdateLeaveInput {
+	return service.UpdateLeaveInput{
+		ActorUserID:        actorUserID,
+		IsSystemAdmin:      isSystemAdmin,
+		LeaveRequestID:     leaveRequestID,
+		LeaveTypeID:        r.LeaveTypeID,
+		StartDate:          r.StartDate,
+		EndDate:            r.EndDate,
+		DurationMode:       r.DurationMode,
+		HalfDayPart:        r.HalfDayPart,
+		StartTime:          r.StartTime,
+		EndTime:            r.EndTime,
+		Reason:             r.Reason,
+		BackupUserID:       r.BackupUserID,
+		CanContactIfNeeded: r.CanContactIfNeeded,
 	}
 }
 

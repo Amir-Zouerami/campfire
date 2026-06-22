@@ -34,6 +34,7 @@ type StandupOccurrenceSummary struct {
 	SubmittedUserIDs []string
 	MissingUserIDs   []string
 	OnLeaveUserIDs   []string
+	ExcludedUserIDs  []string
 
 	Submissions []domain.StandupSubmissionWithAnswers
 }
@@ -117,6 +118,16 @@ type UpdateStandupTemplateInput struct {
 }
 
 /*
+DeleteStandupTemplateInput identifies one template to delete.
+*/
+type DeleteStandupTemplateInput struct {
+	ActorUserID   string
+	IsSystemAdmin bool
+	WorkspaceID   string
+	TemplateID    string
+}
+
+/*
 CreateStandupQuestionInput contains user-submitted question data.
 */
 type CreateStandupQuestionInput struct {
@@ -160,6 +171,16 @@ type UpdateStandupQuestionInput struct {
 }
 
 /*
+DeleteStandupQuestionInput identifies one question to delete.
+*/
+type DeleteStandupQuestionInput struct {
+	ActorUserID   string
+	IsSystemAdmin bool
+	WorkspaceID   string
+	QuestionID    string
+}
+
+/*
 CreateStandupScheduleInput contains user-submitted schedule data.
 */
 type CreateStandupScheduleInput struct {
@@ -192,6 +213,16 @@ type UpdateStandupScheduleInput struct {
 	SkipNonWorkingDays      bool
 	WeeklyMode              string
 	SkipDailyWhenWeeklyRuns bool
+}
+
+/*
+DeleteStandupScheduleInput identifies one schedule to delete.
+*/
+type DeleteStandupScheduleInput struct {
+	ActorUserID   string
+	IsSystemAdmin bool
+	WorkspaceID   string
+	ScheduleID    string
 }
 
 /*
@@ -368,6 +399,45 @@ func (s *StandupService) UpdateTemplate(
 }
 
 /*
+DeleteTemplate deletes a standup template.
+
+Deleting a template is intentionally an admin-level destructive operation: the
+database cascades dependent questions, schedules, submissions, report rules,
+reminder rules, and generated rows so accidental form-builder clutter can be
+removed cleanly instead of leaving dangling configuration behind.
+*/
+func (s *StandupService) DeleteTemplate(ctx context.Context, input DeleteStandupTemplateInput) error {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return NewError(ErrorCodePermissionDenied, "You must be signed in to delete standup templates.")
+	}
+
+	workspaceID, err := s.requireStandupWorkspace(ctx, input.WorkspaceID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.requireStandupManagement(ctx, cleanActorUserID, input.IsSystemAdmin, workspaceID); err != nil {
+		return err
+	}
+
+	templateID := domain.ID(strings.TrimSpace(input.TemplateID))
+	if templateID.String() == "" {
+		return NewError(ErrorCodeValidationFailed, "Template ID is required.")
+	}
+
+	if err := s.standupStore.DeleteTemplate(ctx, workspaceID, templateID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return NewError(ErrorCodeNotFound, "Standup template was not found.")
+		}
+
+		return NewError(ErrorCodeInternal, "Could not delete standup template.")
+	}
+
+	return nil
+}
+
+/*
 CreateQuestion creates a standup question.
 */
 func (s *StandupService) CreateQuestion(
@@ -514,6 +584,43 @@ func (s *StandupService) UpdateQuestion(
 }
 
 /*
+DeleteQuestion deletes a standup question.
+
+Answers tied to the deleted question are removed by database cascade so reports
+and submissions no longer reference a removed form field.
+*/
+func (s *StandupService) DeleteQuestion(ctx context.Context, input DeleteStandupQuestionInput) error {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return NewError(ErrorCodePermissionDenied, "You must be signed in to delete standup questions.")
+	}
+
+	workspaceID, err := s.requireStandupWorkspace(ctx, input.WorkspaceID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.requireStandupManagement(ctx, cleanActorUserID, input.IsSystemAdmin, workspaceID); err != nil {
+		return err
+	}
+
+	questionID := domain.ID(strings.TrimSpace(input.QuestionID))
+	if questionID.String() == "" {
+		return NewError(ErrorCodeValidationFailed, "Question ID is required.")
+	}
+
+	if err := s.standupStore.DeleteQuestion(ctx, workspaceID, questionID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return NewError(ErrorCodeNotFound, "Standup question was not found.")
+		}
+
+		return NewError(ErrorCodeInternal, "Could not delete standup question.")
+	}
+
+	return nil
+}
+
+/*
 CreateSchedule creates a standup schedule.
 */
 func (s *StandupService) CreateSchedule(
@@ -654,6 +761,44 @@ func (s *StandupService) UpdateSchedule(
 }
 
 /*
+DeleteSchedule deletes a standup schedule.
+
+Deleting a schedule also removes dependent reminder rules, report rules,
+notification runs, report runs, and schedule-scoped submissions through database
+cascades. This keeps schedule cleanup explicit and deterministic for admins.
+*/
+func (s *StandupService) DeleteSchedule(ctx context.Context, input DeleteStandupScheduleInput) error {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return NewError(ErrorCodePermissionDenied, "You must be signed in to delete standup schedules.")
+	}
+
+	workspaceID, err := s.requireStandupWorkspace(ctx, input.WorkspaceID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.requireStandupManagement(ctx, cleanActorUserID, input.IsSystemAdmin, workspaceID); err != nil {
+		return err
+	}
+
+	scheduleID := domain.ID(strings.TrimSpace(input.ScheduleID))
+	if scheduleID.String() == "" {
+		return NewError(ErrorCodeValidationFailed, "Schedule ID is required.")
+	}
+
+	if err := s.standupStore.DeleteSchedule(ctx, workspaceID, scheduleID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return NewError(ErrorCodeNotFound, "Standup schedule was not found.")
+		}
+
+		return NewError(ErrorCodeInternal, "Could not delete standup schedule.")
+	}
+
+	return nil
+}
+
+/*
 ListConfiguration returns standup templates, questions, and schedules for a workspace.
 */
 func (s *StandupService) ListConfiguration(
@@ -752,7 +897,17 @@ func (s *StandupService) ListSubmissions(
 	sortMode := normalizeStandupSubmissionSortMode(input.SortMode)
 	sortStandupSubmissions(submissions, sortMode)
 
-	memberUserIDs = uniqueNonEmptyStrings(memberUserIDs)
+	memberUserIDs, excludedUserIDs, err := standupParticipantsFromMembers(
+		ctx,
+		s.workspaceRoleStore,
+		workspaceID,
+		memberUserIDs,
+	)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not load standup exclusions.")
+	}
+
+	submissions = filterStandupSubmissionsForParticipants(submissions, memberUserIDs)
 	submittedUserIDs := submittedUserIDsFromSubmissions(submissions)
 	onLeaveUserIDs := onLeaveMemberUserIDs(memberUserIDs, approvedLeaveUserIDSet(approvedLeaves))
 	missingUserIDs := missingStandupUserIDs(memberUserIDs, submittedUserIDs, onLeaveUserIDs)
@@ -766,6 +921,7 @@ func (s *StandupService) ListSubmissions(
 		SubmittedUserIDs: submittedUserIDs,
 		MissingUserIDs:   missingUserIDs,
 		OnLeaveUserIDs:   onLeaveUserIDs,
+		ExcludedUserIDs:  excludedUserIDs,
 
 		Submissions: submissions,
 	}, nil
@@ -893,6 +1049,10 @@ func (s *StandupService) Submit(ctx context.Context, input SubmitStandupInput) (
 	}
 
 	if err := requireSubmissionDateIsNotFuture(occurrenceDate, workspace.Timezone); err != nil {
+		return nil, err
+	}
+
+	if err := requireUserIsStandupParticipant(ctx, s.workspaceRoleStore, workspaceID, cleanActorUserID); err != nil {
 		return nil, err
 	}
 
@@ -1177,6 +1337,11 @@ func (s *StandupService) requireStandupRunsForSubmission(
 		return NewError(ErrorCodeInternal, "Could not evaluate workspace members.")
 	}
 
+	memberUserIDs, excludedUserIDs, err := standupParticipantsFromMembers(ctx, s.workspaceRoleStore, workspace.ID, memberUserIDs)
+	if err != nil {
+		return NewError(ErrorCodeInternal, "Could not evaluate standup exclusions.")
+	}
+
 	isLastWorkingDayOfWeek, err := s.isLastWorkingDayOfWeek(ctx, workspace, date)
 	if err != nil {
 		return err
@@ -1191,6 +1356,7 @@ func (s *StandupService) requireStandupRunsForSubmission(
 		workspaceOffDays,
 		approvedLeaves,
 		memberUserIDs,
+		excludedUserIDs,
 	)
 	if !decision.ShouldRun {
 		return NewError(ErrorCodeValidationFailed, decision.Message)
@@ -1227,9 +1393,8 @@ func (s *StandupService) requireScheduleAllowsSubmissionDate(
 		}
 
 	case domain.StandupKindDaily:
-		if schedule.SkipDailyWhenWeeklyRuns && isLastWorkingDayOfWeek && hasEnabledWeeklyLastWorkingDaySchedule(schedules) {
-			return NewError(ErrorCodeValidationFailed, "Daily standup is skipped because the weekly standup runs on this workspace date.")
-		}
+		// Daily and weekly schedules are independent. A weekly schedule must never
+		// suppress a daily submission window for the same workspace date.
 	}
 
 	return nil
@@ -1250,20 +1415,6 @@ func (s *StandupService) isLastWorkingDayOfWeek(
 	}
 
 	return isLastWorkingDayInWeek(date, workspace.Timezone, workingDays), nil
-}
-
-/*
-hasEnabledWeeklyLastWorkingDaySchedule reports whether any weekly schedule is
-configured to run on the last working day of the week.
-*/
-func hasEnabledWeeklyLastWorkingDaySchedule(schedules []domain.StandupSchedule) bool {
-	for _, schedule := range schedules {
-		if schedule.Enabled && schedule.Kind == domain.StandupKindWeekly && schedule.WeeklyMode == domain.WeeklyModeLastWorkingDay {
-			return true
-		}
-	}
-
-	return false
 }
 
 /*
@@ -1352,7 +1503,7 @@ func buildStandupQuestionFromInput(
 	}
 
 	if createsTasks && !questionTypeCanCreateTasks(typedQuestion) {
-		return nil, NewError(ErrorCodeValidationFailed, "Only text and long-text standup questions can create tasks.")
+		return nil, NewError(ErrorCodeValidationFailed, "Only work-items standup questions can create tasks.")
 	}
 
 	cleanOptions := normalizeQuestionOptions(options)
@@ -1428,6 +1579,10 @@ func isValidQuestionType(questionType domain.QuestionType) bool {
 	switch questionType {
 	case domain.QuestionTypeText,
 		domain.QuestionTypeLongText,
+		domain.QuestionTypeWorkItems,
+		domain.QuestionTypeDate,
+		domain.QuestionTypeTime,
+		domain.QuestionTypeDateTime,
 		domain.QuestionTypeCheckbox,
 		domain.QuestionTypeBoolean,
 		domain.QuestionTypeDropdown,
@@ -1444,12 +1599,12 @@ func isValidQuestionType(questionType domain.QuestionType) bool {
 questionTypeCanCreateTasks returns true when a standup question can safely
 produce task records from itemized answer text.
 
-Only free-text question types are allowed because selectable/boolean/numeric
-answers do not represent user-authored work items.
+Only the explicit work-items question type is allowed. Plain text questions are
+freeform narrative fields and must not secretly create task records.
 */
 func questionTypeCanCreateTasks(questionType domain.QuestionType) bool {
 	switch questionType {
-	case domain.QuestionTypeText, domain.QuestionTypeLongText:
+	case domain.QuestionTypeWorkItems:
 		return true
 	default:
 		return false
@@ -1513,8 +1668,12 @@ func buildStandupScheduleFromInput(
 
 	if kind != domain.StandupKindWeekly {
 		weeklyMode = domain.WeeklyModeNone
-		skipDailyWhenWeeklyRuns = false
 	}
+
+	// Weekly and daily schedules are independent in Campfire. The legacy
+	// skipDailyWhenWeeklyRuns field stays in the API/database only for backward
+	// compatibility and must not create runtime coupling.
+	skipDailyWhenWeeklyRuns = false
 
 	return &domain.StandupSchedule{
 		ID:                      scheduleID,
@@ -1709,11 +1868,59 @@ func validateAnswerJSON(question domain.StandupQuestion, valueJSON string) error
 	switch question.Type {
 	case domain.QuestionTypeText,
 		domain.QuestionTypeLongText,
-		domain.QuestionTypeDropdown,
-		domain.QuestionTypeDuration:
+		domain.QuestionTypeWorkItems,
+		domain.QuestionTypeDropdown:
 		var value string
 		if err := json.Unmarshal(raw, &value); err != nil {
 			return NewError(ErrorCodeValidationFailed, "Standup answer must be a JSON string.")
+		}
+
+		return nil
+
+	case domain.QuestionTypeDate:
+		var value string
+		if err := json.Unmarshal(raw, &value); err != nil {
+			return NewError(ErrorCodeValidationFailed, "Standup answer must be a JSON date string.")
+		}
+
+		if strings.TrimSpace(value) == "" {
+			return nil
+		}
+
+		if _, err := time.Parse("2006-01-02", value); err != nil {
+			return NewError(ErrorCodeValidationFailed, "Date answers must use YYYY-MM-DD format.")
+		}
+
+		return nil
+
+	case domain.QuestionTypeTime:
+		var value string
+		if err := json.Unmarshal(raw, &value); err != nil {
+			return NewError(ErrorCodeValidationFailed, "Standup answer must be a JSON time string.")
+		}
+
+		if strings.TrimSpace(value) == "" {
+			return nil
+		}
+
+		if _, err := time.Parse("15:04", value); err != nil {
+			return NewError(ErrorCodeValidationFailed, "Time answers must use HH:mm format.")
+		}
+
+		return nil
+
+	case domain.QuestionTypeDateTime:
+		var value string
+		if err := json.Unmarshal(raw, &value); err != nil {
+			return NewError(ErrorCodeValidationFailed, "Standup answer must be a JSON date-time string.")
+		}
+
+		if strings.TrimSpace(value) == "" {
+			return nil
+		}
+
+		if _, err := time.Parse("2006-01-02T15:04", value); err != nil {
+			return NewError(ErrorCodeValidationFailed, "Date-time answers must use YYYY-MM-DDTHH:mm format.")
 		}
 
 		return nil
@@ -1734,7 +1941,7 @@ func validateAnswerJSON(question domain.StandupQuestion, valueJSON string) error
 
 		return nil
 
-	case domain.QuestionTypeNumber:
+	case domain.QuestionTypeNumber, domain.QuestionTypeDuration:
 		var value float64
 		if err := json.Unmarshal(raw, &value); err != nil {
 			return NewError(ErrorCodeValidationFailed, "Standup answer must be a JSON number.")

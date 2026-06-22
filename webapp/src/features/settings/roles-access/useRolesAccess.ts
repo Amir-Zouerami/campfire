@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
-import { toast } from '@/components/campfire/campfire-toast';
+import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { deleteWorkspaceRole, listWorkspaceRoles, upsertWorkspaceRole } from '@/api';
+import { toast } from '@/components/campfire/campfire-toast';
+import { useI18n } from '@/i18n';
+import { campfireQueryKeys } from '@/query';
 import type { Workspace, WorkspaceRoleOverview } from '@/types/domain';
 
 import {
@@ -37,6 +40,7 @@ export type UseRolesAccessResult = {
 	readonly userIDsForProfiles: readonly string[];
 	readonly assignmentDraft: RoleAssignmentDraft;
 	readonly message: string;
+	readonly messageTone: 'success' | 'error';
 	readonly savingKey: string;
 	readonly isBusy: boolean;
 	readonly updateAssignmentDraft: (patch: Partial<RoleAssignmentDraft>) => void;
@@ -46,70 +50,88 @@ export type UseRolesAccessResult = {
 };
 
 /**
- * useRolesAccess owns loading and mutating workspace role assignments.
+ * useRolesAccess owns workspace role query state and role mutations.
  */
 export function useRolesAccess(input: UseRolesAccessInput): UseRolesAccessResult {
-	const [loadState, setLoadState] = useState<RolesAccessLoadState>('idle');
-	const [roles, setRoles] = useState<WorkspaceRoleOverview | null>(null);
+	const { t } = useI18n();
+	const queryClient = useQueryClient();
 	const [assignmentDraft, setAssignmentDraft] = useState<RoleAssignmentDraft>(emptyRoleAssignmentDraft());
 	const [message, setMessage] = useState('');
+	const [messageTone, setMessageTone] = useState<'success' | 'error'>('success');
 	const [savingKey, setSavingKey] = useState('');
 
-	useEffect(() => {
-		let isActive = true;
+	const rolesQueryKey = campfireQueryKeys.workspaceRoles(input.workspace.id);
+	const rolesQuery = useQuery({
+		queryKey: rolesQueryKey,
+		queryFn: () => listWorkspaceRoles(input.workspace.id),
+	});
 
-		/**
-		 * loadRoles loads workspace role settings and effective role groups.
-		 */
-		async function loadRoles(): Promise<void> {
-			setLoadState('loading');
-			setMessage('');
+	const assignMutation = useMutation({
+		mutationFn: async () => {
+			return upsertWorkspaceRole(input.workspace.id, {
+				userId: assignmentDraft.userID.trim(),
+				role: assignmentDraft.role,
+			});
+		},
+		onSuccess: response => {
+			queryClient.setQueryData(rolesQueryKey, response);
+			setAssignmentDraft(emptyRoleAssignmentDraft());
+			setSavingKey('');
+			setMessage(t('settings.roles.toast.assigned'));
+			setMessageTone('success');
+			toast.success(t('settings.roles.toast.assigned'));
+		},
+		onError: error => {
+			const errorMessage = errorToMessage(error, t);
+			setSavingKey('');
+			setMessage(errorMessage);
+			setMessageTone('error');
+			toast.error(errorMessage);
+		},
+	});
 
-			try {
-				const response = await listWorkspaceRoles(input.workspace.id);
+	const removeMutation = useMutation({
+		mutationFn: async (inputValue: { readonly role: AssignableWorkspaceRole; readonly userID: string }) => {
+			return deleteWorkspaceRole(input.workspace.id, inputValue.role, inputValue.userID);
+		},
+		onSuccess: response => {
+			queryClient.setQueryData(rolesQueryKey, response);
+			setSavingKey('');
+			const successMessage = response.deleted
+				? t('settings.roles.toast.removed')
+				: t('settings.roles.toast.alreadyAbsent');
+			setMessage(successMessage);
+			setMessageTone('success');
+			toast.success(successMessage);
+		},
+		onError: error => {
+			const errorMessage = errorToMessage(error, t);
+			setSavingKey('');
+			setMessage(errorMessage);
+			setMessageTone('error');
+			toast.error(errorMessage);
+		},
+	});
 
-				if (!isActive) {
-					return;
-				}
-
-				setRoles(response.roles);
-				setLoadState('ready');
-			} catch (error: unknown) {
-				if (!isActive) {
-					return;
-				}
-
-				setMessage(errorToMessage(error));
-				setLoadState('error');
-			}
-		}
-
-		void loadRoles();
-
-		return () => {
-			isActive = false;
-		};
-	}, [input.workspace.id]);
-
+	const roles = rolesQuery.data?.roles ?? null;
 	const roleGroups = useMemo(() => buildRoleGroups(roles), [roles]);
 	const userIDsForProfiles = useMemo(() => collectRoleUserIDs(roles), [roles]);
-	const isBusy = loadState === 'loading' || loadState === 'saving';
+	const loadState = deriveRolesLoadState(
+		rolesQuery.isLoading,
+		rolesQuery.isError,
+		assignMutation.isPending || removeMutation.isPending,
+		roles,
+	);
+	const isBusy = rolesQuery.isLoading || assignMutation.isPending || removeMutation.isPending;
+	const currentMessage = rolesQuery.isError ? errorToMessage(rolesQuery.error, t) : message;
 
 	/**
 	 * reload manually reloads role data.
 	 */
 	async function reload(): Promise<void> {
-		setLoadState('loading');
 		setMessage('');
-
-		try {
-			const response = await listWorkspaceRoles(input.workspace.id);
-			setRoles(response.roles);
-			setLoadState('ready');
-		} catch (error: unknown) {
-			setMessage(errorToMessage(error));
-			setLoadState('error');
-		}
+		setMessageTone('success');
+		await rolesQuery.refetch();
 	}
 
 	/**
@@ -127,42 +149,22 @@ export function useRolesAccess(input: UseRolesAccessInput): UseRolesAccessResult
 	 */
 	async function assignRole(): Promise<void> {
 		if (!input.canManageRoles) {
-			setLoadState('error');
-			setMessage('Only workspace Leads and system admins can manage role assignments.');
+			setMessage(t('settings.roles.error.permission'));
+			setMessageTone('error');
 			return;
 		}
 
-		const validationMessage = validateRoleAssignmentDraft(assignmentDraft);
+		const validationMessage = validateRoleAssignmentDraft(assignmentDraft, t);
 		if (validationMessage !== null) {
-			setLoadState('error');
 			setMessage(validationMessage);
+			setMessageTone('error');
 			return;
 		}
 
-		setLoadState('saving');
 		setSavingKey('assign-role');
 		setMessage('');
-
-		try {
-			const response = await upsertWorkspaceRole(input.workspace.id, {
-				userId: assignmentDraft.userID.trim(),
-				role: assignmentDraft.role,
-			});
-
-			setRoles(response.roles);
-			setAssignmentDraft(emptyRoleAssignmentDraft());
-			setLoadState('ready');
-			setSavingKey('');
-			setMessage('Role assigned.');
-			toast.success('Role assigned.');
-		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
-
-			setLoadState('error');
-			setSavingKey('');
-			setMessage(errorMessage);
-			toast.error(errorMessage);
-		}
+		setMessageTone('success');
+		await assignMutation.mutateAsync().catch(() => undefined);
 	}
 
 	/**
@@ -170,8 +172,8 @@ export function useRolesAccess(input: UseRolesAccessInput): UseRolesAccessResult
 	 */
 	async function removeRole(role: AssignableWorkspaceRole, userID: string): Promise<void> {
 		if (!input.canManageRoles) {
-			setLoadState('error');
-			setMessage('Only workspace Leads and system admins can manage role assignments.');
+			setMessage(t('settings.roles.error.permission'));
+			setMessageTone('error');
 			return;
 		}
 
@@ -184,28 +186,10 @@ export function useRolesAccess(input: UseRolesAccessInput): UseRolesAccessResult
 			return;
 		}
 
-		const key = `${role}:${cleanUserID}`;
-
-		setLoadState('saving');
-		setSavingKey(key);
+		setSavingKey(`${role}:${cleanUserID}`);
 		setMessage('');
-
-		try {
-			const response = await deleteWorkspaceRole(input.workspace.id, role, cleanUserID);
-
-			setRoles(response.roles);
-			setLoadState('ready');
-			setSavingKey('');
-			setMessage(response.deleted ? 'Role removed.' : 'Role assignment was already absent.');
-			toast.success(response.deleted ? 'Role removed.' : 'Role assignment was already absent.');
-		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
-
-			setLoadState('error');
-			setSavingKey('');
-			setMessage(errorMessage);
-			toast.error(errorMessage);
-		}
+		setMessageTone('success');
+		await removeMutation.mutateAsync({ role, userID: cleanUserID }).catch(() => undefined);
 	}
 
 	return {
@@ -214,7 +198,8 @@ export function useRolesAccess(input: UseRolesAccessInput): UseRolesAccessResult
 		roleGroups,
 		userIDsForProfiles,
 		assignmentDraft,
-		message,
+		message: currentMessage,
+		messageTone: rolesQuery.isError ? 'error' : messageTone,
 		savingKey,
 		isBusy,
 		updateAssignmentDraft,
@@ -222,4 +207,32 @@ export function useRolesAccess(input: UseRolesAccessInput): UseRolesAccessResult
 		removeRole,
 		reload,
 	};
+}
+
+/**
+ * deriveRolesLoadState keeps page rendering independent from TanStack internals.
+ */
+function deriveRolesLoadState(
+	isLoading: boolean,
+	isError: boolean,
+	isSaving: boolean,
+	roles: WorkspaceRoleOverview | null,
+): RolesAccessLoadState {
+	if (isSaving) {
+		return 'saving';
+	}
+
+	if (isLoading) {
+		return 'loading';
+	}
+
+	if (isError) {
+		return 'error';
+	}
+
+	if (roles !== null) {
+		return 'ready';
+	}
+
+	return 'idle';
 }

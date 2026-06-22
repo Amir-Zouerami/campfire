@@ -34,8 +34,10 @@ type StandupFormsPanelProps = {
 	readonly onQuestionDraftChange: (questionID: string, patch: StandupQuestionDraftPatch) => void;
 	readonly onCreateTemplate: () => Promise<void>;
 	readonly onSaveTemplate: (template: StandupTemplate) => Promise<void>;
+	readonly onDeleteTemplate: (template: StandupTemplate) => Promise<boolean>;
 	readonly onCreateQuestion: () => Promise<void>;
 	readonly onSaveQuestion: (question: StandupQuestion) => Promise<void>;
+	readonly onDeleteQuestion: (question: StandupQuestion) => Promise<boolean>;
 };
 
 /**
@@ -148,6 +150,8 @@ export function StandupFormsPanel(props: StandupFormsPanelProps): ReactElement {
 				onEditQuestion={openQuestion}
 				onTemplateDraftChange={props.onTemplateDraftChange}
 				onSaveTemplate={props.onSaveTemplate}
+				onDeleteTemplate={props.onDeleteTemplate}
+				onDeleteQuestion={props.onDeleteQuestion}
 			/>
 		);
 	}
@@ -178,11 +182,13 @@ export function StandupFormsPanel(props: StandupFormsPanelProps): ReactElement {
 				draft={editingQuestion.draft}
 				disabled={formDisabled}
 				saving={props.savingID === editingQuestion.question.id}
+				deleting={props.savingID === `delete-question-${editingQuestion.question.id}`}
 				allowTemplateChange={true}
 				changed={changed}
 				onBack={() => setView('template')}
 				onDraftChange={patch => props.onQuestionDraftChange(editingQuestion.question.id, patch)}
 				onSave={() => props.onSaveQuestion(editingQuestion.question)}
+				onDelete={() => props.onDeleteQuestion(editingQuestion.question)}
 			/>
 		);
 	}

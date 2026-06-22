@@ -2,11 +2,13 @@ import type { ReactElement } from 'react';
 
 import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
 import { CampfirePageIntro } from '@/components/campfire/CampfirePageIntro';
+import { useI18n } from '@/i18n';
 import type { Workspace } from '@/types/domain';
 
 import { MyActiveLeavePanel } from './MyActiveLeavePanel';
 import { MyLeaveFeedback, MyLeaveLoading, MyLeaveWarnings } from './MyLeaveFeedback';
 import { MyLeaveRequestPanel } from './MyLeaveRequestPanel';
+import { useMyLeaveText } from './my-leave.i18n';
 import { useMyLeave } from './useMyLeave';
 
 /**
@@ -22,18 +24,20 @@ type MyLeavePageProps = {
  * MyLeavePage renders the personal leave workflow as one focused page.
  */
 export function MyLeavePage(props: MyLeavePageProps): ReactElement {
+	const { t } = useI18n();
+	const leaveText = useMyLeaveText();
 	const leave = useMyLeave({
 		workspace: props.workspace,
+		text: leaveText,
 		onLeaveCreated: props.onLeaveCreated,
 		onLeaveCancelled: props.onLeaveCancelled,
 	});
-
 	return (
 		<div className="campfire-page-stack campfire-my-leave-page">
 			<CampfirePageIntro
-				eyebrow="My leave"
-				title="Request and manage leave"
-				description="Create a request, review active leave, and cancel requests when allowed."
+				eyebrow={t('myDay.leave.page.eyebrow')}
+				title={t('myDay.leave.page.title')}
+				description={t('myDay.leave.page.description')}
 			/>
 
 			<MyLeaveFeedback state={leave.loadState} message={leave.message} />
@@ -41,8 +45,8 @@ export function MyLeavePage(props: MyLeavePageProps): ReactElement {
 
 			{leave.loadState !== 'loading' && leave.leaveTypes.length === 0 && (
 				<CampfireEmpty
-					title="No leave types"
-					description="A Lead needs to configure leave types before members can request leave."
+					title={t('myDay.leave.empty.types.title')}
+					description={t('myDay.leave.empty.types.description')}
 				/>
 			)}
 
@@ -56,15 +60,19 @@ export function MyLeavePage(props: MyLeavePageProps): ReactElement {
 							leaveTypes={leave.leaveTypes}
 							disabled={leave.isBusy}
 							timezone={props.workspace.timezone}
+							workingDays={props.workspace.workingDays}
 							onChange={leave.updateDraft}
 							onSubmit={leave.submitLeaveRequest}
 						/>
 
 						<MyActiveLeavePanel
 							leaveRequests={leave.myActiveLeaves}
+							leaveTypes={leave.leaveTypes}
 							disabled={leave.isBusy}
 							timezone={props.workspace.timezone}
+							workingDays={props.workspace.workingDays}
 							onCancel={leave.cancelMyLeaveRequest}
+							onRequestChange={leave.requestMyLeaveChange}
 						/>
 					</div>
 				</>
@@ -72,3 +80,4 @@ export function MyLeavePage(props: MyLeavePageProps): ReactElement {
 		</div>
 	);
 }
+

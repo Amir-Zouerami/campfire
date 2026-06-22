@@ -65,25 +65,68 @@ const (
 )
 
 /*
-ReportLanguage identifies the language used for generated report copy.
+Language identifies a generated Campfire language.
+
+It is shared by reports, notifications, seeded workspace defaults, and the
+frontend shell language setting so generated copy has one stable vocabulary.
 */
-type ReportLanguage string
+type Language string
+
+const (
+	/*
+		LanguageEnglish renders generated labels in English.
+	*/
+	LanguageEnglish Language = "english"
+
+	/*
+		LanguagePersian renders generated labels in Persian.
+	*/
+	LanguagePersian Language = "persian"
+
+	/*
+		LanguageArabic renders generated labels in Arabic.
+	*/
+	LanguageArabic Language = "arabic"
+)
+
+/*
+TextDirection identifies the base writing direction for generated UI/message copy.
+*/
+type TextDirection string
+
+const (
+	/*
+		TextDirectionLTR identifies left-to-right layout.
+	*/
+	TextDirectionLTR TextDirection = "ltr"
+
+	/*
+		TextDirectionRTL identifies right-to-left layout.
+	*/
+	TextDirectionRTL TextDirection = "rtl"
+)
+
+/*
+ReportLanguage is kept as a backwards-compatible alias for report code while
+Campfire moves toward one generated-message language model.
+*/
+type ReportLanguage = Language
 
 const (
 	/*
 		ReportLanguageEnglish renders generated report labels in English.
 	*/
-	ReportLanguageEnglish ReportLanguage = "english"
+	ReportLanguageEnglish = LanguageEnglish
 
 	/*
 		ReportLanguagePersian renders generated report labels in Persian.
 	*/
-	ReportLanguagePersian ReportLanguage = "persian"
+	ReportLanguagePersian = LanguagePersian
 
 	/*
 		ReportLanguageArabic renders generated report labels in Arabic.
 	*/
-	ReportLanguageArabic ReportLanguage = "arabic"
+	ReportLanguageArabic = LanguageArabic
 )
 
 /*

@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
-import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 
+import { CampfireInlineLoading } from '@/components/campfire/CampfireLoading';
 import { cn } from '@/lib/utils';
 
 /**
@@ -112,9 +113,8 @@ export function CampfireFeedbackList(props: CampfireFeedbackListProps): ReactEle
  */
 export function CampfireLoadingFeedback(props: CampfireLoadingFeedbackProps): ReactElement {
 	return (
-		<div className="campfire-loading-feedback cf:flex cf:items-center cf:gap-3 cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4 cf:text-sm cf:font-medium cf:text-slate-300">
-			<Loader2 className="cf:size-4 cf:animate-spin cf:text-amber-200" />
-			{props.message}
+		<div className="campfire-loading-feedback cf:rounded-2xl cf:border cf:border-white/10 cf:bg-white/5 cf:p-4">
+			<CampfireInlineLoading label={props.message} />
 		</div>
 	);
 }

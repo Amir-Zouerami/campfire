@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
 import { CampfirePageIntro } from '@/components/campfire/CampfirePageIntro';
+import { useI18n } from '@/i18n';
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
 
 import { ReportRulesFeedback, ReportRulesLoading } from './ReportRulesFeedback';
@@ -11,6 +12,7 @@ import { useReportRules } from './useReportRules';
  * ReportRulesSettingsPage renders scheduled report-rule configuration.
  */
 export function ReportRulesSettingsPage(props: WorkspaceShellProps): ReactElement {
+	const { t } = useI18n();
 	const canManageReportRules = props.canManageWorkspace || props.isSystemAdmin;
 
 	const reportRules = useReportRules({
@@ -21,17 +23,22 @@ export function ReportRulesSettingsPage(props: WorkspaceShellProps): ReactElemen
 	return (
 		<div className="campfire-page-stack campfire-settings-workflow campfire-settings-workflow--minimal">
 			<CampfirePageIntro
-				eyebrow="Report rules"
-				title="Scheduled report behavior"
-				description="Choose what scheduled reports include and whether they post automatically. Manual preview and one-off posting stay in Reports."
+				eyebrow={t('settings.reportRules.page.eyebrow')}
+				title={t('settings.reportRules.page.title')}
+				description={t('settings.reportRules.page.description')}
 			/>
 
-			<ReportRulesFeedback state={reportRules.loadState} message={reportRules.message} />
+			<ReportRulesFeedback
+				state={reportRules.loadState}
+				message={reportRules.message}
+				messageTone={reportRules.messageTone}
+			/>
 
 			{!canManageReportRules && (
 				<ReportRulesFeedback
 					state="error"
-					message="You can view report rules, but only workspace Leads and system admins can edit them."
+					message={t('settings.reportRules.error.permissionViewOnly')}
+					messageTone="error"
 				/>
 			)}
 

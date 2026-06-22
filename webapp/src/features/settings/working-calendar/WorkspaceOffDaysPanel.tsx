@@ -5,6 +5,7 @@ import { CampfireBidiText, CampfireEllipsisText } from '@/components/campfire/Ca
 import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
 import { CampfireSettingsPanel } from '@/components/campfire/CampfireSettingsPanel';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/i18n';
 import { sortByNewest } from '@/lib/sort';
 import type { WorkspaceOffDay } from '@/types/domain';
 
@@ -25,19 +26,20 @@ type WorkspaceOffDaysPanelProps = {
  * WorkspaceOffDaysPanel renders workspace off-days.
  */
 export function WorkspaceOffDaysPanel(props: WorkspaceOffDaysPanelProps): ReactElement {
+	const { htmlLang, t } = useI18n();
 	const offDays = sortByNewest(props.offDays, offDay => offDay.date || offDay.createdAt);
 
 	return (
 		<CampfireSettingsPanel
-			eyebrow="Workspace off-days"
-			title="Holidays and skip dates"
-			description="Newest dates appear first so recent changes are easy to review."
+			eyebrow={t('settings.workingCalendar.offDays.eyebrow')}
+			title={t('settings.workingCalendar.offDays.title')}
+			description={t('settings.workingCalendar.offDays.description')}
 		>
 			{offDays.length === 0 ? (
 				<CampfireEmpty
 					icon={CalendarX2}
-					title="No workspace off-days"
-					description="Add holidays or skip dates that should suppress standup automation for this workspace."
+					title={t('settings.workingCalendar.offDays.empty.title')}
+					description={t('settings.workingCalendar.offDays.empty.description')}
 				/>
 			) : (
 				<div className="campfire-settings-flat-list">
@@ -47,6 +49,7 @@ export function WorkspaceOffDaysPanel(props: WorkspaceOffDaysPanelProps): ReactE
 							offDay={offDay}
 							disabled={props.disabled || !props.canManageCalendar}
 							deleting={props.deletingOffDayID === offDay.id}
+							locale={htmlLang}
 							onDelete={() => props.onDelete(offDay.id)}
 						/>
 					))}
@@ -63,8 +66,10 @@ function WorkspaceOffDayRow(props: {
 	readonly offDay: WorkspaceOffDay;
 	readonly disabled: boolean;
 	readonly deleting: boolean;
+	readonly locale: string;
 	readonly onDelete: () => Promise<void>;
 }): ReactElement {
+	const { t } = useI18n();
 	const isPast = workspaceOffDayIsPast(props.offDay);
 
 	return (
@@ -74,15 +79,15 @@ function WorkspaceOffDayRow(props: {
 				<p>
 					<CampfireBidiText>{props.offDay.date}</CampfireBidiText>
 					<span> · </span>
-					<span>{isPast ? 'Past date' : 'Upcoming'}</span>
+					<span>{isPast ? t('settings.workingCalendar.offDays.status.past') : t('settings.workingCalendar.offDays.status.upcoming')}</span>
 					<span> · </span>
-					<span>Created {formatDateTime(props.offDay.createdAt)}</span>
+					<span>{t('settings.workingCalendar.offDays.created', { date: formatDateTime(props.offDay.createdAt, props.locale) })}</span>
 				</p>
 			</div>
 
 			<Button type="button" variant="destructive" disabled={props.disabled} onClick={() => void props.onDelete()}>
 				<Trash2 className="cf:size-4" />
-				{props.deleting ? 'Deleting…' : 'Delete'}
+				{props.deleting ? t('settings.workingCalendar.offDays.deleting') : t('settings.workingCalendar.offDays.delete')}
 			</Button>
 		</article>
 	);

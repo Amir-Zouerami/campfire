@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
-import { toast } from '@/components/campfire/campfire-toast';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
 import { exportGlobalLeaveReportCSV, getGlobalLeaveReportSummary } from '@/api';
+import { toast } from '@/components/campfire/campfire-toast';
+import { useI18n } from '@/i18n';
+import { campfireQueryKeys } from '@/query';
 import type { GlobalLeaveReportSummary } from '@/types/domain';
 
 import {
@@ -31,21 +34,74 @@ export type UseGlobalLeaveReportResult = {
 };
 
 /**
- * useGlobalLeaveReport owns global leave report loading and CSV export.
+ * useGlobalLeaveReport owns range drafts and query-backed global leave loading.
  */
 export function useGlobalLeaveReport(isSystemAdmin: boolean): UseGlobalLeaveReportResult {
-	const [loadState, setLoadState] = useState<GlobalReportLoadState>('idle');
+	const { t } = useI18n();
 	const [range, setRange] = useState<GlobalDateRange>(defaultGlobalDateRange);
-	const [summary, setSummary] = useState<GlobalLeaveReportSummary | null>(null);
-	const [message, setMessage] = useState('');
+	const [queryRange, setQueryRange] = useState<GlobalDateRange | null>(null);
+	const [refreshToken, setRefreshToken] = useState(0);
+	const [manualError, setManualError] = useState('');
+	const [manualMessage, setManualMessage] = useState('');
 
+	const reportQuery = useQuery({
+		queryKey: campfireQueryKeys.globalLeaveReportSummary(
+			queryRange?.startDate ?? '',
+			queryRange?.endDate ?? '',
+			refreshToken,
+		),
+		queryFn: async (): Promise<GlobalLeaveReportSummary> => {
+			if (queryRange === null) {
+				throw new Error(t('reports.global.validation.loadReportFirst'));
+			}
+
+			const response = await getGlobalLeaveReportSummary(queryRange.startDate, queryRange.endDate);
+
+			return response.summary;
+		},
+		enabled: queryRange !== null,
+	});
+
+	const exportMutation = useMutation({
+		mutationFn: async (exportRange: GlobalDateRange): Promise<void> => {
+			const blob = await exportGlobalLeaveReportCSV(exportRange.startDate, exportRange.endDate);
+
+			downloadGlobalCSVBlob(blob, buildGlobalExportFilename('campfire-global-leaves', exportRange));
+		},
+		onSuccess: () => {
+			setManualError('');
+			setManualMessage(t('reports.global.leave.csv.downloaded'));
+			toast.success(t('reports.global.leave.csv.downloaded'));
+		},
+		onError: (error: unknown) => {
+			const errorMessage = errorToMessage(error, t('reports.global.error.fallback'));
+
+			setManualMessage('');
+			setManualError(errorMessage);
+			toast.error(errorMessage);
+		},
+	});
+
+	const summary = reportQuery.data ?? null;
 	const userIDsForProfiles = useMemo(() => collectGlobalLeaveUserIDs(summary), [summary]);
-	const isBusy = loadState === 'loading' || loadState === 'exporting';
+	const queryErrorMessage = reportQuery.isError
+		? errorToMessage(reportQuery.error, t('reports.global.error.fallback'))
+		: '';
+	const message = manualError || queryErrorMessage || manualMessage;
+	const loadState = resolveGlobalReportLoadState({
+		manualError,
+		queryErrorMessage,
+		queryLoading: reportQuery.isFetching,
+		exporting: exportMutation.isPending,
+		queryLoaded: queryRange !== null && summary !== null,
+	});
 
 	/**
 	 * updateRange patches global leave report filters.
 	 */
 	function updateRange(patch: GlobalDateRangePatch): void {
+		setManualError('');
+		setManualMessage('');
 		setRange(current => ({
 			...current,
 			...patch,
@@ -53,42 +109,29 @@ export function useGlobalLeaveReport(isSystemAdmin: boolean): UseGlobalLeaveRepo
 	}
 
 	/**
-	 * loadReport loads the global leave report.
+	 * loadReport validates the draft and runs the global leave query.
 	 */
 	async function loadReport(): Promise<void> {
 		if (!isSystemAdmin) {
-			setLoadState('error');
-			setMessage('Only system admins can view global leave reports.');
+			setManualMessage('');
+			setManualError(t('reports.global.leave.permission.view'));
 			return;
 		}
 
 		const normalizedRange = normalizeGlobalDateRange(range);
-		const validationMessage = validateGlobalDateRange(normalizedRange);
+		const validationMessage = validateGlobalDateRange(normalizedRange, t);
 
 		if (validationMessage !== null) {
-			setLoadState('error');
-			setMessage(validationMessage);
+			setManualMessage('');
+			setManualError(validationMessage);
 			return;
 		}
 
+		setManualError('');
+		setManualMessage('');
 		setRange(normalizedRange);
-		setLoadState('loading');
-		setMessage('');
-
-		try {
-			const response = await getGlobalLeaveReportSummary(normalizedRange.startDate, normalizedRange.endDate);
-
-			setSummary(response.summary);
-			setLoadState('ready');
-			setMessage('Global leave report loaded.');
-		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
-
-			setSummary(null);
-			setLoadState('error');
-			setMessage(errorMessage);
-			toast.error(errorMessage);
-		}
+		setQueryRange(normalizedRange);
+		setRefreshToken(current => current + 1);
 	}
 
 	/**
@@ -96,38 +139,24 @@ export function useGlobalLeaveReport(isSystemAdmin: boolean): UseGlobalLeaveRepo
 	 */
 	async function exportCSV(): Promise<void> {
 		if (!isSystemAdmin) {
-			setLoadState('error');
-			setMessage('Only system admins can export global leave reports.');
+			setManualMessage('');
+			setManualError(t('reports.global.leave.permission.export'));
 			return;
 		}
 
 		const normalizedRange = normalizeGlobalDateRange(range);
-		const validationMessage = validateGlobalDateRange(normalizedRange);
+		const validationMessage = validateGlobalDateRange(normalizedRange, t);
 
 		if (validationMessage !== null) {
-			setLoadState('error');
-			setMessage(validationMessage);
+			setManualMessage('');
+			setManualError(validationMessage);
 			return;
 		}
 
+		setManualError('');
+		setManualMessage('');
 		setRange(normalizedRange);
-		setLoadState('exporting');
-		setMessage('');
-
-		try {
-			const blob = await exportGlobalLeaveReportCSV(normalizedRange.startDate, normalizedRange.endDate);
-
-			downloadGlobalCSVBlob(blob, buildGlobalExportFilename('campfire-global-leaves', normalizedRange));
-			setLoadState('ready');
-			setMessage('Global leave CSV downloaded.');
-			toast.success('Global leave CSV downloaded');
-		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
-
-			setLoadState('error');
-			setMessage(errorMessage);
-			toast.error(errorMessage);
-		}
+		await exportMutation.mutateAsync(normalizedRange);
 	}
 
 	return {
@@ -135,10 +164,39 @@ export function useGlobalLeaveReport(isSystemAdmin: boolean): UseGlobalLeaveRepo
 		range,
 		summary,
 		message,
-		isBusy,
+		isBusy: reportQuery.isFetching || exportMutation.isPending,
 		userIDsForProfiles,
 		updateRange,
 		loadReport,
 		exportCSV,
 	};
+}
+
+/**
+ * resolveGlobalReportLoadState maps query/mutation state into UI state.
+ */
+function resolveGlobalReportLoadState(input: {
+	readonly manualError: string;
+	readonly queryErrorMessage: string;
+	readonly queryLoading: boolean;
+	readonly exporting: boolean;
+	readonly queryLoaded: boolean;
+}): GlobalReportLoadState {
+	if (input.manualError !== '' || input.queryErrorMessage !== '') {
+		return 'error';
+	}
+
+	if (input.exporting) {
+		return 'exporting';
+	}
+
+	if (input.queryLoading) {
+		return 'loading';
+	}
+
+	if (input.queryLoaded) {
+		return 'ready';
+	}
+
+	return 'idle';
 }

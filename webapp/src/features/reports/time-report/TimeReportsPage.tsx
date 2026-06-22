@@ -3,11 +3,13 @@ import type { ReactElement } from 'react';
 import { useUserProfiles } from '@/app/useUserProfiles';
 import { CampfireControlsPanel } from '@/components/campfire/CampfireControlsPanel';
 import { CampfireReportSummaryBar } from '@/components/campfire/CampfireReportSummaryBar';
+import { useI18n } from '@/i18n';
 import type { Workspace } from '@/types/domain';
 
 import { TimeReportControls } from './TimeReportControls';
 import { TimeReportFeedback, TimeReportLoading } from './TimeReportFeedback';
-import { formatMinutes, formatTimeReportGroupBy } from './time-report.helpers';
+import { formatMinutes } from './time-report.helpers';
+import { timeReportGroupByLabel } from './time-report.i18n';
 import { TimeReportRowsPanel } from './TimeReportRowsPanel';
 import { useTimeReport } from './useTimeReport';
 
@@ -22,6 +24,7 @@ type TimeReportsPageProps = {
  * TimeReportsPage renders the workspace time report workflow.
  */
 export function TimeReportsPage(props: TimeReportsPageProps): ReactElement {
+	const { t } = useI18n();
 	const report = useTimeReport({
 		workspace: props.workspace,
 	});
@@ -30,11 +33,10 @@ export function TimeReportsPage(props: TimeReportsPageProps): ReactElement {
 
 	return (
 		<div className="campfire-page-stack campfire-report-page-stack">
-
 			<CampfireControlsPanel
-				eyebrow="Filters"
-				title="Time report filters"
-				description="Choose a range and one grouping dimension."
+				eyebrow={t('reports.time.controls.eyebrow')}
+				title={t('reports.time.controls.title')}
+				description={t('reports.time.controls.description')}
 				controls={(
 					<TimeReportControls
 						filter={report.filter}
@@ -53,10 +55,10 @@ export function TimeReportsPage(props: TimeReportsPageProps): ReactElement {
 			{report.summary !== null && (
 				<CampfireReportSummaryBar
 					items={[
-						{ label: 'Total time', value: formatMinutes(report.totalMinutes), tone: 'success' },
-						{ label: 'Rows', value: String(report.rowCount), tone: 'neutral' },
-						{ label: 'Entries', value: String(report.entryCount), tone: 'neutral' },
-						{ label: 'Grouped by', value: formatTimeReportGroupBy(report.filter.groupBy), tone: 'neutral' },
+						{ label: t('reports.time.summary.totalTime'), value: formatMinutes(report.totalMinutes), tone: 'success' },
+						{ label: t('reports.time.summary.rows'), value: String(report.rowCount), tone: 'neutral' },
+						{ label: t('reports.time.summary.entries'), value: String(report.entryCount), tone: 'neutral' },
+						{ label: t('reports.time.summary.groupedBy'), value: timeReportGroupByLabel(report.filter.groupBy, t), tone: 'neutral' },
 					]}
 				/>
 			)}

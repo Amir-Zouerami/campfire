@@ -13,6 +13,7 @@ type MyStandupQuestionListProps = {
 	readonly questions: readonly StandupQuestion[];
 	readonly answers: AnswerDrafts;
 	readonly tasks: readonly Task[];
+	readonly timezone: string;
 	readonly disabled: boolean;
 	readonly onAnswerChange: MyStandupQuestionChangeHandler;
 };
@@ -29,6 +30,7 @@ export const MyStandupQuestionList = memo(function MyStandupQuestionList(props: 
 					question={question}
 					value={props.answers[question.id]}
 					tasks={props.tasks}
+					timezone={props.timezone}
 					disabled={props.disabled}
 					onAnswerChange={props.onAnswerChange}
 				/>
@@ -47,6 +49,7 @@ const MyStandupQuestionRow = memo(function MyStandupQuestionRow(props: {
 	readonly question: StandupQuestion;
 	readonly value: AnswerDraftValue | undefined;
 	readonly tasks: readonly Task[];
+	readonly timezone: string;
 	readonly disabled: boolean;
 	readonly onAnswerChange: MyStandupQuestionChangeHandler;
 }): ReactElement {
@@ -59,6 +62,7 @@ const MyStandupQuestionRow = memo(function MyStandupQuestionRow(props: {
 			question={props.question}
 			value={props.value}
 			tasks={props.tasks}
+			timezone={props.timezone}
 			disabled={props.disabled}
 			onChange={handleChange}
 		/>

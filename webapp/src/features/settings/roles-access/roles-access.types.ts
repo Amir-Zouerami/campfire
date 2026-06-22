@@ -16,13 +16,16 @@ export type AssignableWorkspaceRole = Exclude<Role, 'member'>;
 export type RoleGroupTone = 'ember' | 'green' | 'slate';
 
 /**
+ * RoleGroupID identifies one role group in the roles/access screen.
+ */
+export type RoleGroupID = 'leads' | 'approvers' | 'viewers' | 'admins' | 'excluded' | 'members';
+
+/**
  * RoleGroup describes one displayed workspace role group.
  */
 export type RoleGroup = {
-	readonly id: string;
+	readonly id: RoleGroupID;
 	readonly role: Role;
-	readonly title: string;
-	readonly description: string;
 	readonly userIDs: readonly string[];
 	readonly tone: RoleGroupTone;
 	readonly removable: boolean;

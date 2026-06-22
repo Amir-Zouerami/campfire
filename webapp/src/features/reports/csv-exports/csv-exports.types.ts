@@ -38,8 +38,6 @@ export type CSVExportSavedFilter = {
  */
 export type CSVExportActionDefinition = {
 	readonly kind: CSVExportKind;
-	readonly title: string;
-	readonly description: string;
 	readonly filenamePrefix: string;
 	readonly includesSortMode: boolean;
 };

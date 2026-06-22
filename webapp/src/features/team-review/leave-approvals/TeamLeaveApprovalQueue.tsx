@@ -1,253 +1,467 @@
-import type { ReactElement } from "react";
+import type { ReactElement } from 'react';
 import {
-  MessageSquareText,
-  ThumbsDown,
-  ThumbsUp,
-  Umbrella,
-} from "lucide-react";
+	Ban,
+	CalendarDays,
+	Clock3,
+	MessageSquareText,
+	ThumbsDown,
+	ThumbsUp,
+	Umbrella,
+	UserRound,
+} from 'lucide-react';
 
-import { Button } from "@/components/ui/button";
-import { sortByNewest } from "@/lib/sort";
-import { CampfireResponsiveTextarea } from "@/components/campfire/CampfireResponsiveInput";
-import type { LeaveRequest, PendingLeaveRequest } from "@/types/domain";
+import { CampfireBidiText } from '@/components/campfire/CampfireBidiText';
+import { CampfireEmpty, CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireResponsiveTextarea } from '@/components/campfire/CampfireResponsiveInput';
+import { Button } from '@/components/ui/button';
+import {
+	formatLocalizedLeaveDurationDetails,
+	leaveDurationModeTranslationKey,
+	localizedLeaveTypeName,
+	leaveStatusTranslationKey,
+} from '@/features/my-day/leave/my-leave.i18n';
+import { leaveStatusTone } from '@/features/my-day/leave/my-leave.helpers';
+import { useI18n } from '@/i18n';
+import { sortByNewest } from '@/lib/sort';
+import type { LeaveChangeRequest, LeaveRequest, PendingLeaveChangeRequest, PendingLeaveRequest } from '@/types/domain';
 
-import {
-  approvalCardClassName,
-  approvalDurationLabel,
-  approvalRangeLabel,
-  formatDurationMode,
-  formatLeaveStatus,
-  leaveStatusTone,
-} from "./team-leave-approvals.helpers";
-import type { LeaveDecision } from "./team-leave-approvals.types";
-import {
-  CampfireEmpty,
-  CampfireStatusPill,
-} from "@/components/campfire/CampfireLayoutPrimitives";
+import { formatWorkspaceDateTime, formatWorkspaceLocalDate } from '../team-review-formatting';
+import { approvalCardClassName } from './team-leave-approvals.helpers';
+import type { LeaveDecision } from './team-leave-approvals.types';
 
 /**
  * TeamLeaveApprovalQueueProps contains pending leave requests and decision actions.
  */
 type TeamLeaveApprovalQueueProps = {
-  readonly leaveRequests: readonly PendingLeaveRequest[];
-  readonly comments: Readonly<Record<string, string>>;
-  readonly disabled: boolean;
-  readonly timezone: string;
-  readonly labelForUserID: (userID: string) => string;
-  readonly onCommentChange: (leaveRequestID: string, comment: string) => void;
-  readonly onDecision: (
-    leaveRequestID: string,
-    decision: LeaveDecision,
-  ) => Promise<void>;
+	readonly leaveRequests: readonly PendingLeaveRequest[];
+	readonly changeRequests: readonly PendingLeaveChangeRequest[];
+	readonly comments: Readonly<Record<string, string>>;
+	readonly disabled: boolean;
+	readonly timezone: string;
+	readonly labelForUserID: (userID: string) => string;
+	readonly onCommentChange: (leaveRequestID: string, comment: string) => void;
+	readonly onDecision: (
+		leaveRequestID: string,
+		decision: LeaveDecision,
+	) => Promise<void>;
+	readonly onChangeDecision: (
+		changeRequestID: string,
+		decision: LeaveDecision,
+	) => Promise<void>;
+	readonly onCancel: (leaveRequestID: string) => Promise<void>;
 };
 
 /**
  * TeamLeaveApprovalQueue renders pending leave approval cards.
  */
 export function TeamLeaveApprovalQueue(
-  props: TeamLeaveApprovalQueueProps,
+	props: TeamLeaveApprovalQueueProps,
 ): ReactElement {
-  const leaveRequests = sortByNewest(props.leaveRequests, (item) =>
-    newestLeaveDateValue(item.leaveRequest),
-  );
+	const { t } = useI18n();
+	const leaveRequests = sortByNewest(props.leaveRequests, item => newestLeaveDateValue(item.leaveRequest));
+	const changeRequests = sortByNewest(props.changeRequests, item => newestChangeDateValue(item.changeRequest));
 
-  if (leaveRequests.length === 0) {
-    return (
-      <CampfireEmpty
-        icon={Umbrella}
-        title="No pending leave requests"
-        description="New leave requests that require approval will appear here."
-      />
-    );
-  }
+	if (leaveRequests.length === 0 && changeRequests.length === 0) {
+		return (
+			<CampfireEmpty
+				icon={Umbrella}
+				title={t('teamReview.approvals.empty.queue.title')}
+				description={t('teamReview.approvals.empty.queue.description')}
+			/>
+		);
+	}
 
-  return (
-    <div className="campfire-approval-queue">
-      {leaveRequests.map((item) => (
-        <TeamLeaveApprovalCard
-          key={item.leaveRequest.id}
-          item={item}
-          comment={props.comments[item.leaveRequest.id] ?? ""}
-          disabled={props.disabled}
-          timezone={props.timezone}
-          labelForUserID={props.labelForUserID}
-          onCommentChange={(comment) =>
-            props.onCommentChange(item.leaveRequest.id, comment)
-          }
-          onDecision={(decision) =>
-            props.onDecision(item.leaveRequest.id, decision)
-          }
-        />
-      ))}
-    </div>
-  );
+	return (
+		<div className="campfire-approval-queue">
+			{changeRequests.length > 0 && (
+				<section className="campfire-approval-section">
+					<h3 className="campfire-approval-section-title">
+						{t('teamReview.approvals.change.sectionTitle')}
+					</h3>
+					{changeRequests.map(item => (
+						<TeamLeaveChangeApprovalCard
+							key={item.changeRequest.id}
+							item={item}
+							comment={props.comments[item.changeRequest.id] ?? ''}
+							disabled={props.disabled}
+							timezone={props.timezone}
+							labelForUserID={props.labelForUserID}
+							onCommentChange={comment => props.onCommentChange(item.changeRequest.id, comment)}
+							onDecision={decision => props.onChangeDecision(item.changeRequest.id, decision)}
+						/>
+					))}
+				</section>
+			)}
+
+			{leaveRequests.length > 0 && (
+				<section className="campfire-approval-section">
+					<h3 className="campfire-approval-section-title">
+						{t('teamReview.approvals.request.sectionTitle')}
+					</h3>
+					{leaveRequests.map(item => (
+						<TeamLeaveApprovalCard
+							key={item.leaveRequest.id}
+							item={item}
+							comment={props.comments[item.leaveRequest.id] ?? ''}
+							disabled={props.disabled}
+							timezone={props.timezone}
+							labelForUserID={props.labelForUserID}
+							onCommentChange={comment => props.onCommentChange(item.leaveRequest.id, comment)}
+							onDecision={decision => props.onDecision(item.leaveRequest.id, decision)}
+							onCancel={() => props.onCancel(item.leaveRequest.id)}
+						/>
+					))}
+				</section>
+			)}
+		</div>
+	);
 }
 
 /**
  * newestLeaveDateValue returns the newest meaningful timestamp for sorting leave approval rows.
  */
 function newestLeaveDateValue(request: LeaveRequest): string {
-  return (
-    request.updatedAt ||
-    request.createdAt ||
-    request.startDate ||
-    request.endDate
-  );
+	return request.updatedAt || request.createdAt || request.startDate || request.endDate;
+}
+
+/**
+ * newestChangeDateValue returns the newest meaningful timestamp for sorting leave edit request rows.
+ */
+function newestChangeDateValue(request: LeaveChangeRequest): string {
+	return request.updatedAt || request.createdAt || request.startDate || request.endDate;
 }
 
 /**
  * TeamLeaveApprovalCard renders one pending leave request.
  */
 function TeamLeaveApprovalCard(props: {
-  readonly item: PendingLeaveRequest;
-  readonly comment: string;
-  readonly disabled: boolean;
-  readonly timezone: string;
-  readonly labelForUserID: (userID: string) => string;
-  readonly onCommentChange: (comment: string) => void;
-  readonly onDecision: (decision: LeaveDecision) => Promise<void>;
+	readonly item: PendingLeaveRequest;
+	readonly comment: string;
+	readonly disabled: boolean;
+	readonly timezone: string;
+	readonly labelForUserID: (userID: string) => string;
+	readonly onCommentChange: (comment: string) => void;
+	readonly onDecision: (decision: LeaveDecision) => Promise<void>;
+	readonly onCancel: () => Promise<void>;
 }): ReactElement {
-  const request = props.item.leaveRequest;
-  const requesterLabel = props.labelForUserID(request.userId);
-  const backupLabel =
-    request.backupUserId.trim() === ""
-      ? "Not set"
-      : props.labelForUserID(request.backupUserId);
+	const { htmlLang, t } = useI18n();
+	const request = props.item.leaveRequest;
+	const requesterLabel = props.labelForUserID(request.userId);
+	const backupLabel = request.backupUserId.trim() === ''
+		? t('common.notSet')
+		: props.labelForUserID(request.backupUserId);
+	const requestedAt = formatWorkspaceDateTime(request.createdAt, props.timezone, htmlLang, t('common.unknown'));
+	const localizedRange = formatLocalizedApprovalRange(request.startDate, request.endDate, props.timezone, htmlLang, t('common.unknown'));
+	const localizedLeaveType = localizedLeaveTypeName({ code: '', name: props.item.leaveTypeName }, t);
 
-  return (
-    <article className={approvalCardClassName()}>
-      <header className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-4">
-        <div className="cf:min-w-0">
-          <p className="cf:m-0 cf:text-[0.78rem] cf:font-semibold cf:uppercase cf:leading-none cf:tracking-[0.18em] cf:text-amber-100/90">
-            {requesterLabel}
-          </p>
-          <h3 className="cf:m-0 cf:mt-2 cf:text-2xl cf:font-semibold cf:leading-tight cf:tracking-[-0.035em] cf:text-foreground">
-            {props.item.leaveTypeName}
-          </h3>
-        </div>
+	return (
+		<article className={approvalCardClassName()}>
+			<header className="campfire-approval-card-header">
+				<div className="campfire-approval-identity">
+					<span className="campfire-approval-avatar-mark" aria-hidden="true">
+						<UserRound className="cf:size-4" />
+					</span>
+					<div className="campfire-approval-identity-copy">
+						<p className="campfire-approval-requester-label">
+							<CampfireBidiText>{requesterLabel}</CampfireBidiText>
+						</p>
+						<h3 className="campfire-approval-card-title">
+							<CampfireBidiText>{localizedLeaveType}</CampfireBidiText>
+						</h3>
+					</div>
+				</div>
 
-        <CampfireStatusPill tone={leaveStatusTone(request.status)}>
-          {formatLeaveStatus(request.status)}
-        </CampfireStatusPill>
-      </header>
+				<CampfireStatusPill tone={leaveStatusTone(request.status)}>
+					{t(leaveStatusTranslationKey(request.status))}
+				</CampfireStatusPill>
+			</header>
 
-      <div className="campfire-approval-detail-grid">
-        <ApprovalDetail
-          label="Date range"
-          value={approvalRangeLabel(request)}
-        />
-        <ApprovalDetail
-          label="Duration"
-          value={approvalDurationLabel(request)}
-        />
-        <ApprovalDetail
-          label="Mode"
-          value={formatDurationMode(request.durationMode)}
-        />
-        <ApprovalDetail label="Backup" value={backupLabel} />
-        <ApprovalDetail
-          label="Requested"
-          value={formatWorkspaceDateTime(request.createdAt, props.timezone)}
-        />
-      </div>
+			<div className="campfire-approval-primary-row">
+				<ApprovalDetail
+					icon={<CalendarDays className="cf:size-4" />}
+					label={t('teamReview.approvals.detail.dateRange')}
+					value={localizedRange}
+				/>
+				<ApprovalDetail
+					icon={<Clock3 className="cf:size-4" />}
+					label={t('teamReview.approvals.detail.duration')}
+					value={formatLocalizedLeaveDurationDetails(request, t)}
+				/>
+			</div>
 
-      {request.reason.trim() !== "" && (
-        <section className="campfire-approval-note-panel">
-          <p className="campfire-approval-field-label">Reason</p>
-          <p className="cf:m-0 cf:mt-2 cf:whitespace-pre-wrap cf:text-sm cf:font-semibold cf:leading-7 cf:text-slate-200">
-            {request.reason}
-          </p>
-        </section>
-      )}
+			<div className="campfire-approval-detail-grid campfire-approval-detail-grid--minimal">
+				<ApprovalDetail
+					label={t('teamReview.approvals.detail.mode')}
+					value={t(leaveDurationModeTranslationKey(request.durationMode))}
+				/>
+				<ApprovalDetail label={t('teamReview.approvals.detail.backup')} value={backupLabel} />
+				<ApprovalDetail
+					label={t('teamReview.approvals.detail.canContact')}
+					value={request.canContactIfNeeded ? t('common.yes') : t('common.no')}
+				/>
+				<ApprovalDetail
+					label={t('teamReview.approvals.detail.requested')}
+					value={requestedAt}
+				/>
+			</div>
 
-      <section className="campfire-approval-comment-block">
-        <label
-          htmlFor={`campfire-approval-comment-${request.id}`}
-          className="campfire-approval-comment-label"
-        >
-          <MessageSquareText
-            className="campfire-approval-comment-icon"
-            aria-hidden="true"
-          />
-          <span>Approver comment</span>
-        </label>
+			{request.reason.trim() !== '' && (
+				<section className="campfire-approval-note-panel campfire-approval-note-panel--compact">
+					<p className="campfire-approval-field-label">{t('teamReview.approvals.detail.reason')}</p>
+					<p className="campfire-approval-note-text">
+						<CampfireBidiText>{request.reason}</CampfireBidiText>
+					</p>
+				</section>
+			)}
 
-        <CampfireResponsiveTextarea
-          id={`campfire-approval-comment-${request.id}`}
-          disabled={props.disabled}
-          placeholder="Optional comment. Strongly recommended when rejecting."
-          value={props.comment}
-          onValueChange={props.onCommentChange}
-        />
-      </section>
+			<ApprovalComment
+				id={`campfire-approval-comment-${request.id}`}
+				disabled={props.disabled}
+				placeholder={t('teamReview.approvals.comment.placeholder')}
+				value={props.comment}
+				onValueChange={props.onCommentChange}
+			/>
 
-      <footer className="cf:flex cf:flex-wrap cf:justify-end cf:gap-3 cf:pt-1">
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={props.disabled}
-          onClick={() => void props.onDecision("rejected")}
-        >
-          <ThumbsDown className="cf:size-4" />
-          Reject
-        </Button>
+			<footer className="campfire-approval-decision-actions campfire-approval-decision-actions--compact">
+				<Button
+					type="button"
+					variant="secondary"
+					disabled={props.disabled}
+					onClick={() => void props.onCancel()}
+				>
+					<Ban className="cf:size-4" />
+					{t('myDay.leave.action.cancel')}
+				</Button>
 
-        <Button
-          type="button"
-          disabled={props.disabled}
-          onClick={() => void props.onDecision("approved")}
-        >
-          <ThumbsUp className="cf:size-4" />
-          Approve
-        </Button>
-      </footer>
-    </article>
-  );
+				<Button
+					type="button"
+					variant="secondary"
+					disabled={props.disabled}
+					onClick={() => void props.onDecision('rejected')}
+				>
+					<ThumbsDown className="cf:size-4" />
+					{t('teamReview.approvals.action.reject')}
+				</Button>
+
+				<Button
+					type="button"
+					disabled={props.disabled}
+					onClick={() => void props.onDecision('approved')}
+				>
+					<ThumbsUp className="cf:size-4" />
+					{t('teamReview.approvals.action.approve')}
+				</Button>
+			</footer>
+		</article>
+	);
+}
+
+/**
+ * TeamLeaveChangeApprovalCard renders one pending member-requested leave edit.
+ */
+function TeamLeaveChangeApprovalCard(props: {
+	readonly item: PendingLeaveChangeRequest;
+	readonly comment: string;
+	readonly disabled: boolean;
+	readonly timezone: string;
+	readonly labelForUserID: (userID: string) => string;
+	readonly onCommentChange: (comment: string) => void;
+	readonly onDecision: (decision: LeaveDecision) => Promise<void>;
+}): ReactElement {
+	const { htmlLang, t } = useI18n();
+	const request = props.item.changeRequest;
+	const requesterLabel = props.labelForUserID(request.requesterUserId);
+	const backupLabel = request.backupUserId.trim() === ''
+		? t('common.notSet')
+		: props.labelForUserID(request.backupUserId);
+	const requestedAt = formatWorkspaceDateTime(request.createdAt, props.timezone, htmlLang, t('common.unknown'));
+	const localizedRange = formatLocalizedApprovalRange(request.startDate, request.endDate, props.timezone, htmlLang, t('common.unknown'));
+	const localizedLeaveType = localizedLeaveTypeName({ code: '', name: props.item.leaveTypeName }, t);
+
+	return (
+		<article className={approvalCardClassName()}>
+			<header className="campfire-approval-card-header">
+				<div className="campfire-approval-identity">
+					<span className="campfire-approval-avatar-mark" aria-hidden="true">
+						<UserRound className="cf:size-4" />
+					</span>
+					<div className="campfire-approval-identity-copy">
+						<p className="campfire-approval-requester-label">
+							<CampfireBidiText>{requesterLabel}</CampfireBidiText>
+						</p>
+						<h3 className="campfire-approval-card-title">
+							{t('teamReview.approvals.change.cardTitle')}: <CampfireBidiText>{localizedLeaveType}</CampfireBidiText>
+						</h3>
+					</div>
+				</div>
+
+				<CampfireStatusPill tone="ember">
+					{t('teamReview.approvals.change.status')}
+				</CampfireStatusPill>
+			</header>
+
+			<div className="campfire-approval-primary-row">
+				<ApprovalDetail
+					icon={<CalendarDays className="cf:size-4" />}
+					label={t('teamReview.approvals.detail.dateRange')}
+					value={localizedRange}
+				/>
+				<ApprovalDetail
+					icon={<Clock3 className="cf:size-4" />}
+					label={t('teamReview.approvals.detail.duration')}
+					value={formatLocalizedLeaveChangeDurationDetails(request, t)}
+				/>
+			</div>
+
+			<div className="campfire-approval-detail-grid campfire-approval-detail-grid--minimal">
+				<ApprovalDetail
+					label={t('teamReview.approvals.detail.mode')}
+					value={t(leaveDurationModeTranslationKey(request.durationMode))}
+				/>
+				<ApprovalDetail label={t('teamReview.approvals.detail.backup')} value={backupLabel} />
+				<ApprovalDetail
+					label={t('teamReview.approvals.detail.canContact')}
+					value={request.canContactIfNeeded ? t('common.yes') : t('common.no')}
+				/>
+				<ApprovalDetail
+					label={t('teamReview.approvals.detail.requested')}
+					value={requestedAt}
+				/>
+			</div>
+
+			{request.reason.trim() !== '' && (
+				<section className="campfire-approval-note-panel campfire-approval-note-panel--compact">
+					<p className="campfire-approval-field-label">{t('teamReview.approvals.detail.reason')}</p>
+					<p className="campfire-approval-note-text">
+						<CampfireBidiText>{request.reason}</CampfireBidiText>
+					</p>
+				</section>
+			)}
+
+			<ApprovalComment
+				id={`campfire-change-approval-comment-${request.id}`}
+				disabled={props.disabled}
+				placeholder={t('teamReview.approvals.change.commentPlaceholder')}
+				value={props.comment}
+				onValueChange={props.onCommentChange}
+			/>
+
+			<footer className="campfire-approval-decision-actions campfire-approval-decision-actions--compact">
+				<Button
+					type="button"
+					variant="secondary"
+					disabled={props.disabled}
+					onClick={() => void props.onDecision('rejected')}
+				>
+					<ThumbsDown className="cf:size-4" />
+					{t('teamReview.approvals.change.reject')}
+				</Button>
+
+				<Button
+					type="button"
+					disabled={props.disabled}
+					onClick={() => void props.onDecision('approved')}
+				>
+					<ThumbsUp className="cf:size-4" />
+					{t('teamReview.approvals.change.approve')}
+				</Button>
+			</footer>
+		</article>
+	);
+}
+
+/**
+ * formatLocalizedApprovalRange formats one approval-card date range in UI locale.
+ */
+function formatLocalizedApprovalRange(
+	startDate: string,
+	endDate: string,
+	timezone: string,
+	locale: string,
+	fallback: string,
+): string {
+	const formattedStart = formatWorkspaceLocalDate(startDate, timezone, locale, fallback);
+	if (startDate === endDate) {
+		return formattedStart;
+	}
+
+	return `${formattedStart} → ${formatWorkspaceLocalDate(endDate, timezone, locale, fallback)}`;
+}
+
+/**
+ * formatLocalizedLeaveChangeDurationDetails formats mode-specific edit-request duration details.
+ */
+function formatLocalizedLeaveChangeDurationDetails(
+	request: LeaveChangeRequest,
+	translate: Parameters<typeof formatLocalizedLeaveDurationDetails>[1],
+): string {
+	if (request.durationMode === 'hourly') {
+		if (request.startTime.trim() === '' || request.endTime.trim() === '') {
+			return translate('myDay.leave.duration.hourly');
+		}
+
+		return translate('myDay.leave.duration.hourlyRange', {
+			startTime: request.startTime,
+			endTime: request.endTime,
+		});
+	}
+
+	return translate(leaveDurationModeTranslationKey(request.durationMode));
 }
 
 /**
  * ApprovalDetail renders one approval metadata tile.
  */
 function ApprovalDetail(props: {
-  readonly label: string;
-  readonly value: string;
+	readonly icon?: ReactElement;
+	readonly label: string;
+	readonly value: string;
 }): ReactElement {
-  return (
-    <div className="campfire-approval-detail-tile">
-      <p className="campfire-approval-field-label">{props.label}</p>
-      <p className="campfire-approval-detail-value" title={props.value}>
-        {props.value}
-      </p>
-    </div>
-  );
+	return (
+		<div className="campfire-approval-detail-tile">
+			<div className="campfire-approval-detail-label-row">
+				{props.icon !== undefined && <span className="campfire-approval-detail-icon">{props.icon}</span>}
+				<p className="campfire-approval-field-label">{props.label}</p>
+			</div>
+			<p className="campfire-approval-detail-value" title={props.value}>
+				<CampfireBidiText>{props.value}</CampfireBidiText>
+			</p>
+		</div>
+	);
 }
 
 /**
- * formatWorkspaceDateTime renders an API UTC timestamp in the workspace timezone.
+ * ApprovalComment renders the approver note input.
  */
-function formatWorkspaceDateTime(value: string, timezone: string): string {
-  const cleanValue = value.trim();
-  if (cleanValue === "") {
-    return "Unknown";
-  }
+function ApprovalComment(props: {
+	readonly id: string;
+	readonly disabled: boolean;
+	readonly placeholder: string;
+	readonly value: string;
+	readonly onValueChange: (value: string) => void;
+}): ReactElement {
+	const { t } = useI18n();
 
-  const date = new Date(cleanValue);
-  if (Number.isNaN(date.getTime())) {
-    return cleanValue;
-  }
+	return (
+		<section className="campfire-approval-comment-block campfire-approval-comment-block--compact">
+			<label
+				htmlFor={props.id}
+				className="campfire-approval-comment-label"
+			>
+				<MessageSquareText
+					className="campfire-approval-comment-icon"
+					aria-hidden="true"
+				/>
+				<span>{t('teamReview.approvals.comment.label')}</span>
+			</label>
 
-  const cleanTimezone = timezone.trim();
-
-  try {
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: "medium",
-      timeStyle: "short",
-      timeZone: cleanTimezone === "" ? undefined : cleanTimezone,
-    }).format(date);
-  } catch {
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(date);
-  }
+			<CampfireResponsiveTextarea
+				id={props.id}
+				disabled={props.disabled}
+				placeholder={props.placeholder}
+				value={props.value}
+				onValueChange={props.onValueChange}
+			/>
+		</section>
+	);
 }

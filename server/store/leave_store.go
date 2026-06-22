@@ -23,12 +23,42 @@ type DecideLeaveRequestParams struct {
 }
 
 /*
+DecideLeaveChangeRequestParams contains approver decisions for member-requested leave corrections.
+*/
+type DecideLeaveChangeRequestParams struct {
+	ChangeRequestID domain.ID
+	Decision        domain.LeaveChangeRequestStatus
+	DecidedBy       string
+	Comment         string
+	UpdatedAt       time.Time
+	DecidedAt       time.Time
+}
+
+/*
 CancelLeaveRequestParams contains the data needed to cancel a cancellable leave request.
 */
 type CancelLeaveRequestParams struct {
 	LeaveRequestID domain.ID
 	CancelledAt    time.Time
 	UpdatedAt      time.Time
+}
+
+/*
+UpdateLeaveRequestParams contains approver-owned edits for an active leave request.
+*/
+type UpdateLeaveRequestParams struct {
+	LeaveRequestID     domain.ID
+	LeaveTypeID        domain.ID
+	StartDate          domain.LocalDate
+	EndDate            domain.LocalDate
+	DurationMode       domain.LeaveDurationMode
+	HalfDayPart        domain.LeaveHalfDayPart
+	StartTime          domain.TimeOfDay
+	EndTime            domain.TimeOfDay
+	Reason             string
+	BackupUserID       string
+	CanContactIfNeeded bool
+	UpdatedAt          time.Time
 }
 
 /*
@@ -55,8 +85,17 @@ type LeaveStore interface {
 		startDate domain.LocalDate,
 		endDate domain.LocalDate,
 	) ([]domain.LeaveRequestWithType, error)
+	ListPendingChangeRequestsByWorkspaceID(
+		ctx context.Context,
+		workspaceID domain.ID,
+	) ([]domain.LeaveChangeRequestWithType, error)
+	GetChangeRequestByID(ctx context.Context, changeRequestID domain.ID) (*domain.LeaveChangeRequest, error)
+	HasPendingChangeRequestForLeaveRequest(ctx context.Context, leaveRequestID domain.ID) (bool, error)
 	CreateRequest(ctx context.Context, leaveRequest domain.LeaveRequest) (*domain.LeaveRequest, error)
+	CreateChangeRequest(ctx context.Context, changeRequest domain.LeaveChangeRequest) (*domain.LeaveChangeRequest, error)
+	UpdateRequest(ctx context.Context, params UpdateLeaveRequestParams) (*domain.LeaveRequest, error)
 	DecideRequest(ctx context.Context, params DecideLeaveRequestParams) (*domain.LeaveRequest, error)
+	DecideChangeRequest(ctx context.Context, params DecideLeaveChangeRequestParams) (*domain.LeaveChangeRequest, *domain.LeaveRequest, error)
 	CancelRequest(ctx context.Context, params CancelLeaveRequestParams) (*domain.LeaveRequest, error)
 }
 
@@ -189,6 +228,7 @@ func (s *SQLLeaveStore) GetRequestByID(
 				end_time,
 				reason,
 				backup_user_id,
+				can_contact_if_needed,
 				status,
 				created_at,
 				updated_at,
@@ -264,6 +304,7 @@ func (s *SQLLeaveStore) ListActiveByWorkspaceIDAndUserID(
 				requests.end_time,
 				requests.reason,
 				requests.backup_user_id,
+				requests.can_contact_if_needed,
 				requests.status,
 				requests.created_at,
 				requests.updated_at,
@@ -323,6 +364,7 @@ func (s *SQLLeaveStore) ListApprovedByWorkspaceIDBetween(
 				requests.end_time,
 				requests.reason,
 				requests.backup_user_id,
+				requests.can_contact_if_needed,
 				requests.status,
 				requests.created_at,
 				requests.updated_at,
@@ -380,6 +422,7 @@ func (s *SQLLeaveStore) listPending(
 			requests.end_time,
 			requests.reason,
 			requests.backup_user_id,
+			requests.can_contact_if_needed,
 			requests.status,
 			requests.created_at,
 			requests.updated_at,
@@ -441,11 +484,12 @@ func (s *SQLLeaveStore) CreateRequest(
 				end_time,
 				reason,
 				backup_user_id,
+				can_contact_if_needed,
 				status,
 				created_at,
 				updated_at,
 				cancelled_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`),
 		leaveRequest.ID.String(),
 		leaveRequest.WorkspaceID.String(),
@@ -459,6 +503,7 @@ func (s *SQLLeaveStore) CreateRequest(
 		leaveRequest.EndTime.String(),
 		leaveRequest.Reason,
 		leaveRequest.BackupUserID,
+		leaveRequest.CanContactIfNeeded,
 		string(leaveRequest.Status),
 		leaveRequest.CreatedAt,
 		leaveRequest.UpdatedAt,
@@ -469,6 +514,89 @@ func (s *SQLLeaveStore) CreateRequest(
 	}
 
 	return &leaveRequest, nil
+}
+
+/*
+UpdateRequest applies approver-owned edits to a pending or approved leave request.
+*/
+func (s *SQLLeaveStore) UpdateRequest(
+	ctx context.Context,
+	params UpdateLeaveRequestParams,
+) (*domain.LeaveRequest, error) {
+	transaction, err := s.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin leave update transaction: %w", err)
+	}
+
+	committed := false
+
+	defer func() {
+		if !committed {
+			rollbackErr := transaction.Rollback()
+			if rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+				return
+			}
+		}
+	}()
+
+	result, err := transaction.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			UPDATE campfire_leave_requests
+			SET
+				leave_type_id = ?,
+				start_date = ?,
+				end_date = ?,
+				duration_mode = ?,
+				half_day_part = ?,
+				start_time = ?,
+				end_time = ?,
+				reason = ?,
+				backup_user_id = ?,
+				can_contact_if_needed = ?,
+				updated_at = ?
+			WHERE id = ? AND status IN (?, ?)
+		`),
+		params.LeaveTypeID.String(),
+		params.StartDate.String(),
+		params.EndDate.String(),
+		string(params.DurationMode),
+		string(params.HalfDayPart),
+		params.StartTime.String(),
+		params.EndTime.String(),
+		params.Reason,
+		params.BackupUserID,
+		params.CanContactIfNeeded,
+		params.UpdatedAt,
+		params.LeaveRequestID.String(),
+		string(domain.LeaveStatusPending),
+		string(domain.LeaveStatusApproved),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("update leave request fields: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("read leave request update result: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return nil, ErrConflict
+	}
+
+	leaveRequest, err := reloadLeaveRequest(ctx, transaction, s.db, params.LeaveRequestID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := transaction.Commit(); err != nil {
+		return nil, fmt.Errorf("commit leave update transaction: %w", err)
+	}
+
+	committed = true
+
+	return leaveRequest, nil
 }
 
 /*
@@ -666,6 +794,7 @@ func reloadLeaveRequest(
 				end_time,
 				reason,
 				backup_user_id,
+				can_contact_if_needed,
 				status,
 				created_at,
 				updated_at,
@@ -722,22 +851,23 @@ func (r leaveTypeRecord) toDomain() domain.LeaveType {
 leaveRequestRecord represents a row from campfire_leave_requests.
 */
 type leaveRequestRecord struct {
-	ID           string       `db:"id"`
-	WorkspaceID  string       `db:"workspace_id"`
-	UserID       string       `db:"user_id"`
-	LeaveTypeID  string       `db:"leave_type_id"`
-	StartDate    string       `db:"start_date"`
-	EndDate      string       `db:"end_date"`
-	DurationMode string       `db:"duration_mode"`
-	HalfDayPart  string       `db:"half_day_part"`
-	StartTime    string       `db:"start_time"`
-	EndTime      string       `db:"end_time"`
-	Reason       string       `db:"reason"`
-	BackupUserID string       `db:"backup_user_id"`
-	Status       string       `db:"status"`
-	CreatedAt    time.Time    `db:"created_at"`
-	UpdatedAt    time.Time    `db:"updated_at"`
-	CancelledAt  sql.NullTime `db:"cancelled_at"`
+	ID                 string       `db:"id"`
+	WorkspaceID        string       `db:"workspace_id"`
+	UserID             string       `db:"user_id"`
+	LeaveTypeID        string       `db:"leave_type_id"`
+	StartDate          string       `db:"start_date"`
+	EndDate            string       `db:"end_date"`
+	DurationMode       string       `db:"duration_mode"`
+	HalfDayPart        string       `db:"half_day_part"`
+	StartTime          string       `db:"start_time"`
+	EndTime            string       `db:"end_time"`
+	Reason             string       `db:"reason"`
+	BackupUserID       string       `db:"backup_user_id"`
+	CanContactIfNeeded bool         `db:"can_contact_if_needed"`
+	Status             string       `db:"status"`
+	CreatedAt          time.Time    `db:"created_at"`
+	UpdatedAt          time.Time    `db:"updated_at"`
+	CancelledAt        sql.NullTime `db:"cancelled_at"`
 }
 
 /*
@@ -745,22 +875,23 @@ toDomain maps a leave request record to the domain model.
 */
 func (r leaveRequestRecord) toDomain() domain.LeaveRequest {
 	return domain.LeaveRequest{
-		ID:           domain.ID(r.ID),
-		WorkspaceID:  domain.ID(r.WorkspaceID),
-		UserID:       r.UserID,
-		LeaveTypeID:  domain.ID(r.LeaveTypeID),
-		StartDate:    domain.LocalDate(r.StartDate),
-		EndDate:      domain.LocalDate(r.EndDate),
-		DurationMode: domain.LeaveDurationMode(r.DurationMode),
-		HalfDayPart:  domain.LeaveHalfDayPart(r.HalfDayPart),
-		StartTime:    domain.TimeOfDay(r.StartTime),
-		EndTime:      domain.TimeOfDay(r.EndTime),
-		Reason:       r.Reason,
-		BackupUserID: r.BackupUserID,
-		Status:       domain.LeaveStatus(r.Status),
-		CreatedAt:    parseStoredTime(r.CreatedAt),
-		UpdatedAt:    parseStoredTime(r.UpdatedAt),
-		CancelledAt:  nullTimeToPointer(r.CancelledAt),
+		ID:                 domain.ID(r.ID),
+		WorkspaceID:        domain.ID(r.WorkspaceID),
+		UserID:             r.UserID,
+		LeaveTypeID:        domain.ID(r.LeaveTypeID),
+		StartDate:          domain.LocalDate(r.StartDate),
+		EndDate:            domain.LocalDate(r.EndDate),
+		DurationMode:       domain.LeaveDurationMode(r.DurationMode),
+		HalfDayPart:        domain.LeaveHalfDayPart(r.HalfDayPart),
+		StartTime:          domain.TimeOfDay(r.StartTime),
+		EndTime:            domain.TimeOfDay(r.EndTime),
+		Reason:             r.Reason,
+		BackupUserID:       r.BackupUserID,
+		CanContactIfNeeded: r.CanContactIfNeeded,
+		Status:             domain.LeaveStatus(r.Status),
+		CreatedAt:          parseStoredTime(r.CreatedAt),
+		UpdatedAt:          parseStoredTime(r.UpdatedAt),
+		CancelledAt:        nullTimeToPointer(r.CancelledAt),
 	}
 }
 

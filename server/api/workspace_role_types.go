@@ -29,6 +29,7 @@ type WorkspaceRoleOverviewPayload struct {
 	ApproverUserIDs []string `json:"approverUserIds"`
 	AdminUserIDs    []string `json:"adminUserIds"`
 	ViewerUserIDs   []string `json:"viewerUserIds"`
+	ExcludedUserIDs []string `json:"excludedUserIds"`
 }
 
 /*
@@ -74,6 +75,7 @@ func WorkspaceRoleOverviewToPayload(overview service.WorkspaceRoleOverview) Work
 		ApproverUserIDs: overview.ApproverUserIDs,
 		AdminUserIDs:    overview.AdminUserIDs,
 		ViewerUserIDs:   overview.ViewerUserIDs,
+		ExcludedUserIDs: overview.ExcludedUserIDs,
 	}
 }
 

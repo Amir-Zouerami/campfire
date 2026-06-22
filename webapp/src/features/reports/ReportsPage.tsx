@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 
 import { CampfirePageHeader } from '@/components/campfire/CampfireLayoutPrimitives';
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
+import { useI18n } from '@/i18n';
 
 import { CSVExportsPage } from './csv-exports/CSVExportsPage';
 import { GlobalReportsPage } from './global-reports/GlobalReportsPage';
@@ -19,6 +20,7 @@ import { TimeReportsPage } from './time-report/TimeReportsPage';
  * ReportsPage renders report previews, summaries, filters, CSV, and global reports.
  */
 export function ReportsPage(props: WorkspaceShellProps): ReactElement {
+	const { t } = useI18n();
 	const [activeSection, setActiveSection] = useState<ReportsSectionID>('daily');
 
 	const visibleSections = useMemo(() => {
@@ -36,9 +38,9 @@ export function ReportsPage(props: WorkspaceShellProps): ReactElement {
 	return (
 		<div className="campfire-page-stack">
 			<CampfirePageHeader
-				eyebrow="Reports"
-				title={resolvedSection.label}
-				description={resolvedSection.description}
+				eyebrow={t('reports.page.eyebrow')}
+				title={t(resolvedSection.labelKey)}
+				description={t(resolvedSection.descriptionKey)}
 			/>
 
 			<ReportsSectionNavigation

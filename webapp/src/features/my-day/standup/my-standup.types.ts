@@ -33,5 +33,6 @@ export type MyStandupQuestionFieldProps = {
 	readonly value: AnswerDraftValue | undefined;
 	readonly disabled: boolean;
 	readonly tasks: readonly Task[];
+	readonly timezone: string;
 	readonly onChange: (value: AnswerDraftValue) => void;
 };

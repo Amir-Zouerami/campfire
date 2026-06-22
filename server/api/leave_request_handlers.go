@@ -225,6 +225,61 @@ func handleCreateLeave(
 }
 
 /*
+handleUpdateLeave handles approver-owned edits for active leave requests.
+*/
+func handleUpdateLeave(
+	log logger.Logger,
+	mm mattermost.Client,
+	leaveService *service.LeaveService,
+	auditService *service.AuditService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		leaveRequestID := strings.TrimSpace(chi.URLParam(r, "leaveRequestID"))
+
+		var request UpdateLeaveRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			WriteError(w, http.StatusBadRequest, "invalid_request", "Request body must be valid JSON.")
+			return
+		}
+
+		leaveRequest, err := leaveService.Update(
+			r.Context(),
+			request.ToServiceInput(user.ID, user.IsSystemAdmin, leaveRequestID),
+		)
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		recordAuditEvent(
+			r.Context(),
+			auditService,
+			leaveRequest.WorkspaceID.String(),
+			user.ID,
+			"leave_edited",
+			"leave_request",
+			leaveRequest.ID.String(),
+			map[string]string{
+				"start_date": string(leaveRequest.StartDate),
+				"end_date":   string(leaveRequest.EndDate),
+				"duration":   string(leaveRequest.DurationMode),
+				"status":     string(leaveRequest.Status),
+			},
+		)
+
+		WriteUpdateLeave(w, http.StatusOK, UpdateLeaveResponse{
+			LeaveRequest: LeaveRequestToPayload(*leaveRequest),
+		})
+	}
+}
+
+/*
 handleDecideLeave handles approving or rejecting a pending leave request.
 
 LeaveService already loads the request workspace and enforces decision
@@ -299,6 +354,7 @@ func handleCancelLeave(
 
 		leaveRequest, err := leaveService.Cancel(r.Context(), service.CancelLeaveInput{
 			ActorUserID:    user.ID,
+			IsSystemAdmin:  user.IsSystemAdmin,
 			LeaveRequestID: leaveRequestID,
 		})
 		if err != nil {

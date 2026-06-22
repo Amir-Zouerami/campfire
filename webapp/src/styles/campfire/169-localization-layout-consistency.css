@@ -1,0 +1,134 @@
+/*
+ * Final localization layout pass.
+ * Keeps Persian/Arabic screens readable without letting per-page headings drift.
+ */
+.campfire-theme .campfire-page-intro-card,
+.campfire-theme .campfire-workflow-intro,
+.campfire-theme .campfire-standup-settings-nav-surface {
+	box-sizing: border-box !important;
+	inline-size: 100% !important;
+	max-inline-size: 100% !important;
+}
+
+.campfire-theme .campfire-page-intro-copy,
+.campfire-theme .campfire-workflow-intro-copy,
+.campfire-theme .campfire-surface-header > div,
+.campfire-theme .campfire-standup-overview-main > div {
+	min-inline-size: 0 !important;
+	max-inline-size: none !important;
+}
+
+.campfire-theme .campfire-page-intro-copy h2,
+.campfire-theme .campfire-workflow-intro-copy h3 {
+	font-size: clamp(1.55rem, 0.92rem + 1.15vw, 2.2rem) !important;
+	font-weight: 780 !important;
+	line-height: 1.12 !important;
+	letter-spacing: -0.02em !important;
+	max-inline-size: 100% !important;
+}
+
+.campfire-theme[dir='rtl'] .campfire-page-intro-copy h2,
+.campfire-theme[dir='rtl'] .campfire-workflow-intro-copy h3,
+.campfire-theme[data-campfire-language='fa'] .campfire-page-intro-copy h2,
+.campfire-theme[data-campfire-language='fa'] .campfire-workflow-intro-copy h3,
+.campfire-theme[data-campfire-language='ar'] .campfire-page-intro-copy h2,
+.campfire-theme[data-campfire-language='ar'] .campfire-workflow-intro-copy h3 {
+	font-size: clamp(1.65rem, 0.98rem + 1.08vw, 2.28rem) !important;
+	font-weight: 820 !important;
+	letter-spacing: -0.01em !important;
+}
+
+@media (min-width: 1600px) {
+	.campfire-theme .campfire-page-intro-copy h2,
+	.campfire-theme .campfire-workflow-intro-copy h3 {
+		font-size: clamp(1.7rem, 0.78rem + 1.08vw, 2.34rem) !important;
+	}
+
+	.campfire-theme[dir='rtl'] .campfire-page-intro-copy h2,
+	.campfire-theme[dir='rtl'] .campfire-workflow-intro-copy h3,
+	.campfire-theme[data-campfire-language='fa'] .campfire-page-intro-copy h2,
+	.campfire-theme[data-campfire-language='fa'] .campfire-workflow-intro-copy h3,
+	.campfire-theme[data-campfire-language='ar'] .campfire-page-intro-copy h2,
+	.campfire-theme[data-campfire-language='ar'] .campfire-workflow-intro-copy h3 {
+		font-size: clamp(1.8rem, 0.84rem + 1vw, 2.44rem) !important;
+	}
+}
+
+.campfire-theme .campfire-page-intro-copy p,
+.campfire-theme .campfire-workflow-intro-copy p,
+.campfire-theme .campfire-surface-description,
+.campfire-theme .campfire-settings-section-description {
+	inline-size: 100% !important;
+	max-inline-size: none !important;
+	text-wrap: pretty !important;
+}
+
+.campfire-theme .campfire-settings-page :is(.campfire-card-title, .campfire-empty-title),
+.campfire-theme .campfire-team-review-clean-page :is(.campfire-card-title, .campfire-empty-title),
+.campfire-theme .campfire-reports-page :is(.campfire-card-title, .campfire-empty-title),
+.campfire-theme .campfire-standup-settings-page :is(.campfire-card-title, .campfire-empty-title),
+.campfire-theme .campfire-surface-title {
+	font-size: clamp(1.05rem, 0.8rem + 0.62vw, 1.62rem) !important;
+	font-weight: 720 !important;
+	line-height: 1.18 !important;
+}
+
+.campfire-theme[dir='rtl'] .campfire-settings-page :is(.campfire-card-title, .campfire-empty-title),
+.campfire-theme[dir='rtl'] .campfire-team-review-clean-page :is(.campfire-card-title, .campfire-empty-title),
+.campfire-theme[dir='rtl'] .campfire-reports-page :is(.campfire-card-title, .campfire-empty-title),
+.campfire-theme[dir='rtl'] .campfire-standup-settings-page :is(.campfire-card-title, .campfire-empty-title),
+.campfire-theme[dir='rtl'] .campfire-surface-title {
+	font-size: clamp(1.15rem, 0.86rem + 0.64vw, 1.72rem) !important;
+	font-weight: 780 !important;
+}
+
+.campfire-theme .campfire-info-modal-layer {
+	position: fixed !important;
+	inset: 0 !important;
+	display: grid !important;
+	place-items: center !important;
+	padding: clamp(1rem, 2vw, 2rem) !important;
+	overflow: auto !important;
+	z-index: 2147483000 !important;
+}
+
+.campfire-theme .campfire-info-modal {
+	inline-size: min(92vw, 78rem) !important;
+	block-size: auto !important;
+	max-block-size: min(88svh, 54rem) !important;
+	max-inline-size: min(92vw, 78rem) !important;
+	overflow: hidden !important;
+}
+
+.campfire-theme .campfire-info-modal-body {
+	max-block-size: calc(min(88svh, 54rem) - 9rem) !important;
+	overflow: auto !important;
+}
+
+.campfire-picker-portal-scope.campfire-date-picker-popover[data-calendar='persian'] {
+	inline-size: min(29rem, calc(100vw - 2rem)) !important;
+	min-inline-size: min(29rem, calc(100vw - 2rem)) !important;
+}
+
+.campfire-picker-portal-scope.campfire-date-picker-popover[data-calendar='persian'] .campfire-date-picker-weekdays,
+.campfire-picker-portal-scope.campfire-date-picker-popover[data-calendar='persian'] .campfire-date-picker-grid {
+	grid-template-columns: repeat(7, minmax(2.7rem, 1fr)) !important;
+	column-gap: 0.55rem !important;
+}
+
+.campfire-picker-portal-scope.campfire-date-picker-popover[data-calendar='persian'] .campfire-date-picker-weekday {
+	font-size: 0.78rem !important;
+	line-height: 1.25 !important;
+	white-space: nowrap !important;
+}
+
+.campfire-picker-portal-scope.campfire-date-picker-popover[data-calendar='persian'] .campfire-date-picker-day {
+	inline-size: 2.7rem !important;
+	min-inline-size: 2.7rem !important;
+}
+
+.campfire-picker-portal-scope.campfire-date-picker-popover[data-calendar='persian'] .campfire-date-picker-month,
+.campfire-picker-portal-scope.campfire-date-picker-popover[data-calendar='persian'] .campfire-date-picker-year {
+	font-size: 1.02rem !important;
+	font-weight: 780 !important;
+}

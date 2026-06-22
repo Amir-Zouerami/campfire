@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 import { listStandupConfiguration, listStandupSubmissions } from '@/api';
+import { useI18n } from '@/i18n';
+import { campfireQueryKeys } from '@/query';
 import type { StandupOccurrenceSummary, StandupQuestion, StandupSubmissionSortMode, Workspace } from '@/types/domain';
 
 import {
@@ -18,6 +21,14 @@ import type { TeamStandupsLoadState } from './team-standups.types';
 type UseTeamStandupsInput = {
 	readonly workspace: Workspace;
 	readonly refreshToken: number;
+};
+
+/**
+ * TeamStandupReviewSnapshot is the query-owned review data for one occurrence.
+ */
+type TeamStandupReviewSnapshot = {
+	readonly summary: StandupOccurrenceSummary;
+	readonly questions: readonly StandupQuestion[];
 };
 
 /**
@@ -40,74 +51,75 @@ export type UseTeamStandupsResult = {
 
 /**
  * useTeamStandups owns loading and filter state for Team Review standups.
+ *
+ * Review data is query-owned so submissions/configuration refetching follows the
+ * same cache contract as reports, My Day, and future admin review screens.
  */
 export function useTeamStandups(input: UseTeamStandupsInput): UseTeamStandupsResult {
-	const [loadState, setLoadState] = useState<TeamStandupsLoadState>('idle');
+	const { t } = useI18n();
 	const [occurrenceDate, setOccurrenceDate] = useState(getTodayLocalDateString());
 	const [sortMode, setSortMode] = useState<StandupSubmissionSortMode>('first_submitted');
-	const [summary, setSummary] = useState<StandupOccurrenceSummary | null>(null);
-	const [questions, setQuestions] = useState<readonly StandupQuestion[]>([]);
-	const [message, setMessage] = useState('');
 
-	useEffect(() => {
-		let isActive = true;
+	const reviewQuery = useQuery({
+		queryKey: campfireQueryKeys.teamStandupReview(
+			input.workspace.id,
+			occurrenceDate,
+			sortMode,
+			input.refreshToken,
+		),
+		queryFn: async (): Promise<TeamStandupReviewSnapshot> => {
+			const [configurationResponse, submissionsResponse] = await Promise.all([
+				listStandupConfiguration(input.workspace.id),
+				listStandupSubmissions({
+					workspaceId: input.workspace.id,
+					occurrenceDate,
+					sortMode,
+				}),
+			]);
 
-		/**
-		 * loadStandupReview loads configuration and occurrence submissions.
-		 */
-		async function loadStandupReview(): Promise<void> {
-			setLoadState('loading');
-			setMessage('');
+			return {
+				questions: configurationResponse.questions,
+				summary: submissionsResponse,
+			};
+		},
+	});
 
-			try {
-				const [configurationResponse, submissionsResponse] = await Promise.all([
-					listStandupConfiguration(input.workspace.id),
-					listStandupSubmissions({
-						workspaceId: input.workspace.id,
-						occurrenceDate,
-						sortMode,
-					}),
-				]);
-
-				if (!isActive) {
-					return;
-				}
-
-				setQuestions(configurationResponse.questions);
-				setSummary(submissionsResponse);
-				setLoadState('ready');
-			} catch (error: unknown) {
-				if (!isActive) {
-					return;
-				}
-
-				setMessage(errorToMessage(error));
-				setLoadState('error');
-			}
-		}
-
-		void loadStandupReview();
-
-		return () => {
-			isActive = false;
-		};
-	}, [input.workspace.id, input.refreshToken, occurrenceDate, sortMode]);
-
+	const snapshot = reviewQuery.data ?? null;
+	const summary = snapshot?.summary ?? null;
+	const questions = useMemo(() => snapshot?.questions ?? [], [snapshot]);
 	const questionsByID = useMemo(() => questionMapByID(questions), [questions]);
 	const userIDsForProfiles = useMemo(() => collectStandupReviewUserIDs(summary), [summary]);
+	const message = reviewQuery.isError
+		? errorToMessage(reviewQuery.error, t('teamReview.standups.error.fallback'))
+		: '';
 
 	return {
-		loadState,
+		loadState: resolveTeamStandupsLoadState(reviewQuery.isLoading, reviewQuery.isError),
 		occurrenceDate,
 		sortMode,
 		summary,
 		questions,
 		questionsByID,
 		message,
-		isBusy: loadState === 'loading',
+		isBusy: reviewQuery.isFetching,
 		submittedPercent: submittedPercent(summary),
 		userIDsForProfiles,
 		setOccurrenceDate,
 		setSortMode,
 	};
+}
+
+/**
+ * resolveTeamStandupsLoadState maps query state into the existing UI states.
+ */
+function resolveTeamStandupsLoadState(isLoading: boolean, isError: boolean): TeamStandupsLoadState {
+	if (isLoading) {
+		return 'loading';
+	}
+
+	if (isError) {
+		return 'error';
+	}
+
+	return 'ready';
 }

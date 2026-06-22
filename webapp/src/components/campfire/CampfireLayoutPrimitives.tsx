@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/i18n';
 
 /**
  * CampfireSurfaceProps contains shared surface layout props for the flatter UI pass.
@@ -459,9 +460,12 @@ export function CampfireSectionTabs<TValue extends string>(props: CampfireSectio
  * CampfireBackButton renders a quiet back affordance inside focused sub-pages.
  */
 export function CampfireBackButton(props: { readonly children: ReactNode; readonly onClick: () => void }): ReactElement {
+	const { direction } = useI18n();
+	const arrow = direction === 'rtl' ? '→' : '←';
+
 	return (
 		<button type="button" className="campfire-back-button" onClick={props.onClick}>
-			← {props.children}
+			{arrow} {props.children}
 		</button>
 	);
 }

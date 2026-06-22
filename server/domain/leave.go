@@ -42,6 +42,8 @@ type LeaveRequest struct {
 	Reason       string
 	BackupUserID string
 
+	CanContactIfNeeded bool
+
 	Status LeaveStatus
 
 	CreatedAt   time.Time

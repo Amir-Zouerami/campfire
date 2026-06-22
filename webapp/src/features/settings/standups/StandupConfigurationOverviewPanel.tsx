@@ -2,9 +2,11 @@ import type { ReactElement } from 'react';
 import { ClipboardList, FileQuestion } from 'lucide-react';
 
 import { CampfireBidiText } from '@/components/campfire/CampfireBidiText';
+import { CampfirePageIntro } from '@/components/campfire/CampfirePageIntro';
+import { useI18n } from '@/i18n';
 import { CampfireStatusPill, CampfireSurface } from '@/components/campfire/CampfireLayoutPrimitives';
 
-import { formatLabel } from './standup-settings.helpers';
+import { countLabel, standupKindLabel } from './standup-settings.i18n';
 import type { StandupTemplateWithDetails } from './standup-settings.types';
 
 /**
@@ -18,27 +20,30 @@ type StandupConfigurationOverviewPanelProps = {
  * StandupConfigurationOverviewPanel renders a compact read-only standup overview.
  */
 export function StandupConfigurationOverviewPanel(props: StandupConfigurationOverviewPanelProps): ReactElement {
-	return (
-		<CampfireSurface className="campfire-standup-overview-surface">
-			<div className="campfire-surface-header campfire-surface-header--with-action">
-				<div>
-					<p className="campfire-surface-eyebrow">Overview</p>
-					<h3 className="campfire-surface-title">Current standup setup</h3>
-					<p className="campfire-surface-description">
-						Templates, attached questions, and schedules in one scan-friendly view.
-					</p>
-				</div>
-				<CampfireStatusPill tone="ember">{props.templateDetails.length} templates</CampfireStatusPill>
-			</div>
+	const { t } = useI18n();
 
+	return (
+		<div className="campfire-page-stack campfire-standup-overview-stack">
+			<CampfirePageIntro
+				eyebrow={t('settings.standups.overview.eyebrow')}
+				title={t('settings.standups.overview.title')}
+				description={t('settings.standups.overview.description')}
+				actions={
+					<CampfireStatusPill tone="ember">
+						{countLabel(t, props.templateDetails.length, 'settings.standups.count.template.one', 'settings.standups.count.template.many')}
+					</CampfireStatusPill>
+				}
+			/>
+
+			<CampfireSurface className="campfire-standup-overview-surface">
 			{props.templateDetails.length === 0 && (
 				<div className="campfire-flat-empty-state">
 					<span className="campfire-flat-empty-icon" aria-hidden="true">
 						<ClipboardList className="cf:size-5" />
 					</span>
 					<div>
-						<h4>No standup templates yet</h4>
-						<p>Create a daily or weekly template, then attach schedules and questions.</p>
+						<h4>{t('settings.standups.overview.empty.title')}</h4>
+						<p>{t('settings.standups.overview.empty.description')}</p>
 					</div>
 				</div>
 			)}
@@ -56,9 +61,9 @@ export function StandupConfigurationOverviewPanel(props: StandupConfigurationOve
 									<div className="campfire-standup-overview-title-row">
 										<h4><CampfireBidiText>{detail.template.name}</CampfireBidiText></h4>
 										<CampfireStatusPill tone={detail.template.isActive ? 'green' : 'slate'}>
-											{detail.template.isActive ? 'Active' : 'Inactive'}
+											{detail.template.isActive ? t('settings.standups.status.active') : t('settings.standups.status.inactive')}
 										</CampfireStatusPill>
-										<CampfireStatusPill tone="ember">{formatLabel(detail.template.kind)}</CampfireStatusPill>
+										<CampfireStatusPill tone="ember">{standupKindLabel(t, detail.template.kind)}</CampfireStatusPill>
 									</div>
 
 									{detail.template.description.trim() !== '' && (
@@ -68,8 +73,8 @@ export function StandupConfigurationOverviewPanel(props: StandupConfigurationOve
 							</div>
 
 							<div className="campfire-standup-overview-meta">
-								<span>{detail.questions.length} questions</span>
-								<span>{detail.schedules.length} schedules</span>
+								<span>{countLabel(t, detail.questions.length, 'settings.standups.count.question.one', 'settings.standups.count.question.many')}</span>
+								<span>{countLabel(t, detail.schedules.length, 'settings.standups.count.schedule.one', 'settings.standups.count.schedule.many')}</span>
 							</div>
 
 							{detail.questions.length > 0 && (
@@ -78,13 +83,14 @@ export function StandupConfigurationOverviewPanel(props: StandupConfigurationOve
 										<span key={question.id}><CampfireBidiText>{question.label}</CampfireBidiText></span>
 									))}
 
-									{detail.questions.length > 6 && <span>+{detail.questions.length - 6} more</span>}
+									{detail.questions.length > 6 && <span>{t('settings.standups.overview.moreQuestions', { count: String(detail.questions.length - 6) })}</span>}
 								</div>
 							)}
 						</article>
 					))}
 				</div>
 			)}
-		</CampfireSurface>
+			</CampfireSurface>
+		</div>
 	);
 }

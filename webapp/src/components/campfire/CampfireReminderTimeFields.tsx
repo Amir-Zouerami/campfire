@@ -1,7 +1,21 @@
 import type { ReactElement } from 'react';
 import { Clock3, X } from 'lucide-react';
 
+import { useI18n } from '@/i18n';
+import type { TFunction } from '@/i18n';
+
 import { CampfireTimeInput } from './CampfireTimeInput';
+
+/**
+ * CampfireReminderTimeFieldsLabels contains generated copy for the reminder editor.
+ */
+export type CampfireReminderTimeFieldsLabels = {
+	readonly windowKicker: string;
+	readonly windowTitle: (openTime: string, closeTime: string) => string;
+	readonly gridAriaLabel: string;
+	readonly reminderLabel: (position: number) => string;
+	readonly clearReminderAriaLabel: (position: number) => string;
+};
 
 /**
  * CampfireReminderTimeFieldsProps contains open/close context and up to three reminder times.
@@ -13,6 +27,7 @@ export type CampfireReminderTimeFieldsProps = {
 	readonly reminderTimes: readonly string[];
 	readonly disabled?: boolean;
 	readonly validationMessage?: string;
+	readonly labels?: Partial<CampfireReminderTimeFieldsLabels>;
 	readonly onReminderTimeChange: (index: number, value: string) => void;
 };
 
@@ -21,6 +36,8 @@ export type CampfireReminderTimeFieldsProps = {
  */
 export function CampfireReminderTimeFields(props: CampfireReminderTimeFieldsProps): ReactElement {
 	const values = reminderTimeValues(props.reminderTimes);
+	const { t } = useI18n();
+	const labels = reminderTimeLabels(props.labels, t);
 
 	return (
 		<div className="campfire-reminder-time-editor">
@@ -30,36 +47,38 @@ export function CampfireReminderTimeFields(props: CampfireReminderTimeFieldsProp
 				</span>
 
 				<div>
-					<p className="campfire-reminder-window-kicker">Standup window</p>
-					<p className="campfire-reminder-window-title">
-						Open <strong>{props.openTime}</strong> · close <strong>{props.closeTime}</strong>
-					</p>
+					<p className="campfire-reminder-window-kicker">{labels.windowKicker}</p>
+					<p className="campfire-reminder-window-title">{labels.windowTitle(props.openTime, props.closeTime)}</p>
 				</div>
 			</div>
 
-			<div className="campfire-reminder-time-grid" aria-label="Reminder times">
-				{values.map((value, index) => (
-					<label key={index} className="campfire-reminder-time-field">
-						<span>Reminder {index + 1}</span>
-						<div className="campfire-reminder-time-control-row">
-							<CampfireTimeInput
-								id={`${props.idPrefix}-reminder-${index + 1}`}
-								disabled={props.disabled}
-								value={value}
-								onValueChange={nextValue => props.onReminderTimeChange(index, nextValue)}
-							/>
-							<button
-								type="button"
-								disabled={props.disabled || value.trim() === ''}
-								className="campfire-reminder-time-clear"
-								aria-label={`Clear reminder ${index + 1}`}
-								onClick={() => props.onReminderTimeChange(index, '')}
-							>
-								<X className="cf:size-4" />
-							</button>
-						</div>
-					</label>
-				))}
+			<div className="campfire-reminder-time-grid" aria-label={labels.gridAriaLabel}>
+				{values.map((value, index) => {
+					const position = index + 1;
+
+					return (
+						<label key={position} className="campfire-reminder-time-field">
+							<span>{labels.reminderLabel(position)}</span>
+							<div className="campfire-reminder-time-control-row">
+								<CampfireTimeInput
+									id={`${props.idPrefix}-reminder-${position}`}
+									disabled={props.disabled}
+									value={value}
+									onValueChange={nextValue => props.onReminderTimeChange(index, nextValue)}
+								/>
+								<button
+									type="button"
+									disabled={props.disabled || value.trim() === ''}
+									className="campfire-reminder-time-clear"
+									aria-label={labels.clearReminderAriaLabel(position)}
+									onClick={() => props.onReminderTimeChange(index, '')}
+								>
+									<X className="cf:size-4" />
+								</button>
+							</div>
+						</label>
+					);
+				})}
 			</div>
 
 			{props.validationMessage !== undefined && props.validationMessage.trim() !== '' && (
@@ -74,4 +93,23 @@ export function CampfireReminderTimeFields(props: CampfireReminderTimeFieldsProp
  */
 function reminderTimeValues(values: readonly string[]): readonly string[] {
 	return [values[0] ?? '', values[1] ?? '', values[2] ?? ''];
+}
+
+/**
+ * reminderTimeLabels merges caller-provided generated copy with stable defaults.
+ */
+function reminderTimeLabels(
+	labels: Partial<CampfireReminderTimeFieldsLabels> | undefined,
+	t: TFunction,
+): CampfireReminderTimeFieldsLabels {
+	return {
+		windowKicker: labels?.windowKicker ?? t('shared.reminderTimes.windowKicker'),
+		windowTitle: labels?.windowTitle ?? ((openTime: string, closeTime: string) =>
+			t('shared.reminderTimes.windowTitle', { openTime, closeTime })),
+		gridAriaLabel: labels?.gridAriaLabel ?? t('shared.reminderTimes.gridAriaLabel'),
+		reminderLabel: labels?.reminderLabel ?? ((position: number) =>
+			t('shared.reminderTimes.reminderLabel', { position: String(position) })),
+		clearReminderAriaLabel: labels?.clearReminderAriaLabel ?? ((position: number) =>
+			t('shared.reminderTimes.clearReminder', { position: String(position) })),
+	};
 }

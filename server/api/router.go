@@ -36,6 +36,7 @@ type RouterConfig struct {
 	ExportService                   *service.ExportService
 	TaskService                     *service.TaskService
 	AuditService                    *service.AuditService
+	DataRetentionService            *service.DataRetentionService
 }
 
 /*
@@ -84,6 +85,15 @@ func NewRouter(config RouterConfig) http.Handler {
 				config.PermissionService,
 			),
 		)
+		api.Put(
+			"/workspaces/{workspaceID}/timezone",
+			handleUpdateWorkspaceTimezone(
+				config.Logger,
+				config.Mattermost,
+				config.WorkspaceService,
+				config.PermissionService,
+			),
+		)
 		api.Delete(
 			"/workspaces/{workspaceID}",
 			handleDeleteWorkspace(
@@ -124,6 +134,26 @@ func NewRouter(config RouterConfig) http.Handler {
 		api.Get(
 			"/workspaces/{workspaceID}/audit",
 			handleListAuditLog(config.Logger, config.Mattermost, config.AuditService, config.PermissionService),
+		)
+
+		api.Get(
+			"/workspaces/{workspaceID}/admin/data-retention/preview",
+			handleGetDataRetentionPreview(
+				config.Logger,
+				config.Mattermost,
+				config.DataRetentionService,
+				config.PermissionService,
+			),
+		)
+		api.Post(
+			"/workspaces/{workspaceID}/admin/data-retention/purge",
+			handlePurgeWorkspaceData(
+				config.Logger,
+				config.Mattermost,
+				config.DataRetentionService,
+				config.AuditService,
+				config.PermissionService,
+			),
 		)
 
 		api.Get(
@@ -213,6 +243,16 @@ func NewRouter(config RouterConfig) http.Handler {
 				config.PermissionService,
 			),
 		)
+		api.Delete(
+			"/workspaces/{workspaceID}/standups/templates/{templateID}",
+			handleDeleteStandupTemplate(
+				config.Logger,
+				config.Mattermost,
+				config.StandupService,
+				config.PermissionService,
+				config.AuditService,
+			),
+		)
 		api.Post(
 			"/workspaces/{workspaceID}/standups/questions",
 			handleCreateStandupQuestion(
@@ -231,6 +271,16 @@ func NewRouter(config RouterConfig) http.Handler {
 				config.PermissionService,
 			),
 		)
+		api.Delete(
+			"/workspaces/{workspaceID}/standups/questions/{questionID}",
+			handleDeleteStandupQuestion(
+				config.Logger,
+				config.Mattermost,
+				config.StandupService,
+				config.PermissionService,
+				config.AuditService,
+			),
+		)
 		api.Post(
 			"/workspaces/{workspaceID}/standups/schedules",
 			handleCreateStandupSchedule(
@@ -247,6 +297,16 @@ func NewRouter(config RouterConfig) http.Handler {
 				config.Mattermost,
 				config.StandupService,
 				config.PermissionService,
+			),
+		)
+		api.Delete(
+			"/workspaces/{workspaceID}/standups/schedules/{scheduleID}",
+			handleDeleteStandupSchedule(
+				config.Logger,
+				config.Mattermost,
+				config.StandupService,
+				config.PermissionService,
+				config.AuditService,
 			),
 		)
 		api.Get(
@@ -486,6 +546,15 @@ func NewRouter(config RouterConfig) http.Handler {
 			),
 		)
 		api.Get(
+			"/workspaces/{workspaceID}/leaves/change-requests/pending",
+			handleListPendingLeaveChangeRequests(
+				config.Logger,
+				config.Mattermost,
+				config.LeaveService,
+				config.PermissionService,
+			),
+		)
+		api.Get(
 			"/workspaces/{workspaceID}/leaves/my-pending",
 			handleListMyPendingLeaveRequests(config.Logger, config.Mattermost, config.LeaveService),
 		)
@@ -519,6 +588,23 @@ func NewRouter(config RouterConfig) http.Handler {
 			"/leaves",
 			handleCreateLeave(config.Logger, config.Mattermost, config.LeaveService, config.AuditService),
 		)
+		api.Put(
+			"/leaves/{leaveRequestID}",
+			handleUpdateLeave(
+				config.Logger,
+				config.Mattermost,
+				config.LeaveService,
+				config.AuditService,
+			),
+		)
+		api.Post(
+			"/leaves/{leaveRequestID}/change-requests",
+			handleCreateLeaveChange(config.Logger, config.Mattermost, config.LeaveService, config.AuditService),
+		)
+		api.Post(
+			"/leaves/change-requests/{changeRequestID}/decision",
+			handleDecideLeaveChange(config.Logger, config.Mattermost, config.LeaveService, config.AuditService),
+		)
 		api.Post(
 			"/leaves/{leaveRequestID}/decision",
 			handleDecideLeave(
@@ -550,7 +636,7 @@ func handleHealth(log logger.Logger) http.HandlerFunc {
 		WriteHealth(w, http.StatusOK, HealthResponse{
 			Status:  "ok",
 			Product: "Campfire",
-			Version: "1.0.2",
+			Version: "1.2.0",
 		})
 	}
 }

@@ -40,10 +40,13 @@ type StandupStore interface {
 	ListSchedulesByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.StandupSchedule, error)
 	CreateTemplate(ctx context.Context, template domain.StandupTemplate) (*domain.StandupTemplate, error)
 	UpdateTemplate(ctx context.Context, template domain.StandupTemplate) (*domain.StandupTemplate, error)
+	DeleteTemplate(ctx context.Context, workspaceID domain.ID, templateID domain.ID) error
 	CreateQuestion(ctx context.Context, question domain.StandupQuestion) (*domain.StandupQuestion, error)
 	UpdateQuestion(ctx context.Context, question domain.StandupQuestion) (*domain.StandupQuestion, error)
+	DeleteQuestion(ctx context.Context, workspaceID domain.ID, questionID domain.ID) error
 	CreateSchedule(ctx context.Context, schedule domain.StandupSchedule) (*domain.StandupSchedule, error)
 	UpdateSchedule(ctx context.Context, schedule domain.StandupSchedule) (*domain.StandupSchedule, error)
+	DeleteSchedule(ctx context.Context, workspaceID domain.ID, scheduleID domain.ID) error
 	GetTemplateByID(ctx context.Context, workspaceID domain.ID, templateID domain.ID) (*domain.StandupTemplate, error)
 	GetQuestionByID(ctx context.Context, workspaceID domain.ID, questionID domain.ID) (*domain.StandupQuestion, error)
 	GetScheduleByID(ctx context.Context, workspaceID domain.ID, scheduleID domain.ID) (*domain.StandupSchedule, error)
@@ -478,6 +481,40 @@ func (s *SQLStandupStore) GetQuestionByID(
 }
 
 /*
+DeleteTemplate deletes one standup template and all configuration/history rows
+that depend on it through database foreign keys.
+*/
+func (s *SQLStandupStore) DeleteTemplate(
+	ctx context.Context,
+	workspaceID domain.ID,
+	templateID domain.ID,
+) error {
+	result, err := s.db.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			DELETE FROM campfire_standup_templates
+			WHERE workspace_id = ? AND id = ?
+		`),
+		workspaceID.String(),
+		templateID.String(),
+	)
+	if err != nil {
+		return fmt.Errorf("delete standup template: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read standup template delete result: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
+/*
 CreateQuestion inserts a standup question.
 */
 func (s *SQLStandupStore) CreateQuestion(
@@ -597,6 +634,39 @@ func (s *SQLStandupStore) UpdateQuestion(
 	}
 
 	return updated, nil
+}
+
+/*
+DeleteQuestion deletes one standup question and answers that depend on it.
+*/
+func (s *SQLStandupStore) DeleteQuestion(
+	ctx context.Context,
+	workspaceID domain.ID,
+	questionID domain.ID,
+) error {
+	result, err := s.db.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			DELETE FROM campfire_standup_questions
+			WHERE workspace_id = ? AND id = ?
+		`),
+		workspaceID.String(),
+		questionID.String(),
+	)
+	if err != nil {
+		return fmt.Errorf("delete standup question: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read standup question delete result: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+
+	return nil
 }
 
 /*
@@ -753,6 +823,40 @@ func (s *SQLStandupStore) UpdateSchedule(
 	}
 
 	return updated, nil
+}
+
+/*
+DeleteSchedule deletes one standup schedule and all reminder/report/submission
+rows that depend on it through database foreign keys.
+*/
+func (s *SQLStandupStore) DeleteSchedule(
+	ctx context.Context,
+	workspaceID domain.ID,
+	scheduleID domain.ID,
+) error {
+	result, err := s.db.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			DELETE FROM campfire_standup_schedules
+			WHERE workspace_id = ? AND id = ?
+		`),
+		workspaceID.String(),
+		scheduleID.String(),
+	)
+	if err != nil {
+		return fmt.Errorf("delete standup schedule: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read standup schedule delete result: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+
+	return nil
 }
 
 /*

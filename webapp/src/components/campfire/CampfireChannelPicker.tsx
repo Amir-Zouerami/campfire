@@ -5,6 +5,7 @@ import { Hash, Loader2, Search, XCircle } from 'lucide-react';
 import { ApiClientError, lookupChannels, searchChannels } from '@/api';
 import { Button } from '@/components/ui/button';
 import type { ChannelProfile } from '@/types/api';
+import { useI18n } from '@/i18n';
 
 /**
  * CampfireChannelPickerProps contains a team-scoped Mattermost channel picker.
@@ -30,6 +31,7 @@ export function CampfireChannelPicker(props: CampfireChannelPickerProps): ReactE
 	const [loadState, setLoadState] = useState<LoadState>('idle');
 	const [message, setMessage] = useState('');
 	const deferredQuery = useDeferredValue(query);
+	const { t } = useI18n();
 
 	useEffect(() => {
 		let active = true;
@@ -54,7 +56,7 @@ export function CampfireChannelPicker(props: CampfireChannelPickerProps): ReactE
 				}
 
 				setSelectedChannel(null);
-				setMessage(errorToMessage(error));
+				setMessage(errorToMessage(error, t('shared.channelPicker.searchError')));
 			}
 		}
 
@@ -63,7 +65,7 @@ export function CampfireChannelPicker(props: CampfireChannelPickerProps): ReactE
 		return () => {
 			active = false;
 		};
-	}, [props.value]);
+	}, [props.value, t]);
 
 	useEffect(() => {
 		let active = true;
@@ -98,7 +100,7 @@ export function CampfireChannelPicker(props: CampfireChannelPickerProps): ReactE
 
 					setResults([]);
 					setLoadState('error');
-					setMessage(errorToMessage(error));
+					setMessage(errorToMessage(error, t('shared.channelPicker.searchError')));
 				}
 			}
 
@@ -109,7 +111,7 @@ export function CampfireChannelPicker(props: CampfireChannelPickerProps): ReactE
 			active = false;
 			window.clearTimeout(timeoutID);
 		};
-	}, [deferredQuery, props.teamID]);
+	}, [deferredQuery, props.teamID, t]);
 
 	const disabled = props.disabled === true || props.teamID.trim() === '';
 	const cleanQuery = query.trim();
@@ -149,7 +151,7 @@ export function CampfireChannelPicker(props: CampfireChannelPickerProps): ReactE
 				<input
 					type="search"
 					disabled={disabled}
-					placeholder={props.placeholder ?? 'Search channels by name, or paste a channel ID'}
+					placeholder={props.placeholder ?? t('shared.channelPicker.searchPlaceholder')}
 					value={query}
 					onChange={event => setQuery(event.currentTarget.value)}
 				/>
@@ -165,13 +167,13 @@ export function CampfireChannelPicker(props: CampfireChannelPickerProps): ReactE
 					</span>
 					<Button type="button" variant="secondary" size="sm" disabled={disabled} onClick={() => props.onChange('')}>
 						<XCircle className="cf:size-4" />
-						Clear
+						{t('common.clear')}
 					</Button>
 				</div>
 			)}
 
 			{showResults && (
-				<div className="campfire-channel-picker-results" role="listbox" aria-label="Matching Mattermost channels">
+				<div className="campfire-channel-picker-results" role="listbox" aria-label={t('shared.channelPicker.resultsLabel')}>
 					{results.map(channel => (
 						<button
 							key={channel.id}
@@ -195,14 +197,14 @@ export function CampfireChannelPicker(props: CampfireChannelPickerProps): ReactE
 				>
 					<Hash className="cf:size-4" aria-hidden="true" />
 					<span>
-						Use “{cleanQuery}” as channel ID
-						<small>Fallback for private channels that do not appear in search.</small>
+						{t('shared.channelPicker.useTypedChannel', { channelId: cleanQuery })}
+						<small>{t('shared.channelPicker.useTypedChannel.description')}</small>
 					</span>
 				</button>
 			)}
 
 			{cleanQuery !== '' && loadState === 'ready' && results.length === 0 && (
-				<p className="campfire-channel-picker-message">No matching public or visible channels. Paste the channel ID and use the fallback row.</p>
+				<p className="campfire-channel-picker-message">{t('shared.channelPicker.noResults')}</p>
 			)}
 
 			{message !== '' && <p className="campfire-channel-picker-message campfire-channel-picker-message--error">{message}</p>}
@@ -227,7 +229,7 @@ function channelLabel(channel: ChannelProfile): string {
 /**
  * errorToMessage converts unknown errors to safe picker text.
  */
-function errorToMessage(error: unknown): string {
+function errorToMessage(error: unknown, fallback: string): string {
 	if (error instanceof ApiClientError) {
 		return error.message;
 	}
@@ -236,5 +238,5 @@ function errorToMessage(error: unknown): string {
 		return error.message;
 	}
 
-	return 'Could not search channels.';
+	return fallback;
 }

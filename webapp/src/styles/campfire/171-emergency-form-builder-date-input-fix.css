@@ -1,0 +1,27 @@
+/*
+ * Emergency live QA fix: date trigger spacing and form-builder crash guard styling.
+ * This layer is intentionally narrow; it does not change title-card scale or
+ * earlier RTL calendar behavior.
+ */
+
+.campfire-overlay.campfire-theme .campfire-date-picker-value-stack,
+.campfire-theme .campfire-date-picker-trigger .campfire-date-picker-value-stack {
+  gap: 0.28rem !important;
+}
+
+.campfire-overlay.campfire-theme[dir='rtl'] .campfire-date-picker-value-stack,
+.campfire-theme[dir='rtl'] .campfire-date-picker-trigger .campfire-date-picker-value-stack {
+  gap: 0.32rem !important;
+}
+
+.campfire-overlay.campfire-theme .campfire-date-picker-value,
+.campfire-overlay.campfire-theme .campfire-date-picker-hint,
+.campfire-theme .campfire-date-picker-trigger .campfire-date-picker-value,
+.campfire-theme .campfire-date-picker-trigger .campfire-date-picker-hint {
+  line-height: 1.18 !important;
+}
+
+.campfire-overlay.campfire-theme[dir='rtl'] .campfire-date-picker-hint,
+.campfire-theme[dir='rtl'] .campfire-date-picker-trigger .campfire-date-picker-hint {
+  margin-block-start: 0.08rem !important;
+}

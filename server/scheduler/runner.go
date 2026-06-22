@@ -49,6 +49,11 @@ type StandupRuntimeProvider interface {
 ReminderSequenceExecutor defines reminder execution behavior used by the scheduler.
 */
 type ReminderSequenceExecutor interface {
+	ExecuteOpeningAnnouncement(
+		ctx context.Context,
+		input service.ExecuteOpeningAnnouncementInput,
+	) (*service.ExecuteOpeningAnnouncementResult, error)
+
 	ExecuteSequence(
 		ctx context.Context,
 		input service.ExecuteReminderSequenceInput,
@@ -292,28 +297,19 @@ func (r *Runner) tickWorkspace(ctx context.Context, workspace domain.Workspace, 
 			continue
 		}
 
-		shouldSkipDaily, err := r.shouldSkipDailyBecauseWeeklyRuns(ctx, workspace, schedule, schedules, localNow)
-		if err != nil {
-			r.logger.Warn(
-				"scheduler failed to evaluate daily weekly-skip rule",
-				logger.String("workspace_id", workspace.ID.String()),
-				logger.String("schedule_id", schedule.ID.String()),
-				logger.String("date", occurrenceDate.String()),
-				logger.String("error", err.Error()),
-			)
-			continue
-		}
-
-		if shouldSkipDaily {
+		if !scheduleRunsOnDecisionDate(schedule, decision) {
 			r.logger.Debug(
-				"scheduler skipped daily schedule because weekly schedule runs today",
+				"scheduler skipped schedule because it is not due on this workspace date",
 				logger.String("workspace_id", workspace.ID.String()),
 				logger.String("schedule_id", schedule.ID.String()),
+				logger.String("schedule_kind", string(schedule.Kind)),
+				logger.String("weekly_mode", string(schedule.WeeklyMode)),
 				logger.String("date", occurrenceDate.String()),
 			)
 			continue
 		}
 
+		r.executeDueScheduleOpening(ctx, workspace, schedule, occurrenceDate, localNow)
 		r.executeDueScheduleReport(ctx, workspace, schedule, occurrenceDate, localNow)
 
 		for _, rule := range rulesByScheduleID[schedule.ID] {
@@ -324,6 +320,95 @@ func (r *Runner) tickWorkspace(ctx context.Context, workspace domain.Workspace, 
 			r.executeDueReminderSequences(ctx, workspace, schedule, rule, occurrenceDate, localNow)
 		}
 	}
+}
+
+/*
+scheduleRunsOnDecisionDate applies schedule-specific calendar rules after the
+workspace-level runtime decision has already confirmed that the date can run.
+
+Weekly schedules currently support only the last-working-day mode, so their
+opening announcement, reminder sequences, and automated report must all be
+skipped until the workspace runtime marks the date as the local week's final
+working day.
+*/
+func scheduleRunsOnDecisionDate(
+	schedule domain.StandupSchedule,
+	decision *domain.StandupRunDecision,
+) bool {
+	if decision == nil || !decision.ShouldRun {
+		return false
+	}
+
+	switch schedule.Kind {
+	case domain.StandupKindDaily:
+		return true
+
+	case domain.StandupKindWeekly:
+		return schedule.WeeklyMode == domain.WeeklyModeLastWorkingDay && decision.IsLastWorkingDayOfWeek
+
+	default:
+		return true
+	}
+}
+
+/*
+executeDueScheduleOpening posts the channel-only opening announcement when a
+standup window opens. Opening announcements are not reminder sequences and never
+send direct messages.
+*/
+func (r *Runner) executeDueScheduleOpening(
+	ctx context.Context,
+	workspace domain.Workspace,
+	schedule domain.StandupSchedule,
+	occurrenceDate domain.LocalDate,
+	localNow time.Time,
+) {
+	openTime, err := scheduleTimeForDate(localNow, schedule.OpensAt)
+	if err != nil {
+		r.logger.Warn(
+			"scheduler could not parse standup open time",
+			logger.String("workspace_id", workspace.ID.String()),
+			logger.String("schedule_id", schedule.ID.String()),
+			logger.String("opens_at", schedule.OpensAt.String()),
+			logger.String("error", err.Error()),
+		)
+		return
+	}
+
+	if !sameLocalMinute(localNow, openTime) {
+		return
+	}
+
+	result, err := r.reminderSequenceExecutor.ExecuteOpeningAnnouncement(ctx, service.ExecuteOpeningAnnouncementInput{
+		WorkspaceID:    workspace.ID.String(),
+		ScheduleID:     schedule.ID.String(),
+		ScheduleKind:   schedule.Kind,
+		OccurrenceDate: occurrenceDate.String(),
+	})
+	if err != nil {
+		r.logger.Warn(
+			"scheduler failed to send standup opening announcement",
+			logger.String("workspace_id", workspace.ID.String()),
+			logger.String("schedule_id", schedule.ID.String()),
+			logger.String("error", err.Error()),
+		)
+		return
+	}
+
+	if result == nil || !result.Sent {
+		r.logger.Debug(
+			"scheduler skipped standup opening announcement",
+			logger.String("workspace_id", workspace.ID.String()),
+			logger.String("schedule_id", schedule.ID.String()),
+		)
+		return
+	}
+
+	r.logger.Debug(
+		"scheduler sent standup opening announcement",
+		logger.String("workspace_id", workspace.ID.String()),
+		logger.String("schedule_id", schedule.ID.String()),
+	)
 }
 
 /*
@@ -542,28 +627,6 @@ func (r *Runner) executeDueWeeklyReport(
 		return
 	}
 
-	isLastWorkingDay, err := r.isLastWorkingDayOfLocalWeek(ctx, workspace, localNow)
-	if err != nil {
-		r.logger.Warn(
-			"scheduler failed to evaluate weekly report day",
-			logger.String("workspace_id", workspace.ID.String()),
-			logger.String("schedule_id", schedule.ID.String()),
-			logger.String("date", occurrenceDate.String()),
-			logger.String("error", err.Error()),
-		)
-		return
-	}
-
-	if !isLastWorkingDay {
-		r.logger.Debug(
-			"scheduler skipped weekly report because today is not the last working day",
-			logger.String("workspace_id", workspace.ID.String()),
-			logger.String("schedule_id", schedule.ID.String()),
-			logger.String("date", occurrenceDate.String()),
-		)
-		return
-	}
-
 	periodStart, periodEnd := weeklyReportPeriodEnding(localNow)
 
 	result, err := r.reportAutomationExecutor.PostWeeklyAutomated(ctx, service.PostWeeklyReportAutomationInput{
@@ -602,108 +665,6 @@ func (r *Runner) executeDueWeeklyReport(
 		logger.String("schedule_id", schedule.ID.String()),
 		logger.String("period_start", periodStart.String()),
 		logger.String("period_end", periodEnd.String()),
-	)
-}
-
-/*
-shouldSkipDailyBecauseWeeklyRuns returns true when a daily schedule should be skipped.
-
-Daily schedules are skipped only when an enabled weekly schedule is configured
-with skipDailyWhenWeeklyRuns and today is the last runnable day of the local week.
-*/
-func (r *Runner) shouldSkipDailyBecauseWeeklyRuns(
-	ctx context.Context,
-	workspace domain.Workspace,
-	schedule domain.StandupSchedule,
-	schedules []domain.StandupSchedule,
-	localNow time.Time,
-) (bool, error) {
-	if schedule.Kind != domain.StandupKindDaily {
-		return false, nil
-	}
-
-	hasWeeklySkipSchedule := false
-	for _, candidate := range schedules {
-		if !candidate.Enabled {
-			continue
-		}
-
-		if candidate.Kind != domain.StandupKindWeekly {
-			continue
-		}
-
-		if candidate.WeeklyMode != domain.WeeklyModeLastWorkingDay {
-			continue
-		}
-
-		if !candidate.SkipDailyWhenWeeklyRuns {
-			continue
-		}
-
-		hasWeeklySkipSchedule = true
-		break
-	}
-
-	if !hasWeeklySkipSchedule {
-		return false, nil
-	}
-
-	isLastWorkingDay, err := r.isLastWorkingDayOfLocalWeek(ctx, workspace, localNow)
-	if err != nil {
-		return false, err
-	}
-
-	return isLastWorkingDay, nil
-}
-
-/*
-isLastWorkingDayOfLocalWeek returns true when no later day in the local week is runnable.
-
-The scheduler uses the runtime provider so global off-days, workspace off-days,
-working days, and everyone-on-leave behavior stay centralized.
-*/
-func (r *Runner) isLastWorkingDayOfLocalWeek(
-	ctx context.Context,
-	workspace domain.Workspace,
-	localNow time.Time,
-) (bool, error) {
-	weekEnd := localWeekEnd(localNow)
-
-	for next := localNow.AddDate(0, 0, 1); !next.After(weekEnd); next = next.AddDate(0, 0, 1) {
-		nextDate := domain.LocalDate(next.Format("2006-01-02"))
-
-		decision, err := r.standupRuntimeProvider.EvaluateDay(ctx, service.EvaluateStandupDayInput{
-			ActorUserID: schedulerActorUserID,
-			WorkspaceID: workspace.ID.String(),
-			Date:        nextDate.String(),
-		})
-		if err != nil {
-			return false, err
-		}
-
-		if decision.ShouldRun {
-			return false, nil
-		}
-	}
-
-	return true, nil
-}
-
-/*
-localWeekEnd returns the Sunday at the end of localNow's ISO-like week.
-*/
-func localWeekEnd(localNow time.Time) time.Time {
-	daysUntilSunday := (int(time.Sunday) - int(localNow.Weekday()) + 7) % 7
-
-	return time.Date(
-		localNow.Year(),
-		localNow.Month(),
-		localNow.Day()+daysUntilSunday,
-		23,
-		59,
-		59,
-		int(time.Second-time.Nanosecond),
-		localNow.Location(),
 	)
 }
 

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { toast } from '@/components/campfire/campfire-toast';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 
 import { createTask, createTimeEntry, listMyTasks, listMyTimeEntries, updateTask } from '@/api';
+import { toast } from '@/components/campfire/campfire-toast';
+import { campfireQueryKeys } from '@/query';
 import type { Task, TaskStatus, TimeEntry, Workspace } from '@/types/domain';
 
 import {
@@ -30,10 +32,31 @@ import type {
  */
 type UseMyTimeLogInput = {
 	readonly workspace: Workspace;
+	readonly text: UseMyTimeLogText;
 };
 
 /**
- * UseMyTimeLogResult contains all tasks/time page state and actions.
+ * UseMyTimeLogText contains localized copy used by the hook.
+ */
+type UseMyTimeLogText = {
+	readonly taskCreated: string;
+	readonly timeLogged: string;
+	readonly taskTitleRequired: string;
+	readonly chooseTask: string;
+	readonly minutesPositive: string;
+	readonly fallbackError: string;
+};
+
+/**
+ * MyTimeSnapshot is the query-owned read model for personal tasks and time.
+ */
+type MyTimeSnapshot = {
+	readonly tasks: readonly Task[];
+	readonly timeEntries: readonly TimeEntry[];
+};
+
+/**
+ * UseMyTimeLogResult contains all state/actions needed by the tasks and time pages.
  */
 export type UseMyTimeLogResult = {
 	readonly loadState: MyTimeLoadState;
@@ -60,12 +83,16 @@ export type UseMyTimeLogResult = {
 };
 
 /**
- * useMyTimeLog owns loading, form state, and mutations for My Day time logging.
+ * useMyTimeLog owns form state while TanStack Query owns server state.
+ *
+ * This keeps task/time reads cacheable and invalidatable, while mutations remain
+ * isolated behind typed handlers. The hook deliberately avoids duplicating query
+ * data into local state so every task and time page sees one consistent source
+ * of truth after create/update operations.
  */
 export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
-	const [loadState, setLoadState] = useState<MyTimeLoadState>('idle');
-	const [tasks, setTasks] = useState<readonly Task[]>([]);
-	const [timeEntries, setTimeEntries] = useState<readonly TimeEntry[]>([]);
+	const queryClient = useQueryClient();
+	const dateRange = useMemo(() => defaultRecentTimeEntryRange(), []);
 	const [includeArchived, setIncludeArchivedState] = useState(false);
 	const [taskDraft, setTaskDraft] = useState<TaskDraft>(emptyTaskDraft);
 	const [taskDraftErrors, setTaskDraftErrors] = useState<TaskDraftValidationErrors>({});
@@ -73,44 +100,19 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 	const [timeDraftErrors, setTimeDraftErrors] = useState<TimeEntryDraftValidationErrors>({});
 	const [message, setMessage] = useState('');
 
-	useEffect(() => {
-		let isActive = true;
+	const snapshotQuery = useQuery({
+		queryKey: campfireQueryKeys.myTimeSnapshot(
+			input.workspace.id,
+			includeArchived,
+			dateRange.startDate,
+			dateRange.endDate,
+		),
+		queryFn: () => fetchTasksAndTime(input.workspace.id, includeArchived, dateRange.startDate, dateRange.endDate),
+		staleTime: 30_000,
+	});
 
-		/**
-		 * loadInitialData loads current-user task and time data.
-		 */
-		async function loadInitialData(): Promise<void> {
-			setLoadState('loading');
-			setMessage('');
-
-			try {
-				const snapshot = await fetchTasksAndTime(input.workspace.id, false);
-
-				if (!isActive) {
-					return;
-				}
-
-				setIncludeArchivedState(false);
-				setTasks(snapshot.tasks);
-				setTimeEntries(snapshot.timeEntries);
-				setTimeDraft(current => ensureSelectedTask(current, snapshot.tasks));
-				setLoadState('ready');
-			} catch (error: unknown) {
-				if (!isActive) {
-					return;
-				}
-
-				setMessage(errorToMessage(error));
-				setLoadState('error');
-			}
-		}
-
-		void loadInitialData();
-
-		return () => {
-			isActive = false;
-		};
-	}, [input.workspace.id]);
+	const tasks = snapshotQuery.data?.tasks ?? [];
+	const timeEntries = snapshotQuery.data?.timeEntries ?? [];
 
 	const loggableTasks = useMemo(() => {
 		return tasks.filter(taskCanReceiveTime);
@@ -124,41 +126,89 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 		return timeEntries.reduce((total, entry) => total + entry.minutes, 0);
 	}, [timeEntries]);
 
+	useEffect(() => {
+		setTimeDraft(current => ensureSelectedTask(current, tasks));
+	}, [tasks]);
+
+	const createTaskMutation = useMutation({
+		mutationFn: (request: Parameters<typeof createTask>[1]) => createTask(input.workspace.id, request),
+		onSuccess: async response => {
+			setTaskDraft(emptyTaskDraft());
+			setTimeDraft(current => ({
+				...current,
+				taskId: response.task.id,
+				projectId: response.task.projectId,
+				categoryId: response.task.categoryId,
+			}));
+			setMessage('');
+			toast.success(input.text.taskCreated);
+			await invalidatePersonalTimeQueries(queryClient, input.workspace.id);
+		},
+		onError: error => {
+			const errorMessage = errorToMessage(error, input.text.fallbackError);
+			setMessage(errorMessage);
+			toast.error(errorMessage);
+		},
+	});
+
+	const createTimeEntryMutation = useMutation({
+		mutationFn: (request: Parameters<typeof createTimeEntry>[1]) => createTimeEntry(input.workspace.id, request),
+		onSuccess: async () => {
+			setTimeDraft(current => ({
+				...current,
+				minutes: '30',
+				note: '',
+			}));
+			setMessage('');
+			toast.success(input.text.timeLogged);
+			await invalidatePersonalTimeQueries(queryClient, input.workspace.id);
+		},
+		onError: error => {
+			const errorMessage = errorToMessage(error, input.text.fallbackError);
+			setMessage(errorMessage);
+			toast.error(errorMessage);
+		},
+	});
+
+	const updateTaskMutation = useMutation({
+		mutationFn: (request: { readonly task: Task; readonly status: TaskStatus }) => updateTask(
+			input.workspace.id,
+			request.task.id,
+			{
+				title: request.task.title,
+				description: request.task.description,
+				projectId: request.task.projectId,
+				categoryId: request.task.categoryId,
+				status: request.status,
+				boardUrl: request.task.boardUrl,
+			},
+		),
+		onSuccess: async () => {
+			setMessage('');
+			await invalidatePersonalTimeQueries(queryClient, input.workspace.id);
+		},
+		onError: error => {
+			const errorMessage = errorToMessage(error, input.text.fallbackError);
+			setMessage(errorMessage);
+			toast.error(errorMessage);
+		},
+	});
+
+	const mutationPending = createTaskMutation.isPending || createTimeEntryMutation.isPending || updateTaskMutation.isPending;
+	const loadState = resolveLoadState(snapshotQuery.isPending, snapshotQuery.isError, mutationPending);
 	const isBusy = loadState === 'loading' || loadState === 'saving';
+	const displayedMessage = snapshotQuery.isError ? errorToMessage(snapshotQuery.error, input.text.fallbackError) : message;
 
 	/**
-	 * handleIncludeArchivedChange refreshes tasks in-place without unmounting the page.
+	 * handleIncludeArchivedChange lets the query key drive refresh behavior.
 	 */
 	function handleIncludeArchivedChange(nextIncludeArchived: boolean): void {
-		if (nextIncludeArchived === includeArchived || loadState === 'loading' || loadState === 'saving') {
+		if (nextIncludeArchived === includeArchived || isBusy) {
 			return;
 		}
 
 		setIncludeArchivedState(nextIncludeArchived);
-		setLoadState('saving');
 		setMessage('');
-
-		void refreshTasksForArchivePreference(nextIncludeArchived);
-	}
-
-	/**
-	 * refreshTasksForArchivePreference reloads the task list without replacing the whole page with loading state.
-	 */
-	async function refreshTasksForArchivePreference(nextIncludeArchived: boolean): Promise<void> {
-		try {
-			const response = await listMyTasks(input.workspace.id, nextIncludeArchived);
-
-			setTasks(response.tasks);
-			setTimeDraft(current => ensureSelectedTask(current, response.tasks));
-			setLoadState('ready');
-		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
-
-			setIncludeArchivedState(current => !current);
-			setLoadState('error');
-			setMessage(errorMessage);
-			toast.error(errorMessage);
-		}
 	}
 
 	/**
@@ -219,39 +269,23 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 		const title = taskDraft.title.trim();
 
 		if (title === '') {
-			setTaskDraftErrors({ title: 'Task title is required.' });
+			setTaskDraftErrors({ title: input.text.taskTitleRequired });
 			return;
 		}
 
 		setTaskDraftErrors({});
-		setLoadState('saving');
 		setMessage('');
 
 		try {
-			const response = await createTask(input.workspace.id, {
+			await createTaskMutation.mutateAsync({
 				title,
 				description: taskDraft.description.trim(),
 				projectId: taskDraft.projectId.trim(),
 				categoryId: taskDraft.categoryId.trim(),
 				boardUrl: taskDraft.boardUrl.trim(),
 			});
-
-			setTasks(current => [response.task, ...current]);
-			setTaskDraft(emptyTaskDraft());
-			setTimeDraft(current => ({
-				...current,
-				taskId: response.task.id,
-				projectId: response.task.projectId,
-				categoryId: response.task.categoryId,
-			}));
-			setLoadState('ready');
-			setMessage('');
-			toast.success('Task created');
-		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
-			setLoadState('error');
-			setMessage(errorMessage);
-			toast.error(errorMessage);
+		} catch {
+			// The mutation owns user-facing error handling through onError.
 		}
 	}
 
@@ -259,18 +293,15 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 	 * submitTimeEntry logs time against the selected task.
 	 */
 	async function submitTimeEntry(): Promise<void> {
-		const nextErrors: {
-			taskId?: string;
-			minutes?: string;
-		} = {};
+		const nextErrors: TimeEntryDraftValidationErrors = {};
 
 		if (timeDraft.taskId.trim() === '') {
-			nextErrors.taskId = 'Choose a task before logging time.';
+			nextErrors.taskId = input.text.chooseTask;
 		}
 
 		const minutes = parseMinutes(timeDraft.minutes);
 		if (minutes === null) {
-			nextErrors.minutes = 'Minutes must be greater than zero.';
+			nextErrors.minutes = input.text.minutesPositive;
 		}
 
 		if (nextErrors.taskId !== undefined || nextErrors.minutes !== undefined || minutes === null) {
@@ -279,11 +310,10 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 		}
 
 		setTimeDraftErrors({});
-		setLoadState('saving');
 		setMessage('');
 
 		try {
-			const response = await createTimeEntry(input.workspace.id, {
+			await createTimeEntryMutation.mutateAsync({
 				taskId: timeDraft.taskId,
 				entryDate: timeDraft.entryDate,
 				minutes,
@@ -291,21 +321,8 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 				projectId: timeDraft.projectId.trim(),
 				categoryId: timeDraft.categoryId.trim(),
 			});
-
-			setTimeEntries(current => [response.timeEntry, ...current]);
-			setTimeDraft(current => ({
-				...current,
-				minutes: '30',
-				note: '',
-			}));
-			setLoadState('ready');
-			setMessage('');
-			toast.success('Time logged');
-		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
-			setLoadState('error');
-			setMessage(errorMessage);
-			toast.error(errorMessage);
+		} catch {
+			// The mutation owns user-facing error handling through onError.
 		}
 	}
 
@@ -315,33 +332,16 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 	async function changeTaskStatus(taskId: string, status: TaskStatus): Promise<void> {
 		const task = tasks.find(candidate => candidate.id === taskId);
 
-		if (task === undefined) {
+		if (task === undefined || task.status === status) {
 			return;
 		}
 
-		setLoadState('saving');
 		setMessage('');
 
 		try {
-			const response = await updateTask(input.workspace.id, task.id, {
-				title: task.title,
-				description: task.description,
-				projectId: task.projectId,
-				categoryId: task.categoryId,
-				status,
-				boardUrl: task.boardUrl,
-			});
-
-			setTasks(current =>
-				current.map(candidate => (candidate.id === response.task.id ? response.task : candidate)),
-			);
-			setLoadState('ready');
-			setMessage('');
-		} catch (error: unknown) {
-			const errorMessage = errorToMessage(error);
-			setLoadState('error');
-			setMessage(errorMessage);
-			toast.error(errorMessage);
+			await updateTaskMutation.mutateAsync({ task, status });
+		} catch {
+			// The mutation owns user-facing error handling through onError.
 		}
 	}
 
@@ -356,7 +356,7 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 		taskDraftErrors,
 		timeDraft,
 		timeDraftErrors,
-		message,
+		message: displayedMessage,
 		isBusy,
 		activeTaskCount: activeTaskCount(tasks),
 		totalRecentMinutes,
@@ -376,19 +376,58 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 async function fetchTasksAndTime(
 	workspaceId: string,
 	includeArchived: boolean,
-): Promise<{ readonly tasks: readonly Task[]; readonly timeEntries: readonly TimeEntry[] }> {
-	const today = getTodayLocalDateString();
-	const startDate = addDaysToLocalDate(today, -14);
-
+	startDate: string,
+	endDate: string,
+): Promise<MyTimeSnapshot> {
 	const [taskResponse, timeResponse] = await Promise.all([
 		listMyTasks(workspaceId, includeArchived),
-		listMyTimeEntries(workspaceId, startDate, today),
+		listMyTimeEntries(workspaceId, startDate, endDate),
 	]);
 
 	return {
 		tasks: taskResponse.tasks,
 		timeEntries: timeResponse.timeEntries,
 	};
+}
+
+/**
+ * defaultRecentTimeEntryRange returns the local recent-window used by My Day.
+ */
+function defaultRecentTimeEntryRange(): { readonly startDate: string; readonly endDate: string } {
+	const endDate = getTodayLocalDateString();
+
+	return {
+		startDate: addDaysToLocalDate(endDate, -14),
+		endDate,
+	};
+}
+
+/**
+ * resolveLoadState maps query/mutation state into the existing page contract.
+ */
+function resolveLoadState(isLoading: boolean, isError: boolean, isSaving: boolean): MyTimeLoadState {
+	if (isSaving) {
+		return 'saving';
+	}
+
+	if (isLoading) {
+		return 'loading';
+	}
+
+	if (isError) {
+		return 'error';
+	}
+
+	return 'ready';
+}
+
+/**
+ * invalidatePersonalTimeQueries refreshes all current-user task/time cache entries.
+ */
+async function invalidatePersonalTimeQueries(queryClient: QueryClient, workspaceID: string): Promise<void> {
+	await queryClient.invalidateQueries({
+		queryKey: campfireQueryKeys.myDay(workspaceID),
+	});
 }
 
 /**

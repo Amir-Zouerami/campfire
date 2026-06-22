@@ -16,17 +16,18 @@ import (
 CreateLeaveInput contains user-submitted leave request data.
 */
 type CreateLeaveInput struct {
-	ActorUserID  string
-	WorkspaceID  string
-	LeaveTypeID  string
-	StartDate    string
-	EndDate      string
-	DurationMode string
-	HalfDayPart  string
-	StartTime    string
-	EndTime      string
-	Reason       string
-	BackupUserID string
+	ActorUserID        string
+	WorkspaceID        string
+	LeaveTypeID        string
+	StartDate          string
+	EndDate            string
+	DurationMode       string
+	HalfDayPart        string
+	StartTime          string
+	EndTime            string
+	Reason             string
+	BackupUserID       string
+	CanContactIfNeeded bool
 }
 
 /*
@@ -121,7 +122,27 @@ CancelLeaveInput contains data needed to cancel a pending or approved leave requ
 */
 type CancelLeaveInput struct {
 	ActorUserID    string
+	IsSystemAdmin  bool
 	LeaveRequestID string
+}
+
+/*
+UpdateLeaveInput contains approver-owned edits for a pending or approved leave request.
+*/
+type UpdateLeaveInput struct {
+	ActorUserID        string
+	IsSystemAdmin      bool
+	LeaveRequestID     string
+	LeaveTypeID        string
+	StartDate          string
+	EndDate            string
+	DurationMode       string
+	HalfDayPart        string
+	StartTime          string
+	EndTime            string
+	Reason             string
+	BackupUserID       string
+	CanContactIfNeeded bool
 }
 
 /*
@@ -376,22 +397,23 @@ func (s *LeaveService) Create(ctx context.Context, input CreateLeaveInput) (*dom
 	now := time.Now().UTC()
 
 	leaveRequest := domain.LeaveRequest{
-		ID:           domain.ID(uuid.NewString()),
-		WorkspaceID:  domain.ID(cleanWorkspaceID),
-		UserID:       cleanActorUserID,
-		LeaveTypeID:  domain.ID(cleanLeaveTypeID),
-		StartDate:    startDate,
-		EndDate:      endDate,
-		DurationMode: durationMode,
-		HalfDayPart:  domain.LeaveHalfDayPart(strings.TrimSpace(input.HalfDayPart)),
-		StartTime:    domain.TimeOfDay(strings.TrimSpace(input.StartTime)),
-		EndTime:      domain.TimeOfDay(strings.TrimSpace(input.EndTime)),
-		Reason:       strings.TrimSpace(input.Reason),
-		BackupUserID: strings.TrimSpace(input.BackupUserID),
-		Status:       domain.LeaveStatusPending,
-		CreatedAt:    now,
-		UpdatedAt:    now,
-		CancelledAt:  nil,
+		ID:                 domain.ID(uuid.NewString()),
+		WorkspaceID:        domain.ID(cleanWorkspaceID),
+		UserID:             cleanActorUserID,
+		LeaveTypeID:        domain.ID(cleanLeaveTypeID),
+		StartDate:          startDate,
+		EndDate:            endDate,
+		DurationMode:       durationMode,
+		HalfDayPart:        domain.LeaveHalfDayPart(strings.TrimSpace(input.HalfDayPart)),
+		StartTime:          domain.TimeOfDay(strings.TrimSpace(input.StartTime)),
+		EndTime:            domain.TimeOfDay(strings.TrimSpace(input.EndTime)),
+		Reason:             strings.TrimSpace(input.Reason),
+		BackupUserID:       strings.TrimSpace(input.BackupUserID),
+		CanContactIfNeeded: input.CanContactIfNeeded,
+		Status:             domain.LeaveStatusPending,
+		CreatedAt:          now,
+		UpdatedAt:          now,
+		CancelledAt:        nil,
 	}
 
 	created, err := s.leaveStore.CreateRequest(ctx, leaveRequest)
@@ -399,36 +421,199 @@ func (s *LeaveService) Create(ctx context.Context, input CreateLeaveInput) (*dom
 		return nil, NewError(ErrorCodeInternal, "Could not create leave request.")
 	}
 
-	approverUserIDs, err := s.workspaceRoleStore.ListUserIDsByRoles(
-		ctx,
-		domain.ID(cleanWorkspaceID),
-		[]domain.Role{domain.RoleLead, domain.RoleApprover},
-	)
+	recipientUserIDs, err := s.leaveRequestNotificationRecipients(ctx, *workspace, cleanActorUserID)
 	if err == nil {
 		_ = s.notificationPublisher.NotifyLeaveRequested(ctx, LeaveRequestNotification{
 			LeaveRequestID: created.ID.String(),
 			WorkspaceID:    workspace.ID.String(),
 			WorkspaceName:  workspace.Name,
 			ChannelID:      workspace.ChannelID,
-			Language:       normalizeLeaveNotificationLanguage(workspace.LeaveNotificationLanguage),
+			Language:       workspace.GeneratedMessageLanguage,
 
-			RequesterUserID: cleanActorUserID,
-			ApproverUserIDs: filterNotificationRecipients(approverUserIDs, cleanActorUserID),
+			RequesterUserID:  cleanActorUserID,
+			RecipientUserIDs: recipientUserIDs,
 
-			LeaveTypeName: leaveType.Name,
-			StartDate:     created.StartDate.String(),
-			EndDate:       created.EndDate.String(),
-			DurationMode:  string(created.DurationMode),
-			HalfDayPart:   string(created.HalfDayPart),
-			StartTime:     created.StartTime.String(),
-			EndTime:       created.EndTime.String(),
-			Reason:        created.Reason,
-			BackupUserID:  created.BackupUserID,
-			Status:        string(created.Status),
+			LeaveTypeName:      leaveType.Name,
+			StartDate:          created.StartDate.String(),
+			EndDate:            created.EndDate.String(),
+			DurationMode:       string(created.DurationMode),
+			HalfDayPart:        string(created.HalfDayPart),
+			StartTime:          created.StartTime.String(),
+			EndTime:            created.EndTime.String(),
+			Reason:             created.Reason,
+			BackupUserID:       created.BackupUserID,
+			CanContactIfNeeded: created.CanContactIfNeeded,
+			Status:             string(created.Status),
 		})
 	}
 
 	return created, nil
+}
+
+/*
+Update applies an allowed correction to a pending or approved leave request.
+
+Requesters may directly edit their own pending leave or approved leave that is
+not currently in progress. Once approved leave is inside its active interval,
+member edits must go through the change-request approval workflow. Leads,
+approvers, and system admins keep direct correction access for operational fixes.
+*/
+func (s *LeaveService) Update(ctx context.Context, input UpdateLeaveInput) (*domain.LeaveRequest, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to edit leave requests.")
+	}
+
+	cleanLeaveRequestID := strings.TrimSpace(input.LeaveRequestID)
+	if cleanLeaveRequestID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Leave request ID is required.")
+	}
+
+	existingRequest, err := s.leaveStore.GetRequestByID(ctx, domain.ID(cleanLeaveRequestID))
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Leave request was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load leave request.")
+	}
+
+	if existingRequest.Status != domain.LeaveStatusPending && existingRequest.Status != domain.LeaveStatusApproved {
+		return nil, NewError(ErrorCodeConflict, "Only pending or approved leave requests can be edited.")
+	}
+
+	workspace, err := s.workspaceStore.GetByID(ctx, existingRequest.WorkspaceID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Workspace was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load workspace.")
+	}
+
+	actorCanManageLeave, err := s.canManageLeaveRequests(ctx, cleanActorUserID, input.IsSystemAdmin, workspace.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	if existingRequest.UserID != cleanActorUserID && !actorCanManageLeave {
+		return nil, NewError(ErrorCodePermissionDenied, "Only the requester, workspace Leads, Approvers, and system admins can edit this leave request.")
+	}
+
+	if existingRequest.UserID == cleanActorUserID && !actorCanManageLeave {
+		requiresApproval, approvalErr := approvedLeaveIsInProgress(time.Now().UTC(), workspace.Timezone, *existingRequest)
+		if approvalErr != nil {
+			return nil, NewError(ErrorCodeInternal, "Could not validate leave edit window.")
+		}
+
+		if requiresApproval {
+			return nil, NewError(ErrorCodeConflict, "Approved leave is already in progress. Request a leave edit instead of changing it directly.")
+		}
+	}
+
+	cleanLeaveTypeID := strings.TrimSpace(input.LeaveTypeID)
+	if cleanLeaveTypeID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Leave type is required.")
+	}
+
+	leaveType, err := s.leaveStore.GetActiveTypeByID(ctx, workspace.ID, domain.ID(cleanLeaveTypeID))
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeValidationFailed, "Leave type is invalid for this workspace.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not validate leave type.")
+	}
+
+	validationResult, err := s.leaveValidationService.ValidateForCreate(ctx, ValidateLeaveInput{
+		ActorUserID:  cleanActorUserID,
+		WorkspaceID:  workspace.ID.String(),
+		StartDate:    input.StartDate,
+		EndDate:      input.EndDate,
+		DurationMode: input.DurationMode,
+		HalfDayPart:  input.HalfDayPart,
+		StartTime:    input.StartTime,
+		EndTime:      input.EndTime,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if !validationResult.Valid {
+		warning := validationResult.FirstWarning()
+		if warning == "" {
+			warning = "Leave request is invalid."
+		}
+
+		return nil, NewError(ErrorCodeValidationFailed, warning)
+	}
+
+	startDate := domain.LocalDate(strings.TrimSpace(input.StartDate))
+	endDate := domain.LocalDate(strings.TrimSpace(input.EndDate))
+	durationMode := domain.LeaveDurationMode(strings.TrimSpace(input.DurationMode))
+
+	activeLeaveRequests, err := s.leaveStore.ListActiveByWorkspaceIDAndUserID(ctx, workspace.ID, existingRequest.UserID)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not check existing leave requests.")
+	}
+
+	for _, activeLeaveRequest := range activeLeaveRequests {
+		if activeLeaveRequest.LeaveRequest.ID == existingRequest.ID {
+			continue
+		}
+
+		if leaveDateRangesOverlap(startDate, endDate, activeLeaveRequest.LeaveRequest) {
+			return nil, NewError(
+				ErrorCodeConflict,
+				"This edit overlaps another pending or approved leave request for the same user.",
+			)
+		}
+	}
+
+	now := time.Now().UTC()
+	updatedRequest, err := s.leaveStore.UpdateRequest(ctx, store.UpdateLeaveRequestParams{
+		LeaveRequestID:     existingRequest.ID,
+		LeaveTypeID:        domain.ID(cleanLeaveTypeID),
+		StartDate:          startDate,
+		EndDate:            endDate,
+		DurationMode:       durationMode,
+		HalfDayPart:        domain.LeaveHalfDayPart(strings.TrimSpace(input.HalfDayPart)),
+		StartTime:          domain.TimeOfDay(strings.TrimSpace(input.StartTime)),
+		EndTime:            domain.TimeOfDay(strings.TrimSpace(input.EndTime)),
+		Reason:             strings.TrimSpace(input.Reason),
+		BackupUserID:       strings.TrimSpace(input.BackupUserID),
+		CanContactIfNeeded: input.CanContactIfNeeded,
+		UpdatedAt:          now,
+	})
+	if err != nil {
+		if errors.Is(err, store.ErrConflict) {
+			return nil, NewError(ErrorCodeConflict, "Only pending or approved leave requests can be edited.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not edit leave request.")
+	}
+
+	_ = s.notificationPublisher.NotifyLeaveUpdated(ctx, LeaveUpdatedNotification{
+		LeaveRequestID: updatedRequest.ID.String(),
+		WorkspaceID:    workspace.ID.String(),
+		WorkspaceName:  workspace.Name,
+		ChannelID:      workspace.ChannelID,
+		Language:       workspace.GeneratedMessageLanguage,
+
+		RequesterUserID: updatedRequest.UserID,
+		EditorUserID:    cleanActorUserID,
+
+		LeaveTypeName:      leaveType.Name,
+		StartDate:          updatedRequest.StartDate.String(),
+		EndDate:            updatedRequest.EndDate.String(),
+		DurationMode:       string(updatedRequest.DurationMode),
+		HalfDayPart:        string(updatedRequest.HalfDayPart),
+		StartTime:          updatedRequest.StartTime.String(),
+		EndTime:            updatedRequest.EndTime.String(),
+		CanContactIfNeeded: updatedRequest.CanContactIfNeeded,
+	})
+
+	return updatedRequest, nil
 }
 
 /*
@@ -515,22 +700,23 @@ func (s *LeaveService) Decide(ctx context.Context, input DecideLeaveInput) (*dom
 		WorkspaceID:    workspace.ID.String(),
 		WorkspaceName:  workspace.Name,
 		ChannelID:      workspace.ChannelID,
-		Language:       normalizeLeaveNotificationLanguage(workspace.LeaveNotificationLanguage),
+		Language:       workspace.GeneratedMessageLanguage,
 
 		AnnouncementChannelID: workspace.ApprovedLeaveNotificationChannelID,
 
 		RequesterUserID: decidedRequest.UserID,
 		DeciderUserID:   cleanActorUserID,
 
-		LeaveTypeName: leaveType.Name,
-		StartDate:     decidedRequest.StartDate.String(),
-		EndDate:       decidedRequest.EndDate.String(),
-		DurationMode:  string(decidedRequest.DurationMode),
-		HalfDayPart:   string(decidedRequest.HalfDayPart),
-		StartTime:     decidedRequest.StartTime.String(),
-		EndTime:       decidedRequest.EndTime.String(),
-		Decision:      string(decisionStatus),
-		Comment:       decision.Comment,
+		LeaveTypeName:      leaveType.Name,
+		StartDate:          decidedRequest.StartDate.String(),
+		EndDate:            decidedRequest.EndDate.String(),
+		DurationMode:       string(decidedRequest.DurationMode),
+		HalfDayPart:        string(decidedRequest.HalfDayPart),
+		StartTime:          decidedRequest.StartTime.String(),
+		EndTime:            decidedRequest.EndTime.String(),
+		CanContactIfNeeded: decidedRequest.CanContactIfNeeded,
+		Decision:           string(decisionStatus),
+		Comment:            decision.Comment,
 	})
 
 	return decidedRequest, nil
@@ -564,10 +750,6 @@ func (s *LeaveService) Cancel(ctx context.Context, input CancelLeaveInput) (*dom
 		return nil, NewError(ErrorCodeInternal, "Could not load leave request.")
 	}
 
-	if existingRequest.UserID != cleanActorUserID {
-		return nil, NewError(ErrorCodePermissionDenied, "Only the requester can cancel this leave request.")
-	}
-
 	if existingRequest.Status != domain.LeaveStatusPending &&
 		existingRequest.Status != domain.LeaveStatusApproved {
 		return nil, NewError(ErrorCodeConflict, "Only pending or approved leave requests can be cancelled.")
@@ -594,14 +776,23 @@ func (s *LeaveService) Cancel(ctx context.Context, input CancelLeaveInput) (*dom
 	}
 
 	now := time.Now().UTC()
-	if wasApproved {
-		locked, err := approvedLeaveCancellationLocked(now, workspace.Timezone, *existingRequest)
-		if err != nil {
+	actorCanManageLeave, err := s.canManageLeaveRequests(ctx, cleanActorUserID, input.IsSystemAdmin, workspace.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	if existingRequest.UserID != cleanActorUserID && !actorCanManageLeave {
+		return nil, NewError(ErrorCodePermissionDenied, "Only the requester, workspace Leads, Approvers, and system admins can cancel this leave request.")
+	}
+
+	if wasApproved && existingRequest.UserID == cleanActorUserID && !actorCanManageLeave {
+		locked, lockErr := approvedLeaveIsInProgress(now, workspace.Timezone, *existingRequest)
+		if lockErr != nil {
 			return nil, NewError(ErrorCodeInternal, "Could not validate leave cancellation window.")
 		}
 
 		if locked {
-			return nil, NewError(ErrorCodeConflict, "Approved leave can no longer be cancelled after its start time has passed.")
+			return nil, NewError(ErrorCodeConflict, "Approved leave is already in progress. Ask an approver to cancel it.")
 		}
 	}
 
@@ -618,33 +809,30 @@ func (s *LeaveService) Cancel(ctx context.Context, input CancelLeaveInput) (*dom
 		return nil, NewError(ErrorCodeInternal, "Could not cancel leave request.")
 	}
 
-	approverUserIDs, err := s.workspaceRoleStore.ListUserIDsByRoles(
-		ctx,
-		workspace.ID,
-		[]domain.Role{domain.RoleLead, domain.RoleApprover},
-	)
+	recipientUserIDs, err := s.leaveRequestNotificationRecipients(ctx, *workspace, existingRequest.UserID)
 	if err == nil {
 		_ = s.notificationPublisher.NotifyLeaveCancelled(ctx, LeaveCancellationNotification{
 			LeaveRequestID: cancelledRequest.ID.String(),
 			WorkspaceID:    workspace.ID.String(),
 			WorkspaceName:  workspace.Name,
 			ChannelID:      workspace.ChannelID,
-			Language:       normalizeLeaveNotificationLanguage(workspace.LeaveNotificationLanguage),
+			Language:       workspace.GeneratedMessageLanguage,
 
 			AnnouncementChannelID: workspace.ApprovedLeaveNotificationChannelID,
 
-			RequesterUserID: cleanActorUserID,
-			ApproverUserIDs: filterNotificationRecipients(approverUserIDs, cleanActorUserID),
+			RequesterUserID:  existingRequest.UserID,
+			RecipientUserIDs: recipientUserIDs,
 
-			LeaveTypeName: leaveType.Name,
-			StartDate:     cancelledRequest.StartDate.String(),
-			EndDate:       cancelledRequest.EndDate.String(),
-			DurationMode:  string(cancelledRequest.DurationMode),
-			HalfDayPart:   string(cancelledRequest.HalfDayPart),
-			StartTime:     cancelledRequest.StartTime.String(),
-			EndTime:       cancelledRequest.EndTime.String(),
-			Status:        string(cancelledRequest.Status),
-			WasApproved:   wasApproved,
+			LeaveTypeName:      leaveType.Name,
+			StartDate:          cancelledRequest.StartDate.String(),
+			EndDate:            cancelledRequest.EndDate.String(),
+			DurationMode:       string(cancelledRequest.DurationMode),
+			HalfDayPart:        string(cancelledRequest.HalfDayPart),
+			StartTime:          cancelledRequest.StartTime.String(),
+			EndTime:            cancelledRequest.EndTime.String(),
+			CanContactIfNeeded: cancelledRequest.CanContactIfNeeded,
+			Status:             string(cancelledRequest.Status),
+			WasApproved:        wasApproved,
 		})
 	}
 
@@ -652,33 +840,38 @@ func (s *LeaveService) Cancel(ctx context.Context, input CancelLeaveInput) (*dom
 }
 
 /*
-approvedLeaveCancellationLocked returns true when an approved leave request has
-already started in the workspace timezone.
-
-Approved leave cancellation is only allowed before the actual leave interval
-begins. This keeps historical attendance and availability records stable after
-the user has entered the approved leave window.
+approvedLeaveIsInProgress returns true only while approved leave currently
+covers the workspace-local instant. Before the interval starts, members may
+directly edit or cancel. During the interval, member edits must use the approval
+workflow and member cancellation must be performed by an approver.
 */
-func approvedLeaveCancellationLocked(
+func approvedLeaveIsInProgress(
 	nowUTC time.Time,
 	workspaceTimezone string,
 	request domain.LeaveRequest,
 ) (bool, error) {
-	startAt, err := leaveStartInstant(workspaceTimezone, request)
+	if request.Status != domain.LeaveStatusApproved {
+		return false, nil
+	}
+
+	startAt, endAt, err := leaveInterval(workspaceTimezone, request)
 	if err != nil {
 		return false, err
 	}
 
-	return !nowUTC.Before(startAt.UTC()), nil
+	utcStart := startAt.UTC()
+	utcEnd := endAt.UTC()
+
+	return !nowUTC.Before(utcStart) && nowUTC.Before(utcEnd), nil
 }
 
 /*
-leaveStartInstant returns the first instant covered by a leave request in the
-workspace timezone. Full-day and morning half-day requests begin at local
-midnight, afternoon half-day requests begin at local noon, and hourly requests
-begin at their configured start time.
+leaveInterval returns the workspace-local start and exclusive end instants for a
+leave request. Full-day requests end at midnight after the end date. Hourly
+requests use their stored HH:mm range, and historical half-day rows keep their
+old morning/afternoon semantics.
 */
-func leaveStartInstant(workspaceTimezone string, request domain.LeaveRequest) (time.Time, error) {
+func leaveInterval(workspaceTimezone string, request domain.LeaveRequest) (time.Time, time.Time, error) {
 	cleanTimezone := strings.TrimSpace(workspaceTimezone)
 	if cleanTimezone == "" {
 		cleanTimezone = "UTC"
@@ -686,27 +879,58 @@ func leaveStartInstant(workspaceTimezone string, request domain.LeaveRequest) (t
 
 	location, err := time.LoadLocation(cleanTimezone)
 	if err != nil {
-		return time.Time{}, err
+		return time.Time{}, time.Time{}, err
 	}
 
-	timeOfDay := "00:00"
+	startTimeOfDay := "00:00"
+	endTimeOfDay := "00:00"
+	endDate := request.EndDate.String()
+	addEndDay := true
+
 	switch request.DurationMode {
 	case domain.LeaveDurationHourly:
 		if strings.TrimSpace(request.StartTime.String()) != "" {
-			timeOfDay = strings.TrimSpace(request.StartTime.String())
+			startTimeOfDay = strings.TrimSpace(request.StartTime.String())
 		}
+		if strings.TrimSpace(request.EndTime.String()) != "" {
+			endTimeOfDay = strings.TrimSpace(request.EndTime.String())
+		}
+		addEndDay = false
 
 	case domain.LeaveDurationHalfDay:
+		addEndDay = false
 		if request.HalfDayPart == domain.LeaveHalfDayAfternoon {
-			timeOfDay = "12:00"
+			startTimeOfDay = "12:00"
+			endTimeOfDay = "00:00"
+			addEndDay = true
+		} else {
+			endTimeOfDay = "12:00"
 		}
 	}
 
-	return time.ParseInLocation(
+	startAt, err := time.ParseInLocation(
 		"2006-01-02 15:04",
-		fmt.Sprintf("%s %s", request.StartDate.String(), timeOfDay),
+		fmt.Sprintf("%s %s", request.StartDate.String(), startTimeOfDay),
 		location,
 	)
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+
+	endAt, err := time.ParseInLocation(
+		"2006-01-02 15:04",
+		fmt.Sprintf("%s %s", endDate, endTimeOfDay),
+		location,
+	)
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+
+	if addEndDay {
+		endAt = endAt.AddDate(0, 0, 1)
+	}
+
+	return startAt, endAt, nil
 }
 
 /*
@@ -740,6 +964,32 @@ func (s *LeaveService) requireLeaveDecisionPermission(
 }
 
 /*
+canManageLeaveRequests reports whether the actor has operational leave authority.
+*/
+func (s *LeaveService) canManageLeaveRequests(
+	ctx context.Context,
+	actorUserID string,
+	isSystemAdmin bool,
+	workspaceID domain.ID,
+) (bool, error) {
+	if isSystemAdmin {
+		return true, nil
+	}
+
+	hasRole, err := s.workspaceRoleStore.UserHasAnyRole(
+		ctx,
+		workspaceID,
+		actorUserID,
+		[]domain.Role{domain.RoleLead, domain.RoleApprover},
+	)
+	if err != nil {
+		return false, NewError(ErrorCodeInternal, "Could not verify leave management permission.")
+	}
+
+	return hasRole, nil
+}
+
+/*
 normalizeLeaveNotificationLanguage returns a safe leave notification language.
 */
 func normalizeLeaveNotificationLanguage(language domain.ReportLanguage) domain.ReportLanguage {
@@ -754,10 +1004,37 @@ func normalizeLeaveNotificationLanguage(language domain.ReportLanguage) domain.R
 }
 
 /*
+leaveRequestNotificationRecipients returns the exact users who should receive
+leave request direct-message notifications. Explicit workspace recipients take
+precedence over role-derived recipients so technical leads can manage workspace
+configuration without receiving operational leave-request DMs.
+*/
+func (s *LeaveService) leaveRequestNotificationRecipients(
+	ctx context.Context,
+	workspace domain.Workspace,
+	requesterUserID string,
+) ([]string, error) {
+	if len(workspace.LeaveRequestNotificationRecipientIDs) > 0 {
+		return filterNotificationRecipients(workspace.LeaveRequestNotificationRecipientIDs, requesterUserID), nil
+	}
+
+	roleRecipientUserIDs, err := s.workspaceRoleStore.ListUserIDsByRoles(
+		ctx,
+		workspace.ID,
+		[]domain.Role{domain.RoleLead, domain.RoleApprover},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return filterNotificationRecipients(roleRecipientUserIDs, requesterUserID), nil
+}
+
+/*
 filterNotificationRecipients removes empty IDs, duplicates, and the requester.
 
 The requester should not receive an approver notification for their own leave
-request.
+request, even when they are configured as an explicit recipient.
 */
 func filterNotificationRecipients(userIDs []string, requesterUserID string) []string {
 	recipients := make([]string, 0, len(userIDs))
@@ -806,12 +1083,7 @@ func validateLeaveDurationFields(
 		return nil
 
 	case domain.LeaveDurationHalfDay:
-		part := domain.LeaveHalfDayPart(strings.TrimSpace(halfDayPart))
-		if !isValidHalfDayPart(part) {
-			return NewError(ErrorCodeValidationFailed, "Half-day leave must specify morning or afternoon.")
-		}
-
-		return nil
+		return NewError(ErrorCodeValidationFailed, "Half-day leave is no longer supported. Use full-day or hourly leave.")
 
 	case domain.LeaveDurationHourly:
 		cleanStartTime := domain.TimeOfDay(strings.TrimSpace(startTime))

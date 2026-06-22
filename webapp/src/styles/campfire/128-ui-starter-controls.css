@@ -9,8 +9,8 @@
 	src:
 		local('Vazirmatn'),
 		local('Vazir'),
-		url('/plugins/dev.zouerami.campfire/assets/fonts/Vazirmatn-Variable.woff2') format('woff2'),
-		url('/plugins/dev.zouerami.campfire/assets/fonts/Vazirmatn-Variable.woff') format('woff');
+		url('../../generated-assets/fonts/Vazirmatn-Variable.woff2') format('woff2-variations'),
+		url('../../generated-assets/fonts/Vazirmatn-Variable.woff2') format('woff2');
 	font-display: swap;
 	font-style: normal;
 	font-weight: 100 900;
