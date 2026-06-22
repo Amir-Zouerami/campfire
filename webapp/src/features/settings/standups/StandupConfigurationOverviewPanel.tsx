@@ -61,7 +61,7 @@ export function StandupConfigurationOverviewPanel(props: StandupConfigurationOve
 									<div className="campfire-standup-overview-title-row">
 										<h4><CampfireBidiText>{detail.template.name}</CampfireBidiText></h4>
 										<CampfireStatusPill tone={detail.template.isActive ? 'green' : 'slate'}>
-											{detail.template.isActive ? t('settings.standups.status.active') : t('settings.standups.status.inactive')}
+											{detail.template.isActive ? t('settings.standups.status.enabled') : t('settings.standups.status.disabled')}
 										</CampfireStatusPill>
 										<CampfireStatusPill tone="ember">{standupKindLabel(t, detail.template.kind)}</CampfireStatusPill>
 									</div>

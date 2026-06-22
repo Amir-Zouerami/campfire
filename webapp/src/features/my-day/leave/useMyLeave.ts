@@ -506,7 +506,14 @@ function getDateTimePartsInTimezone(date: Date, timezone: string): {
  * addDays adds calendar days to a YYYY-MM-DD date string.
  */
 function addDays(date: string, days: number): string {
-	const [year, month, day] = date.split('-').map(Number);
+	const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date.trim());
+	if (match === null) {
+		return date;
+	}
+
+	const year = Number.parseInt(match[1] ?? '', 10);
+	const month = Number.parseInt(match[2] ?? '', 10);
+	const day = Number.parseInt(match[3] ?? '', 10);
 	if (![year, month, day].every(Number.isFinite)) {
 		return date;
 	}

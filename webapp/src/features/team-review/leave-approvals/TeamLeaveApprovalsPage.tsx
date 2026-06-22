@@ -45,7 +45,7 @@ export function TeamLeaveApprovalsPage(props: TeamLeaveApprovalsPageProps): Reac
 			<CampfireReportSummaryBar
 				items={[
 					{ label: t('teamReview.approvals.summary.pending'), value: String(approvals.pendingCount), tone: approvals.pendingCount > 0 ? 'warning' : 'success' },
-					{ label: t('teamReview.approvals.summary.editRequests'), value: String(approvals.changeRequests.length), tone: approvals.changeRequests.length > 0 ? 'warning' : 'slate' },
+					{ label: t('teamReview.approvals.summary.editRequests'), value: String(approvals.changeRequests.length), tone: approvals.changeRequests.length > 0 ? 'warning' : 'neutral' },
 					{ label: t('teamReview.approvals.summary.profiles'), value: profiles.loading ? t('common.loading') : t('common.ready') },
 				]}
 			/>

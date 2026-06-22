@@ -293,7 +293,7 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 	 * submitTimeEntry logs time against the selected task.
 	 */
 	async function submitTimeEntry(): Promise<void> {
-		const nextErrors: TimeEntryDraftValidationErrors = {};
+		const nextErrors: { taskId?: string; minutes?: string } = {};
 
 		if (timeDraft.taskId.trim() === '') {
 			nextErrors.taskId = input.text.chooseTask;
