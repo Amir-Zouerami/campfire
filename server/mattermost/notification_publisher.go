@@ -433,13 +433,13 @@ func formatLeaveRequestedMessage(api plugin.API, notification service.LeaveReque
 	lines := []string{
 		formatNotificationHeading(copy.RequestTitle),
 		"",
-		fmt.Sprintf(copy.RequestSummary, requesterLabel, notification.LeaveTypeName),
+		fmt.Sprintf(copy.RequestSummary, requesterLabel, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language)),
 		formatLabeledInlineValue(copy.WorkspaceLabel, workspaceLabel),
-		formatLabeledInlineValue(copy.DatesLabel, formatDateRange(notification.StartDate, notification.EndDate)),
+		formatLabeledInlineValue(copy.DatesLabel, formatLocalizedDateRange(notification.Language, notification.StartDate, notification.EndDate)),
 		formatLabeledInlineValue(copy.StatusLabel, translateLeaveStatus(notification.Status, copy)),
 	}
 
-	lines = appendLeaveRequestDetails(lines, copy, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
+	lines = appendLeaveRequestDetails(lines, copy, notification.Language, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
 	lines = appendLabeledMultilineValue(lines, copy.ReasonLabel, notification.Reason)
 
 	if strings.TrimSpace(notification.BackupUserID) != "" {
@@ -462,12 +462,12 @@ func formatLeaveRequestSubmittedMessage(api plugin.API, notification service.Lea
 	lines := []string{
 		formatNotificationHeading(copy.RequestSubmittedTitle),
 		"",
-		fmt.Sprintf(copy.RequestSubmittedSummary, notification.LeaveTypeName),
-		formatLabeledInlineValue(copy.DatesLabel, formatDateRange(notification.StartDate, notification.EndDate)),
+		fmt.Sprintf(copy.RequestSubmittedSummary, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language)),
+		formatLabeledInlineValue(copy.DatesLabel, formatLocalizedDateRange(notification.Language, notification.StartDate, notification.EndDate)),
 		formatLabeledInlineValue(copy.NotifiedRecipientsLabel, recipientLabels),
 	}
 
-	lines = appendLeaveRequestDetails(lines, copy, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
+	lines = appendLeaveRequestDetails(lines, copy, notification.Language, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
 	lines = append(lines, formatLabeledInlineValue(copy.CanContactLabel, translateBoolean(notification.CanContactIfNeeded, copy)))
 
 	return strings.Join(lines, "\n")
@@ -484,12 +484,12 @@ func formatLeaveChangeRequestedMessage(api plugin.API, notification service.Leav
 	lines := []string{
 		formatNotificationHeading(copy.ChangeRequestTitle),
 		"",
-		fmt.Sprintf(copy.ChangeRequestSummary, requesterLabel, notification.LeaveTypeName),
+		fmt.Sprintf(copy.ChangeRequestSummary, requesterLabel, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language)),
 		formatLabeledInlineValue(copy.WorkspaceLabel, workspaceLabel),
-		formatLabeledInlineValue(copy.DatesLabel, formatDateRange(notification.StartDate, notification.EndDate)),
+		formatLabeledInlineValue(copy.DatesLabel, formatLocalizedDateRange(notification.Language, notification.StartDate, notification.EndDate)),
 	}
 
-	lines = appendLeaveRequestDetails(lines, copy, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
+	lines = appendLeaveRequestDetails(lines, copy, notification.Language, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
 	lines = appendLabeledMultilineValue(lines, copy.ReasonLabel, notification.Reason)
 
 	if strings.TrimSpace(notification.BackupUserID) != "" {
@@ -512,12 +512,12 @@ func formatLeaveChangeSubmittedMessage(api plugin.API, notification service.Leav
 	lines := []string{
 		formatNotificationHeading(copy.ChangeSubmittedTitle),
 		"",
-		fmt.Sprintf(copy.ChangeSubmittedSummary, notification.LeaveTypeName),
-		formatLabeledInlineValue(copy.DatesLabel, formatDateRange(notification.StartDate, notification.EndDate)),
+		fmt.Sprintf(copy.ChangeSubmittedSummary, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language)),
+		formatLabeledInlineValue(copy.DatesLabel, formatLocalizedDateRange(notification.Language, notification.StartDate, notification.EndDate)),
 		formatLabeledInlineValue(copy.NotifiedRecipientsLabel, recipientLabels),
 	}
 
-	lines = appendLeaveRequestDetails(lines, copy, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
+	lines = appendLeaveRequestDetails(lines, copy, notification.Language, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
 
 	return strings.Join(lines, "\n")
 }
@@ -531,24 +531,24 @@ func formatLeaveChangeDecidedMessage(api plugin.API, notification service.LeaveC
 	decisionLabel := translateLeaveChangeDecision(notification.Decision, copy)
 
 	header := copy.ChangeDecisionTitle
-	summary := fmt.Sprintf(copy.ChangeDecisionSummary, notification.LeaveTypeName, decisionLabel, deciderLabel)
+	summary := fmt.Sprintf(copy.ChangeDecisionSummary, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language), decisionLabel, deciderLabel)
 	if domain.LeaveChangeRequestStatus(notification.Decision) == domain.LeaveChangeRequestStatusApproved {
 		header = copy.ChangeApprovedTitle
-		summary = fmt.Sprintf(copy.ChangeApprovedSummary, notification.LeaveTypeName, deciderLabel)
+		summary = fmt.Sprintf(copy.ChangeApprovedSummary, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language), deciderLabel)
 	}
 	if domain.LeaveChangeRequestStatus(notification.Decision) == domain.LeaveChangeRequestStatusRejected {
 		header = copy.ChangeRejectedTitle
-		summary = fmt.Sprintf(copy.ChangeRejectedSummary, notification.LeaveTypeName, deciderLabel)
+		summary = fmt.Sprintf(copy.ChangeRejectedSummary, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language), deciderLabel)
 	}
 
 	lines := []string{
 		formatNotificationHeading(header),
 		"",
 		summary,
-		formatLabeledInlineValue(copy.DatesLabel, formatDateRange(notification.StartDate, notification.EndDate)),
+		formatLabeledInlineValue(copy.DatesLabel, formatLocalizedDateRange(notification.Language, notification.StartDate, notification.EndDate)),
 	}
 
-	lines = appendLeaveRequestDetails(lines, copy, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
+	lines = appendLeaveRequestDetails(lines, copy, notification.Language, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
 	lines = append(lines, formatLabeledInlineValue(copy.CanContactLabel, translateBoolean(notification.CanContactIfNeeded, copy)))
 	lines = appendLabeledMultilineValue(lines, copy.CommentLabel, notification.Comment)
 
@@ -565,11 +565,11 @@ func formatLeaveUpdatedMessage(api plugin.API, notification service.LeaveUpdated
 	lines := []string{
 		formatNotificationHeading(copy.UpdatedTitle),
 		"",
-		fmt.Sprintf(copy.UpdatedSummary, notification.LeaveTypeName, editorLabel),
-		formatLabeledInlineValue(copy.DatesLabel, formatDateRange(notification.StartDate, notification.EndDate)),
+		fmt.Sprintf(copy.UpdatedSummary, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language), editorLabel),
+		formatLabeledInlineValue(copy.DatesLabel, formatLocalizedDateRange(notification.Language, notification.StartDate, notification.EndDate)),
 	}
 
-	lines = appendLeaveRequestDetails(lines, copy, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
+	lines = appendLeaveRequestDetails(lines, copy, notification.Language, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
 	lines = append(lines, formatLabeledInlineValue(copy.CanContactLabel, translateBoolean(notification.CanContactIfNeeded, copy)))
 
 	return strings.Join(lines, "\n")
@@ -583,26 +583,26 @@ func formatLeaveDecidedMessage(api plugin.API, notification service.LeaveDecisio
 	deciderLabel := userMentionOrID(api, notification.DeciderUserID)
 
 	header := copy.DecisionTitle
-	summary := fmt.Sprintf(copy.DecisionSummary, notification.LeaveTypeName, translateLeaveStatus(notification.Decision, copy), deciderLabel)
+	summary := fmt.Sprintf(copy.DecisionSummary, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language), translateLeaveStatus(notification.Decision, copy), deciderLabel)
 
 	switch domain.LeaveStatus(notification.Decision) {
 	case domain.LeaveStatusApproved:
 		header = copy.ApprovedTitle
-		summary = fmt.Sprintf(copy.ApprovedSummary, notification.LeaveTypeName, deciderLabel)
+		summary = fmt.Sprintf(copy.ApprovedSummary, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language), deciderLabel)
 
 	case domain.LeaveStatusRejected:
 		header = copy.RejectedTitle
-		summary = fmt.Sprintf(copy.RejectedSummary, notification.LeaveTypeName, deciderLabel)
+		summary = fmt.Sprintf(copy.RejectedSummary, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language), deciderLabel)
 	}
 
 	lines := []string{
 		formatNotificationHeading(header),
 		"",
 		summary,
-		formatLabeledInlineValue(copy.DatesLabel, formatDateRange(notification.StartDate, notification.EndDate)),
+		formatLabeledInlineValue(copy.DatesLabel, formatLocalizedDateRange(notification.Language, notification.StartDate, notification.EndDate)),
 	}
 
-	lines = appendLeaveRequestDetails(lines, copy, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
+	lines = appendLeaveRequestDetails(lines, copy, notification.Language, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
 	lines = append(lines, formatLabeledInlineValue(copy.CanContactLabel, translateBoolean(notification.CanContactIfNeeded, copy)))
 	lines = appendLabeledMultilineValue(lines, copy.CommentLabel, notification.Comment)
 
@@ -624,13 +624,13 @@ func formatApprovedLeaveChannelMessage(api plugin.API, notification service.Leav
 	lines := []string{
 		formatNotificationHeading(copy.ChannelApprovedTitle),
 		"",
-		fmt.Sprintf(copy.ChannelApprovedSummary, requesterLabel, notification.LeaveTypeName),
+		fmt.Sprintf(copy.ChannelApprovedSummary, requesterLabel, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language)),
 		formatLabeledInlineValue(copy.WorkspaceLabel, workspaceLabel),
-		formatLabeledInlineValue(copy.DatesLabel, formatDateRange(notification.StartDate, notification.EndDate)),
+		formatLabeledInlineValue(copy.DatesLabel, formatLocalizedDateRange(notification.Language, notification.StartDate, notification.EndDate)),
 		formatLabeledInlineValue(copy.ApprovedByLabel, deciderLabel),
 	}
 
-	lines = appendLeaveRequestDetails(lines, copy, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
+	lines = appendLeaveRequestDetails(lines, copy, notification.Language, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
 	lines = append(lines, formatLabeledInlineValue(copy.CanContactLabel, translateBoolean(notification.CanContactIfNeeded, copy)))
 
 	return strings.Join(lines, "\n")
@@ -665,12 +665,12 @@ func formatLeaveCancelledMessage(api plugin.API, notification service.LeaveCance
 	lines := []string{
 		formatNotificationHeading(copy.CancelledTitle),
 		"",
-		fmt.Sprintf(copy.CancelledSummary, requesterLabel, notification.LeaveTypeName, previousStatus),
-		formatLabeledInlineValue(copy.DatesLabel, formatDateRange(notification.StartDate, notification.EndDate)),
+		fmt.Sprintf(copy.CancelledSummary, requesterLabel, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language), previousStatus),
+		formatLabeledInlineValue(copy.DatesLabel, formatLocalizedDateRange(notification.Language, notification.StartDate, notification.EndDate)),
 		formatLabeledInlineValue(copy.StatusLabel, translateLeaveStatus(notification.Status, copy)),
 	}
 
-	lines = appendLeaveRequestDetails(lines, copy, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
+	lines = appendLeaveRequestDetails(lines, copy, notification.Language, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
 	lines = append(lines, formatLabeledInlineValue(copy.CanContactLabel, translateBoolean(notification.CanContactIfNeeded, copy)))
 
 	return strings.Join(lines, "\n")
@@ -690,12 +690,12 @@ func formatApprovedLeaveCancelledChannelMessage(
 	lines := []string{
 		formatNotificationHeading(copy.ChannelCancelledTitle),
 		"",
-		fmt.Sprintf(copy.ChannelCancelledSummary, requesterLabel, notification.LeaveTypeName),
-		formatLabeledInlineValue(copy.DatesLabel, formatDateRange(notification.StartDate, notification.EndDate)),
+		fmt.Sprintf(copy.ChannelCancelledSummary, requesterLabel, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language)),
+		formatLabeledInlineValue(copy.DatesLabel, formatLocalizedDateRange(notification.Language, notification.StartDate, notification.EndDate)),
 		copy.NoLongerAwayMessage,
 	}
 
-	lines = appendLeaveRequestDetails(lines, copy, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
+	lines = appendLeaveRequestDetails(lines, copy, notification.Language, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
 	lines = append(lines, formatLabeledInlineValue(copy.CanContactLabel, translateBoolean(notification.CanContactIfNeeded, copy)))
 
 	return strings.Join(lines, "\n")
@@ -752,14 +752,221 @@ func formatNotificationHeading(title string) string {
 }
 
 /*
-formatDateRange returns a compact date-range label.
+formatLocalizedDateRange returns a compact generated-message date range.
+
+Campfire stores leave dates as workspace-local Gregorian ISO dates. Persian
+generated messages should not expose those ISO dates directly because the UI
+already presents the same dates with the Persian calendar. This helper keeps the
+stored value canonical while rendering human-facing notifications in the
+notification language.
 */
-func formatDateRange(startDate string, endDate string) string {
+func formatLocalizedDateRange(language domain.ReportLanguage, startDate string, endDate string) string {
+	formattedStart := formatLocalizedDate(language, startDate)
+	formattedEnd := formatLocalizedDate(language, endDate)
+
 	if strings.TrimSpace(startDate) == strings.TrimSpace(endDate) {
-		return strings.TrimSpace(startDate)
+		return formattedStart
 	}
 
-	return fmt.Sprintf("%s → %s", startDate, endDate)
+	return fmt.Sprintf("%s → %s", formattedStart, formattedEnd)
+}
+
+/*
+formatLocalizedDate renders one workspace-local ISO date for generated messages.
+*/
+func formatLocalizedDate(language domain.ReportLanguage, dateValue string) string {
+	cleanDate := strings.TrimSpace(dateValue)
+	year, month, day, ok := parseISODateParts(cleanDate)
+	if !ok {
+		return localizeNumberString(language, cleanDate)
+	}
+
+	switch language {
+	case domain.ReportLanguagePersian:
+		jalaliYear, jalaliMonth, jalaliDay := gregorianToJalali(year, month, day)
+
+		return toPersianDigits(fmt.Sprintf("%d %s %d", jalaliDay, persianMonthName(jalaliMonth), jalaliYear))
+
+	case domain.ReportLanguageArabic:
+		return toArabicDigits(fmt.Sprintf("%d %s %d", day, arabicGregorianMonthName(month), year))
+
+	default:
+		return cleanDate
+	}
+}
+
+/*
+formatLocalizedTimeOfDay renders an HH:mm workspace-local time in the generated
+message language without changing the underlying local time value.
+*/
+func formatLocalizedTimeOfDay(language domain.ReportLanguage, timeValue string) string {
+	return localizeNumberString(language, strings.TrimSpace(timeValue))
+}
+
+/*
+parseISODateParts parses a canonical YYYY-MM-DD date into Gregorian parts.
+*/
+func parseISODateParts(value string) (int, int, int, bool) {
+	var year int
+	var month int
+	var day int
+
+	if _, err := fmt.Sscanf(value, "%04d-%02d-%02d", &year, &month, &day); err != nil {
+		return 0, 0, 0, false
+	}
+
+	if month < 1 || month > 12 || day < 1 || day > 31 {
+		return 0, 0, 0, false
+	}
+
+	return year, month, day, true
+}
+
+/*
+gregorianToJalali converts a Gregorian date to the Persian Jalali calendar.
+
+The algorithm is integer-only and is intentionally kept local to notification
+rendering so Campfire storage and API contracts remain Gregorian ISO dates.
+*/
+func gregorianToJalali(gy int, gm int, gd int) (int, int, int) {
+	gDaysInMonth := []int{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+	jDaysInMonth := []int{31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29}
+
+	gy -= 1600
+	gm--
+	gd--
+
+	gDayNumber := 365*gy + (gy+3)/4 - (gy+99)/100 + (gy+399)/400
+	for i := 0; i < gm; i++ {
+		gDayNumber += gDaysInMonth[i]
+	}
+
+	if gm > 1 && ((gy+1600)%4 == 0 && ((gy+1600)%100 != 0 || (gy+1600)%400 == 0)) {
+		gDayNumber++
+	}
+
+	gDayNumber += gd
+	jDayNumber := gDayNumber - 79
+	jNp := jDayNumber / 12053
+	jDayNumber %= 12053
+
+	jy := 979 + 33*jNp + 4*(jDayNumber/1461)
+	jDayNumber %= 1461
+
+	if jDayNumber >= 366 {
+		jy += (jDayNumber - 1) / 365
+		jDayNumber = (jDayNumber - 1) % 365
+	}
+
+	jm := 0
+	for jm < 11 && jDayNumber >= jDaysInMonth[jm] {
+		jDayNumber -= jDaysInMonth[jm]
+		jm++
+	}
+
+	return jy, jm + 1, jDayNumber + 1
+}
+
+/*
+persianMonthName returns the Persian Jalali month name for a 1-based month.
+*/
+func persianMonthName(month int) string {
+	months := []string{
+		"فروردین",
+		"اردیبهشت",
+		"خرداد",
+		"تیر",
+		"مرداد",
+		"شهریور",
+		"مهر",
+		"آبان",
+		"آذر",
+		"دی",
+		"بهمن",
+		"اسفند",
+	}
+
+	if month < 1 || month > len(months) {
+		return ""
+	}
+
+	return months[month-1]
+}
+
+/*
+arabicGregorianMonthName returns an Arabic Gregorian month name for a 1-based month.
+*/
+func arabicGregorianMonthName(month int) string {
+	months := []string{
+		"يناير",
+		"فبراير",
+		"مارس",
+		"أبريل",
+		"مايو",
+		"يونيو",
+		"يوليو",
+		"أغسطس",
+		"سبتمبر",
+		"أكتوبر",
+		"نوفمبر",
+		"ديسمبر",
+	}
+
+	if month < 1 || month > len(months) {
+		return ""
+	}
+
+	return months[month-1]
+}
+
+/*
+localizeNumberString localizes digits without changing separators or text.
+*/
+func localizeNumberString(language domain.ReportLanguage, value string) string {
+	switch language {
+	case domain.ReportLanguagePersian:
+		return toPersianDigits(value)
+	case domain.ReportLanguageArabic:
+		return toArabicDigits(value)
+	default:
+		return value
+	}
+}
+
+/*
+toPersianDigits converts ASCII digits to Persian digits.
+*/
+func toPersianDigits(value string) string {
+	return strings.NewReplacer(
+		"0", "۰",
+		"1", "۱",
+		"2", "۲",
+		"3", "۳",
+		"4", "۴",
+		"5", "۵",
+		"6", "۶",
+		"7", "۷",
+		"8", "۸",
+		"9", "۹",
+	).Replace(value)
+}
+
+/*
+toArabicDigits converts ASCII digits to Arabic-Indic digits.
+*/
+func toArabicDigits(value string) string {
+	return strings.NewReplacer(
+		"0", "٠",
+		"1", "١",
+		"2", "٢",
+		"3", "٣",
+		"4", "٤",
+		"5", "٥",
+		"6", "٦",
+		"7", "٧",
+		"8", "٨",
+		"9", "٩",
+	).Replace(value)
 }
 
 /*
@@ -775,12 +982,13 @@ appendLeaveRequestDetails appends translated mode-specific leave detail copy.
 func appendLeaveRequestDetails(
 	lines []string,
 	copy leaveNotificationCopy,
+	language domain.ReportLanguage,
 	durationMode string,
 	halfDayPart string,
 	startTime string,
 	endTime string,
 ) []string {
-	details := formatLeaveRequestDetails(copy, durationMode, halfDayPart, startTime, endTime)
+	details := formatLeaveRequestDetails(copy, language, durationMode, halfDayPart, startTime, endTime)
 	if details == "" {
 		return lines
 	}
@@ -793,6 +1001,7 @@ formatLeaveRequestDetails returns translated mode-specific leave detail copy.
 */
 func formatLeaveRequestDetails(
 	copy leaveNotificationCopy,
+	language domain.ReportLanguage,
 	durationMode string,
 	halfDayPart string,
 	startTime string,
@@ -812,7 +1021,14 @@ func formatLeaveRequestDetails(
 			return formatLabeledInlineValue(copy.DurationLabel, copy.HourlyDuration)
 		}
 
-		return formatLabeledInlineValue(copy.DurationLabel, fmt.Sprintf("%s → %s", startTime, endTime))
+		return formatLabeledInlineValue(
+			copy.DurationLabel,
+			fmt.Sprintf(
+				"%s → %s",
+				formatLocalizedTimeOfDay(language, startTime),
+				formatLocalizedTimeOfDay(language, endTime),
+			),
+		)
 
 	default:
 		return ""
@@ -861,6 +1077,66 @@ func translateHalfDayPart(part string, copy leaveNotificationCopy) string {
 	default:
 		return part
 	}
+}
+
+/*
+localizedLeaveTypeNameForNotification maps built-in leave types to generated
+message language while preserving custom admin-authored leave type names.
+*/
+func localizedLeaveTypeNameForNotification(code string, name string, language domain.ReportLanguage) string {
+	normalizedCode := normalizeLeaveTypeToken(code)
+	normalizedName := normalizeLeaveTypeToken(name)
+	normalizedValue := normalizedCode
+	if normalizedValue == "" {
+		normalizedValue = normalizedName
+	}
+
+	switch normalizedValue {
+	case "vacation", "custom", "personal":
+		switch language {
+		case domain.ReportLanguagePersian:
+			return "شخصی"
+		case domain.ReportLanguageArabic:
+			return "إجازة شخصية"
+		default:
+			return "Personal"
+		}
+	case "sick":
+		switch language {
+		case domain.ReportLanguagePersian:
+			return "بیماری"
+		case domain.ReportLanguageArabic:
+			return "إجازة مرضية"
+		default:
+			return "Sick"
+		}
+	case "remote_wfh", "remote", "wfh", "wfh_remote", "remote_wfh_":
+		switch language {
+		case domain.ReportLanguagePersian:
+			return "دورکاری"
+		case domain.ReportLanguageArabic:
+			return "عمل عن بُعد"
+		default:
+			return "WFH/Remote"
+		}
+	default:
+		return strings.TrimSpace(name)
+	}
+}
+
+/*
+normalizeLeaveTypeToken converts a leave type code or seeded English name into a
+stable token for built-in leave type localization.
+*/
+func normalizeLeaveTypeToken(value string) string {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	normalized = strings.NewReplacer(
+		" ", "_",
+		"-", "_",
+		"/", "_",
+	).Replace(normalized)
+
+	return strings.Trim(normalized, "_")
 }
 
 /*

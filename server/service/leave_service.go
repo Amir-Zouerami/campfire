@@ -434,6 +434,7 @@ func (s *LeaveService) Create(ctx context.Context, input CreateLeaveInput) (*dom
 			RecipientUserIDs: recipientUserIDs,
 
 			LeaveTypeName:      leaveType.Name,
+			LeaveTypeCode:      leaveType.Code,
 			StartDate:          created.StartDate.String(),
 			EndDate:            created.EndDate.String(),
 			DurationMode:       string(created.DurationMode),
@@ -604,6 +605,7 @@ func (s *LeaveService) Update(ctx context.Context, input UpdateLeaveInput) (*dom
 		EditorUserID:    cleanActorUserID,
 
 		LeaveTypeName:      leaveType.Name,
+		LeaveTypeCode:      leaveType.Code,
 		StartDate:          updatedRequest.StartDate.String(),
 		EndDate:            updatedRequest.EndDate.String(),
 		DurationMode:       string(updatedRequest.DurationMode),
@@ -708,6 +710,7 @@ func (s *LeaveService) Decide(ctx context.Context, input DecideLeaveInput) (*dom
 		DeciderUserID:   cleanActorUserID,
 
 		LeaveTypeName:      leaveType.Name,
+		LeaveTypeCode:      leaveType.Code,
 		StartDate:          decidedRequest.StartDate.String(),
 		EndDate:            decidedRequest.EndDate.String(),
 		DurationMode:       string(decidedRequest.DurationMode),
@@ -824,6 +827,7 @@ func (s *LeaveService) Cancel(ctx context.Context, input CancelLeaveInput) (*dom
 			RecipientUserIDs: recipientUserIDs,
 
 			LeaveTypeName:      leaveType.Name,
+			LeaveTypeCode:      leaveType.Code,
 			StartDate:          cancelledRequest.StartDate.String(),
 			EndDate:            cancelledRequest.EndDate.String(),
 			DurationMode:       string(cancelledRequest.DurationMode),

@@ -20,6 +20,7 @@ type LeaveRequestNotification struct {
 	RecipientUserIDs []string
 
 	LeaveTypeName      string
+	LeaveTypeCode      string
 	StartDate          string
 	EndDate            string
 	DurationMode       string
@@ -53,6 +54,7 @@ type LeaveDecisionNotification struct {
 	DeciderUserID   string
 
 	LeaveTypeName      string
+	LeaveTypeCode      string
 	StartDate          string
 	EndDate            string
 	DurationMode       string
@@ -85,6 +87,7 @@ type LeaveCancellationNotification struct {
 	RecipientUserIDs []string
 
 	LeaveTypeName      string
+	LeaveTypeCode      string
 	StartDate          string
 	EndDate            string
 	DurationMode       string
@@ -112,6 +115,7 @@ type LeaveChangeRequestNotification struct {
 	RecipientUserIDs []string
 
 	LeaveTypeName      string
+	LeaveTypeCode      string
 	StartDate          string
 	EndDate            string
 	DurationMode       string
@@ -139,6 +143,7 @@ type LeaveChangeDecisionNotification struct {
 	DeciderUserID   string
 
 	LeaveTypeName      string
+	LeaveTypeCode      string
 	StartDate          string
 	EndDate            string
 	DurationMode       string
@@ -165,6 +170,7 @@ type LeaveUpdatedNotification struct {
 	EditorUserID    string
 
 	LeaveTypeName      string
+	LeaveTypeCode      string
 	StartDate          string
 	EndDate            string
 	DurationMode       string

@@ -248,6 +248,7 @@ func (s *LeaveService) RequestChange(
 			RecipientUserIDs: recipientUserIDs,
 
 			LeaveTypeName:      leaveType.Name,
+			LeaveTypeCode:      leaveType.Code,
 			StartDate:          created.StartDate.String(),
 			EndDate:            created.EndDate.String(),
 			DurationMode:       string(created.DurationMode),
@@ -349,6 +350,7 @@ func (s *LeaveService) DecideChange(
 		DeciderUserID:   cleanActorUserID,
 
 		LeaveTypeName:      leaveType.Name,
+		LeaveTypeCode:      leaveType.Code,
 		StartDate:          decidedChangeRequest.StartDate.String(),
 		EndDate:            decidedChangeRequest.EndDate.String(),
 		DurationMode:       string(decidedChangeRequest.DurationMode),
