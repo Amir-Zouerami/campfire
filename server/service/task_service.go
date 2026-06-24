@@ -73,6 +73,15 @@ type CreateTimeEntryInput struct {
 }
 
 /*
+DeleteTimeEntryInput identifies one current-user time entry to remove.
+*/
+type DeleteTimeEntryInput struct {
+	ActorUserID string
+	WorkspaceID string
+	TimeEntryID string
+}
+
+/*
 TaskService owns task and time-entry business rules.
 */
 type TaskService struct {
@@ -435,6 +444,44 @@ func (s *TaskService) CreateTimeEntry(
 	}
 
 	return created, nil
+}
+
+/*
+DeleteTimeEntry removes one time entry owned by the current user.
+*/
+func (s *TaskService) DeleteTimeEntry(
+	ctx context.Context,
+	input DeleteTimeEntryInput,
+) (*domain.TimeEntry, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to delete time entries.")
+	}
+
+	workspaceID, err := s.requireWorkspace(ctx, input.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	timeEntryID := domain.ID(strings.TrimSpace(input.TimeEntryID))
+	if timeEntryID.String() == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Time entry ID is required.")
+	}
+
+	entry, err := s.taskStore.DeleteTimeEntry(ctx, store.DeleteTimeEntryParams{
+		WorkspaceID: workspaceID,
+		TimeEntryID: timeEntryID,
+		UserID:      cleanActorUserID,
+	})
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Time entry was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not delete time entry.")
+	}
+
+	return entry, nil
 }
 
 /*

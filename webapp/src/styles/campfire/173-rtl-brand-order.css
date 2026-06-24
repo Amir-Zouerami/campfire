@@ -1,9 +1,0 @@
-/*
- * Historical RTL brand ordering layer.
- *
- * This file previously forced RTL brand rows into a space-between layout and
- * split the logo from the wordmark across the sidebar. It is intentionally kept
- * as an empty compatibility layer until the broader CSS consolidation removes
- * numbered override modules. The active RTL brand rules live in
- * 174-rtl-brand-compact-lockup.css.
- */

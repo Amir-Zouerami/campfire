@@ -1,5 +1,5 @@
 import { useMemo, type ReactElement } from 'react';
-import { Inbox, Plus } from 'lucide-react';
+import { Inbox, Plus, Trash2 } from 'lucide-react';
 
 import { CampfireDataTable, CampfireDataTableCell, CampfireDataTableRow } from '@/components/campfire/CampfireDataTable';
 import {
@@ -17,12 +17,12 @@ import {
 	CampfireResponsiveInput,
 	CampfireResponsiveTextarea,
 } from '@/components/campfire/CampfireResponsiveInput';
-import { useI18n } from '@/i18n';
+import { isolateBidiText, useI18n } from '@/i18n';
 import { sortByNewest } from '@/lib/sort';
 import type { TimeEntry, Workspace } from '@/types/domain';
 
 import { taskLabelForID } from './my-time.helpers';
-import { formatLocalizedMinutes } from './my-time.i18n';
+import { formatLocalizedLocalDate, formatLocalizedMinutes } from './my-time.i18n';
 import { MyTimeFeedback, MyTimeLoading } from './MyTimeFeedback';
 import { useMyTimeLog } from './useMyTimeLog';
 
@@ -38,7 +38,7 @@ type MyTimeLogPageProps = {
  * MyTimeLogPage renders the dedicated personal time entry page.
  */
 export function MyTimeLogPage(props: MyTimeLogPageProps): ReactElement {
-	const { t } = useI18n();
+	const { htmlLang, t } = useI18n();
 	const timeLog = useMyTimeLog({
 		workspace: props.workspace,
 		text: {
@@ -48,6 +48,8 @@ export function MyTimeLogPage(props: MyTimeLogPageProps): ReactElement {
 			chooseTask: t('myDay.time.validation.chooseTask'),
 			minutesPositive: t('myDay.time.validation.minutesPositive'),
 			fallbackError: t('myDay.time.error.fallback'),
+			taskRemoved: t('myDay.tasks.toast.removed'),
+			timeEntryDeleted: t('myDay.time.toast.entryDeleted'),
 		},
 	});
 	const recentEntries = useMemo(
@@ -91,8 +93,10 @@ export function MyTimeLogPage(props: MyTimeLogPageProps): ReactElement {
 							t('myDay.time.table.column.date'),
 							t('myDay.time.table.column.duration'),
 							t('myDay.time.table.column.note'),
+							t('common.delete'),
 						]}
-						className="campfire-data-table--time"
+						className="campfire-data-table--time campfire-data-table--personal-time"
+						columnsTemplate="minmax(0, 1.25fr) minmax(8rem, 0.72fr) minmax(7rem, 0.58fr) minmax(0, 1fr) minmax(3.2rem, 0.22fr)"
 						empty={recentEntries.length === 0 ? (
 							<CampfireEmptyState
 								icon={Inbox}
@@ -106,7 +110,14 @@ export function MyTimeLogPage(props: MyTimeLogPageProps): ReactElement {
 							<TimeEntryRow
 								key={entry.id}
 								entry={entry}
+								disabled={timeLog.isBusy}
+								locale={htmlLang}
 								taskTitle={taskLabelForID(timeLog.tasksByID, entry.taskId, t('myDay.time.task.unknown'))}
+								onDelete={() => {
+									if (window.confirm(t('myDay.time.confirm.deleteEntry'))) {
+										void timeLog.deleteTimeEntry(entry.id);
+									}
+								}}
 							/>
 						))}
 					</CampfireDataTable>
@@ -195,7 +206,10 @@ export function MyTimeLogPage(props: MyTimeLogPageProps): ReactElement {
  */
 function TimeEntryRow(props: {
 	readonly entry: TimeEntry;
+	readonly disabled: boolean;
+	readonly locale: string;
 	readonly taskTitle: string;
+	readonly onDelete: () => void;
 }): ReactElement {
 	const { t } = useI18n();
 
@@ -208,13 +222,25 @@ function TimeEntryRow(props: {
 				)}
 			</CampfireDataTableCell>
 			<CampfireDataTableCell className="campfire-muted-cell">
-				<CampfireEllipsisText value={props.entry.entryDate} />
+				<CampfireEllipsisText value={isolateBidiText(formatLocalizedLocalDate(props.entry.entryDate, props.locale))} />
 			</CampfireDataTableCell>
 			<CampfireDataTableCell>
 				<CampfireEllipsisText value={formatLocalizedMinutes(props.entry.minutes, t)} />
 			</CampfireDataTableCell>
 			<CampfireDataTableCell className="campfire-muted-cell">
 				<CampfireEllipsisText value={props.entry.note.trim() === '' ? '—' : props.entry.note} />
+			</CampfireDataTableCell>
+			<CampfireDataTableCell className="campfire-table-action-cell">
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon-sm"
+					disabled={props.disabled}
+					aria-label={t('myDay.time.action.deleteEntry')}
+					onClick={props.onDelete}
+				>
+					<Trash2 className="cf:size-4" />
+				</Button>
 			</CampfireDataTableCell>
 		</CampfireDataTableRow>
 	);

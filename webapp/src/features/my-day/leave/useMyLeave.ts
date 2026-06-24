@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import {
 	cancelLeaveRequest,
 	createLeaveChangeRequest,
+	createLeaveDeletionRequest,
 	createLeaveRequest,
 	listApprovedLeaveRequests,
 	listLeaveTypes,
@@ -74,6 +75,7 @@ export function useMyLeave(input: UseMyLeaveInput): UseMyLeaveResult {
 	const queryClient = useQueryClient();
 	const [draft, setDraft] = useState<MyLeaveDraft>(emptyLeaveDraft);
 	const [message, setMessage] = useState('');
+	const [shouldShowWarnings, setShouldShowWarnings] = useState(false);
 
 	const snapshotQuery = useQuery({
 		queryKey: campfireQueryKeys.myLeaveSnapshot(input.workspace.id),
@@ -84,7 +86,7 @@ export function useMyLeave(input: UseMyLeaveInput): UseMyLeaveResult {
 	const approvedLeavesQuery = useQuery({
 		queryKey: campfireQueryKeys.myApprovedLeaves(input.workspace.id, draft.startDate, draft.endDate),
 		queryFn: () => listApprovedLeaveRequests(input.workspace.id, draft.startDate, draft.endDate),
-		enabled: draftHasDateRange(draft),
+		enabled: draftHasDateRange(draft) && shouldShowWarnings,
 		staleTime: 30_000,
 	});
 
@@ -112,8 +114,12 @@ export function useMyLeave(input: UseMyLeaveInput): UseMyLeaveResult {
 	}, [leaveTypes]);
 
 	const warnings = useMemo(() => {
+		if (!shouldShowWarnings) {
+			return [];
+		}
+
 		return localLeaveWarnings(draft, myActiveLeaves, approvedLeaves, input.text.warnings);
-	}, [approvedLeaves, draft, input.text.warnings, myActiveLeaves]);
+	}, [approvedLeaves, draft, input.text.warnings, myActiveLeaves, shouldShowWarnings]);
 
 	const pendingLeaveCount = useMemo(() => {
 		return myActiveLeaves.filter(item => item.leaveRequest.status === 'pending').length;
@@ -126,6 +132,7 @@ export function useMyLeave(input: UseMyLeaveInput): UseMyLeaveResult {
 	const createMutation = useMutation({
 		mutationFn: createValidatedLeaveRequest,
 		onSuccess: async response => {
+			setShouldShowWarnings(false);
 			setDraft(current => ({
 				...emptyLeaveDraft(),
 				leaveTypeId: current.leaveTypeId,
@@ -190,7 +197,23 @@ export function useMyLeave(input: UseMyLeaveInput): UseMyLeaveResult {
 		},
 	});
 
-	const mutationPending = createMutation.isPending || changeRequestMutation.isPending || directEditMutation.isPending || cancelMutation.isPending;
+	const deletionRequestMutation = useMutation({
+		mutationFn: async (leaveRequestId: string) => {
+			return createLeaveDeletionRequest(leaveRequestId, { reason: '' });
+		},
+		onSuccess: async () => {
+			setMessage(input.text.deleteRequestedMessage);
+			toast.success(input.text.deleteRequestedToast);
+			await invalidateMyLeaveQueries(queryClient, input.workspace.id);
+		},
+		onError: error => {
+			const errorMessage = errorToMessage(error, input.text.fallbackError);
+			setMessage(errorMessage);
+			toast.error(errorMessage);
+		},
+	});
+
+	const mutationPending = createMutation.isPending || changeRequestMutation.isPending || directEditMutation.isPending || cancelMutation.isPending || deletionRequestMutation.isPending;
 	const loadState = resolveLoadState(snapshotQuery.isPending, snapshotQuery.isError, mutationPending);
 	const displayedMessage = snapshotQuery.isError ? errorToMessage(snapshotQuery.error, input.text.fallbackError) : message;
 	const isBusy = loadState === 'loading' || loadState === 'saving' || loadState === 'validating';
@@ -199,6 +222,7 @@ export function useMyLeave(input: UseMyLeaveInput): UseMyLeaveResult {
 	 * updateDraft patches the leave request draft.
 	 */
 	function updateDraft(patch: MyLeaveDraftPatch): void {
+		setShouldShowWarnings(true);
 		setDraft(current => normalizeLeaveDraftForMode({ ...current, ...patch }));
 		setMessage('');
 	}
@@ -337,6 +361,7 @@ export function useMyLeave(input: UseMyLeaveInput): UseMyLeaveResult {
 	 * submitLeaveRequest validates and creates a leave request.
 	 */
 	async function submitLeaveRequest(): Promise<void> {
+		setShouldShowWarnings(true);
 		setMessage('');
 		await createMutation.mutateAsync();
 	}
@@ -346,6 +371,16 @@ export function useMyLeave(input: UseMyLeaveInput): UseMyLeaveResult {
 	 */
 	async function cancelMyLeaveRequest(leaveRequestId: string): Promise<void> {
 		setMessage('');
+		const currentLeave = myActiveLeaves.find(item => item.leaveRequest.id === leaveRequestId)?.leaveRequest;
+		if (currentLeave === undefined) {
+			throw new Error(input.text.fallbackError);
+		}
+
+		if (approvedLeaveHasStarted(currentLeave, input.workspace.timezone)) {
+			await deletionRequestMutation.mutateAsync(leaveRequestId);
+			return;
+		}
+
 		await cancelMutation.mutateAsync(leaveRequestId);
 	}
 
@@ -360,7 +395,7 @@ export function useMyLeave(input: UseMyLeaveInput): UseMyLeaveResult {
 			throw new Error(input.text.fallbackError);
 		}
 
-		if (approvedLeaveIsInProgress(currentLeave, input.workspace.timezone)) {
+		if (currentLeave.status === 'approved') {
 			await changeRequestMutation.mutateAsync({ leaveRequestId, draft: changeDraft });
 			return;
 		}
@@ -388,9 +423,9 @@ export function useMyLeave(input: UseMyLeaveInput): UseMyLeaveResult {
 }
 
 /**
- * approvedLeaveIsInProgress mirrors backend member-edit gating for button labels.
+ * approvedLeaveHasStarted mirrors backend requester-delete gating.
  */
-function approvedLeaveIsInProgress(request: PendingLeaveRequest['leaveRequest'], timezone: string): boolean {
+function approvedLeaveHasStarted(request: PendingLeaveRequest['leaveRequest'], timezone: string): boolean {
 	if (request.status !== 'approved') {
 		return false;
 	}
@@ -402,7 +437,7 @@ function approvedLeaveIsInProgress(request: PendingLeaveRequest['leaveRequest'],
 
 	const now = Date.now();
 
-	return now >= interval.start.getTime() && now < interval.end.getTime();
+	return now >= interval.start.getTime();
 }
 
 /**
@@ -506,14 +541,14 @@ function getDateTimePartsInTimezone(date: Date, timezone: string): {
  * addDays adds calendar days to a YYYY-MM-DD date string.
  */
 function addDays(date: string, days: number): string {
-	const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date.trim());
-	if (match === null) {
+	const parts = date.split('-');
+	if (parts.length !== 3) {
 		return date;
 	}
 
-	const year = Number.parseInt(match[1] ?? '', 10);
-	const month = Number.parseInt(match[2] ?? '', 10);
-	const day = Number.parseInt(match[3] ?? '', 10);
+	const year = Number.parseInt(parts[0] ?? '', 10);
+	const month = Number.parseInt(parts[1] ?? '', 10);
+	const day = Number.parseInt(parts[2] ?? '', 10);
 	if (![year, month, day].every(Number.isFinite)) {
 		return date;
 	}

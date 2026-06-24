@@ -355,6 +355,10 @@ func NewRouter(config RouterConfig) http.Handler {
 			"/workspaces/{workspaceID}/time-entries",
 			handleCreateTimeEntry(config.Logger, config.Mattermost, config.TaskService, config.AuditService),
 		)
+		api.Delete(
+			"/workspaces/{workspaceID}/time-entries/{timeEntryID}",
+			handleDeleteTimeEntry(config.Logger, config.Mattermost, config.TaskService, config.AuditService),
+		)
 
 		api.Get(
 			"/workspaces/{workspaceID}/reports/rules",
@@ -602,6 +606,10 @@ func NewRouter(config RouterConfig) http.Handler {
 			handleCreateLeaveChange(config.Logger, config.Mattermost, config.LeaveService, config.AuditService),
 		)
 		api.Post(
+			"/leaves/{leaveRequestID}/delete-requests",
+			handleCreateLeaveDeletion(config.Logger, config.Mattermost, config.LeaveService, config.AuditService),
+		)
+		api.Post(
 			"/leaves/change-requests/{changeRequestID}/decision",
 			handleDecideLeaveChange(config.Logger, config.Mattermost, config.LeaveService, config.AuditService),
 		)
@@ -636,7 +644,7 @@ func handleHealth(log logger.Logger) http.HandlerFunc {
 		WriteHealth(w, http.StatusOK, HealthResponse{
 			Status:  "ok",
 			Product: "Campfire",
-			Version: "1.2.1",
+			Version: "1.3.0",
 		})
 	}
 }

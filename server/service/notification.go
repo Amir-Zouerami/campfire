@@ -114,6 +114,7 @@ type LeaveChangeRequestNotification struct {
 	RequesterUserID  string
 	RecipientUserIDs []string
 
+	Action             string
 	LeaveTypeName      string
 	LeaveTypeCode      string
 	StartDate          string
@@ -139,9 +140,16 @@ type LeaveChangeDecisionNotification struct {
 	ChannelID       string
 	Language        domain.ReportLanguage
 
+	/*
+		AnnouncementChannelID optionally overrides the workspace channel for
+		team-facing approved-leave deletion announcements.
+	*/
+	AnnouncementChannelID string
+
 	RequesterUserID string
 	DeciderUserID   string
 
+	Action             string
 	LeaveTypeName      string
 	LeaveTypeCode      string
 	StartDate          string

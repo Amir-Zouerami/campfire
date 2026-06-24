@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState, type ReactElement } from 'react';
-import { Inbox, Plus } from 'lucide-react';
+import { Inbox, Plus, Trash2 } from 'lucide-react';
 
 import { CampfireDataTable, CampfireDataTableCell, CampfireDataTableRow } from '@/components/campfire/CampfireDataTable';
 import {
@@ -51,6 +51,8 @@ export function MyTasksPage(props: MyTasksPageProps): ReactElement {
 			chooseTask: t('myDay.time.validation.chooseTask'),
 			minutesPositive: t('myDay.time.validation.minutesPositive'),
 			fallbackError: t('myDay.time.error.fallback'),
+			taskRemoved: t('myDay.tasks.toast.removed'),
+			timeEntryDeleted: t('myDay.time.toast.entryDeleted'),
 		},
 	});
 	const [query, setQuery] = useState('');
@@ -171,7 +173,10 @@ export function MyTasksPage(props: MyTasksPageProps): ReactElement {
 						t('myDay.tasks.table.column.source'),
 						t('myDay.tasks.table.column.updated'),
 						t('myDay.tasks.table.column.changeStatus'),
+						t('common.delete'),
 					]}
+					className="campfire-data-table--personal-tasks"
+					columnsTemplate="minmax(0, 1.35fr) minmax(7rem, 0.65fr) minmax(7rem, 0.62fr) minmax(9rem, 0.78fr) minmax(11rem, 0.9fr) minmax(3.2rem, 0.22fr)"
 					empty={visibleTasks.length === 0 ? (
 						<CampfireEmptyState
 							icon={Inbox}
@@ -190,6 +195,11 @@ export function MyTasksPage(props: MyTasksPageProps): ReactElement {
 							onStatusChange={status => {
 								void timeLog.changeTaskStatus(task.id, status);
 							}}
+							onRemove={() => {
+								if (window.confirm(t('myDay.tasks.confirm.removeTask'))) {
+									void timeLog.removeTask(task.id);
+								}
+							}}
 						/>
 					))}
 				</CampfireDataTable>
@@ -206,6 +216,7 @@ function TaskRow(props: {
 	readonly disabled: boolean;
 	readonly locale: string;
 	readonly onStatusChange: (status: TaskStatus) => void;
+	readonly onRemove: () => void;
 }): ReactElement {
 	const { t } = useI18n();
 	const statusLabel = t(taskStatusTranslationKey(props.task.status));
@@ -253,6 +264,19 @@ function TaskRow(props: {
 						</option>
 					))}
 				</CampfireSelect>
+			</CampfireDataTableCell>
+
+			<CampfireDataTableCell className="campfire-table-action-cell">
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon-sm"
+					disabled={props.disabled || props.task.status === 'archived'}
+					aria-label={t('myDay.tasks.action.removeTask')}
+					onClick={props.onRemove}
+				>
+					<Trash2 className="cf:size-4" />
+				</Button>
 			</CampfireDataTableCell>
 		</CampfireDataTableRow>
 	);

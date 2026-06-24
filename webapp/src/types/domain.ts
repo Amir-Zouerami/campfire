@@ -258,6 +258,11 @@ export type ApprovedLeaveRequest = LeaveRequestWithType;
 export type LeaveChangeRequestStatus = 'pending' | 'approved' | 'rejected';
 
 /**
+ * LeaveChangeRequestAction identifies whether an approver is deciding an edit or deletion request.
+ */
+export type LeaveChangeRequestAction = 'edit' | 'delete';
+
+/**
  * LeaveChangeRequest represents a member-requested correction to an existing leave request.
  */
 export type LeaveChangeRequest = {
@@ -265,6 +270,7 @@ export type LeaveChangeRequest = {
 	readonly leaveRequestId: string;
 	readonly workspaceId: string;
 	readonly requesterUserId: string;
+	readonly action: LeaveChangeRequestAction;
 	readonly leaveTypeId: string;
 	readonly startDate: LocalDate;
 	readonly endDate: LocalDate;
@@ -720,4 +726,3 @@ export type AuditLogEntry = {
 	readonly metadata: Readonly<Record<string, string>>;
 	readonly createdAt: string;
 };
-

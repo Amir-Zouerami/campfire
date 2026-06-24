@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
-import { BarChart3, CalendarCheck, Flame, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
+import { BarChart3, CalendarCheck, ExternalLink, Flame, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
 
 import campfireLogoURL from '../../../../assets/campfire-logo.svg';
 
@@ -74,12 +74,7 @@ export function CampfireWorkspaceShell(props: WorkspaceShellProps): ReactElement
 			<WorkspaceSidebar activePage={activeDefinition.id} pages={visiblePages} {...props} onSelectPage={setActivePage} />
 
 			<div className="campfire-workspace-main">
-				<header className="campfire-workspace-topline">
-					<div className="campfire-workspace-topline-copy">
-						<span className="campfire-workspace-topline-eyebrow">{t(activeDefinition.eyebrowKey)}</span>
-						<p className="campfire-workspace-topline-label">{t(activeDefinition.descriptionKey)}</p>
-					</div>
-
+				<header className="campfire-workspace-topline campfire-workspace-topline--actions-only">
 					<div className="campfire-workspace-actions">
 						<Button type="button" variant="secondary" size="sm" onClick={props.onRefresh}>
 							<RefreshCw className="cf:size-4" />
@@ -132,6 +127,7 @@ function WorkspaceSidebar(
 				<span className="campfire-sidebar-workspace-helper">
 					{t('workspace.sidebar.workspaceTimezone', { timezone: isolateBidiText(props.workspace.timezone) })}
 				</span>
+				<WorkspaceRelatedLink boardUrl={props.workspace.boardUrl} />
 			</div>
 
 			<nav className="campfire-sidebar-nav" aria-label={t('workspace.nav.ariaLabel')}>
@@ -169,6 +165,32 @@ function WorkspaceSidebar(
 				</span>
 			</div>
 		</aside>
+	);
+}
+
+
+/**
+ * WorkspaceRelatedLink exposes the workspace-level related link to every user.
+ */
+function WorkspaceRelatedLink(props: { readonly boardUrl: string }): ReactElement | null {
+	const { t } = useI18n();
+	const boardUrl = props.boardUrl.trim();
+
+	if (boardUrl === '') {
+		return null;
+	}
+
+	return (
+		<a
+			className="campfire-sidebar-related-link"
+			href={boardUrl}
+			target="_blank"
+			rel="noreferrer"
+			title={t('settings.overview.fact.boardUrl.openHelper')}
+		>
+			<ExternalLink className="cf:size-3.5" aria-hidden="true" />
+			<span>{t('settings.overview.fact.boardUrl')}</span>
+		</a>
 	);
 }
 

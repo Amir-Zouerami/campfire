@@ -29,6 +29,7 @@ func (s *SQLLeaveStore) ListPendingChangeRequestsByWorkspaceID(
 				changes.leave_request_id,
 				changes.workspace_id,
 				changes.requester_user_id,
+				changes.action,
 				changes.leave_type_id,
 				changes.start_date,
 				changes.end_date,
@@ -87,6 +88,7 @@ func (s *SQLLeaveStore) GetChangeRequestByID(
 				leave_request_id,
 				workspace_id,
 				requester_user_id,
+				action,
 				leave_type_id,
 				start_date,
 				end_date,
@@ -164,6 +166,7 @@ func (s *SQLLeaveStore) CreateChangeRequest(
 				leave_request_id,
 				workspace_id,
 				requester_user_id,
+				action,
 				leave_type_id,
 				start_date,
 				end_date,
@@ -181,12 +184,13 @@ func (s *SQLLeaveStore) CreateChangeRequest(
 				created_at,
 				updated_at,
 				decided_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`),
 		changeRequest.ID.String(),
 		changeRequest.LeaveRequestID.String(),
 		changeRequest.WorkspaceID.String(),
 		changeRequest.RequesterUserID,
+		string(changeRequest.Action),
 		changeRequest.LeaveTypeID.String(),
 		changeRequest.StartDate.String(),
 		changeRequest.EndDate.String(),
@@ -249,50 +253,81 @@ func (s *SQLLeaveStore) DecideChangeRequest(
 
 	var updatedLeaveRequest *domain.LeaveRequest
 	if params.Decision == domain.LeaveChangeRequestStatusApproved {
-		result, updateErr := transaction.ExecContext(
-			ctx,
-			s.db.Rebind(`
-				UPDATE campfire_leave_requests
-				SET
-					leave_type_id = ?,
-					start_date = ?,
-					end_date = ?,
-					duration_mode = ?,
-					half_day_part = ?,
-					start_time = ?,
-					end_time = ?,
-					reason = ?,
-					backup_user_id = ?,
-					can_contact_if_needed = ?,
-					updated_at = ?
-				WHERE id = ? AND status IN (?, ?)
-			`),
-			changeRequest.LeaveTypeID.String(),
-			changeRequest.StartDate.String(),
-			changeRequest.EndDate.String(),
-			string(changeRequest.DurationMode),
-			string(changeRequest.HalfDayPart),
-			changeRequest.StartTime.String(),
-			changeRequest.EndTime.String(),
-			changeRequest.Reason,
-			changeRequest.BackupUserID,
-			changeRequest.CanContactIfNeeded,
-			params.UpdatedAt,
-			changeRequest.LeaveRequestID.String(),
-			string(domain.LeaveStatusPending),
-			string(domain.LeaveStatusApproved),
-		)
-		if updateErr != nil {
-			return nil, nil, fmt.Errorf("apply leave change request fields: %w", updateErr)
-		}
+		if changeRequest.Action == domain.LeaveChangeRequestActionDelete {
+			result, updateErr := transaction.ExecContext(
+				ctx,
+				s.db.Rebind(`
+					UPDATE campfire_leave_requests
+					SET
+						status = ?,
+						cancelled_at = ?,
+						updated_at = ?
+					WHERE id = ? AND status = ?
+				`),
+				string(domain.LeaveStatusCancelled),
+				params.UpdatedAt,
+				params.UpdatedAt,
+				changeRequest.LeaveRequestID.String(),
+				string(domain.LeaveStatusApproved),
+			)
+			if updateErr != nil {
+				return nil, nil, fmt.Errorf("apply leave delete request: %w", updateErr)
+			}
 
-		rowsAffected, rowsErr := result.RowsAffected()
-		if rowsErr != nil {
-			return nil, nil, fmt.Errorf("read leave change application result: %w", rowsErr)
-		}
+			rowsAffected, rowsErr := result.RowsAffected()
+			if rowsErr != nil {
+				return nil, nil, fmt.Errorf("read leave delete application result: %w", rowsErr)
+			}
 
-		if rowsAffected == 0 {
-			return nil, nil, ErrConflict
+			if rowsAffected == 0 {
+				return nil, nil, ErrConflict
+			}
+		} else {
+			result, updateErr := transaction.ExecContext(
+				ctx,
+				s.db.Rebind(`
+					UPDATE campfire_leave_requests
+					SET
+						leave_type_id = ?,
+						start_date = ?,
+						end_date = ?,
+						duration_mode = ?,
+						half_day_part = ?,
+						start_time = ?,
+						end_time = ?,
+						reason = ?,
+						backup_user_id = ?,
+						can_contact_if_needed = ?,
+						updated_at = ?
+					WHERE id = ? AND status IN (?, ?)
+				`),
+				changeRequest.LeaveTypeID.String(),
+				changeRequest.StartDate.String(),
+				changeRequest.EndDate.String(),
+				string(changeRequest.DurationMode),
+				string(changeRequest.HalfDayPart),
+				changeRequest.StartTime.String(),
+				changeRequest.EndTime.String(),
+				changeRequest.Reason,
+				changeRequest.BackupUserID,
+				changeRequest.CanContactIfNeeded,
+				params.UpdatedAt,
+				changeRequest.LeaveRequestID.String(),
+				string(domain.LeaveStatusPending),
+				string(domain.LeaveStatusApproved),
+			)
+			if updateErr != nil {
+				return nil, nil, fmt.Errorf("apply leave change request fields: %w", updateErr)
+			}
+
+			rowsAffected, rowsErr := result.RowsAffected()
+			if rowsErr != nil {
+				return nil, nil, fmt.Errorf("read leave change application result: %w", rowsErr)
+			}
+
+			if rowsAffected == 0 {
+				return nil, nil, ErrConflict
+			}
 		}
 
 		updatedLeaveRequest, err = reloadLeaveRequest(ctx, transaction, s.db, changeRequest.LeaveRequestID)
@@ -364,6 +399,7 @@ func reloadLeaveChangeRequest(
 				leave_request_id,
 				workspace_id,
 				requester_user_id,
+				action,
 				leave_type_id,
 				start_date,
 				end_date,
@@ -407,6 +443,7 @@ type leaveChangeRequestRecord struct {
 	LeaveRequestID     string       `db:"leave_request_id"`
 	WorkspaceID        string       `db:"workspace_id"`
 	RequesterUserID    string       `db:"requester_user_id"`
+	Action             string       `db:"action"`
 	LeaveTypeID        string       `db:"leave_type_id"`
 	StartDate          string       `db:"start_date"`
 	EndDate            string       `db:"end_date"`
@@ -441,6 +478,7 @@ func (r leaveChangeRequestRecord) toDomain() domain.LeaveChangeRequest {
 		LeaveRequestID:     domain.ID(r.LeaveRequestID),
 		WorkspaceID:        domain.ID(r.WorkspaceID),
 		RequesterUserID:    r.RequesterUserID,
+		Action:             domain.LeaveChangeRequestAction(r.Action),
 		LeaveTypeID:        domain.ID(r.LeaveTypeID),
 		StartDate:          domain.LocalDate(r.StartDate),
 		EndDate:            domain.LocalDate(r.EndDate),

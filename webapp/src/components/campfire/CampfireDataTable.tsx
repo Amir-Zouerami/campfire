@@ -44,7 +44,7 @@ export function CampfireDataTable(props: CampfireDataTableProps): ReactElement {
 			<div className={cn('campfire-data-table campfire-data-table--readable', props.className)} role="table" aria-label={props.label} style={style}>
 				<div className="campfire-data-table-row campfire-data-table-row--head" role="row">
 					{props.columns.map(column => (
-						<span key={column} role="columnheader">{column}</span>
+						<span key={column} className="campfire-data-table-header-cell" role="columnheader">{column}</span>
 					))}
 				</div>
 
@@ -69,5 +69,5 @@ export function CampfireDataTableRow(props: CampfireDataTableRowProps): ReactEle
  * CampfireDataTableCell renders one readable data-table cell.
  */
 export function CampfireDataTableCell(props: CampfireDataTableCellProps): ReactElement {
-	return <span className={props.className} role="cell">{props.children}</span>;
+	return <span className={cn('campfire-data-table-cell', props.className)} role="cell">{props.children}</span>;
 }

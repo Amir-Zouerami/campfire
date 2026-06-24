@@ -66,6 +66,7 @@ LeaveStore defines persistence operations for leave types and leave requests.
 */
 type LeaveStore interface {
 	ListTypesByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.LeaveType, error)
+	GetTypeByID(ctx context.Context, workspaceID domain.ID, leaveTypeID domain.ID) (*domain.LeaveType, error)
 	GetActiveTypeByID(ctx context.Context, workspaceID domain.ID, leaveTypeID domain.ID) (*domain.LeaveType, error)
 	GetRequestByID(ctx context.Context, leaveRequestID domain.ID) (*domain.LeaveRequest, error)
 	ListPendingByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.LeaveRequestWithType, error)
@@ -155,6 +156,51 @@ func (s *SQLLeaveStore) ListTypesByWorkspaceID(
 	}
 
 	return leaveTypes, nil
+}
+
+/*
+GetTypeByID returns a leave type belonging to a workspace, including inactive types used by historical leave rows.
+*/
+func (s *SQLLeaveStore) GetTypeByID(
+	ctx context.Context,
+	workspaceID domain.ID,
+	leaveTypeID domain.ID,
+) (*domain.LeaveType, error) {
+	var record leaveTypeRecord
+
+	err := s.db.GetContext(
+		ctx,
+		&record,
+		s.db.Rebind(`
+			SELECT
+				id,
+				workspace_id,
+				name,
+				code,
+				color,
+				requires_approval,
+				is_active,
+				created_by,
+				created_at,
+				updated_at
+			FROM campfire_leave_types
+			WHERE id = ? AND workspace_id = ?
+			LIMIT 1
+		`),
+		leaveTypeID.String(),
+		workspaceID.String(),
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+
+		return nil, fmt.Errorf("get leave type: %w", err)
+	}
+
+	leaveType := record.toDomain()
+
+	return &leaveType, nil
 }
 
 /*

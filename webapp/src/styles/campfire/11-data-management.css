@@ -1,0 +1,315 @@
+/* Consolidated from trailing rules previously stored directly in webapp/src/styles/campfire.css. */
+
+.campfire-retention-metric-card {
+  display: grid;
+  gap: 0.35rem;
+  min-height: 8.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1.25rem;
+  padding: 1rem;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.025)),
+    rgba(15, 23, 42, 0.38);
+}
+
+.campfire-retention-metric-card strong {
+  color: rgb(254, 215, 170);
+  font-size: 1.65rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.campfire-retention-metric-card span {
+  color: rgb(255, 247, 237);
+  font-size: 0.95rem;
+  font-weight: 750;
+}
+
+.campfire-retention-metric-card p {
+  margin: 0;
+  color: rgba(255, 237, 213, 0.68);
+  font-size: 0.85rem;
+  font-weight: 550;
+  line-height: 1.45;
+}
+
+.campfire-destructive-confirmation-copy {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  color: rgb(254, 226, 226);
+}
+
+.campfire-destructive-confirmation-copy svg {
+  flex: 0 0 auto;
+  color: rgb(252, 165, 165);
+  margin-top: 0.15rem;
+}
+
+.campfire-destructive-confirmation-copy p {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+/* -------------------------------------------------------------------------
+ * Read-only card label scale hardening.
+ *
+ * This final block intentionally wins over older Tailwind utility classes and
+ * previous compact-card rules. It targets data-card labels only: runtime signal
+ * cards, approval detail tiles, summary/stat cards, report chips, and settings
+ * metric cards. Form labels remain handled by the form/input system.
+ * ---------------------------------------------------------------------- */
+
+.campfire-theme :where(
+  .campfire-runtime-signal-title,
+  .campfire-stat-label,
+  .campfire-summary-label,
+  .campfire-metric-label,
+  .campfire-report-summary-item > span,
+  .campfire-approval-field-label,
+  .campfire-approval-comment-label,
+  .campfire-retention-metric-card span,
+  .campfire-standup-template-metric span,
+  .campfire-settings-flat-row-main strong,
+  .campfire-overview-fact-card strong
+) {
+  color: rgba(255, 226, 184, 0.96) !important;
+  font-family: var(--campfire-font-sans), Inter, system-ui, sans-serif !important;
+  font-size: clamp(1.08rem, 1.01rem + 0.18vw, 1.2rem) !important;
+  font-weight: 880 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.32 !important;
+  text-transform: none !important;
+}
+
+.campfire-theme .campfire-runtime-signal-title {
+  margin: 0 !important;
+  max-width: min(22rem, 100%);
+}
+
+.campfire-theme .campfire-runtime-signal-value {
+  margin: 1rem 0 0 !important;
+  color: rgba(255, 255, 255, 0.96) !important;
+  font-size: clamp(1.7rem, 1.52rem + 0.45vw, 2.15rem) !important;
+  font-weight: 820 !important;
+  letter-spacing: -0.04em !important;
+  line-height: 1.05 !important;
+}
+
+.campfire-theme .campfire-runtime-signal-helper,
+.campfire-theme :where(.campfire-stat-helper, .campfire-summary-helper, .campfire-metric-helper) {
+  margin: 0.35rem 0 0 !important;
+  color: rgba(255, 255, 255, 0.66) !important;
+  font-size: clamp(0.98rem, 0.93rem + 0.12vw, 1.08rem) !important;
+  font-weight: 700 !important;
+  line-height: 1.42 !important;
+}
+
+.campfire-theme .campfire-approval-card-compact .campfire-approval-field-label,
+.campfire-theme .campfire-approval-card-compact .campfire-approval-comment-label,
+.campfire-theme .campfire-approval-note-panel--compact .campfire-approval-field-label,
+.campfire-theme .campfire-approval-detail-tile .campfire-approval-field-label {
+  display: inline-flex !important;
+  align-items: center;
+  min-width: 0;
+  margin: 0 !important;
+  color: rgba(255, 226, 184, 0.97) !important;
+  font-size: clamp(1.08rem, 1.01rem + 0.18vw, 1.2rem) !important;
+  font-weight: 900 !important;
+  line-height: 1.32 !important;
+}
+
+.campfire-theme .campfire-approval-card-compact .campfire-approval-detail-icon svg,
+.campfire-theme .campfire-approval-card-compact .campfire-approval-comment-icon {
+  width: 1.05rem !important;
+  height: 1.05rem !important;
+}
+
+.campfire-theme .campfire-approval-card-compact .campfire-approval-detail-value,
+.campfire-theme .campfire-approval-card-compact .campfire-note-text,
+.campfire-theme .campfire-approval-card-compact .campfire-approval-note-text {
+  color: rgba(255, 255, 255, 0.94) !important;
+  font-size: clamp(1.04rem, 0.98rem + 0.14vw, 1.16rem) !important;
+  font-weight: 780 !important;
+  line-height: 1.58 !important;
+}
+
+.campfire-theme .campfire-approval-card-compact .campfire-approval-comment-block--compact textarea {
+  min-height: 5.35rem !important;
+  color: rgba(255, 255, 255, 0.94) !important;
+  font-size: clamp(1.05rem, 0.99rem + 0.16vw, 1.18rem) !important;
+  font-weight: 650 !important;
+  line-height: 1.7 !important;
+  padding: 1rem 1.05rem !important;
+}
+
+.campfire-theme[dir='rtl'] :where(
+  .campfire-runtime-signal-title,
+  .campfire-stat-label,
+  .campfire-summary-label,
+  .campfire-metric-label,
+  .campfire-report-summary-item > span,
+  .campfire-approval-field-label,
+  .campfire-approval-comment-label,
+  .campfire-retention-metric-card span,
+  .campfire-standup-template-metric span,
+  .campfire-settings-flat-row-main strong,
+  .campfire-overview-fact-card strong
+) {
+  font-family: var(--campfire-vazir-font), var(--campfire-font-sans), Inter, system-ui, sans-serif !important;
+  font-weight: 900 !important;
+}
+
+/* Final page-heading readability polish. */
+.campfire-overlay.campfire-theme .campfire-page-eyebrow,
+.campfire-overlay.campfire-theme .campfire-workflow-intro-eyebrow {
+	font-size: clamp(1rem, 0.42vw + 0.9rem, 1.16rem) !important;
+	font-weight: 900 !important;
+	letter-spacing: 0.08em !important;
+	line-height: 1.18 !important;
+}
+
+.campfire-overlay.campfire-theme[dir='rtl'] .campfire-page-eyebrow,
+.campfire-overlay.campfire-theme[dir='rtl'] .campfire-workflow-intro-eyebrow {
+	letter-spacing: 0 !important;
+}
+
+/* Current polish: workspace shell spacing, sidebar links, and personal data tables. */
+.campfire-theme .campfire-workspace-main {
+	position: relative;
+}
+
+.campfire-theme .campfire-workspace-topline--actions-only {
+	position: absolute !important;
+	inset-block-start: 0.85rem !important;
+	inset-inline-end: 1.1rem !important;
+	z-index: 25 !important;
+	justify-content: flex-end !important;
+	padding: 0 !important;
+	pointer-events: none;
+}
+
+.campfire-theme .campfire-workspace-topline--actions-only .campfire-workspace-actions {
+	pointer-events: auto;
+}
+
+.campfire-theme .campfire-sidebar-related-link {
+	display: inline-flex !important;
+	width: auto !important;
+	max-width: 100% !important;
+	align-items: center !important;
+	justify-content: flex-start !important;
+	gap: 0.38rem !important;
+	margin-top: 0.32rem !important;
+	border: 0 !important;
+	border-radius: 0 !important;
+	background: transparent !important;
+	color: rgba(255, 255, 255, 0.88) !important;
+	font-size: 0.82rem !important;
+	font-weight: 780 !important;
+	line-height: 1.3 !important;
+	padding: 0 !important;
+	text-decoration: none !important;
+}
+
+.campfire-theme .campfire-sidebar-related-link:hover,
+.campfire-theme .campfire-sidebar-related-link:focus-visible {
+	color: rgba(255, 237, 213, 0.96) !important;
+	text-decoration: underline !important;
+	text-underline-offset: 0.18em;
+}
+
+.campfire-theme .campfire-ellipsis-text {
+	cursor: default !important;
+}
+
+.campfire-theme .campfire-readable-table-surface .campfire-data-table-row--head > span {
+	font-size: 0.95rem !important;
+	font-weight: 900 !important;
+	letter-spacing: 0 !important;
+	line-height: 1.35 !important;
+	text-align: center !important;
+	text-transform: none !important;
+}
+
+.campfire-theme :where(.campfire-data-table--personal-time, .campfire-data-table--personal-tasks) .campfire-data-table-row {
+	align-items: center !important;
+}
+
+.campfire-theme :where(.campfire-data-table--personal-time, .campfire-data-table--personal-tasks) .campfire-data-table-row > span {
+	display: flex !important;
+	min-width: 0 !important;
+	align-items: center !important;
+	justify-content: center !important;
+	text-align: center !important;
+}
+
+.campfire-theme :where(.campfire-data-table--personal-time, .campfire-data-table--personal-tasks) .campfire-task-title-cell {
+	align-items: center !important;
+	justify-items: center !important;
+	text-align: center !important;
+}
+
+.campfire-theme :where(.campfire-data-table--personal-time, .campfire-data-table--personal-tasks) .campfire-task-title-cell strong,
+.campfire-theme :where(.campfire-data-table--personal-time, .campfire-data-table--personal-tasks) .campfire-task-title-cell small,
+.campfire-theme :where(.campfire-data-table--personal-time, .campfire-data-table--personal-tasks) .campfire-muted-cell {
+	text-align: center !important;
+}
+
+.campfire-theme .campfire-table-action-cell {
+	justify-content: center !important;
+}
+
+.campfire-theme .campfire-table-action-cell button {
+	min-width: 2.35rem !important;
+	min-height: 2.35rem !important;
+	color: rgba(255, 214, 158, 0.9) !important;
+}
+
+.campfire-theme .campfire-table-action-cell button:hover:not(:disabled) {
+	background: rgba(239, 68, 68, 0.12) !important;
+	color: rgba(254, 202, 202, 0.98) !important;
+}
+
+/* Current polish: localization-aware data table cell alignment. */
+.campfire-theme .campfire-data-table-row {
+	grid-template-columns: var(--campfire-data-table-columns, repeat(auto-fit, minmax(8rem, 1fr))) !important;
+}
+
+.campfire-theme .campfire-data-table-header-cell,
+.campfire-theme .campfire-data-table-cell {
+	display: flex !important;
+	min-width: 0 !important;
+	max-width: 100% !important;
+	align-items: center !important;
+	justify-content: center !important;
+	text-align: center !important;
+}
+
+.campfire-theme .campfire-readable-table-surface .campfire-data-table-header-cell,
+.campfire-theme .campfire-people-review-table .campfire-data-table-header-cell {
+	font-size: 0.98rem !important;
+	font-weight: 900 !important;
+	letter-spacing: 0 !important;
+	line-height: 1.35 !important;
+	text-transform: none !important;
+}
+
+.campfire-theme .campfire-people-review-table .campfire-data-table-row {
+	grid-template-columns: var(--campfire-data-table-columns, minmax(0, 1fr) minmax(7rem, max-content)) !important;
+}
+
+.campfire-theme .campfire-people-review-table .campfire-data-table-cell {
+	font-size: 1.02rem !important;
+	font-weight: 780 !important;
+}
+
+.campfire-theme .campfire-data-table--readable .campfire-data-table-row,
+.campfire-theme .campfire-data-table--time .campfire-data-table-row,
+.campfire-theme .campfire-data-table--personal-time .campfire-data-table-row,
+.campfire-theme .campfire-data-table--personal-tasks .campfire-data-table-row,
+.campfire-theme .campfire-people-review-table .campfire-data-table-row {
+	grid-template-columns: var(--campfire-data-table-columns, repeat(auto-fit, minmax(8rem, 1fr))) !important;
+}

@@ -291,14 +291,18 @@ export function CampfireFieldError(props: CampfireFieldErrorProps): ReactElement
  * CampfirePageHeader renders the single title area used by each focused page.
  */
 export function CampfirePageHeader(props: CampfirePageHeaderProps): ReactElement {
+	const eyebrow = stripTrailingTitlePeriod(props.eyebrow ?? '');
+	const title = stripTrailingTitlePeriod(props.title);
+	const description = stripTrailingTitlePeriod(props.description);
+
 	return (
 		<header className={cn('campfire-page-header', props.className)}>
 			<div className="cf:min-w-0">
-				{props.eyebrow !== undefined && props.eyebrow.trim() !== '' && (
-					<p className="campfire-page-eyebrow">{props.eyebrow}</p>
+				{eyebrow !== '' && (
+					<p className="campfire-page-eyebrow">{eyebrow}</p>
 				)}
-				<h2 className="campfire-page-title">{props.title}</h2>
-				<p className="campfire-page-description">{props.description}</p>
+				<h2 className="campfire-page-title">{title}</h2>
+				<p className="campfire-page-description">{description}</p>
 			</div>
 
 			{props.actions !== undefined && <div className="campfire-page-actions">{props.actions}</div>}
@@ -319,9 +323,9 @@ export function CampfireWorkflowIntro(props: CampfireWorkflowIntroProps): ReactE
 		<section className={cn('campfire-workflow-intro', props.className)} aria-labelledby={titleID}>
 			<div className="campfire-workflow-intro-row">
 				<div className="campfire-workflow-intro-copy">
-					<p className="campfire-workflow-intro-eyebrow">{props.eyebrow}</p>
-					<h3 id={titleID}>{props.title}</h3>
-					<p>{props.description}</p>
+					<p className="campfire-workflow-intro-eyebrow">{stripTrailingTitlePeriod(props.eyebrow)}</p>
+					<h3 id={titleID}>{stripTrailingTitlePeriod(props.title)}</h3>
+					<p>{stripTrailingTitlePeriod(props.description)}</p>
 				</div>
 
 				{props.controls !== undefined && (
@@ -437,7 +441,7 @@ export function CampfireSectionTabs<TValue extends string>(props: CampfireSectio
 		<nav className={cn('campfire-section-tabs', props.className)} aria-label={props.label}>
 			{props.tabs.map(tab => {
 				const active = tab.value === props.activeValue;
-				const helper = tab.description?.trim() ?? '';
+				const helper = stripTrailingTitlePeriod(tab.description ?? '');
 
 				return (
 					<button
@@ -473,6 +477,15 @@ export function CampfireBackButton(props: { readonly children: ReactNode; readon
 /**
  * statusToneClassName returns classes for a status tone.
  */
+
+/**
+ * stripTrailingTitlePeriod removes sentence-ending period glyphs from compact
+ * page and workflow headings while preserving the translated sentence body.
+ */
+function stripTrailingTitlePeriod(value: string): string {
+	return value.trim().replace(/[.。．｡۔]+$/u, '').trimEnd();
+}
+
 function statusToneClassName(tone: CampfireStatusTone): string {
 	switch (tone) {
 		case 'ember':

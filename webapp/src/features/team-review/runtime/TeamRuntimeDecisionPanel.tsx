@@ -49,7 +49,7 @@ export function TeamRuntimeDecisionPanel(props: TeamRuntimeDecisionPanelProps): 
 				</div>
 
 				<p className="cf:m-0 cf:mt-4 cf:text-sm cf:font-semibold cf:leading-7 cf:text-slate-300">
-					{props.decision.message || runtimeFallbackMessage(props.decision, t)}
+					{runtimeFallbackMessage(props.decision, t)}
 				</p>
 			</article>
 

@@ -15,6 +15,7 @@ type LeaveChangeRequestPayload struct {
 	LeaveRequestID     string `json:"leaveRequestId"`
 	WorkspaceID        string `json:"workspaceId"`
 	RequesterUserID    string `json:"requesterUserId"`
+	Action             string `json:"action"`
 	LeaveTypeID        string `json:"leaveTypeId"`
 	StartDate          string `json:"startDate"`
 	EndDate            string `json:"endDate"`
@@ -47,6 +48,7 @@ type PendingLeaveChangeRequestPayload struct {
 CreateLeaveChangeRequest is accepted by POST /leaves/{leaveRequestID}/change-requests.
 */
 type CreateLeaveChangeRequest struct {
+	Action             string `json:"action"`
 	LeaveTypeID        string `json:"leaveTypeId"`
 	StartDate          string `json:"startDate"`
 	EndDate            string `json:"endDate"`
@@ -62,6 +64,13 @@ type CreateLeaveChangeRequest struct {
 /*
 DecideLeaveChangeRequest is accepted by POST /leaves/change-requests/{changeRequestID}/decision.
 */
+
+/*
+CreateLeaveDeletionRequest is accepted by POST /leaves/{leaveRequestID}/delete-requests.
+*/
+type CreateLeaveDeletionRequest struct {
+	Reason string `json:"reason"`
+}
 type DecideLeaveChangeRequest struct {
 	Decision string `json:"decision"`
 	Comment  string `json:"comment"`
@@ -78,6 +87,13 @@ type ListPendingLeaveChangeRequestsResponse struct {
 CreateLeaveChangeResponse is returned by POST /leaves/{leaveRequestID}/change-requests.
 */
 type CreateLeaveChangeResponse struct {
+	ChangeRequest LeaveChangeRequestPayload `json:"changeRequest"`
+}
+
+/*
+CreateLeaveDeletionResponse is returned after creating a leave deletion request.
+*/
+type CreateLeaveDeletionResponse struct {
 	ChangeRequest LeaveChangeRequestPayload `json:"changeRequest"`
 }
 
@@ -112,6 +128,17 @@ func (r CreateLeaveChangeRequest) ToServiceInput(actorUserID string, leaveReques
 /*
 ToServiceInput maps an API leave-change decision to service input.
 */
+/*
+ToServiceInput maps an API leave-deletion request to service input.
+*/
+func (r CreateLeaveDeletionRequest) ToServiceInput(actorUserID string, leaveRequestID string) service.RequestLeaveDeletionInput {
+	return service.RequestLeaveDeletionInput{
+		ActorUserID:    actorUserID,
+		LeaveRequestID: leaveRequestID,
+		Reason:         r.Reason,
+	}
+}
+
 func (r DecideLeaveChangeRequest) ToServiceInput(
 	actorUserID string,
 	isSystemAdmin bool,
@@ -135,6 +162,7 @@ func LeaveChangeRequestToPayload(changeRequest domain.LeaveChangeRequest) LeaveC
 		LeaveRequestID:     changeRequest.LeaveRequestID.String(),
 		WorkspaceID:        changeRequest.WorkspaceID.String(),
 		RequesterUserID:    changeRequest.RequesterUserID,
+		Action:             string(changeRequest.Action),
 		LeaveTypeID:        changeRequest.LeaveTypeID.String(),
 		StartDate:          changeRequest.StartDate.String(),
 		EndDate:            changeRequest.EndDate.String(),

@@ -114,6 +114,33 @@
 	white-space: nowrap;
 }
 
+.campfire-sidebar-related-link {
+	display: inline-flex;
+	width: fit-content;
+	max-width: 100%;
+	align-items: center;
+	justify-content: center;
+	margin-top: 0.35rem;
+	border: 1px solid rgba(189, 122, 58, 0.28);
+	border-radius: 999px;
+	background: rgba(189, 122, 58, 0.1);
+	color: rgba(255, 214, 158, 0.92);
+	font-size: 0.76rem;
+	font-weight: 780;
+	line-height: 1.2;
+	padding: 0.35rem 0.6rem;
+	text-decoration: none;
+	transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.campfire-sidebar-related-link:hover,
+.campfire-sidebar-related-link:focus-visible {
+	border-color: rgba(251, 146, 60, 0.5);
+	background: rgba(189, 122, 58, 0.16);
+	color: #ffedd5;
+	text-decoration: none;
+}
+
 .campfire-sidebar-nav {
 	display: grid;
 	gap: 0.45rem;
@@ -197,6 +224,11 @@
 	justify-content: space-between;
 	gap: 1rem;
 	padding: 1.2rem 1.65rem 0.7rem;
+}
+
+.campfire-workspace-topline--actions-only {
+	justify-content: flex-end;
+	padding-block: 0.95rem 0.35rem;
 }
 
 .campfire-workspace-topline-label {

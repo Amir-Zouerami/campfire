@@ -15,7 +15,7 @@
   <a href="https://github.com/Amir-Zouerami/campfire/releases">
     <img alt="Release" src="https://img.shields.io/github/v/release/Amir-Zouerami/campfire?label=Release&style=for-the-badge" />
   </a>
-  <img alt="Version" src="https://img.shields.io/badge/version-1.2.1-f0a85a?style=for-the-badge" />
+  <img alt="Version" src="https://img.shields.io/badge/version-1.3.0-f0a85a?style=for-the-badge" />
   <img alt="Mattermost" src="https://img.shields.io/badge/Mattermost-Plugin-2b2b2b?style=for-the-badge" />
   <img alt="Go" src="https://img.shields.io/badge/Go-Server-2b2b2b?style=for-the-badge" />
   <img alt="React" src="https://img.shields.io/badge/React-Webapp-2b2b2b?style=for-the-badge" />

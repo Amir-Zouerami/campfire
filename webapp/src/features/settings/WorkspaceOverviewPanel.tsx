@@ -7,6 +7,7 @@ import {
 	Clock3,
 	ExternalLink,
 	Hash,
+	Languages,
 	Loader2,
 	Save,
 	ShieldCheck,
@@ -49,6 +50,7 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 	const [timezone, setTimezone] = useState(props.workspace.timezone);
 	const [isSavingNotifications, setIsSavingNotifications] = useState(false);
 	const [isSavingTimezone, setIsSavingTimezone] = useState(false);
+	const [isSavingLanguage, setIsSavingLanguage] = useState(false);
 
 	const creatorProfiles = useUserProfiles([props.workspace.createdBy]);
 
@@ -63,13 +65,13 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 	const savedLeaveRequestRecipientKey = props.workspace.leaveRequestNotificationRecipientIds.join('|');
 	const draftLeaveRequestRecipientKey = leaveRequestRecipientIDs.join('|');
 	const notificationDirty = draftNotificationChannelID !== savedNotificationChannelID
-		|| generatedMessageLanguage !== props.workspace.generatedMessageLanguage
 		|| draftLeaveRequestRecipientKey !== savedLeaveRequestRecipientKey;
 	const notificationTargetLabel =
 		savedNotificationChannelID === ''
 			? t('settings.overview.notifications.workspaceChannel')
 			: t('settings.overview.notifications.fixedChannel', { channelId: savedNotificationChannelID });
 	const timezoneDirty = timezone.trim() !== props.workspace.timezone.trim();
+	const languageDirty = generatedMessageLanguage !== props.workspace.generatedMessageLanguage;
 
 	useEffect(() => {
 		setNotificationChannelID(props.workspace.approvedLeaveNotificationChannelId);
@@ -109,6 +111,35 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 			});
 		} finally {
 			setIsSavingNotifications(false);
+		}
+	}
+
+	/**
+	 * handleSaveLanguage persists the workspace UI/generated-message language without changing timezone.
+	 */
+	async function handleSaveLanguage(): Promise<void> {
+		if (!canEditWorkspaceSettings || isSavingLanguage || !languageDirty) {
+			return;
+		}
+
+		setIsSavingLanguage(true);
+
+		try {
+			await updateWorkspaceNotificationSettings(props.workspace.id, {
+				approvedLeaveNotificationChannelId: savedNotificationChannelID,
+				leaveRequestNotificationRecipientIds: props.workspace.leaveRequestNotificationRecipientIds,
+				leaveNotificationLanguage: generatedMessageLanguage,
+				generatedMessageLanguage,
+			});
+
+			toast.success(t('settings.overview.language.toast.saved'));
+			props.onWorkspaceSettingsChanged();
+		} catch (error: unknown) {
+			toast.error(error, {
+				fallbackMessage: t('settings.overview.language.toast.error'),
+			});
+		} finally {
+			setIsSavingLanguage(false);
 		}
 	}
 
@@ -248,6 +279,45 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 					</div>
 				</CampfireSurface>
 
+				<CampfireSurface className="campfire-workspace-settings-surface campfire-workspace-language-surface">
+					<div className="campfire-workspace-settings-header">
+						<div>
+							<p className="campfire-page-eyebrow">{t('settings.overview.language.eyebrow')}</p>
+							<h3>{t('settings.overview.language.title')}</h3>
+							<p>{t('settings.overview.language.description')}</p>
+						</div>
+						<Languages className="cf:size-5" aria-hidden="true" />
+					</div>
+
+					<div className="campfire-field-stack">
+						<label htmlFor="campfire-workspace-language" className="campfire-field-label">
+							{t('settings.overview.language.label')}
+						</label>
+						<CampfireLanguageSelect
+							id="campfire-workspace-language"
+							value={generatedMessageLanguage}
+							disabled={!canEditWorkspaceSettings || isSavingLanguage}
+							onChange={setGeneratedMessageLanguage}
+						/>
+						<p>{t('settings.overview.language.helper')}</p>
+					</div>
+
+					<div className="campfire-workspace-actions-row">
+						<span className={languageDirty ? 'campfire-state-text campfire-state-text--dirty' : 'campfire-state-text'}>
+							{languageDirty ? t('settings.overview.language.unsaved') : t('settings.overview.language.saved')}
+						</span>
+
+						<Button
+							type="button"
+							disabled={!canEditWorkspaceSettings || isSavingLanguage || !languageDirty}
+							onClick={() => void handleSaveLanguage()}
+						>
+							{isSavingLanguage ? <Loader2 className="cf:size-4 cf:animate-spin" /> : <Save className="cf:size-4" />}
+							{t('settings.overview.language.save')}
+						</Button>
+					</div>
+				</CampfireSurface>
+
 				<CampfireSurface className="campfire-workspace-danger-surface">
 					<div className="campfire-workspace-settings-header">
 						<div>
@@ -337,18 +407,6 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 					<p>{t('settings.overview.notifications.leaveRecipients.help')}</p>
 				</div>
 
-				<div className="campfire-field-stack">
-					<label htmlFor="campfire-generated-message-language" className="campfire-field-label">
-						{t('settings.notifications.generatedLanguage.label')}
-					</label>
-					<CampfireLanguageSelect
-						id="campfire-generated-message-language"
-						value={generatedMessageLanguage}
-						disabled={!canEditWorkspaceSettings || isSavingNotifications}
-						onChange={setGeneratedMessageLanguage}
-					/>
-					<p>{t('settings.notifications.generatedLanguage.helper')}</p>
-				</div>
 
 				<div className="campfire-workspace-actions-row">
 					<Button

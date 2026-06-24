@@ -9,6 +9,7 @@ import type { StandupScheduleDraft, StandupScheduleDraftPatch } from './standup-
 import { StandupScheduleFields } from './StandupScheduleFields';
 import { CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
 import { CampfireNotice } from '@/components/campfire/CampfireNotice';
+import { useI18n } from '@/i18n';
 
 /**
  * StandupScheduleCardProps contains one persisted schedule and its draft.
@@ -28,6 +29,7 @@ type StandupScheduleCardProps = {
  * StandupScheduleCard renders one editable schedule row.
  */
 export function StandupScheduleCard(props: StandupScheduleCardProps): ReactElement {
+	const { t } = useI18n();
 	const changed = scheduleHasChanges(props.schedule, props.draft);
 	const formDisabled = props.disabled || !props.canManageStandups;
 	const templateName = scheduleTemplateName(props.schedule.templateId, props.templates);
@@ -37,7 +39,7 @@ export function StandupScheduleCard(props: StandupScheduleCardProps): ReactEleme
 			<div className="cf:flex cf:flex-wrap cf:items-start cf:justify-between cf:gap-3">
 				<div className="cf:min-w-0">
 					<p className="cf:m-0 cf:text-sm cf:font-semibold cf:uppercase cf:leading-none cf:tracking-[0.18em] cf:text-amber-100">
-						{formatLabel(props.schedule.kind)} schedule
+						{t('settings.standups.schedule.kindLabel', { kind: formatLabel(props.schedule.kind) })}
 					</p>
 
 					<h3 className="cf:m-0 cf:mt-3 cf:text-xl cf:font-semibold cf:leading-tight cf:tracking-[-0.03em] cf:text-foreground">
@@ -45,16 +47,16 @@ export function StandupScheduleCard(props: StandupScheduleCardProps): ReactEleme
 					</h3>
 
 					<p className="cf:m-0 cf:mt-2 cf:text-xs cf:font-bold cf:text-muted-foreground">
-						Updated {formatDateTime(props.schedule.updatedAt)}
+						{t('settings.standups.schedule.updatedAt', { time: formatDateTime(props.schedule.updatedAt) })}
 					</p>
 				</div>
 
 				<div className="cf:flex cf:flex-wrap cf:gap-2">
 					<CampfireStatusPill tone={props.draft.enabled ? 'green' : 'slate'}>
-						{props.draft.enabled ? 'Enabled' : 'Disabled'}
+						{props.draft.enabled ? t('common.enabled') : t('common.disabled')}
 					</CampfireStatusPill>
 					<CampfireStatusPill tone={changed ? 'ember' : 'green'}>
-						{changed ? 'Unsaved' : 'Saved'}
+						{changed ? t('common.unsavedChanges') : t('common.saved')}
 					</CampfireStatusPill>
 				</div>
 			</div>
@@ -69,8 +71,8 @@ export function StandupScheduleCard(props: StandupScheduleCardProps): ReactEleme
 
 			<CampfireNotice
 				icon={Info}
-				title="Daily and weekly schedules stay independent."
-				description="Use “skip daily on weekly” only when the weekly report should replace the daily run."
+				title={t('settings.standups.schedule.independentNotice.title')}
+				description={t('settings.standups.schedule.independentNotice.description')}
 				action={
 					<Button
 						type="button"
@@ -78,7 +80,7 @@ export function StandupScheduleCard(props: StandupScheduleCardProps): ReactEleme
 						onClick={() => void props.onSave(props.schedule)}
 					>
 						{props.saving ? <Loader2 className="cf:size-4 cf:animate-spin" /> : <Save className="cf:size-4" />}
-						Save schedule
+						{t('settings.standups.schedule.save')}
 					</Button>
 				}
 			/>

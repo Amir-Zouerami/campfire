@@ -36,7 +36,7 @@ export function CampfireSegmentedTabs<TValue extends string>(props: CampfireSegm
 		<nav className={cn('campfire-segmented-tabs', props.className)} aria-label={props.label}>
 			{props.tabs.map(tab => {
 				const active = tab.value === props.activeValue;
-				const helper = tab.description?.trim() ?? '';
+				const helper = stripTrailingTabDescriptionPeriod(tab.description ?? '');
 				const Icon = tab.icon;
 
 				return (
@@ -63,4 +63,13 @@ export function CampfireSegmentedTabs<TValue extends string>(props: CampfireSegm
 			})}
 		</nav>
 	);
+}
+
+
+/**
+ * stripTrailingTabDescriptionPeriod removes sentence-ending periods from compact
+ * tab helper text while keeping the translated sentence body intact.
+ */
+function stripTrailingTabDescriptionPeriod(value: string): string {
+	return value.trim().replace(/[.。．｡۔]+$/u, '').trimEnd();
 }

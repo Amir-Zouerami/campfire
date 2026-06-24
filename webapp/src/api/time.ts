@@ -1,4 +1,4 @@
-import type { CreateTimeEntryRequest, CreateTimeEntryResponse, ListMyTimeEntriesResponse } from '@/types/api';
+import type { CreateTimeEntryRequest, CreateTimeEntryResponse, DeleteTimeEntryResponse, ListMyTimeEntriesResponse } from '@/types/api';
 
 import { encodePath, requestJson, withQuery } from './http';
 
@@ -29,4 +29,17 @@ export function createTimeEntry(
 		method: 'POST',
 		body: request,
 	});
+}
+
+/**
+ * deleteTimeEntry calls DELETE /workspaces/{workspaceID}/time-entries/{timeEntryID}.
+ */
+export function deleteTimeEntry(
+	workspaceID: string,
+	timeEntryID: string,
+): Promise<DeleteTimeEntryResponse> {
+	return requestJson<DeleteTimeEntryResponse>(
+		`/workspaces/${encodePath(workspaceID)}/time-entries/${encodePath(timeEntryID)}`,
+		{ method: 'DELETE' },
+	);
 }

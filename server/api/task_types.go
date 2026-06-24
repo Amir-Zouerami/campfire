@@ -115,6 +115,14 @@ type CreateTimeEntryResponse struct {
 }
 
 /*
+DeleteTimeEntryResponse is returned by DELETE /workspaces/{workspaceID}/time-entries/{timeEntryID}.
+*/
+type DeleteTimeEntryResponse struct {
+	Deleted bool             `json:"deleted"`
+	Entry   TimeEntryPayload `json:"entry"`
+}
+
+/*
 ToServiceInput maps a create-task request to service input.
 */
 func (r CreateTaskRequest) ToServiceInput(actorUserID string, workspaceID string) service.CreateTaskInput {

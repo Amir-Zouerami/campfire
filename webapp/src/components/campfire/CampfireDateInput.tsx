@@ -246,7 +246,6 @@ export function CampfireDateInput(props: CampfireDateInputProps): ReactElement {
 						type="button"
 						className={calendarDayClassName(cell)}
 						aria-pressed={cell.selected}
-						title={cell.alternativeTitle || undefined}
 						data-alt-title={cell.alternativeTitle || undefined}
 						aria-label={cell.alternativeTitle === '' ? cell.dayNumber : `${cell.dayNumber} — ${cell.alternativeTitle}`}
 						onClick={() => selectDate(cell.dateValue)}

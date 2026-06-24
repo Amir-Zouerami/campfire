@@ -60,3 +60,32 @@ export function formatLocalizedDateTime(value: string, locale: string): string {
 		minute: '2-digit',
 	}).format(date);
 }
+
+/**
+ * formatLocalizedLocalDate formats stored YYYY-MM-DD dates with the current UI locale.
+ */
+export function formatLocalizedLocalDate(value: string, locale: string): string {
+	const cleanValue = value.trim();
+	const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(cleanValue);
+	if (match === null) {
+		return cleanValue === '' ? '—' : cleanValue;
+	}
+
+	const year = Number.parseInt(match[1] ?? '', 10);
+	const month = Number.parseInt(match[2] ?? '', 10);
+	const day = Number.parseInt(match[3] ?? '', 10);
+	if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+		return cleanValue;
+	}
+
+	const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+	if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+		return cleanValue;
+	}
+
+	return new Intl.DateTimeFormat(locale, {
+		month: 'short',
+		day: 'numeric',
+		year: 'numeric',
+	}).format(date);
+}

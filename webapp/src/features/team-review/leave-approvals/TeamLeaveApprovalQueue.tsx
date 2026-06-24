@@ -7,11 +7,11 @@ import {
 	ThumbsDown,
 	ThumbsUp,
 	Umbrella,
-	UserRound,
 } from 'lucide-react';
 
 import { CampfireBidiText } from '@/components/campfire/CampfireBidiText';
 import { CampfireEmpty, CampfireStatusPill } from '@/components/campfire/CampfireLayoutPrimitives';
+import { CampfireUserAvatar } from '@/components/campfire/CampfireUserAvatar';
 import { CampfireResponsiveTextarea } from '@/components/campfire/CampfireResponsiveInput';
 import { Button } from '@/components/ui/button';
 import {
@@ -153,20 +153,19 @@ function TeamLeaveApprovalCard(props: {
 	const requestedAt = formatWorkspaceDateTime(request.createdAt, props.timezone, htmlLang, t('common.unknown'));
 	const localizedRange = formatLocalizedApprovalRange(request.startDate, request.endDate, props.timezone, htmlLang, t('common.unknown'));
 	const localizedLeaveType = localizedLeaveTypeName({ code: '', name: props.item.leaveTypeName }, t);
-
 	return (
 		<article className={approvalCardClassName()}>
 			<header className="campfire-approval-card-header">
 				<div className="campfire-approval-identity">
-					<span className="campfire-approval-avatar-mark" aria-hidden="true">
-						<UserRound className="cf:size-4" />
-					</span>
+					<CampfireUserAvatar
+						userID={request.userId}
+						displayName={requesterLabel}
+						username={requesterLabel}
+						className="campfire-approval-user-avatar"
+					/>
 					<div className="campfire-approval-identity-copy">
-						<p className="campfire-approval-requester-label">
+						<h3 className="campfire-approval-requester-name">
 							<CampfireBidiText>{requesterLabel}</CampfireBidiText>
-						</p>
-						<h3 className="campfire-approval-card-title">
-							<CampfireBidiText>{localizedLeaveType}</CampfireBidiText>
 						</h3>
 					</div>
 				</div>
@@ -190,6 +189,10 @@ function TeamLeaveApprovalCard(props: {
 			</div>
 
 			<div className="campfire-approval-detail-grid campfire-approval-detail-grid--minimal">
+				<ApprovalDetail
+					label={t('myDay.leave.field.leaveType')}
+					value={localizedLeaveType}
+				/>
 				<ApprovalDetail
 					label={t('teamReview.approvals.detail.mode')}
 					value={t(leaveDurationModeTranslationKey(request.durationMode))}
@@ -277,26 +280,35 @@ function TeamLeaveChangeApprovalCard(props: {
 	const requestedAt = formatWorkspaceDateTime(request.createdAt, props.timezone, htmlLang, t('common.unknown'));
 	const localizedRange = formatLocalizedApprovalRange(request.startDate, request.endDate, props.timezone, htmlLang, t('common.unknown'));
 	const localizedLeaveType = localizedLeaveTypeName({ code: '', name: props.item.leaveTypeName }, t);
+	const isDeleteRequest = request.action === 'delete';
+	const cardTitleKey = isDeleteRequest ? 'teamReview.approvals.delete.cardTitle' : 'teamReview.approvals.change.cardTitle';
+	const statusKey = isDeleteRequest ? 'teamReview.approvals.delete.status' : 'teamReview.approvals.change.status';
+	const commentPlaceholderKey = isDeleteRequest ? 'teamReview.approvals.delete.commentPlaceholder' : 'teamReview.approvals.change.commentPlaceholder';
+	const rejectKey = isDeleteRequest ? 'teamReview.approvals.delete.reject' : 'teamReview.approvals.change.reject';
+	const approveKey = isDeleteRequest ? 'teamReview.approvals.delete.approve' : 'teamReview.approvals.change.approve';
 
 	return (
 		<article className={approvalCardClassName()}>
 			<header className="campfire-approval-card-header">
 				<div className="campfire-approval-identity">
-					<span className="campfire-approval-avatar-mark" aria-hidden="true">
-						<UserRound className="cf:size-4" />
-					</span>
+					<CampfireUserAvatar
+						userID={request.requesterUserId}
+						displayName={requesterLabel}
+						username={requesterLabel}
+						className="campfire-approval-user-avatar"
+					/>
 					<div className="campfire-approval-identity-copy">
 						<p className="campfire-approval-requester-label">
-							<CampfireBidiText>{requesterLabel}</CampfireBidiText>
+							{t(cardTitleKey)}
 						</p>
-						<h3 className="campfire-approval-card-title">
-							{t('teamReview.approvals.change.cardTitle')}: <CampfireBidiText>{localizedLeaveType}</CampfireBidiText>
+						<h3 className="campfire-approval-requester-name">
+							<CampfireBidiText>{requesterLabel}</CampfireBidiText>
 						</h3>
 					</div>
 				</div>
 
 				<CampfireStatusPill tone="ember">
-					{t('teamReview.approvals.change.status')}
+					{t(statusKey)}
 				</CampfireStatusPill>
 			</header>
 
@@ -314,6 +326,10 @@ function TeamLeaveChangeApprovalCard(props: {
 			</div>
 
 			<div className="campfire-approval-detail-grid campfire-approval-detail-grid--minimal">
+				<ApprovalDetail
+					label={t('myDay.leave.field.leaveType')}
+					value={localizedLeaveType}
+				/>
 				<ApprovalDetail
 					label={t('teamReview.approvals.detail.mode')}
 					value={t(leaveDurationModeTranslationKey(request.durationMode))}
@@ -341,7 +357,7 @@ function TeamLeaveChangeApprovalCard(props: {
 			<ApprovalComment
 				id={`campfire-change-approval-comment-${request.id}`}
 				disabled={props.disabled}
-				placeholder={t('teamReview.approvals.change.commentPlaceholder')}
+				placeholder={t(commentPlaceholderKey)}
 				value={props.comment}
 				onValueChange={props.onCommentChange}
 			/>
@@ -354,7 +370,7 @@ function TeamLeaveChangeApprovalCard(props: {
 					onClick={() => void props.onDecision('rejected')}
 				>
 					<ThumbsDown className="cf:size-4" />
-					{t('teamReview.approvals.change.reject')}
+					{t(rejectKey)}
 				</Button>
 
 				<Button
@@ -363,7 +379,7 @@ function TeamLeaveChangeApprovalCard(props: {
 					onClick={() => void props.onDecision('approved')}
 				>
 					<ThumbsUp className="cf:size-4" />
-					{t('teamReview.approvals.change.approve')}
+					{t(approveKey)}
 				</Button>
 			</footer>
 		</article>

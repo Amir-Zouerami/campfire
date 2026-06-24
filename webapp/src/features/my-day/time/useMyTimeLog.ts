@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 
-import { createTask, createTimeEntry, listMyTasks, listMyTimeEntries, updateTask } from '@/api';
+import { createTask, createTimeEntry, deleteTimeEntry, listMyTasks, listMyTimeEntries, updateTask } from '@/api';
 import { toast } from '@/components/campfire/campfire-toast';
 import { campfireQueryKeys } from '@/query';
 import type { Task, TaskStatus, TimeEntry, Workspace } from '@/types/domain';
@@ -45,6 +45,8 @@ type UseMyTimeLogText = {
 	readonly chooseTask: string;
 	readonly minutesPositive: string;
 	readonly fallbackError: string;
+	readonly taskRemoved: string;
+	readonly timeEntryDeleted: string;
 };
 
 /**
@@ -80,6 +82,8 @@ export type UseMyTimeLogResult = {
 	readonly submitTask: () => Promise<void>;
 	readonly submitTimeEntry: () => Promise<void>;
 	readonly changeTaskStatus: (taskId: string, status: TaskStatus) => Promise<void>;
+	readonly removeTask: (taskId: string) => Promise<void>;
+	readonly deleteTimeEntry: (timeEntryId: string) => Promise<void>;
 };
 
 /**
@@ -194,7 +198,21 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 		},
 	});
 
-	const mutationPending = createTaskMutation.isPending || createTimeEntryMutation.isPending || updateTaskMutation.isPending;
+	const deleteTimeEntryMutation = useMutation({
+		mutationFn: (timeEntryId: string) => deleteTimeEntry(input.workspace.id, timeEntryId),
+		onSuccess: async () => {
+			setMessage('');
+			toast.success(input.text.timeEntryDeleted);
+			await invalidatePersonalTimeQueries(queryClient, input.workspace.id);
+		},
+		onError: error => {
+			const errorMessage = errorToMessage(error, input.text.fallbackError);
+			setMessage(errorMessage);
+			toast.error(errorMessage);
+		},
+	});
+
+	const mutationPending = createTaskMutation.isPending || createTimeEntryMutation.isPending || updateTaskMutation.isPending || deleteTimeEntryMutation.isPending;
 	const loadState = resolveLoadState(snapshotQuery.isPending, snapshotQuery.isError, mutationPending);
 	const isBusy = loadState === 'loading' || loadState === 'saving';
 	const displayedMessage = snapshotQuery.isError ? errorToMessage(snapshotQuery.error, input.text.fallbackError) : message;
@@ -345,6 +363,43 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 		}
 	}
 
+	/**
+	 * removeTask archives one personal task so it disappears from the default task list without deleting history.
+	 */
+	async function removeTask(taskId: string): Promise<void> {
+		const task = tasks.find(candidate => candidate.id === taskId);
+
+		if (task === undefined || task.status === 'archived') {
+			return;
+		}
+
+		setMessage('');
+
+		try {
+			await updateTaskMutation.mutateAsync({ task, status: 'archived' });
+			toast.success(input.text.taskRemoved);
+		} catch {
+			// The mutation owns user-facing error handling through onError.
+		}
+	}
+
+	/**
+	 * deleteTimeEntryByID removes one mistaken time entry.
+	 */
+	async function deleteTimeEntryByID(timeEntryId: string): Promise<void> {
+		if (timeEntryId.trim() === '') {
+			return;
+		}
+
+		setMessage('');
+
+		try {
+			await deleteTimeEntryMutation.mutateAsync(timeEntryId);
+		} catch {
+			// The mutation owns user-facing error handling through onError.
+		}
+	}
+
 	return {
 		loadState,
 		tasks,
@@ -367,6 +422,8 @@ export function useMyTimeLog(input: UseMyTimeLogInput): UseMyTimeLogResult {
 		submitTask,
 		submitTimeEntry,
 		changeTaskStatus,
+		removeTask,
+		deleteTimeEntry: deleteTimeEntryByID,
 	};
 }
 

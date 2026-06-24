@@ -105,6 +105,60 @@ func handleCreateLeaveChange(
 }
 
 /*
+handleCreateLeaveDeletion handles requester-created leave deletion requests.
+*/
+func handleCreateLeaveDeletion(
+	log logger.Logger,
+	mm mattermost.Client,
+	leaveService *service.LeaveService,
+	auditService *service.AuditService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		leaveRequestID := strings.TrimSpace(chi.URLParam(r, "leaveRequestID"))
+
+		var request CreateLeaveDeletionRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			WriteError(w, http.StatusBadRequest, "invalid_request", "Request body must be valid JSON.")
+			return
+		}
+
+		changeRequest, err := leaveService.RequestDeletion(
+			r.Context(),
+			request.ToServiceInput(user.ID, leaveRequestID),
+		)
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		recordAuditEvent(
+			r.Context(),
+			auditService,
+			changeRequest.WorkspaceID.String(),
+			user.ID,
+			"leave_deletion_requested",
+			"leave_change_request",
+			changeRequest.ID.String(),
+			map[string]string{
+				"leave_request_id": changeRequest.LeaveRequestID.String(),
+				"action":           string(changeRequest.Action),
+				"status":           string(changeRequest.Status),
+			},
+		)
+
+		WriteCreateLeaveDeletion(w, http.StatusCreated, CreateLeaveDeletionResponse{
+			ChangeRequest: LeaveChangeRequestToPayload(*changeRequest),
+		})
+	}
+}
+
+/*
 handleDecideLeaveChange handles approver decisions for requested leave edits.
 */
 func handleDecideLeaveChange(

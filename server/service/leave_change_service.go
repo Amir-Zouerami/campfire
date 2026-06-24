@@ -39,6 +39,15 @@ type RequestLeaveChangeInput struct {
 }
 
 /*
+RequestLeaveDeletionInput contains the requester-owned delete request for approved leave that already started.
+*/
+type RequestLeaveDeletionInput struct {
+	ActorUserID    string
+	LeaveRequestID string
+	Reason         string
+}
+
+/*
 DecideLeaveChangeInput contains an approver decision for a member-requested correction.
 */
 type DecideLeaveChangeInput struct {
@@ -82,10 +91,7 @@ func (s *LeaveService) ListPendingChanges(
 /*
 RequestChange creates an approval-gated edit request for an existing leave row.
 
-Requester edits to approved or already-started leave must not mutate the
-approved schedule directly. This method stores the proposed replacement fields,
-notifies leave approvers, and leaves the original request untouched until an
-approver explicitly accepts the edit.
+Requester edits to approved leave must not mutate the approved schedule directly, even before the leave starts. This method stores the proposed replacement fields, notifies leave approvers, and leaves the original request untouched until an approver explicitly accepts the edit.
 */
 func (s *LeaveService) RequestChange(
 	ctx context.Context,
@@ -115,7 +121,7 @@ func (s *LeaveService) RequestChange(
 	}
 
 	if existingRequest.Status != domain.LeaveStatusApproved {
-		return nil, NewError(ErrorCodeConflict, "Only approved leave that is currently in progress needs an edit request. Edit pending or future leave directly.")
+		return nil, NewError(ErrorCodeConflict, "Only approved leave requires an edit request. Edit pending leave directly.")
 	}
 
 	workspace, err := s.workspaceStore.GetByID(ctx, existingRequest.WorkspaceID)
@@ -125,15 +131,6 @@ func (s *LeaveService) RequestChange(
 		}
 
 		return nil, NewError(ErrorCodeInternal, "Could not load workspace.")
-	}
-
-	requiresApproval, err := approvedLeaveIsInProgress(time.Now().UTC(), workspace.Timezone, *existingRequest)
-	if err != nil {
-		return nil, NewError(ErrorCodeInternal, "Could not validate leave edit window.")
-	}
-
-	if !requiresApproval {
-		return nil, NewError(ErrorCodeConflict, "This leave can be edited directly because it is not currently in progress.")
 	}
 
 	cleanLeaveTypeID := strings.TrimSpace(input.LeaveTypeID)
@@ -210,6 +207,7 @@ func (s *LeaveService) RequestChange(
 		LeaveRequestID:     existingRequest.ID,
 		WorkspaceID:        workspace.ID,
 		RequesterUserID:    cleanActorUserID,
+		Action:             domain.LeaveChangeRequestActionEdit,
 		LeaveTypeID:        domain.ID(cleanLeaveTypeID),
 		StartDate:          startDate,
 		EndDate:            endDate,
@@ -234,7 +232,7 @@ func (s *LeaveService) RequestChange(
 		return nil, NewError(ErrorCodeInternal, "Could not create leave edit request.")
 	}
 
-	recipientUserIDs, err := s.leaveRequestNotificationRecipients(ctx, *workspace, cleanActorUserID)
+	recipientUserIDs, err := s.leaveChangeRequestNotificationRecipients(ctx, *workspace, cleanActorUserID)
 	if err == nil {
 		_ = s.notificationPublisher.NotifyLeaveChangeRequested(ctx, LeaveChangeRequestNotification{
 			ChangeRequestID: created.ID.String(),
@@ -247,6 +245,141 @@ func (s *LeaveService) RequestChange(
 			RequesterUserID:  cleanActorUserID,
 			RecipientUserIDs: recipientUserIDs,
 
+			Action:             string(created.Action),
+			LeaveTypeName:      leaveType.Name,
+			LeaveTypeCode:      leaveType.Code,
+			StartDate:          created.StartDate.String(),
+			EndDate:            created.EndDate.String(),
+			DurationMode:       string(created.DurationMode),
+			HalfDayPart:        string(created.HalfDayPart),
+			StartTime:          created.StartTime.String(),
+			EndTime:            created.EndTime.String(),
+			Reason:             created.Reason,
+			BackupUserID:       created.BackupUserID,
+			CanContactIfNeeded: created.CanContactIfNeeded,
+		})
+	}
+
+	return created, nil
+}
+
+/*
+RequestDeletion creates an approval-gated deletion request for approved leave that has already started.
+
+Before approval or before the approved start instant, requesters can delete directly. Once the approved leave has started, deleting it changes historical availability and reports, so the requester must ask a Lead, Approver, or system admin to perform the deletion.
+*/
+func (s *LeaveService) RequestDeletion(
+	ctx context.Context,
+	input RequestLeaveDeletionInput,
+) (*domain.LeaveChangeRequest, error) {
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to request leave deletion.")
+	}
+
+	cleanLeaveRequestID := strings.TrimSpace(input.LeaveRequestID)
+	if cleanLeaveRequestID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Leave request ID is required.")
+	}
+
+	existingRequest, err := s.leaveStore.GetRequestByID(ctx, domain.ID(cleanLeaveRequestID))
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Leave request was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load leave request.")
+	}
+
+	if existingRequest.UserID != cleanActorUserID {
+		return nil, NewError(ErrorCodePermissionDenied, "Only the requester can ask to delete this leave request.")
+	}
+
+	if existingRequest.Status != domain.LeaveStatusApproved {
+		return nil, NewError(ErrorCodeConflict, "Only approved leave that has already started needs a deletion request. Delete pending leave directly.")
+	}
+
+	workspace, err := s.workspaceStore.GetByID(ctx, existingRequest.WorkspaceID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeNotFound, "Workspace was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not load workspace.")
+	}
+
+	started, err := approvedLeaveHasStarted(time.Now().UTC(), workspace.Timezone, *existingRequest)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not validate leave deletion window.")
+	}
+
+	if !started {
+		return nil, NewError(ErrorCodeConflict, "This leave can be deleted directly because it has not started yet.")
+	}
+
+	leaveType, err := s.leaveStore.GetTypeByID(ctx, workspace.ID, existingRequest.LeaveTypeID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, NewError(ErrorCodeValidationFailed, "Leave type was not found.")
+		}
+
+		return nil, NewError(ErrorCodeInternal, "Could not validate leave type.")
+	}
+
+	alreadyPending, err := s.leaveStore.HasPendingChangeRequestForLeaveRequest(ctx, existingRequest.ID)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not check existing leave deletion requests.")
+	}
+
+	if alreadyPending {
+		return nil, NewError(ErrorCodeConflict, "This leave request already has a pending edit or deletion request.")
+	}
+
+	now := time.Now().UTC()
+	deleteRequest := domain.LeaveChangeRequest{
+		ID:                 domain.ID(uuid.NewString()),
+		LeaveRequestID:     existingRequest.ID,
+		WorkspaceID:        workspace.ID,
+		RequesterUserID:    cleanActorUserID,
+		Action:             domain.LeaveChangeRequestActionDelete,
+		LeaveTypeID:        existingRequest.LeaveTypeID,
+		StartDate:          existingRequest.StartDate,
+		EndDate:            existingRequest.EndDate,
+		DurationMode:       existingRequest.DurationMode,
+		HalfDayPart:        existingRequest.HalfDayPart,
+		StartTime:          existingRequest.StartTime,
+		EndTime:            existingRequest.EndTime,
+		Reason:             strings.TrimSpace(input.Reason),
+		BackupUserID:       existingRequest.BackupUserID,
+		CanContactIfNeeded: existingRequest.CanContactIfNeeded,
+		Status:             domain.LeaveChangeRequestStatusPending,
+		CreatedBy:          cleanActorUserID,
+		DecidedBy:          "",
+		DecisionComment:    "",
+		CreatedAt:          now,
+		UpdatedAt:          now,
+		DecidedAt:          nil,
+	}
+
+	created, err := s.leaveStore.CreateChangeRequest(ctx, deleteRequest)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not create leave deletion request.")
+	}
+
+	recipientUserIDs, err := s.leaveChangeRequestNotificationRecipients(ctx, *workspace, cleanActorUserID)
+	if err == nil {
+		_ = s.notificationPublisher.NotifyLeaveChangeRequested(ctx, LeaveChangeRequestNotification{
+			ChangeRequestID: created.ID.String(),
+			LeaveRequestID:  existingRequest.ID.String(),
+			WorkspaceID:     workspace.ID.String(),
+			WorkspaceName:   workspace.Name,
+			ChannelID:       workspace.ChannelID,
+			Language:        workspace.GeneratedMessageLanguage,
+
+			RequesterUserID:  cleanActorUserID,
+			RecipientUserIDs: recipientUserIDs,
+
+			Action:             string(created.Action),
 			LeaveTypeName:      leaveType.Name,
 			LeaveTypeCode:      leaveType.Code,
 			StartDate:          created.StartDate.String(),
@@ -312,10 +445,15 @@ func (s *LeaveService) DecideChange(
 		return nil, nil, err
 	}
 
-	leaveType, err := s.leaveStore.GetActiveTypeByID(ctx, workspace.ID, changeRequest.LeaveTypeID)
+	var leaveType *domain.LeaveType
+	if changeRequest.Action == domain.LeaveChangeRequestActionDelete {
+		leaveType, err = s.leaveStore.GetTypeByID(ctx, workspace.ID, changeRequest.LeaveTypeID)
+	} else {
+		leaveType, err = s.leaveStore.GetActiveTypeByID(ctx, workspace.ID, changeRequest.LeaveTypeID)
+	}
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
-			return nil, nil, NewError(ErrorCodeValidationFailed, "Leave type is no longer active.")
+			return nil, nil, NewError(ErrorCodeValidationFailed, "Leave type was not found.")
 		}
 
 		return nil, nil, NewError(ErrorCodeInternal, "Could not load leave type.")
@@ -346,9 +484,12 @@ func (s *LeaveService) DecideChange(
 		ChannelID:       workspace.ChannelID,
 		Language:        workspace.GeneratedMessageLanguage,
 
+		AnnouncementChannelID: workspace.ApprovedLeaveNotificationChannelID,
+
 		RequesterUserID: leaveRequest.UserID,
 		DeciderUserID:   cleanActorUserID,
 
+		Action:             string(decidedChangeRequest.Action),
 		LeaveTypeName:      leaveType.Name,
 		LeaveTypeCode:      leaveType.Code,
 		StartDate:          decidedChangeRequest.StartDate.String(),

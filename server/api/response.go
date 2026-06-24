@@ -395,6 +395,15 @@ func WriteCreateLeaveChange(w http.ResponseWriter, statusCode int, payload Creat
 }
 
 /*
+WriteCreateLeaveDeletion writes the created leave deletion request response.
+*/
+func WriteCreateLeaveDeletion(w http.ResponseWriter, statusCode int, payload CreateLeaveDeletionResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode created leave deletion request response")
+}
+
+/*
 WriteDecideLeaveChange writes the leave edit request decision response.
 */
 func WriteDecideLeaveChange(w http.ResponseWriter, statusCode int, payload DecideLeaveChangeResponse) {
@@ -633,6 +642,15 @@ func WriteCreateTimeEntry(w http.ResponseWriter, statusCode int, payload CreateT
 	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
 		return encoder.Encode(payload)
 	}, "failed to encode created time-entry response")
+}
+
+/*
+WriteDeleteTimeEntry writes the deleted time-entry response.
+*/
+func WriteDeleteTimeEntry(w http.ResponseWriter, statusCode int, payload DeleteTimeEntryResponse) {
+	writeResponse(w, statusCode, func(encoder *json.Encoder) error {
+		return encoder.Encode(payload)
+	}, "failed to encode deleted time-entry response")
 }
 
 /*

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MouseEvent, ReactElement } from 'react';
 import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -28,6 +28,7 @@ import { WorkspaceSetupCard } from './WorkspaceSetupCard';
 export function CampfireRoot(): ReactElement | null {
 	const queryClient = useQueryClient();
 	const openSequenceRef = useRef(0);
+	const locationSnapshotRef = useRef(currentBrowserLocationSnapshot());
 	const [isOpen, setIsOpen] = useState(false);
 	const [openContext, setOpenContext] = useState<CampfireBootstrapOpenContext | null>(null);
 	const [bootstrapRefreshToken, setBootstrapRefreshToken] = useState(0);
@@ -36,21 +37,22 @@ export function CampfireRoot(): ReactElement | null {
 	const [workspaceCalendarRefreshToken, setWorkspaceCalendarRefreshToken] = useState(0);
 	const bootstrap = useCampfireBootstrap(isOpen, openContext, bootstrapRefreshToken);
 
-	useEffect(() => {
-		/**
-		 * openModal starts a fresh Campfire modal session for the current Mattermost location.
-		 */
-		function openModal(detail: CampfireOpenDetail = {}): void {
-			openSequenceRef.current += 1;
-			queryClient.removeQueries({ queryKey: campfireQueryKeys.all });
-			setOpenContext(buildOpenContext(detail, openSequenceRef.current));
-			setBootstrapRefreshToken(0);
-			setLeaveRefreshToken(0);
-			setStandupRefreshToken(0);
-			setWorkspaceCalendarRefreshToken(0);
-			setIsOpen(true);
-		}
+	/**
+	 * openModalSession starts a fresh Campfire modal session for the current Mattermost location.
+	 */
+	const openModalSession = useCallback((detail: CampfireOpenDetail = {}): void => {
+		openSequenceRef.current += 1;
+		locationSnapshotRef.current = currentBrowserLocationSnapshot();
+		queryClient.removeQueries({ queryKey: campfireQueryKeys.all });
+		setOpenContext(buildOpenContext(detail, openSequenceRef.current));
+		setBootstrapRefreshToken(0);
+		setLeaveRefreshToken(0);
+		setStandupRefreshToken(0);
+		setWorkspaceCalendarRefreshToken(0);
+		setIsOpen(true);
+	}, [queryClient]);
 
+	useEffect(() => {
 		/**
 		 * handleOpen opens the Campfire modal.
 		 */
@@ -59,7 +61,7 @@ export function CampfireRoot(): ReactElement | null {
 				return;
 			}
 
-			openModal(event.detail);
+			openModalSession(event.detail);
 		}
 
 		/**
@@ -79,7 +81,7 @@ export function CampfireRoot(): ReactElement | null {
 				return;
 			}
 
-			openModal();
+			openModalSession();
 		}
 
 		window.addEventListener(CAMPFIRE_OPEN_EVENT, handleOpen);
@@ -91,7 +93,47 @@ export function CampfireRoot(): ReactElement | null {
 			window.removeEventListener(CAMPFIRE_CLOSE_EVENT, handleClose);
 			window.removeEventListener(CAMPFIRE_TOGGLE_EVENT, handleToggle);
 		};
-	}, [isOpen, queryClient]);
+	}, [isOpen, openModalSession]);
+
+	useEffect(() => {
+		if (!isOpen || typeof window === 'undefined') {
+			return;
+		}
+
+		let refreshTimer: number | null = null;
+
+		/**
+		 * refreshForNavigationChange rebuilds the modal session after Mattermost route changes settle.
+		 */
+		function refreshForNavigationChange(): void {
+			const nextSnapshot = currentBrowserLocationSnapshot();
+			if (nextSnapshot === locationSnapshotRef.current) {
+				return;
+			}
+
+			locationSnapshotRef.current = nextSnapshot;
+			if (refreshTimer !== null) {
+				window.clearTimeout(refreshTimer);
+			}
+
+			refreshTimer = window.setTimeout(() => {
+				openModalSession();
+			}, 120);
+		}
+
+		const poller = window.setInterval(refreshForNavigationChange, 250);
+		window.addEventListener('popstate', refreshForNavigationChange);
+		window.addEventListener('hashchange', refreshForNavigationChange);
+
+		return () => {
+			window.clearInterval(poller);
+			if (refreshTimer !== null) {
+				window.clearTimeout(refreshTimer);
+			}
+			window.removeEventListener('popstate', refreshForNavigationChange);
+			window.removeEventListener('hashchange', refreshForNavigationChange);
+		};
+	}, [isOpen, openModalSession]);
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -232,6 +274,17 @@ export function CampfireRoot(): ReactElement | null {
 		</I18nProvider>,
 		document.body,
 	);
+}
+
+/**
+ * currentBrowserLocationSnapshot returns the current Mattermost browser route.
+ */
+function currentBrowserLocationSnapshot(): string {
+	if (typeof window === 'undefined') {
+		return '';
+	}
+
+	return `${window.location.pathname}${window.location.search}${window.location.hash}`;
 }
 
 /**

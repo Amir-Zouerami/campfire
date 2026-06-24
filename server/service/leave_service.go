@@ -454,10 +454,11 @@ func (s *LeaveService) Create(ctx context.Context, input CreateLeaveInput) (*dom
 /*
 Update applies an allowed correction to a pending or approved leave request.
 
-Requesters may directly edit their own pending leave or approved leave that is
-not currently in progress. Once approved leave is inside its active interval,
-member edits must go through the change-request approval workflow. Leads,
-approvers, and system admins keep direct correction access for operational fixes.
+Requesters may directly edit their own pending leave. Once leave is approved,
+requester edits must go through the change-request approval workflow regardless
+of whether the leave starts in the future, is in progress, or is historical.
+Leads, approvers, and system admins keep direct correction access for
+operational fixes.
 */
 func (s *LeaveService) Update(ctx context.Context, input UpdateLeaveInput) (*domain.LeaveRequest, error) {
 	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
@@ -501,15 +502,8 @@ func (s *LeaveService) Update(ctx context.Context, input UpdateLeaveInput) (*dom
 		return nil, NewError(ErrorCodePermissionDenied, "Only the requester, workspace Leads, Approvers, and system admins can edit this leave request.")
 	}
 
-	if existingRequest.UserID == cleanActorUserID && !actorCanManageLeave {
-		requiresApproval, approvalErr := approvedLeaveIsInProgress(time.Now().UTC(), workspace.Timezone, *existingRequest)
-		if approvalErr != nil {
-			return nil, NewError(ErrorCodeInternal, "Could not validate leave edit window.")
-		}
-
-		if requiresApproval {
-			return nil, NewError(ErrorCodeConflict, "Approved leave is already in progress. Request a leave edit instead of changing it directly.")
-		}
+	if existingRequest.UserID == cleanActorUserID && !actorCanManageLeave && existingRequest.Status == domain.LeaveStatusApproved {
+		return nil, NewError(ErrorCodeConflict, "Approved leave cannot be changed directly by the requester. Request a leave edit instead.")
 	}
 
 	cleanLeaveTypeID := strings.TrimSpace(input.LeaveTypeID)
@@ -663,10 +657,10 @@ func (s *LeaveService) Decide(ctx context.Context, input DecideLeaveInput) (*dom
 		return nil, err
 	}
 
-	leaveType, err := s.leaveStore.GetActiveTypeByID(ctx, workspace.ID, existingRequest.LeaveTypeID)
+	leaveType, err := s.leaveStore.GetTypeByID(ctx, workspace.ID, existingRequest.LeaveTypeID)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
-			return nil, NewError(ErrorCodeValidationFailed, "Leave type is no longer active.")
+			return nil, NewError(ErrorCodeValidationFailed, "Leave type was not found.")
 		}
 
 		return nil, NewError(ErrorCodeInternal, "Could not load leave type.")
@@ -726,12 +720,12 @@ func (s *LeaveService) Decide(ctx context.Context, input DecideLeaveInput) (*dom
 }
 
 /*
-Cancel cancels a pending or approved leave request created by the current user.
+Cancel cancels a pending or approved leave request.
 
-Pending cancellation removes the request from the approval queue. Approved
-cancellation immediately removes the approved leave from availability, standup
-missing-user checks, and approved-leave calendar queries because the request is
-no longer approved after this operation.
+Requesters may directly delete pending leave and approved leave that has not
+started yet. Once approved leave has started, including historical leave, the
+requester must submit a deletion request so an approver can decide the change.
+Leads, approvers, and system admins can delete directly for operational fixes.
 */
 func (s *LeaveService) Cancel(ctx context.Context, input CancelLeaveInput) (*domain.LeaveRequest, error) {
 	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
@@ -769,10 +763,10 @@ func (s *LeaveService) Cancel(ctx context.Context, input CancelLeaveInput) (*dom
 		return nil, NewError(ErrorCodeInternal, "Could not load workspace.")
 	}
 
-	leaveType, err := s.leaveStore.GetActiveTypeByID(ctx, workspace.ID, existingRequest.LeaveTypeID)
+	leaveType, err := s.leaveStore.GetTypeByID(ctx, workspace.ID, existingRequest.LeaveTypeID)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
-			return nil, NewError(ErrorCodeValidationFailed, "Leave type is no longer active.")
+			return nil, NewError(ErrorCodeValidationFailed, "Leave type was not found.")
 		}
 
 		return nil, NewError(ErrorCodeInternal, "Could not load leave type.")
@@ -789,13 +783,13 @@ func (s *LeaveService) Cancel(ctx context.Context, input CancelLeaveInput) (*dom
 	}
 
 	if wasApproved && existingRequest.UserID == cleanActorUserID && !actorCanManageLeave {
-		locked, lockErr := approvedLeaveIsInProgress(now, workspace.Timezone, *existingRequest)
+		started, lockErr := approvedLeaveHasStarted(now, workspace.Timezone, *existingRequest)
 		if lockErr != nil {
-			return nil, NewError(ErrorCodeInternal, "Could not validate leave cancellation window.")
+			return nil, NewError(ErrorCodeInternal, "Could not validate leave deletion window.")
 		}
 
-		if locked {
-			return nil, NewError(ErrorCodeConflict, "Approved leave is already in progress. Ask an approver to cancel it.")
+		if started {
+			return nil, NewError(ErrorCodeConflict, "Approved leave has already started. Request a leave deletion instead of deleting it directly.")
 		}
 	}
 
@@ -844,12 +838,12 @@ func (s *LeaveService) Cancel(ctx context.Context, input CancelLeaveInput) (*dom
 }
 
 /*
-approvedLeaveIsInProgress returns true only while approved leave currently
-covers the workspace-local instant. Before the interval starts, members may
-directly edit or cancel. During the interval, member edits must use the approval
-workflow and member cancellation must be performed by an approver.
+approvedLeaveHasStarted returns true after the first approved leave instant has
+passed. This is intentionally broader than "in progress" because historical
+approved leave also affects reports and must not be deleted directly by the
+requester.
 */
-func approvedLeaveIsInProgress(
+func approvedLeaveHasStarted(
 	nowUTC time.Time,
 	workspaceTimezone string,
 	request domain.LeaveRequest,
@@ -858,15 +852,14 @@ func approvedLeaveIsInProgress(
 		return false, nil
 	}
 
-	startAt, endAt, err := leaveInterval(workspaceTimezone, request)
+	startAt, _, err := leaveInterval(workspaceTimezone, request)
 	if err != nil {
 		return false, err
 	}
 
 	utcStart := startAt.UTC()
-	utcEnd := endAt.UTC()
 
-	return !nowUTC.Before(utcStart) && nowUTC.Before(utcEnd), nil
+	return !nowUTC.Before(utcStart), nil
 }
 
 /*
@@ -1032,6 +1025,39 @@ func (s *LeaveService) leaveRequestNotificationRecipients(
 	}
 
 	return filterNotificationRecipients(roleRecipientUserIDs, requesterUserID), nil
+}
+
+/*
+leaveChangeRequestNotificationRecipients returns DM recipients for requester-created
+leave edit/deletion requests.
+
+Change/deletion requests are operational approval work, so configured leave
+notification recipients and explicit Lead/Approver role holders are both
+included. This avoids hiding edit/deletion request DMs from approvers when a
+workspace also configured a dedicated notification recipient list.
+*/
+func (s *LeaveService) leaveChangeRequestNotificationRecipients(
+	ctx context.Context,
+	workspace domain.Workspace,
+	requesterUserID string,
+) ([]string, error) {
+	recipientUserIDs := make([]string, 0, len(workspace.LeaveRequestNotificationRecipientIDs))
+	recipientUserIDs = append(recipientUserIDs, workspace.LeaveRequestNotificationRecipientIDs...)
+
+	roleRecipientUserIDs, err := s.workspaceRoleStore.ListUserIDsByRoles(
+		ctx,
+		workspace.ID,
+		[]domain.Role{domain.RoleLead, domain.RoleApprover},
+	)
+	if err != nil && len(recipientUserIDs) == 0 {
+		return nil, err
+	}
+
+	if err == nil {
+		recipientUserIDs = append(recipientUserIDs, roleRecipientUserIDs...)
+	}
+
+	return filterNotificationRecipients(recipientUserIDs, requesterUserID), nil
 }
 
 /*

@@ -2,6 +2,8 @@ import type {
 	CancelLeaveRequestResponse,
 	CreateLeaveChangeRequest,
 	CreateLeaveChangeResponse,
+	CreateLeaveDeletionRequest,
+	CreateLeaveDeletionResponse,
 	CreateLeaveRequest,
 	CreateLeaveResponse,
 	DecideLeaveChangeRequest,
@@ -121,6 +123,20 @@ export function createLeaveChangeRequest(
 	});
 }
 
+
+/**
+ * createLeaveDeletionRequest calls POST /leaves/{leaveRequestID}/delete-requests.
+ */
+export function createLeaveDeletionRequest(
+	leaveRequestID: string,
+	request: CreateLeaveDeletionRequest,
+): Promise<CreateLeaveDeletionResponse> {
+	return requestJson<CreateLeaveDeletionResponse>(`/leaves/${encodePath(leaveRequestID)}/delete-requests`, {
+		method: 'POST',
+		body: request,
+	});
+}
+
 /**
  * decideLeaveRequest calls POST /leaves/{leaveRequestID}/decision.
  */
@@ -153,4 +169,3 @@ export function cancelLeaveRequest(leaveRequestID: string): Promise<CancelLeaveR
 		method: 'POST',
 	});
 }
-

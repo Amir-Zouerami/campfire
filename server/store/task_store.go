@@ -33,6 +33,15 @@ type CreateTimeEntryParams struct {
 }
 
 /*
+DeleteTimeEntryParams identifies one current-user time entry to delete.
+*/
+type DeleteTimeEntryParams struct {
+	WorkspaceID domain.ID
+	TimeEntryID domain.ID
+	UserID      string
+}
+
+/*
 TaskStore defines task and time-entry persistence operations.
 */
 type TaskStore interface {
@@ -61,6 +70,7 @@ type TaskStore interface {
 		endDate domain.LocalDate,
 	) ([]domain.TimeEntry, error)
 	CreateTimeEntry(ctx context.Context, params CreateTimeEntryParams) (*domain.TimeEntry, error)
+	DeleteTimeEntry(ctx context.Context, params DeleteTimeEntryParams) (*domain.TimeEntry, error)
 }
 
 /*
@@ -497,6 +507,48 @@ func (s *SQLTaskStore) CreateTimeEntry(
 	}
 
 	return created, nil
+}
+
+/*
+DeleteTimeEntry deletes one current-user time entry and returns the deleted row for audit logging.
+*/
+func (s *SQLTaskStore) DeleteTimeEntry(
+	ctx context.Context,
+	params DeleteTimeEntryParams,
+) (*domain.TimeEntry, error) {
+	entry, err := s.getTimeEntryByID(ctx, params.WorkspaceID, params.TimeEntryID)
+	if err != nil {
+		return nil, err
+	}
+
+	if entry.UserID != params.UserID {
+		return nil, ErrNotFound
+	}
+
+	result, err := s.db.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			DELETE FROM campfire_time_entries
+			WHERE workspace_id = ? AND id = ? AND user_id = ?
+		`),
+		params.WorkspaceID.String(),
+		params.TimeEntryID.String(),
+		params.UserID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("delete time entry: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("read time entry delete result: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return nil, ErrNotFound
+	}
+
+	return entry, nil
 }
 
 /*

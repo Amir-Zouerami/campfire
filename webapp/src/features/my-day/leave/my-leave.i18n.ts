@@ -18,6 +18,8 @@ export type UseMyLeaveText = {
 	readonly cancelledMessage: string;
 	readonly editRequestedToast: string;
 	readonly editRequestedMessage: string;
+	readonly deleteRequestedToast: string;
+	readonly deleteRequestedMessage: string;
 	readonly editSavedToast: string;
 	readonly editSavedMessage: string;
 	readonly overlapWithOwnRequest: (status: LeaveStatus, range: string) => string;
@@ -52,6 +54,8 @@ export function useMyLeaveText(): UseMyLeaveText {
 		cancelledMessage: t('myDay.leave.message.cancelled'),
 		editRequestedToast: t('myDay.leave.toast.editRequested'),
 		editRequestedMessage: t('myDay.leave.message.editRequested'),
+		deleteRequestedToast: t('myDay.leave.toast.deleteRequested'),
+		deleteRequestedMessage: t('myDay.leave.message.deleteRequested'),
 		editSavedToast: t('myDay.leave.toast.editSaved'),
 		editSavedMessage: t('myDay.leave.message.editSaved'),
 		overlapWithOwnRequest: (status, range) => t('myDay.leave.validation.overlapWithOwnRequest', {

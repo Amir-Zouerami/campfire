@@ -142,7 +142,42 @@ func (p *NotificationPublisher) NotifyLeaveChangeDecided(
 		return fmt.Errorf("Campfire bot user ID is empty")
 	}
 
-	return p.sendDirectMessage(notification.RequesterUserID, formatLeaveChangeDecidedMessage(p.api, notification))
+	if err := p.sendDirectMessage(notification.RequesterUserID, formatLeaveChangeDecidedMessage(p.api, notification)); err != nil {
+		return err
+	}
+
+	if domain.LeaveChangeRequestStatus(notification.Decision) != domain.LeaveChangeRequestStatusApproved {
+		return nil
+	}
+
+	targetChannelID := notificationTargetChannelID(notification.AnnouncementChannelID, notification.ChannelID)
+	if domain.LeaveChangeRequestAction(notification.Action) == domain.LeaveChangeRequestActionDelete {
+		return p.sendChannelMessage(
+			targetChannelID,
+			formatApprovedLeaveCancelledChannelMessage(p.api, service.LeaveCancellationNotification{
+				LeaveRequestID:        notification.LeaveRequestID,
+				WorkspaceID:           notification.WorkspaceID,
+				WorkspaceName:         notification.WorkspaceName,
+				ChannelID:             notification.ChannelID,
+				Language:              notification.Language,
+				AnnouncementChannelID: notification.AnnouncementChannelID,
+				RequesterUserID:       notification.RequesterUserID,
+				LeaveTypeName:         notification.LeaveTypeName,
+				LeaveTypeCode:         notification.LeaveTypeCode,
+				StartDate:             notification.StartDate,
+				EndDate:               notification.EndDate,
+				DurationMode:          notification.DurationMode,
+				HalfDayPart:           notification.HalfDayPart,
+				StartTime:             notification.StartTime,
+				EndTime:               notification.EndTime,
+				CanContactIfNeeded:    notification.CanContactIfNeeded,
+				Status:                string(domain.LeaveStatusCancelled),
+				WasApproved:           true,
+			}),
+		)
+	}
+
+	return p.sendChannelMessage(targetChannelID, formatApprovedLeaveChangedChannelMessage(p.api, notification))
 }
 
 /*
@@ -457,14 +492,12 @@ formatLeaveRequestSubmittedMessage formats the requester-facing confirmation DM.
 */
 func formatLeaveRequestSubmittedMessage(api plugin.API, notification service.LeaveRequestNotification) string {
 	copy := leaveNotificationCopyForLanguage(notification.Language)
-	recipientLabels := formatUserMentionList(api, notification.RecipientUserIDs, copy.NoRecipientFallback)
 
 	lines := []string{
 		formatNotificationHeading(copy.RequestSubmittedTitle),
 		"",
 		fmt.Sprintf(copy.RequestSubmittedSummary, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language)),
 		formatLabeledInlineValue(copy.DatesLabel, formatLocalizedDateRange(notification.Language, notification.StartDate, notification.EndDate)),
-		formatLabeledInlineValue(copy.NotifiedRecipientsLabel, recipientLabels),
 	}
 
 	lines = appendLeaveRequestDetails(lines, copy, notification.Language, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
@@ -481,16 +514,27 @@ func formatLeaveChangeRequestedMessage(api plugin.API, notification service.Leav
 	requesterLabel := userMentionOrID(api, notification.RequesterUserID)
 	workspaceLabel := channelReferenceOrWorkspaceName(api, notification.ChannelID, notification.WorkspaceName, "the workspace channel")
 
+	title := copy.ChangeRequestTitle
+	summaryTemplate := copy.ChangeRequestSummary
+	if domain.LeaveChangeRequestAction(notification.Action) == domain.LeaveChangeRequestActionDelete {
+		title = copy.DeleteRequestTitle
+		summaryTemplate = copy.DeleteRequestSummary
+	}
+
 	lines := []string{
-		formatNotificationHeading(copy.ChangeRequestTitle),
+		formatNotificationHeading(title),
 		"",
-		fmt.Sprintf(copy.ChangeRequestSummary, requesterLabel, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language)),
+		fmt.Sprintf(summaryTemplate, requesterLabel, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language)),
 		formatLabeledInlineValue(copy.WorkspaceLabel, workspaceLabel),
 		formatLabeledInlineValue(copy.DatesLabel, formatLocalizedDateRange(notification.Language, notification.StartDate, notification.EndDate)),
 	}
 
 	lines = appendLeaveRequestDetails(lines, copy, notification.Language, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
 	lines = appendLabeledMultilineValue(lines, copy.ReasonLabel, notification.Reason)
+
+	if domain.LeaveChangeRequestAction(notification.Action) == domain.LeaveChangeRequestActionDelete {
+		lines = append(lines, "", copy.DeleteApprovalInstruction)
+	}
 
 	if strings.TrimSpace(notification.BackupUserID) != "" {
 		lines = append(lines, formatLabeledInlineValue(copy.BackupLabel, userMentionOrID(api, notification.BackupUserID)))
@@ -507,14 +551,19 @@ formatLeaveChangeSubmittedMessage formats the requester-facing confirmation for 
 */
 func formatLeaveChangeSubmittedMessage(api plugin.API, notification service.LeaveChangeRequestNotification) string {
 	copy := leaveNotificationCopyForLanguage(notification.Language)
-	recipientLabels := formatUserMentionList(api, notification.RecipientUserIDs, copy.NoRecipientFallback)
+
+	title := copy.ChangeSubmittedTitle
+	summaryTemplate := copy.ChangeSubmittedSummary
+	if domain.LeaveChangeRequestAction(notification.Action) == domain.LeaveChangeRequestActionDelete {
+		title = copy.DeleteSubmittedTitle
+		summaryTemplate = copy.DeleteSubmittedSummary
+	}
 
 	lines := []string{
-		formatNotificationHeading(copy.ChangeSubmittedTitle),
+		formatNotificationHeading(title),
 		"",
-		fmt.Sprintf(copy.ChangeSubmittedSummary, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language)),
+		fmt.Sprintf(summaryTemplate, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language)),
 		formatLabeledInlineValue(copy.DatesLabel, formatLocalizedDateRange(notification.Language, notification.StartDate, notification.EndDate)),
-		formatLabeledInlineValue(copy.NotifiedRecipientsLabel, recipientLabels),
 	}
 
 	lines = appendLeaveRequestDetails(lines, copy, notification.Language, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
@@ -530,15 +579,32 @@ func formatLeaveChangeDecidedMessage(api plugin.API, notification service.LeaveC
 	deciderLabel := userMentionOrID(api, notification.DeciderUserID)
 	decisionLabel := translateLeaveChangeDecision(notification.Decision, copy)
 
+	leaveTypeLabel := localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language)
+	deleteAction := domain.LeaveChangeRequestAction(notification.Action) == domain.LeaveChangeRequestActionDelete
 	header := copy.ChangeDecisionTitle
-	summary := fmt.Sprintf(copy.ChangeDecisionSummary, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language), decisionLabel, deciderLabel)
+	summaryTemplate := copy.ChangeDecisionSummary
+	if deleteAction {
+		header = copy.DeleteDecisionTitle
+		summaryTemplate = copy.DeleteDecisionSummary
+	}
+	summary := fmt.Sprintf(summaryTemplate, leaveTypeLabel, decisionLabel, deciderLabel)
 	if domain.LeaveChangeRequestStatus(notification.Decision) == domain.LeaveChangeRequestStatusApproved {
 		header = copy.ChangeApprovedTitle
-		summary = fmt.Sprintf(copy.ChangeApprovedSummary, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language), deciderLabel)
+		summaryTemplate = copy.ChangeApprovedSummary
+		if deleteAction {
+			header = copy.DeleteApprovedTitle
+			summaryTemplate = copy.DeleteApprovedSummary
+		}
+		summary = fmt.Sprintf(summaryTemplate, leaveTypeLabel, deciderLabel)
 	}
 	if domain.LeaveChangeRequestStatus(notification.Decision) == domain.LeaveChangeRequestStatusRejected {
 		header = copy.ChangeRejectedTitle
-		summary = fmt.Sprintf(copy.ChangeRejectedSummary, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language), deciderLabel)
+		summaryTemplate = copy.ChangeRejectedSummary
+		if deleteAction {
+			header = copy.DeleteRejectedTitle
+			summaryTemplate = copy.DeleteRejectedSummary
+		}
+		summary = fmt.Sprintf(summaryTemplate, leaveTypeLabel, deciderLabel)
 	}
 
 	lines := []string{
@@ -637,6 +703,31 @@ func formatApprovedLeaveChannelMessage(api plugin.API, notification service.Leav
 }
 
 /*
+formatApprovedLeaveChangedChannelMessage formats the team-facing announcement
+for an approved member-requested edit to an already tracked leave.
+*/
+func formatApprovedLeaveChangedChannelMessage(api plugin.API, notification service.LeaveChangeDecisionNotification) string {
+	copy := leaveNotificationCopyForLanguage(notification.Language)
+	requesterLabel := userMentionOrID(api, notification.RequesterUserID)
+	deciderLabel := userMentionOrID(api, notification.DeciderUserID)
+	workspaceLabel := channelReferenceOrWorkspaceName(api, notification.ChannelID, notification.WorkspaceName, "the workspace channel")
+
+	lines := []string{
+		formatNotificationHeading(copy.ChannelChangedTitle),
+		"",
+		fmt.Sprintf(copy.ChannelChangedSummary, requesterLabel, localizedLeaveTypeNameForNotification(notification.LeaveTypeCode, notification.LeaveTypeName, notification.Language)),
+		formatLabeledInlineValue(copy.WorkspaceLabel, workspaceLabel),
+		formatLabeledInlineValue(copy.DatesLabel, formatLocalizedDateRange(notification.Language, notification.StartDate, notification.EndDate)),
+		formatLabeledInlineValue(copy.ApprovedByLabel, deciderLabel),
+	}
+
+	lines = appendLeaveRequestDetails(lines, copy, notification.Language, notification.DurationMode, notification.HalfDayPart, notification.StartTime, notification.EndTime)
+	lines = append(lines, formatLabeledInlineValue(copy.CanContactLabel, translateBoolean(notification.CanContactIfNeeded, copy)))
+
+	return strings.Join(lines, "\n")
+}
+
+/*
 appendLabeledMultilineValue appends a markdown label and puts the value on its own line.
 
 This keeps multiline Persian/RTL and normal multiline text readable instead of
@@ -699,27 +790,6 @@ func formatApprovedLeaveCancelledChannelMessage(
 	lines = append(lines, formatLabeledInlineValue(copy.CanContactLabel, translateBoolean(notification.CanContactIfNeeded, copy)))
 
 	return strings.Join(lines, "\n")
-}
-
-/*
-formatUserMentionList formats a readable comma-separated user mention list.
-*/
-func formatUserMentionList(api plugin.API, userIDs []string, emptyFallback string) string {
-	labels := make([]string, 0, len(userIDs))
-	for _, userID := range userIDs {
-		cleanUserID := strings.TrimSpace(userID)
-		if cleanUserID == "" {
-			continue
-		}
-
-		labels = append(labels, userMentionOrID(api, cleanUserID))
-	}
-
-	if len(labels) == 0 {
-		return emptyFallback
-	}
-
-	return strings.Join(labels, ", ")
 }
 
 /*
@@ -1014,7 +1084,7 @@ func formatLeaveRequestDetails(
 			return formatLabeledInlineValue(copy.DurationLabel, copy.HalfDayDuration)
 		}
 
-		return formatLabeledInlineValue(copy.DurationLabel, fmt.Sprintf("%s, %s", copy.HalfDayDuration, translateHalfDayPart(cleanPart, copy)))
+		return formatLabeledInlineValue(copy.DurationLabel, fmt.Sprintf("%s%s %s", copy.HalfDayDuration, durationValueSeparator(language), translateHalfDayPart(cleanPart, copy)))
 
 	case string(domain.LeaveDurationHourly):
 		if strings.TrimSpace(startTime) == "" || strings.TrimSpace(endTime) == "" {
@@ -1024,14 +1094,19 @@ func formatLeaveRequestDetails(
 		return formatLabeledInlineValue(
 			copy.DurationLabel,
 			fmt.Sprintf(
-				"%s → %s",
+				"%s%s %s → %s",
+				copy.HourlyDuration,
+				durationValueSeparator(language),
 				formatLocalizedTimeOfDay(language, startTime),
 				formatLocalizedTimeOfDay(language, endTime),
 			),
 		)
 
+	case string(domain.LeaveDurationFullDay), "":
+		return formatLabeledInlineValue(copy.DurationLabel, copy.FullDayDuration)
+
 	default:
-		return ""
+		return formatLabeledInlineValue(copy.DurationLabel, localizeNumberString(language, strings.TrimSpace(durationMode)))
 	}
 }
 
@@ -1062,6 +1137,18 @@ func translateLeaveChangeDecision(status string, copy leaveNotificationCopy) str
 		return copy.RejectedStatus
 	default:
 		return copy.PendingStatus
+	}
+}
+
+/*
+durationValueSeparator returns a natural separator between duration mode and details.
+*/
+func durationValueSeparator(language domain.ReportLanguage) string {
+	switch language {
+	case domain.ReportLanguagePersian, domain.ReportLanguageArabic:
+		return "،"
+	default:
+		return ","
 	}
 }
 
@@ -1143,57 +1230,69 @@ func normalizeLeaveTypeToken(value string) string {
 leaveNotificationCopy contains generated leave notification copy.
 */
 type leaveNotificationCopy struct {
-	RequestTitle            string
-	RequestSummary          string
-	WorkspaceLabel          string
-	DatesLabel              string
-	StatusLabel             string
-	ReasonLabel             string
-	BackupLabel             string
-	CanContactLabel         string
-	YesLabel                string
-	NoLabel                 string
-	RequestSubmittedTitle   string
-	RequestSubmittedSummary string
-	NotifiedRecipientsLabel string
-	NoRecipientFallback     string
-	OpenCampfireInstruction string
-	DecisionTitle           string
-	DecisionSummary         string
-	ApprovedTitle           string
-	ApprovedSummary         string
-	RejectedTitle           string
-	RejectedSummary         string
-	ChannelApprovedTitle    string
-	ChannelCancelledTitle   string
-	ChannelApprovedSummary  string
-	ApprovedByLabel         string
-	CommentLabel            string
-	CancelledTitle          string
-	CancelledSummary        string
-	ChannelCancelledSummary string
-	NoLongerAwayMessage     string
-	ChangeRequestTitle      string
-	ChangeRequestSummary    string
-	ChangeSubmittedTitle    string
-	ChangeSubmittedSummary  string
-	ChangeDecisionTitle     string
-	ChangeDecisionSummary   string
-	ChangeApprovedTitle     string
-	ChangeApprovedSummary   string
-	ChangeRejectedTitle     string
-	ChangeRejectedSummary   string
-	UpdatedTitle            string
-	UpdatedSummary          string
-	DurationLabel           string
-	HalfDayDuration         string
-	HourlyDuration          string
-	MorningPart             string
-	AfternoonPart           string
-	PendingStatus           string
-	ApprovedStatus          string
-	RejectedStatus          string
-	CancelledStatus         string
+	RequestTitle              string
+	RequestSummary            string
+	WorkspaceLabel            string
+	DatesLabel                string
+	StatusLabel               string
+	ReasonLabel               string
+	BackupLabel               string
+	CanContactLabel           string
+	YesLabel                  string
+	NoLabel                   string
+	RequestSubmittedTitle     string
+	RequestSubmittedSummary   string
+	OpenCampfireInstruction   string
+	DecisionTitle             string
+	DecisionSummary           string
+	ApprovedTitle             string
+	ApprovedSummary           string
+	RejectedTitle             string
+	RejectedSummary           string
+	ChannelApprovedTitle      string
+	ChannelCancelledTitle     string
+	ChannelChangedTitle       string
+	ChannelApprovedSummary    string
+	ChannelChangedSummary     string
+	ApprovedByLabel           string
+	CommentLabel              string
+	CancelledTitle            string
+	CancelledSummary          string
+	ChannelCancelledSummary   string
+	NoLongerAwayMessage       string
+	ChangeRequestTitle        string
+	ChangeRequestSummary      string
+	ChangeSubmittedTitle      string
+	ChangeSubmittedSummary    string
+	ChangeDecisionTitle       string
+	ChangeDecisionSummary     string
+	ChangeApprovedTitle       string
+	ChangeApprovedSummary     string
+	ChangeRejectedTitle       string
+	ChangeRejectedSummary     string
+	DeleteRequestTitle        string
+	DeleteRequestSummary      string
+	DeleteSubmittedTitle      string
+	DeleteSubmittedSummary    string
+	DeleteDecisionTitle       string
+	DeleteDecisionSummary     string
+	DeleteApprovedTitle       string
+	DeleteApprovedSummary     string
+	DeleteRejectedTitle       string
+	DeleteRejectedSummary     string
+	DeleteApprovalInstruction string
+	UpdatedTitle              string
+	UpdatedSummary            string
+	DurationLabel             string
+	FullDayDuration           string
+	HalfDayDuration           string
+	HourlyDuration            string
+	MorningPart               string
+	AfternoonPart             string
+	PendingStatus             string
+	ApprovedStatus            string
+	RejectedStatus            string
+	CancelledStatus           string
 }
 
 /*
@@ -1203,167 +1302,203 @@ func leaveNotificationCopyForLanguage(language domain.ReportLanguage) leaveNotif
 	switch language {
 	case domain.ReportLanguagePersian:
 		return leaveNotificationCopy{
-			RequestTitle:            "درخواست مرخصی 🔥",
-			RequestSummary:          "کاربر %s درخواست مرخصی **%s** ثبت کرده است.",
-			WorkspaceLabel:          "فضای کاری",
-			DatesLabel:              "تاریخ‌ها",
-			StatusLabel:             "وضعیت",
-			ReasonLabel:             "توضیحات",
-			BackupLabel:             "جانشین",
-			CanContactLabel:         "امکان تماس در صورت نیاز",
-			YesLabel:                "بله",
-			NoLabel:                 "خیر",
-			RequestSubmittedTitle:   "درخواست مرخصی ثبت شد ✅",
-			RequestSubmittedSummary: "درخواست مرخصی **%s** شما ثبت شد.",
-			NotifiedRecipientsLabel: "اطلاع‌رسانی شد به",
-			NoRecipientFallback:     "هیچ کاربری",
-			OpenCampfireInstruction: "برای تایید یا رد این درخواست، صفحه فضای کاری را باز کنید.",
-			DecisionTitle:           "به‌روزرسانی مرخصی 🔥",
-			DecisionSummary:         "درخواست مرخصی **%s** شما با وضعیت **%s** توسط کاربر %s ثبت شد.",
-			ApprovedTitle:           "مرخصی شما تایید شد ✅",
-			ApprovedSummary:         "درخواست مرخصی **%s** شما توسط کاربر %s تایید شد",
-			RejectedTitle:           "مرخصی شما رد شد ❌",
-			RejectedSummary:         "درخواست مرخصی **%s** شما توسط کاربر %s رد شد",
-			ChannelApprovedTitle:    "اعلام مرخصی تاییدشده ✅",
-			ChannelCancelledTitle:   "لغو مرخصی تاییدشده ↩️",
-			ChannelApprovedSummary:  "کاربر %s در مرخصی تاییدشده **%s** خواهد بود.",
-			ApprovedByLabel:         "تاییدکننده",
-			CommentLabel:            "یادداشت",
-			CancelledTitle:          "مرخصی لغو شد 🔥",
-			CancelledSummary:        "کاربر %s درخواست مرخصی **%s** خود با وضعیت قبلی %s را لغو کرد.",
-			ChannelCancelledSummary: "کاربر %s مرخصی تاییدشده **%s** خود را لغو کرد.",
-			NoLongerAwayMessage:     "این کاربر دیگر برای این بازه غایب محسوب نمی‌شود.",
-			ChangeRequestTitle:      "درخواست ویرایش مرخصی 🔥",
-			ChangeRequestSummary:    "کاربر %s درخواست کرده است مرخصی **%s** خود را ویرایش کند.",
-			ChangeSubmittedTitle:    "درخواست ویرایش مرخصی ثبت شد ✅",
-			ChangeSubmittedSummary:  "درخواست ویرایش مرخصی **%s** شما ثبت شد و منتظر تأیید است.",
-			ChangeDecisionTitle:     "نتیجه درخواست ویرایش مرخصی 🔥",
-			ChangeDecisionSummary:   "درخواست ویرایش مرخصی **%s** شما با وضعیت **%s** توسط کاربر %s ثبت شد.",
-			ChangeApprovedTitle:     "ویرایش مرخصی تأیید شد ✅",
-			ChangeApprovedSummary:   "درخواست ویرایش مرخصی **%s** شما توسط کاربر %s تأیید و اعمال شد.",
-			ChangeRejectedTitle:     "ویرایش مرخصی رد شد ❌",
-			ChangeRejectedSummary:   "درخواست ویرایش مرخصی **%s** شما توسط کاربر %s رد شد.",
-			UpdatedTitle:            "مرخصی شما ویرایش شد ✅",
-			UpdatedSummary:          "مرخصی **%s** شما توسط کاربر %s ویرایش شد.",
-			DurationLabel:           "مدت",
-			HalfDayDuration:         "نیم‌روز",
-			HourlyDuration:          "ساعتی",
-			MorningPart:             "صبح",
-			AfternoonPart:           "بعدازظهر",
-			PendingStatus:           "در انتظار",
-			ApprovedStatus:          "تاییدشده",
-			RejectedStatus:          "ردشده",
-			CancelledStatus:         "لغوشده",
+			RequestTitle:              "درخواست مرخصی 🔥",
+			RequestSummary:            "کاربر %s درخواست مرخصی **%s** ثبت کرده است.",
+			WorkspaceLabel:            "فضای کاری",
+			DatesLabel:                "تاریخ‌ها",
+			StatusLabel:               "وضعیت",
+			ReasonLabel:               "توضیحات",
+			BackupLabel:               "جانشین",
+			CanContactLabel:           "امکان تماس در صورت نیاز",
+			YesLabel:                  "بله",
+			NoLabel:                   "خیر",
+			RequestSubmittedTitle:     "درخواست مرخصی ثبت شد ✅",
+			RequestSubmittedSummary:   "درخواست مرخصی **%s** شما ثبت شد.",
+			OpenCampfireInstruction:   "برای تایید یا رد این درخواست، صفحه فضای کاری را باز کنید.",
+			DecisionTitle:             "به‌روزرسانی مرخصی 🔥",
+			DecisionSummary:           "درخواست مرخصی **%s** شما با وضعیت **%s** توسط کاربر %s ثبت شد.",
+			ApprovedTitle:             "مرخصی شما تایید شد ✅",
+			ApprovedSummary:           "درخواست مرخصی **%s** شما توسط کاربر %s تایید شد",
+			RejectedTitle:             "مرخصی شما رد شد ❌",
+			RejectedSummary:           "درخواست مرخصی **%s** شما توسط کاربر %s رد شد",
+			ChannelApprovedTitle:      "اعلام مرخصی تاییدشده ✅",
+			ChannelCancelledTitle:     "لغو مرخصی تاییدشده ↩️",
+			ChannelChangedTitle:       "به‌روزرسانی مرخصی تاییدشده 🔁",
+			ChannelApprovedSummary:    "کاربر %s در مرخصی تاییدشده **%s** خواهد بود.",
+			ChannelChangedSummary:     "مرخصی تاییدشده کاربر %s با نوع **%s** به‌روزرسانی شد.",
+			ApprovedByLabel:           "تاییدکننده",
+			CommentLabel:              "یادداشت",
+			CancelledTitle:            "مرخصی لغو شد 🔥",
+			CancelledSummary:          "کاربر %s درخواست مرخصی **%s** خود با وضعیت قبلی %s را لغو کرد.",
+			ChannelCancelledSummary:   "کاربر %s مرخصی تاییدشده **%s** خود را لغو کرد.",
+			NoLongerAwayMessage:       "این کاربر دیگر برای این بازه غایب محسوب نمی‌شود.",
+			ChangeRequestTitle:        "درخواست ویرایش مرخصی 🔥",
+			ChangeRequestSummary:      "کاربر %s درخواست کرده است مرخصی **%s** خود را ویرایش کند.",
+			ChangeSubmittedTitle:      "درخواست ویرایش مرخصی ثبت شد ✅",
+			ChangeSubmittedSummary:    "درخواست ویرایش مرخصی **%s** شما ثبت شد و منتظر تأیید است.",
+			ChangeDecisionTitle:       "نتیجه درخواست ویرایش مرخصی 🔥",
+			ChangeDecisionSummary:     "درخواست ویرایش مرخصی **%s** شما با وضعیت **%s** توسط کاربر %s ثبت شد.",
+			ChangeApprovedTitle:       "ویرایش مرخصی تأیید شد ✅",
+			ChangeApprovedSummary:     "درخواست ویرایش مرخصی **%s** شما توسط کاربر %s تأیید و اعمال شد.",
+			ChangeRejectedTitle:       "ویرایش مرخصی رد شد ❌",
+			ChangeRejectedSummary:     "درخواست ویرایش مرخصی **%s** شما توسط کاربر %s رد شد.",
+			DeleteRequestTitle:        "درخواست حذف مرخصی 🔥",
+			DeleteRequestSummary:      "کاربر %s درخواست کرده است مرخصی **%s** خود را حذف کند.",
+			DeleteSubmittedTitle:      "درخواست حذف مرخصی ثبت شد ✅",
+			DeleteSubmittedSummary:    "درخواست حذف مرخصی **%s** شما ثبت شد و منتظر تأیید است.",
+			DeleteDecisionTitle:       "نتیجه درخواست حذف مرخصی 🔥",
+			DeleteDecisionSummary:     "درخواست حذف مرخصی **%s** شما با وضعیت **%s** توسط کاربر %s ثبت شد.",
+			DeleteApprovedTitle:       "حذف مرخصی تأیید شد ✅",
+			DeleteApprovedSummary:     "درخواست حذف مرخصی **%s** شما توسط کاربر %s تأیید و اعمال شد.",
+			DeleteRejectedTitle:       "حذف مرخصی رد شد ❌",
+			DeleteRejectedSummary:     "درخواست حذف مرخصی **%s** شما توسط کاربر %s رد شد.",
+			DeleteApprovalInstruction: "با تأیید این درخواست، مرخصی حذف می‌شود و از گزارش‌ها و وضعیت حضور خارج می‌شود.",
+			UpdatedTitle:              "مرخصی شما ویرایش شد ✅",
+			UpdatedSummary:            "مرخصی **%s** شما توسط کاربر %s ویرایش شد.",
+			DurationLabel:             "مدت",
+			FullDayDuration:           "تمام‌روز",
+			HalfDayDuration:           "نیم‌روز",
+			HourlyDuration:            "ساعتی",
+			MorningPart:               "صبح",
+			AfternoonPart:             "بعدازظهر",
+			PendingStatus:             "در انتظار",
+			ApprovedStatus:            "تاییدشده",
+			RejectedStatus:            "ردشده",
+			CancelledStatus:           "لغوشده",
 		}
 
 	case domain.ReportLanguageArabic:
 		return leaveNotificationCopy{
-			RequestTitle:            "طلب إجازة 🔥",
-			RequestSummary:          "المستخدم %s طلب إجازة **%s**.",
-			WorkspaceLabel:          "مساحة العمل",
-			DatesLabel:              "التواريخ",
-			StatusLabel:             "الحالة",
-			ReasonLabel:             "ملاحظات",
-			BackupLabel:             "البديل",
-			CanContactLabel:         "إمكانية الاتصال عند الحاجة",
-			YesLabel:                "نعم",
-			NoLabel:                 "لا",
-			RequestSubmittedTitle:   "تم إرسال طلب الإجازة ✅",
-			RequestSubmittedSummary: "تم إرسال طلب إجازة **%s** الخاص بك.",
-			NotifiedRecipientsLabel: "تم إشعار",
-			NoRecipientFallback:     "لا يوجد مستخدمون",
-			OpenCampfireInstruction: "افتح صفحة مساحة العمل للموافقة على هذا الطلب أو رفضه.",
-			DecisionTitle:           "تحديث الإجازة 🔥",
-			DecisionSummary:         "تم تحديث طلب إجازة **%s** الخاص بك إلى **%s** بواسطة المستخدم %s.",
-			ApprovedTitle:           "تمت الموافقة على إجازتك ✅",
-			ApprovedSummary:         "تمت الموافقة على طلب إجازة **%s** الخاص بك بواسطة المستخدم %s",
-			RejectedTitle:           "تم رفض إجازتك ❌",
-			RejectedSummary:         "تم رفض طلب إجازة **%s** الخاص بك بواسطة المستخدم %s",
-			ChannelApprovedTitle:    "إعلان إجازة معتمدة ✅",
-			ChannelCancelledTitle:   "إلغاء إجازة معتمدة ↩️",
-			ChannelApprovedSummary:  "المستخدم %s سيكون في إجازة **%s** معتمدة.",
-			ApprovedByLabel:         "تمت الموافقة بواسطة",
-			CommentLabel:            "ملاحظة",
-			CancelledTitle:          "تم إلغاء الإجازة 🔥",
-			CancelledSummary:        "المستخدم %s ألغى طلب إجازة **%s** الذي كان %s.",
-			ChannelCancelledSummary: "المستخدم %s ألغى إجازة **%s** المعتمدة.",
-			NoLongerAwayMessage:     "لم يعد هذا المستخدم مسجلاً كغائب خلال هذه الفترة.",
-			ChangeRequestTitle:      "طلب تعديل إجازة 🔥",
-			ChangeRequestSummary:    "المستخدم %s طلب تعديل إجازة **%s** الخاصة به.",
-			ChangeSubmittedTitle:    "تم إرسال طلب تعديل الإجازة ✅",
-			ChangeSubmittedSummary:  "تم إرسال طلب تعديل إجازة **%s** الخاص بك وهو بانتظار الموافقة.",
-			ChangeDecisionTitle:     "نتيجة طلب تعديل الإجازة 🔥",
-			ChangeDecisionSummary:   "تم تحديث طلب تعديل إجازة **%s** الخاص بك إلى **%s** بواسطة المستخدم %s.",
-			ChangeApprovedTitle:     "تمت الموافقة على تعديل الإجازة ✅",
-			ChangeApprovedSummary:   "تمت الموافقة على طلب تعديل إجازة **%s** الخاص بك وتطبيقه بواسطة المستخدم %s.",
-			ChangeRejectedTitle:     "تم رفض تعديل الإجازة ❌",
-			ChangeRejectedSummary:   "تم رفض طلب تعديل إجازة **%s** الخاص بك بواسطة المستخدم %s.",
-			UpdatedTitle:            "تم تعديل إجازتك ✅",
-			UpdatedSummary:          "تم تعديل إجازة **%s** الخاصة بك بواسطة المستخدم %s.",
-			DurationLabel:           "المدة",
-			HalfDayDuration:         "نصف يوم",
-			HourlyDuration:          "بالساعة",
-			MorningPart:             "الصباح",
-			AfternoonPart:           "بعد الظهر",
-			PendingStatus:           "قيد الانتظار",
-			ApprovedStatus:          "معتمدة",
-			RejectedStatus:          "مرفوضة",
-			CancelledStatus:         "ملغاة",
+			RequestTitle:              "طلب إجازة 🔥",
+			RequestSummary:            "المستخدم %s طلب إجازة **%s**.",
+			WorkspaceLabel:            "مساحة العمل",
+			DatesLabel:                "التواريخ",
+			StatusLabel:               "الحالة",
+			ReasonLabel:               "ملاحظات",
+			BackupLabel:               "البديل",
+			CanContactLabel:           "إمكانية الاتصال عند الحاجة",
+			YesLabel:                  "نعم",
+			NoLabel:                   "لا",
+			RequestSubmittedTitle:     "تم إرسال طلب الإجازة ✅",
+			RequestSubmittedSummary:   "تم إرسال طلب إجازة **%s** الخاص بك.",
+			OpenCampfireInstruction:   "افتح صفحة مساحة العمل للموافقة على هذا الطلب أو رفضه.",
+			DecisionTitle:             "تحديث الإجازة 🔥",
+			DecisionSummary:           "تم تحديث طلب إجازة **%s** الخاص بك إلى **%s** بواسطة المستخدم %s.",
+			ApprovedTitle:             "تمت الموافقة على إجازتك ✅",
+			ApprovedSummary:           "تمت الموافقة على طلب إجازة **%s** الخاص بك بواسطة المستخدم %s",
+			RejectedTitle:             "تم رفض إجازتك ❌",
+			RejectedSummary:           "تم رفض طلب إجازة **%s** الخاص بك بواسطة المستخدم %s",
+			ChannelApprovedTitle:      "إعلان إجازة معتمدة ✅",
+			ChannelCancelledTitle:     "إلغاء إجازة معتمدة ↩️",
+			ChannelChangedTitle:       "تحديث إجازة معتمدة 🔁",
+			ChannelApprovedSummary:    "المستخدم %s سيكون في إجازة **%s** معتمدة.",
+			ChannelChangedSummary:     "تم تحديث الإجازة المعتمدة للمستخدم %s من نوع **%s**.",
+			ApprovedByLabel:           "تمت الموافقة بواسطة",
+			CommentLabel:              "ملاحظة",
+			CancelledTitle:            "تم إلغاء الإجازة 🔥",
+			CancelledSummary:          "المستخدم %s ألغى طلب إجازة **%s** الذي كان %s.",
+			ChannelCancelledSummary:   "المستخدم %s ألغى إجازة **%s** المعتمدة.",
+			NoLongerAwayMessage:       "لم يعد هذا المستخدم مسجلاً كغائب خلال هذه الفترة.",
+			ChangeRequestTitle:        "طلب تعديل إجازة 🔥",
+			ChangeRequestSummary:      "المستخدم %s طلب تعديل إجازة **%s** الخاصة به.",
+			ChangeSubmittedTitle:      "تم إرسال طلب تعديل الإجازة ✅",
+			ChangeSubmittedSummary:    "تم إرسال طلب تعديل إجازة **%s** الخاص بك وهو بانتظار الموافقة.",
+			ChangeDecisionTitle:       "نتيجة طلب تعديل الإجازة 🔥",
+			ChangeDecisionSummary:     "تم تحديث طلب تعديل إجازة **%s** الخاص بك إلى **%s** بواسطة المستخدم %s.",
+			ChangeApprovedTitle:       "تمت الموافقة على تعديل الإجازة ✅",
+			ChangeApprovedSummary:     "تمت الموافقة على طلب تعديل إجازة **%s** الخاص بك وتطبيقه بواسطة المستخدم %s.",
+			ChangeRejectedTitle:       "تم رفض تعديل الإجازة ❌",
+			ChangeRejectedSummary:     "تم رفض طلب تعديل إجازة **%s** الخاص بك بواسطة المستخدم %s.",
+			DeleteRequestTitle:        "طلب حذف إجازة 🔥",
+			DeleteRequestSummary:      "المستخدم %s طلب حذف إجازة **%s** الخاصة به.",
+			DeleteSubmittedTitle:      "تم إرسال طلب حذف الإجازة ✅",
+			DeleteSubmittedSummary:    "تم إرسال طلب حذف إجازة **%s** الخاص بك وهو بانتظار الموافقة.",
+			DeleteDecisionTitle:       "نتيجة طلب حذف الإجازة 🔥",
+			DeleteDecisionSummary:     "تم تحديث طلب حذف إجازة **%s** الخاص بك إلى **%s** بواسطة المستخدم %s.",
+			DeleteApprovedTitle:       "تمت الموافقة على حذف الإجازة ✅",
+			DeleteApprovedSummary:     "تمت الموافقة على طلب حذف إجازة **%s** الخاص بك وتطبيقه بواسطة المستخدم %s.",
+			DeleteRejectedTitle:       "تم رفض حذف الإجازة ❌",
+			DeleteRejectedSummary:     "تم رفض طلب حذف إجازة **%s** الخاص بك بواسطة المستخدم %s.",
+			DeleteApprovalInstruction: "عند الموافقة، سيتم حذف الإجازة من التقارير وحالة التوفر.",
+			UpdatedTitle:              "تم تعديل إجازتك ✅",
+			UpdatedSummary:            "تم تعديل إجازة **%s** الخاصة بك بواسطة المستخدم %s.",
+			DurationLabel:             "المدة",
+			FullDayDuration:           "يوم كامل",
+			HalfDayDuration:           "نصف يوم",
+			HourlyDuration:            "بالساعة",
+			MorningPart:               "الصباح",
+			AfternoonPart:             "بعد الظهر",
+			PendingStatus:             "قيد الانتظار",
+			ApprovedStatus:            "معتمدة",
+			RejectedStatus:            "مرفوضة",
+			CancelledStatus:           "ملغاة",
 		}
 
 	default:
 		return leaveNotificationCopy{
-			RequestTitle:            "🔥 **Leave request**",
-			RequestSummary:          "%s requested **%s** leave.",
-			WorkspaceLabel:          "Workspace",
-			DatesLabel:              "Dates",
-			StatusLabel:             "Status",
-			ReasonLabel:             "Notes",
-			BackupLabel:             "Backup",
-			CanContactLabel:         "Can be contacted if needed",
-			YesLabel:                "Yes",
-			NoLabel:                 "No",
-			RequestSubmittedTitle:   "✅ **Leave request submitted**",
-			RequestSubmittedSummary: "Your **%s** leave request was submitted.",
-			NotifiedRecipientsLabel: "Notified",
-			NoRecipientFallback:     "No configured recipients",
-			OpenCampfireInstruction: "Open the workspace channel to approve or reject this request.",
-			DecisionTitle:           "🔥 **Leave update**",
-			DecisionSummary:         "Your **%s** leave request was **%s** by %s.",
-			ApprovedTitle:           "✅ **Leave approved**",
-			ApprovedSummary:         "Your **%s** leave request was **approved** by %s.",
-			RejectedTitle:           "❌ **Leave rejected**",
-			RejectedSummary:         "Your **%s** leave request was **rejected** by %s.",
-			ChannelApprovedTitle:    "✅ **Approved leave**",
-			ChannelCancelledTitle:   "↩️ **Approved leave cancelled**",
-			ChannelApprovedSummary:  "%s will be away on approved **%s** leave.",
-			ApprovedByLabel:         "Approved by",
-			CommentLabel:            "Comment",
-			CancelledTitle:          "🔥 **Leave cancelled**",
-			CancelledSummary:        "%s cancelled their **%s** leave request that was %s.",
-			ChannelCancelledSummary: "%s cancelled their approved **%s** leave.",
-			NoLongerAwayMessage:     "They are no longer marked as away for this period.",
-			ChangeRequestTitle:      "🔥 **Leave edit requested**",
-			ChangeRequestSummary:    "%s requested an edit to their **%s** leave.",
-			ChangeSubmittedTitle:    "✅ **Leave edit request submitted**",
-			ChangeSubmittedSummary:  "Your edit request for **%s** leave was submitted and is waiting for approval.",
-			ChangeDecisionTitle:     "🔥 **Leave edit update**",
-			ChangeDecisionSummary:   "Your edit request for **%s** leave was **%s** by %s.",
-			ChangeApprovedTitle:     "✅ **Leave edit approved**",
-			ChangeApprovedSummary:   "Your edit request for **%s** leave was approved and applied by %s.",
-			ChangeRejectedTitle:     "❌ **Leave edit rejected**",
-			ChangeRejectedSummary:   "Your edit request for **%s** leave was rejected by %s.",
-			UpdatedTitle:            "✅ **Leave updated**",
-			UpdatedSummary:          "Your **%s** leave was updated by %s.",
-			DurationLabel:           "Duration",
-			HalfDayDuration:         "half day",
-			HourlyDuration:          "hourly",
-			MorningPart:             "morning",
-			AfternoonPart:           "afternoon",
-			PendingStatus:           "pending",
-			ApprovedStatus:          "approved",
-			RejectedStatus:          "rejected",
-			CancelledStatus:         "cancelled",
+			RequestTitle:              "🔥 **Leave request**",
+			RequestSummary:            "%s requested **%s** leave.",
+			WorkspaceLabel:            "Workspace",
+			DatesLabel:                "Dates",
+			StatusLabel:               "Status",
+			ReasonLabel:               "Notes",
+			BackupLabel:               "Backup",
+			CanContactLabel:           "Can be contacted if needed",
+			YesLabel:                  "Yes",
+			NoLabel:                   "No",
+			RequestSubmittedTitle:     "✅ **Leave request submitted**",
+			RequestSubmittedSummary:   "Your **%s** leave request was submitted.",
+			OpenCampfireInstruction:   "Open the workspace channel to approve or reject this request.",
+			DecisionTitle:             "🔥 **Leave update**",
+			DecisionSummary:           "Your **%s** leave request was **%s** by %s.",
+			ApprovedTitle:             "✅ **Leave approved**",
+			ApprovedSummary:           "Your **%s** leave request was **approved** by %s.",
+			RejectedTitle:             "❌ **Leave rejected**",
+			RejectedSummary:           "Your **%s** leave request was **rejected** by %s.",
+			ChannelApprovedTitle:      "✅ **Approved leave**",
+			ChannelCancelledTitle:     "↩️ **Approved leave cancelled**",
+			ChannelChangedTitle:       "🔁 **Approved leave updated**",
+			ChannelApprovedSummary:    "%s will be away on approved **%s** leave.",
+			ChannelChangedSummary:     "%s's approved **%s** leave was updated.",
+			ApprovedByLabel:           "Approved by",
+			CommentLabel:              "Comment",
+			CancelledTitle:            "🔥 **Leave cancelled**",
+			CancelledSummary:          "%s cancelled their **%s** leave request that was %s.",
+			ChannelCancelledSummary:   "%s cancelled their approved **%s** leave.",
+			NoLongerAwayMessage:       "They are no longer marked as away for this period.",
+			ChangeRequestTitle:        "🔥 **Leave edit requested**",
+			ChangeRequestSummary:      "%s requested an edit to their **%s** leave.",
+			ChangeSubmittedTitle:      "✅ **Leave edit request submitted**",
+			ChangeSubmittedSummary:    "Your edit request for **%s** leave was submitted and is waiting for approval.",
+			ChangeDecisionTitle:       "🔥 **Leave edit update**",
+			ChangeDecisionSummary:     "Your edit request for **%s** leave was **%s** by %s.",
+			ChangeApprovedTitle:       "✅ **Leave edit approved**",
+			ChangeApprovedSummary:     "Your edit request for **%s** leave was approved and applied by %s.",
+			ChangeRejectedTitle:       "❌ **Leave edit rejected**",
+			ChangeRejectedSummary:     "Your edit request for **%s** leave was rejected by %s.",
+			DeleteRequestTitle:        "🔥 **Leave deletion requested**",
+			DeleteRequestSummary:      "%s requested deletion of their **%s** leave.",
+			DeleteSubmittedTitle:      "✅ **Leave deletion request submitted**",
+			DeleteSubmittedSummary:    "Your deletion request for **%s** leave was submitted and is waiting for approval.",
+			DeleteDecisionTitle:       "🔥 **Leave deletion update**",
+			DeleteDecisionSummary:     "Your deletion request for **%s** leave was **%s** by %s.",
+			DeleteApprovedTitle:       "✅ **Leave deletion approved**",
+			DeleteApprovedSummary:     "Your deletion request for **%s** leave was approved and applied by %s.",
+			DeleteRejectedTitle:       "❌ **Leave deletion rejected**",
+			DeleteRejectedSummary:     "Your deletion request for **%s** leave was rejected by %s.",
+			DeleteApprovalInstruction: "Approving this request deletes the leave from reports and availability state.",
+			UpdatedTitle:              "✅ **Leave updated**",
+			UpdatedSummary:            "Your **%s** leave was updated by %s.",
+			DurationLabel:             "Duration",
+			FullDayDuration:           "full day",
+			HalfDayDuration:           "half day",
+			HourlyDuration:            "hourly",
+			MorningPart:               "morning",
+			AfternoonPart:             "afternoon",
+			PendingStatus:             "pending",
+			ApprovedStatus:            "approved",
+			RejectedStatus:            "rejected",
+			CancelledStatus:           "cancelled",
 		}
 	}
 }

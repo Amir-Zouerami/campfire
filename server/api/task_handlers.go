@@ -248,6 +248,57 @@ func handleCreateTimeEntry(
 }
 
 /*
+handleDeleteTimeEntry handles deleting one current-user time entry.
+*/
+func handleDeleteTimeEntry(
+	log logger.Logger,
+	mm mattermost.Client,
+	taskService *service.TaskService,
+	auditService *service.AuditService,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := loadCurrentUser(w, r, log, mm)
+		if !ok {
+			return
+		}
+
+		workspaceID := strings.TrimSpace(chi.URLParam(r, "workspaceID"))
+		timeEntryID := strings.TrimSpace(chi.URLParam(r, "timeEntryID"))
+
+		timeEntry, err := taskService.DeleteTimeEntry(r.Context(), service.DeleteTimeEntryInput{
+			ActorUserID: user.ID,
+			WorkspaceID: workspaceID,
+			TimeEntryID: timeEntryID,
+		})
+		if err != nil {
+			logServiceError(log, err)
+			WriteServiceError(w, err)
+			return
+		}
+
+		recordAuditEvent(
+			r.Context(),
+			auditService,
+			timeEntry.WorkspaceID.String(),
+			user.ID,
+			"time_entry_deleted",
+			"time_entry",
+			timeEntry.ID.String(),
+			map[string]string{
+				"task_id":    timeEntry.TaskID.String(),
+				"entry_date": string(timeEntry.EntryDate),
+				"minutes":    strconv.Itoa(timeEntry.Minutes),
+			},
+		)
+
+		WriteDeleteTimeEntry(w, http.StatusOK, DeleteTimeEntryResponse{
+			Deleted: true,
+			Entry:   TimeEntryToPayload(*timeEntry),
+		})
+	}
+}
+
+/*
 defaultTimeEntryDateRange returns a safe default range for time-entry listing.
 */
 func defaultTimeEntryDateRange() (string, string) {

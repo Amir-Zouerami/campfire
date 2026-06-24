@@ -3072,3 +3072,62 @@ body,
 	line-height: 1.12 !important;
 	letter-spacing: -0.035em !important;
 }
+
+
+/* Date-picker alternate-date tooltip stabilization.
+   The day cell already uses ::after for the today marker, so the hover tooltip
+   must use ::before. Keeping the browser title off the day button avoids the
+   unstyled native tooltip fighting with the Campfire-designed hint. */
+.campfire-picker-portal-scope .campfire-date-picker-day[data-alt-title]::before,
+.campfire-theme .campfire-date-picker-popover .campfire-date-picker-day[data-alt-title]::before {
+  content: attr(data-alt-title);
+  position: absolute;
+  inset-inline-start: 50%;
+  inset-block-start: auto;
+  inset-block-end: calc(100% + 0.18rem);
+  z-index: 20;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-inline-size: 5.75rem;
+  max-inline-size: 12rem;
+  min-block-size: 1.65rem;
+  border: 1px solid rgba(251, 191, 36, 0.34);
+  border-radius: 0.58rem;
+  padding: 0.32rem 0.62rem;
+  background: rgba(12, 10, 9, 0.98);
+  color: rgb(255, 247, 237);
+  box-shadow: 0 0.9rem 2.2rem rgba(0, 0, 0, 0.42);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.campfire-picker-portal-scope .campfire-date-picker-day[data-alt-title]:hover::before,
+.campfire-picker-portal-scope .campfire-date-picker-day[data-alt-title]:focus-visible::before,
+.campfire-theme .campfire-date-picker-popover .campfire-date-picker-day[data-alt-title]:hover::before,
+.campfire-theme .campfire-date-picker-popover .campfire-date-picker-day[data-alt-title]:focus-visible::before {
+  opacity: 1;
+}
+
+.campfire-picker-portal-scope .campfire-date-picker-day[data-alt-title]:hover::after,
+.campfire-theme .campfire-date-picker-popover .campfire-date-picker-day[data-alt-title]:hover::after {
+  content: none !important;
+}
+
+.campfire-picker-portal-scope .campfire-date-picker-day--today[data-alt-title]:hover::after,
+.campfire-picker-portal-scope .campfire-date-picker-day--today[data-alt-title]:focus-visible::after,
+.campfire-theme .campfire-date-picker-popover .campfire-date-picker-day--today[data-alt-title]:hover::after,
+.campfire-theme .campfire-date-picker-popover .campfire-date-picker-day--today[data-alt-title]:focus-visible::after {
+  content: none !important;
+  inline-size: 0 !important;
+  block-size: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}

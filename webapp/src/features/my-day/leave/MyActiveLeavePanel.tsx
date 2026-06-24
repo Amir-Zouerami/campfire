@@ -98,14 +98,16 @@ function ActiveLeaveRow(props: {
 	const [draft, setDraft] = useState<MyLeaveDraft>(() => draftFromLeaveRequest(request));
 	const [savingEdit, setSavingEdit] = useState(false);
 	const [errorMessage, setErrorMessage] = useState('');
-	const approvalRequired = approvedLeaveIsInProgress(request, props.timezone);
-	const cancelDisabled = props.disabled || approvalRequired;
-	const cancelTitle = approvalRequired ? t('myDay.leave.cancel.locked') : undefined;
-	const editTitleKey = approvalRequired ? 'myDay.leave.editRequest.title' : 'myDay.leave.editDirect.title';
-	const editDescriptionKey = approvalRequired ? 'myDay.leave.editRequest.description' : 'myDay.leave.editDirect.description';
-	const editOpenKey = approvalRequired ? 'myDay.leave.editRequest.open' : 'myDay.leave.editDirect.open';
-	const editHideKey = approvalRequired ? 'myDay.leave.editRequest.hide' : 'myDay.leave.editDirect.hide';
-	const editSubmitKey = approvalRequired ? 'myDay.leave.editRequest.submit' : 'myDay.leave.editDirect.submit';
+	const editRequiresApproval = request.status === 'approved';
+	const deleteRequiresApproval = approvedLeaveHasStarted(request, props.timezone);
+	const cancelDisabled = props.disabled;
+	const cancelTitle = deleteRequiresApproval ? t('myDay.leave.cancel.locked') : undefined;
+	const cancelLabelKey = deleteRequiresApproval ? 'myDay.leave.action.requestDelete' : 'myDay.leave.action.cancel';
+	const editTitleKey = editRequiresApproval ? 'myDay.leave.editRequest.title' : 'myDay.leave.editDirect.title';
+	const editDescriptionKey = editRequiresApproval ? 'myDay.leave.editRequest.description' : 'myDay.leave.editDirect.description';
+	const editOpenKey = editRequiresApproval ? 'myDay.leave.editRequest.open' : 'myDay.leave.editDirect.open';
+	const editHideKey = editRequiresApproval ? 'myDay.leave.editRequest.hide' : 'myDay.leave.editDirect.hide';
+	const editSubmitKey = editRequiresApproval ? 'myDay.leave.editRequest.submit' : 'myDay.leave.editDirect.submit';
 	const selectableLeaveTypes = props.leaveTypes.filter(isSelectableLeaveType);
 	const rowDisabled = props.disabled || savingEdit;
 
@@ -284,7 +286,7 @@ function ActiveLeaveRow(props: {
 					onClick={() => void props.onCancel()}
 				>
 					<Ban className="cf:size-4" />
-					{t('myDay.leave.action.cancel')}
+					{t(cancelLabelKey)}
 				</Button>
 			</div>
 		</article>
@@ -329,24 +331,21 @@ function LeaveMetaChip(props: {
 }
 
 /**
- * approvedLeaveIsInProgress returns true only while approved leave currently
- * covers the workspace-local instant. Pending and future approved requests remain
- * directly editable/cancellable by the requester.
+ * approvedLeaveHasStarted returns true after approved leave reaches its first workspace-local instant.
  */
-function approvedLeaveIsInProgress(request: LeaveRequest, timezone: string): boolean {
+function approvedLeaveHasStarted(request: LeaveRequest, timezone: string): boolean {
 	if (request.status !== 'approved') {
 		return false;
 	}
 
 	const startAt = getLeaveStartDateTime(request, timezone);
-	const endAt = getLeaveEndDateTime(request, timezone);
-	if (startAt === null || endAt === null) {
+	if (startAt === null) {
 		return false;
 	}
 
 	const now = Date.now();
 
-	return now >= startAt.getTime() && now < endAt.getTime();
+	return now >= startAt.getTime();
 }
 
 /**
@@ -364,43 +363,6 @@ function getLeaveStartDateTime(request: LeaveRequest, timezone: string): Date | 
 	}
 
 	return zonedDateTimeToDate(request.startDate, timeOfDay, timezone);
-}
-
-/**
- * getLeaveEndDateTime returns the exclusive last instant covered by a request.
- */
-function getLeaveEndDateTime(request: LeaveRequest, timezone: string): Date | null {
-	if (request.durationMode === 'hourly' && request.endTime.trim() !== '') {
-		return zonedDateTimeToDate(request.endDate, request.endTime, timezone);
-	}
-
-	if (request.durationMode === 'half_day' && request.halfDayPart === 'morning') {
-		return zonedDateTimeToDate(request.endDate, '12:00', timezone);
-	}
-
-	return zonedDateTimeToDate(addDays(request.endDate, 1), '00:00', timezone);
-}
-
-/**
- * addDays adds calendar days to a YYYY-MM-DD date string.
- */
-function addDays(date: string, days: number): string {
-	const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date.trim());
-	if (match === null) {
-		return date;
-	}
-
-	const year = Number.parseInt(match[1] ?? '', 10);
-	const month = Number.parseInt(match[2] ?? '', 10);
-	const day = Number.parseInt(match[3] ?? '', 10);
-	if (![year, month, day].every(Number.isFinite)) {
-		return date;
-	}
-
-	const parsed = new Date(year, month - 1, day);
-	parsed.setDate(parsed.getDate() + days);
-
-	return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
 }
 
 /**

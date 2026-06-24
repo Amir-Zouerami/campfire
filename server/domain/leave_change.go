@@ -43,18 +43,49 @@ func (s LeaveChangeRequestStatus) IsValid() bool {
 }
 
 /*
+LeaveChangeRequestAction identifies what the requester wants an approver to do
+with an already-approved leave request.
+*/
+type LeaveChangeRequestAction string
+
+const (
+	/*
+		LeaveChangeRequestActionEdit asks an approver to apply replacement leave fields.
+	*/
+	LeaveChangeRequestActionEdit LeaveChangeRequestAction = "edit"
+
+	/*
+		LeaveChangeRequestActionDelete asks an approver to remove an already-started approved leave.
+	*/
+	LeaveChangeRequestActionDelete LeaveChangeRequestAction = "delete"
+)
+
+/*
+IsValid returns true when the leave change request action is supported.
+*/
+func (a LeaveChangeRequestAction) IsValid() bool {
+	switch a {
+	case LeaveChangeRequestActionEdit, LeaveChangeRequestActionDelete:
+		return true
+	default:
+		return false
+	}
+}
+
+/*
 LeaveChangeRequest captures a member-requested correction to an existing leave
 request.
 
-Members do not directly edit approved or already-started leave. Instead,
-Campfire persists the proposed replacement fields and lets a Lead, Approver, or
-system admin explicitly approve or reject the correction.
+Members do not directly edit approved leave. They also do not directly delete
+approved leave after its start instant has passed. Instead, Campfire persists an
+edit or delete action and lets a Lead, Approver, or system admin decide it.
 */
 type LeaveChangeRequest struct {
 	ID              ID
 	LeaveRequestID  ID
 	WorkspaceID     ID
 	RequesterUserID string
+	Action          LeaveChangeRequestAction
 
 	LeaveTypeID ID
 	StartDate   LocalDate
@@ -83,8 +114,8 @@ type LeaveChangeRequest struct {
 }
 
 /*
-LeaveChangeRequestWithType contains a pending leave change request plus display
-data for the proposed leave type.
+LeaveChangeRequestWithType contains a pending leave change/delete request plus
+display data for the proposed or existing leave type.
 */
 type LeaveChangeRequestWithType struct {
 	ChangeRequest  LeaveChangeRequest

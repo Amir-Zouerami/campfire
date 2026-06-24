@@ -392,12 +392,28 @@ export type UpdateLeaveResponse = {
 /**
  * CreateLeaveChangeRequest is sent to POST /leaves/{leaveRequestID}/change-requests.
  */
-export type CreateLeaveChangeRequest = UpdateLeaveRequest;
+export type CreateLeaveChangeRequest = UpdateLeaveRequest & {
+	readonly action?: 'edit';
+};
+
+/**
+ * CreateLeaveDeletionRequest is sent to POST /leaves/{leaveRequestID}/delete-requests.
+ */
+export type CreateLeaveDeletionRequest = {
+	readonly reason: string;
+};
 
 /**
  * CreateLeaveChangeResponse is returned after creating a leave edit request.
  */
 export type CreateLeaveChangeResponse = {
+	readonly changeRequest: PendingLeaveChangeRequest['changeRequest'];
+};
+
+/**
+ * CreateLeaveDeletionResponse is returned after creating a leave deletion request.
+ */
+export type CreateLeaveDeletionResponse = {
 	readonly changeRequest: PendingLeaveChangeRequest['changeRequest'];
 };
 
@@ -735,7 +751,7 @@ export type ListMyTasksResponse = {
 };
 
 /**
- * CreateTimeEntryRequest is sent to POST /workspaces/{workspaceID}/time.
+ * CreateTimeEntryRequest is sent to POST /workspaces/{workspaceID}/time-entries.
  */
 export type CreateTimeEntryRequest = {
 	readonly taskId: string;
@@ -747,14 +763,22 @@ export type CreateTimeEntryRequest = {
 };
 
 /**
- * CreateTimeEntryResponse is returned by POST /workspaces/{workspaceID}/time.
+ * CreateTimeEntryResponse is returned by POST /workspaces/{workspaceID}/time-entries.
  */
 export type CreateTimeEntryResponse = {
 	readonly timeEntry: TimeEntry;
 };
 
 /**
- * ListMyTimeEntriesResponse is returned by GET /workspaces/{workspaceID}/time/my.
+ * DeleteTimeEntryResponse is returned by DELETE /workspaces/{workspaceID}/time-entries/{timeEntryID}.
+ */
+export type DeleteTimeEntryResponse = {
+	readonly deleted: boolean;
+	readonly entry: TimeEntry;
+};
+
+/**
+ * ListMyTimeEntriesResponse is returned by GET /workspaces/{workspaceID}/time-entries/my.
  */
 export type ListMyTimeEntriesResponse = {
 	readonly timeEntries: readonly TimeEntry[];
