@@ -1021,6 +1021,7 @@ func (s *SQLStandupStore) UpsertSubmission(
 		s.db,
 		submission.WorkspaceID,
 		submission.TemplateID,
+		submission.ScheduleID,
 		submission.UserID,
 		submission.OccurrenceDate,
 	)
@@ -1077,6 +1078,7 @@ func findExistingSubmission(
 	db *sqlx.DB,
 	workspaceID domain.ID,
 	templateID domain.ID,
+	scheduleID domain.ID,
 	userID string,
 	occurrenceDate domain.LocalDate,
 ) (*domain.StandupSubmission, error) {
@@ -1101,12 +1103,14 @@ func findExistingSubmission(
 			FROM campfire_standup_submissions
 			WHERE workspace_id = ?
 				AND template_id = ?
+				AND schedule_id = ?
 				AND user_id = ?
 				AND occurrence_date = ?
 			LIMIT 1
 		`),
 		workspaceID.String(),
 		templateID.String(),
+		scheduleID.String(),
 		userID,
 		occurrenceDate.String(),
 	)

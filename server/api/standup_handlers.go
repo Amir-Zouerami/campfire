@@ -554,6 +554,7 @@ func handleGetMyStandupSubmission(
 			WorkspaceID:    workspaceID,
 			OccurrenceDate: r.URL.Query().Get("occurrenceDate"),
 			TemplateID:     r.URL.Query().Get("templateId"),
+			ScheduleID:     r.URL.Query().Get("scheduleId"),
 		})
 		if err != nil {
 			logServiceError(log, err)

@@ -58,6 +58,7 @@ type GetMyStandupSubmissionInput struct {
 	WorkspaceID    string
 	OccurrenceDate string
 	TemplateID     string
+	ScheduleID     string
 }
 
 /*
@@ -970,8 +971,13 @@ func (s *StandupService) GetMySubmission(
 	}
 
 	cleanTemplateID := strings.TrimSpace(input.TemplateID)
+	cleanScheduleID := strings.TrimSpace(input.ScheduleID)
 	for _, submission := range submissions {
 		if submission.Submission.UserID != cleanActorUserID {
+			continue
+		}
+
+		if cleanScheduleID != "" && submission.Submission.ScheduleID.String() != cleanScheduleID {
 			continue
 		}
 

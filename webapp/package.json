@@ -1,6 +1,6 @@
 {
 	"name": "campfire-webapp",
-	"version": "1.3.0",
+	"version": "1.3.1",
 	"description": "React webapp bundle for the Campfire Mattermost plugin.",
 	"main": "index.js",
 	"private": true,

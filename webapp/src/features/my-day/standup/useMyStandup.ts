@@ -161,8 +161,12 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 	}, [input.workspace.id, occurrenceDate, t]);
 
 	const availableSchedules = useMemo(() => {
-		return schedules.filter(schedule => scheduleAllowsDate(schedule, runtimeDecision));
-	}, [runtimeDecision, schedules]);
+		const activeTemplateIDs = new Set(templates.map(template => template.id));
+
+		return schedules.filter(schedule => (
+			activeTemplateIDs.has(schedule.templateId) && scheduleAllowsDate(schedule, runtimeDecision)
+		));
+	}, [runtimeDecision, schedules, templates]);
 
 	useEffect(() => {
 		if (availableSchedules.length === 0) {
@@ -200,7 +204,7 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 		 * members can correct previous standups instead of overwriting a blank form.
 		 */
 		async function loadStoredSubmission(): Promise<void> {
-			if (selectedTemplate === null || occurrenceDate.trim() === '' || occurrenceDate > today) {
+			if (selectedSchedule === null || selectedTemplate === null || occurrenceDate.trim() === '' || occurrenceDate > today) {
 				return;
 			}
 
@@ -209,6 +213,7 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 					workspaceId: input.workspace.id,
 					occurrenceDate,
 					templateId: selectedTemplate.id,
+					scheduleId: selectedSchedule.id,
 				});
 
 				if (!isActive) {
@@ -239,7 +244,7 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 		return () => {
 			isActive = false;
 		};
-	}, [input.workspace.id, language, occurrenceDate, questions, selectedTemplate, t, today, visibleQuestions]);
+	}, [input.workspace.id, language, occurrenceDate, questions, selectedSchedule, selectedTemplate, t, today, visibleQuestions]);
 
 	const isBusy = loadState === 'loading' || loadState === 'saving';
 	const dateBlockedMessage = blockedDateMessage(occurrenceDate, today, runtimeDecision, availableSchedules, t);
@@ -258,11 +263,15 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 	 * handleScheduleChange changes selected schedule and rebuilds answer drafts.
 	 */
 	const handleScheduleChange = useCallback((scheduleID: string): void => {
+		if (scheduleID === selectedScheduleID) {
+			return;
+		}
+
 		const nextSchedule = availableSchedules.find(schedule => schedule.id === scheduleID) ?? null;
 
 		setSelectedScheduleID(scheduleID);
 		setAnswers(nextSchedule === null ? {} : buildInitialAnswers(questions, nextSchedule.templateId));
-	}, [availableSchedules, questions]);
+	}, [availableSchedules, questions, selectedScheduleID]);
 
 	/**
 	 * updateAnswer updates one answer draft.

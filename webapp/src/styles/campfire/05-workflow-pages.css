@@ -1157,17 +1157,23 @@
 .campfire-theme .campfire-toast-title {
 	color: #fffaf4 !important;
 	font-size: 0.9rem !important;
+	direction: initial !important;
 	font-weight: 660 !important;
 	letter-spacing: -0.01em !important;
 	line-height: 1.35 !important;
+	text-align: start !important;
+	unicode-bidi: plaintext !important;
 }
 
 .campfire-theme .campfire-toast-description {
 	color: rgba(226, 221, 214, 0.76) !important;
 	font-size: 0.8rem !important;
+	direction: initial !important;
 	font-weight: 450 !important;
 	line-height: 1.45 !important;
 	margin-top: 0.22rem !important;
+	text-align: start !important;
+	unicode-bidi: plaintext !important;
 }
 
 .campfire-theme .campfire-toast-icon-slot {

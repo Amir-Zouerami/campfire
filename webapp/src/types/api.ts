@@ -667,6 +667,7 @@ export type GetMyStandupSubmissionRequest = {
 	readonly workspaceId: string;
 	readonly occurrenceDate: string;
 	readonly templateId?: string;
+	readonly scheduleId?: string;
 };
 
 /**

@@ -11,7 +11,7 @@ import type { ReportSortMode, WeeklyReportPreview, Workspace } from '@/types/dom
 
 import {
 	buildWeeklyReportCalendarLabels,
-	errorToMessage,
+	reportPreviewErrorToMessage,
 	getCurrentWeekRange,
 	markdownLineCount,
 	reportDateRangeIsValid,
@@ -56,7 +56,7 @@ export type UseWeeklyReportPreviewResult = {
 export function useWeeklyReportPreview(input: UseWeeklyReportPreviewInput): UseWeeklyReportPreviewResult {
 	const { t } = useI18n();
 	const queryClient = useQueryClient();
-	const currentWeek = useMemo(() => getCurrentWeekRange(), []);
+	const currentWeek = useMemo(() => getCurrentWeekRange(input.workspace.timezone), [input.workspace.timezone]);
 	const [periodStart, setPeriodStartState] = useState(currentWeek.startDate);
 	const [periodEnd, setPeriodEndState] = useState(currentWeek.endDate);
 	const [sortMode, setSortModeState] = useState<ReportSortMode>('first_submitted');
@@ -125,7 +125,7 @@ export function useWeeklyReportPreview(input: UseWeeklyReportPreviewInput): UseW
 			});
 		},
 		onError: (error: unknown): void => {
-			const errorMessage = errorToMessage(error, t('reports.preview.error.fallback'));
+			const errorMessage = reportPreviewErrorToMessage(error, t);
 
 			setManualMessage('');
 			setManualError(errorMessage);
@@ -188,7 +188,7 @@ export function useWeeklyReportPreview(input: UseWeeklyReportPreviewInput): UseW
 		return markdownLineCount(preview?.markdown ?? '');
 	}, [preview]);
 
-	const queryErrorMessage = previewQuery.isError ? errorToMessage(previewQuery.error, t('reports.preview.error.fallback')) : '';
+	const queryErrorMessage = previewQuery.isError ? reportPreviewErrorToMessage(previewQuery.error, t) : '';
 	const message = manualError || validationError || queryErrorMessage || manualMessage;
 	const loadState = resolveReportPreviewLoadState({
 		validationError,
@@ -229,7 +229,7 @@ export function useWeeklyReportPreview(input: UseWeeklyReportPreviewInput): UseW
 	 * resetToCurrentWeek resets the report range to this local week.
 	 */
 	function resetToCurrentWeek(): void {
-		const nextWeek = getCurrentWeekRange();
+		const nextWeek = getCurrentWeekRange(input.workspace.timezone);
 
 		setManualError('');
 		setManualMessage('');

@@ -52,6 +52,7 @@ export function getDailyReportPreview(
 			sortMode,
 			calendarLabels: reportCalendarLabelsQueryValue(calendarLabels),
 		}),
+		{ suppressErrorToast: true },
 	);
 }
 
@@ -88,6 +89,7 @@ export function getWeeklyReportPreview(
 			sortMode,
 			calendarLabels: reportCalendarLabelsQueryValue(calendarLabels),
 		}),
+		{ suppressErrorToast: true },
 	);
 }
 

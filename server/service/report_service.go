@@ -204,44 +204,73 @@ func NewReportService(
 BuildDailyPreview builds a Markdown daily report preview.
 
 The preview includes submitted standups, missing users, and users skipped because
-they are on approved leave.
+they are on approved leave. It only builds a report when a daily standup schedule
+is actually active for the selected workspace date.
 */
 func (s *ReportService) BuildDailyPreview(
 	ctx context.Context,
 	input BuildDailyReportPreviewInput,
 ) (*domain.DailyReportPreview, error) {
-	workspace, err := s.loadReportWorkspace(ctx, input.WorkspaceID)
+	cleanActorUserID := strings.TrimSpace(input.ActorUserID)
+	if cleanActorUserID == "" {
+		return nil, NewError(ErrorCodePermissionDenied, "You must be signed in to view daily reports.")
+	}
+
+	cleanWorkspaceID := strings.TrimSpace(input.WorkspaceID)
+	if cleanWorkspaceID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Workspace ID is required.")
+	}
+
+	occurrenceDate := domain.LocalDate(strings.TrimSpace(input.OccurrenceDate))
+	if _, err := parseLocalDate(occurrenceDate); err != nil {
+		return nil, NewError(ErrorCodeValidationFailed, "Occurrence date must be a real YYYY-MM-DD calendar date.")
+	}
+
+	workspace, err := s.loadReportWorkspace(ctx, cleanWorkspaceID)
 	if err != nil {
 		return nil, err
 	}
 
 	configuration, err := s.standupService.ListConfiguration(ctx, ListStandupConfigurationInput{
-		ActorUserID: input.ActorUserID,
-		WorkspaceID: input.WorkspaceID,
+		ActorUserID: cleanActorUserID,
+		WorkspaceID: cleanWorkspaceID,
 	})
 	if err != nil {
 		return nil, err
 	}
 
+	activeScheduleContext, err := s.activeReportSchedulesForDate(
+		ctx,
+		*workspace,
+		*configuration,
+		domain.ReportKindDaily,
+		occurrenceDate,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	summary, err := s.standupService.ListSubmissions(ctx, ListStandupSubmissionsInput{
-		ActorUserID:    input.ActorUserID,
-		WorkspaceID:    input.WorkspaceID,
-		OccurrenceDate: input.OccurrenceDate,
+		ActorUserID:    cleanActorUserID,
+		WorkspaceID:    cleanWorkspaceID,
+		OccurrenceDate: occurrenceDate.String(),
 		SortMode:       input.SortMode,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	questionsByID := questionsByID(configuration.Questions)
-	rows := buildDailyReportRows(summary.Submissions, questionsByID)
+	dailySubmissions := filterReportSubmissionsBySchedule(summary.Submissions, activeScheduleContext.ScheduleIDs)
+	submittedUserIDs := submittedUserIDsFromSubmissions(dailySubmissions)
+	missingUserIDs := missingStandupUserIDs(summary.MemberUserIDs, submittedUserIDs, summary.OnLeaveUserIDs)
+	rows := buildDailyReportRows(dailySubmissions, questionsByID(configuration.Questions))
 
 	preview := &domain.DailyReportPreview{
 		WorkspaceID:      domain.ID(summary.WorkspaceID),
-		OccurrenceDate:   domain.LocalDate(summary.OccurrenceDate),
+		OccurrenceDate:   occurrenceDate,
 		SortMode:         summary.SortMode,
-		SubmittedUserIDs: summary.SubmittedUserIDs,
-		MissingUserIDs:   summary.MissingUserIDs,
+		SubmittedUserIDs: submittedUserIDs,
+		MissingUserIDs:   missingUserIDs,
 		OnLeaveUserIDs:   summary.OnLeaveUserIDs,
 		Rows:             rows,
 		Markdown:         "",
@@ -552,7 +581,10 @@ func (s *ReportService) UpdateRule(
 /*
 BuildWeeklyPreview builds a Markdown weekly report preview.
 
-The weekly preview renders only weekly standup submissions for the selected period. It must not stitch together daily standup reports across the week.
+The weekly preview renders only the weekly standup occurrence active inside the
+selected period. It must not stitch together daily standup reports across the
+week, and it must not use an arbitrary period end when the workspace weekly
+standup runs on the last working day before that end.
 */
 func (s *ReportService) BuildWeeklyPreview(
 	ctx context.Context,
@@ -609,26 +641,24 @@ func (s *ReportService) BuildWeeklyPreview(
 		return nil, err
 	}
 
-	weeklyTemplateIDs := weeklyTemplateIDSet(configuration.Templates)
-	weeklyScheduleIDs := weeklyScheduleIDSet(configuration.Schedules)
-	if len(weeklyTemplateIDs) == 0 && len(weeklyScheduleIDs) == 0 {
-		return nil, NewError(ErrorCodeValidationFailed, "Weekly standup template is not configured for this workspace.")
+	activeScheduleContext, err := s.activeWeeklyReportOccurrence(ctx, *workspace, *configuration, dates)
+	if err != nil {
+		return nil, err
 	}
 
 	weeklySummary, err := s.standupService.ListSubmissions(ctx, ListStandupSubmissionsInput{
 		ActorUserID:    cleanActorUserID,
 		WorkspaceID:    cleanWorkspaceID,
-		OccurrenceDate: periodEnd.String(),
+		OccurrenceDate: activeScheduleContext.OccurrenceDate.String(),
 		SortMode:       sortMode,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	weeklySubmissions := filterWeeklyReportSubmissions(
+	weeklySubmissions := filterReportSubmissionsBySchedule(
 		weeklySummary.Submissions,
-		weeklyTemplateIDs,
-		weeklyScheduleIDs,
+		activeScheduleContext.ScheduleIDs,
 	)
 	submittedUserIDs := submittedUserIDsFromSubmissions(weeklySubmissions)
 	onLeaveUserIDs := weeklySummary.OnLeaveUserIDs
@@ -640,7 +670,7 @@ func (s *ReportService) BuildWeeklyPreview(
 
 	weeklySubmissionPreview := domain.DailyReportPreview{
 		WorkspaceID:      domain.ID(weeklySummary.WorkspaceID),
-		OccurrenceDate:   periodEnd,
+		OccurrenceDate:   activeScheduleContext.OccurrenceDate,
 		SortMode:         weeklySummary.SortMode,
 		SubmittedUserIDs: submittedUserIDs,
 		MissingUserIDs:   missingUserIDs,
@@ -690,16 +720,133 @@ func (s *ReportService) BuildWeeklyPreview(
 }
 
 /*
-weeklyTemplateIDSet returns template IDs that are allowed in weekly reports.
-
-Weekly channel reports must not stitch together the entire week's daily
-standups. They should render only submissions made against weekly standup
-configuration.
+reportScheduleContext identifies the standup schedules that are eligible to feed
+one report occurrence.
 */
-func weeklyTemplateIDSet(templates []domain.StandupTemplate) map[string]bool {
+type reportScheduleContext struct {
+	OccurrenceDate domain.LocalDate
+	ScheduleIDs    map[string]bool
+}
+
+/*
+activeReportSchedulesForDate resolves active standup schedules for one report
+kind and date. Report previews and post actions use this guard so report rules
+cannot generate reports for dates where no matching standup was active.
+*/
+func (s *ReportService) activeReportSchedulesForDate(
+	ctx context.Context,
+	workspace domain.Workspace,
+	configuration StandupConfiguration,
+	reportKind domain.ReportKind,
+	occurrenceDate domain.LocalDate,
+) (*reportScheduleContext, error) {
+	if _, err := parseLocalDate(occurrenceDate); err != nil {
+		return nil, err
+	}
+
+	standupKind := standupKindForReportKind(reportKind)
+	if standupKind == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "Report kind is not connected to a standup kind.")
+	}
+
+	if err := s.standupService.requireStandupRunsForSubmission(ctx, workspace, occurrenceDate); err != nil {
+		if serviceErr, ok := AsError(err); ok && serviceErr.Code == ErrorCodeValidationFailed {
+			return nil, noActiveReportStandupError(reportKind, occurrenceDate)
+		}
+
+		return nil, err
+	}
+
+	activeTemplateIDs := templateIDSetForStandupKind(configuration.Templates, standupKind)
+	activeScheduleIDs := map[string]bool{}
+	for _, schedule := range configuration.Schedules {
+		if !schedule.Enabled || schedule.Kind != standupKind {
+			continue
+		}
+
+		if !activeTemplateIDs[schedule.TemplateID.String()] {
+			continue
+		}
+
+		if err := s.standupService.requireScheduleAllowsSubmissionDate(
+			ctx,
+			workspace,
+			schedule,
+			configuration.Schedules,
+			occurrenceDate,
+		); err != nil {
+			continue
+		}
+
+		activeScheduleIDs[schedule.ID.String()] = true
+	}
+
+	if len(activeScheduleIDs) == 0 {
+		return nil, noActiveReportStandupError(reportKind, occurrenceDate)
+	}
+
+	return &reportScheduleContext{
+		OccurrenceDate: occurrenceDate,
+		ScheduleIDs:    activeScheduleIDs,
+	}, nil
+}
+
+/*
+activeWeeklyReportOccurrence finds the latest weekly standup occurrence inside a
+manual report range. This lets Monday-Sunday browser ranges still pick the
+workspace's real last-working-day weekly standup.
+*/
+func (s *ReportService) activeWeeklyReportOccurrence(
+	ctx context.Context,
+	workspace domain.Workspace,
+	configuration StandupConfiguration,
+	dates []domain.LocalDate,
+) (*reportScheduleContext, error) {
+	for index := len(dates) - 1; index >= 0; index -= 1 {
+		contextForDate, err := s.activeReportSchedulesForDate(
+			ctx,
+			workspace,
+			configuration,
+			domain.ReportKindWeekly,
+			dates[index],
+		)
+		if err == nil {
+			return contextForDate, nil
+		}
+
+		if serviceErr, ok := AsError(err); !ok || serviceErr.Code != ErrorCodeValidationFailed {
+			return nil, err
+		}
+	}
+
+	return nil, NewError(ErrorCodeValidationFailed, "No weekly standup was active in the selected period.")
+}
+
+/*
+standupKindForReportKind maps report kinds to the standup schedule kind that can
+produce the report.
+*/
+func standupKindForReportKind(reportKind domain.ReportKind) domain.StandupKind {
+	switch reportKind {
+	case domain.ReportKindDaily:
+		return domain.StandupKindDaily
+	case domain.ReportKindWeekly:
+		return domain.StandupKindWeekly
+	default:
+		return ""
+	}
+}
+
+/*
+templateIDSetForStandupKind returns active template IDs for one standup kind.
+*/
+func templateIDSetForStandupKind(
+	templates []domain.StandupTemplate,
+	standupKind domain.StandupKind,
+) map[string]bool {
 	ids := map[string]bool{}
 	for _, template := range templates {
-		if template.Kind != domain.StandupKindWeekly {
+		if !template.IsActive || template.Kind != standupKind {
 			continue
 		}
 
@@ -710,42 +857,106 @@ func weeklyTemplateIDSet(templates []domain.StandupTemplate) map[string]bool {
 }
 
 /*
-weeklyScheduleIDSet returns weekly schedule IDs as an extra guard for filtering
-weekly report submissions.
+filterReportSubmissionsBySchedule keeps only submissions tied to active schedules
+for the report kind/date being rendered.
 */
-func weeklyScheduleIDSet(schedules []domain.StandupSchedule) map[string]bool {
-	ids := map[string]bool{}
-	for _, schedule := range schedules {
-		if schedule.Kind != domain.StandupKindWeekly {
-			continue
-		}
-
-		ids[schedule.ID.String()] = true
-	}
-
-	return ids
-}
-
-/*
-filterWeeklyReportSubmissions keeps only submissions that belong to a weekly
-standup template or schedule.
-*/
-func filterWeeklyReportSubmissions(
+func filterReportSubmissionsBySchedule(
 	submissions []domain.StandupSubmissionWithAnswers,
-	weeklyTemplateIDs map[string]bool,
-	weeklyScheduleIDs map[string]bool,
+	activeScheduleIDs map[string]bool,
 ) []domain.StandupSubmissionWithAnswers {
 	filtered := make([]domain.StandupSubmissionWithAnswers, 0, len(submissions))
 	for _, submission := range submissions {
-		templateID := submission.Submission.TemplateID.String()
-		scheduleID := submission.Submission.ScheduleID.String()
-
-		if weeklyTemplateIDs[templateID] || weeklyScheduleIDs[scheduleID] {
+		if activeScheduleIDs[submission.Submission.ScheduleID.String()] {
 			filtered = append(filtered, submission)
 		}
 	}
 
 	return filtered
+}
+
+/*
+noActiveReportStandupError returns clear report-preview copy for inactive days.
+*/
+func noActiveReportStandupError(reportKind domain.ReportKind, occurrenceDate domain.LocalDate) error {
+	switch reportKind {
+	case domain.ReportKindDaily:
+		return NewError(
+			ErrorCodeValidationFailed,
+			"No daily standup was active for this workspace on "+occurrenceDate.String()+".",
+		)
+	case domain.ReportKindWeekly:
+		return NewError(
+			ErrorCodeValidationFailed,
+			"No weekly standup was active for this workspace on "+occurrenceDate.String()+".",
+		)
+	default:
+		return NewError(ErrorCodeValidationFailed, "No standup was active for this report date.")
+	}
+}
+
+/*
+requireReportRuleScheduleActiveForDate enforces that the enabled report rule
+being posted is attached to a standup schedule that is active for the resolved
+report occurrence. This closes the gap between report-rule activation and actual
+standup schedule activation.
+*/
+func (s *ReportService) requireReportRuleScheduleActiveForDate(
+	ctx context.Context,
+	actorUserID string,
+	workspace domain.Workspace,
+	reportRule domain.ReportRule,
+	reportKind domain.ReportKind,
+	occurrenceDate domain.LocalDate,
+) error {
+	configuration, err := s.standupService.ListConfiguration(ctx, ListStandupConfigurationInput{
+		ActorUserID: actorUserID,
+		WorkspaceID: workspace.ID.String(),
+	})
+	if err != nil {
+		return err
+	}
+
+	scheduleContext, err := s.activeReportSchedulesForDate(
+		ctx,
+		workspace,
+		*configuration,
+		reportKind,
+		occurrenceDate,
+	)
+	if err != nil {
+		return err
+	}
+
+	if reportRuleScheduleIsActive(reportRule, scheduleContext) {
+		return nil
+	}
+
+	switch reportKind {
+	case domain.ReportKindDaily:
+		return NewError(
+			ErrorCodeValidationFailed,
+			"The enabled daily report rule is not connected to an active daily standup schedule for this date.",
+		)
+	case domain.ReportKindWeekly:
+		return NewError(
+			ErrorCodeValidationFailed,
+			"The enabled weekly report rule is not connected to an active weekly standup schedule for this period.",
+		)
+	default:
+		return NewError(ErrorCodeValidationFailed, "The enabled report rule is not connected to an active standup schedule.")
+	}
+}
+
+/*
+reportRuleScheduleIsActive reports whether an enabled report rule points at an
+active standup schedule for the resolved report occurrence.
+*/
+func reportRuleScheduleIsActive(reportRule domain.ReportRule, scheduleContext *reportScheduleContext) bool {
+	if scheduleContext == nil {
+		return false
+	}
+
+	return scheduleContext.ScheduleIDs[reportRule.ScheduleID.String()]
 }
 
 /*
@@ -843,6 +1054,21 @@ func (s *ReportService) PostWeeklyPreview(
 		CalendarLabels: input.CalendarLabels,
 	})
 	if err != nil {
+		return nil, err
+	}
+
+	if len(preview.DailyPreviews) == 0 {
+		return nil, NewError(ErrorCodeValidationFailed, "Weekly report preview is not connected to a weekly standup occurrence.")
+	}
+
+	if err := s.requireReportRuleScheduleActiveForDate(
+		ctx,
+		cleanActorUserID,
+		*workspace,
+		*reportRule,
+		domain.ReportKindWeekly,
+		preview.DailyPreviews[0].OccurrenceDate,
+	); err != nil {
 		return nil, err
 	}
 
@@ -976,6 +1202,17 @@ func (s *ReportService) PostDailyPreview(
 		CalendarLabels: input.CalendarLabels,
 	})
 	if err != nil {
+		return nil, err
+	}
+
+	if err := s.requireReportRuleScheduleActiveForDate(
+		ctx,
+		cleanActorUserID,
+		*workspace,
+		*reportRule,
+		domain.ReportKindDaily,
+		preview.OccurrenceDate,
+	); err != nil {
 		return nil, err
 	}
 

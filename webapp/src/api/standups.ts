@@ -196,6 +196,7 @@ export function getMyStandupSubmission(
 		withQuery(`/workspaces/${encodePath(request.workspaceId)}/standups/my-submission`, {
 			occurrenceDate: request.occurrenceDate,
 			templateId: request.templateId,
+			scheduleId: request.scheduleId,
 		}),
 	);
 }

@@ -8,6 +8,7 @@ import { ApiClientError, publishAPIError } from './errors';
 type RequestOptions = {
 	readonly method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
 	readonly body?: unknown;
+	readonly suppressErrorToast?: boolean;
 };
 
 /**
@@ -25,11 +26,13 @@ export async function requestJson<ResponseBody>(path: string, options: RequestOp
 		credentials: 'include',
 		headers: buildHeaders(method, options.body),
 		body: options.body === undefined ? undefined : JSON.stringify(options.body),
-	});
+	}, options.suppressErrorToast === true);
 
 	if (!response.ok) {
 		const error = await buildAPIError(response);
-		publishAPIError(error, { method, path });
+		if (options.suppressErrorToast !== true) {
+			publishAPIError(error, { method, path });
+		}
 		throw error;
 	}
 
@@ -56,7 +59,7 @@ export async function requestBlob(path: string): Promise<Blob> {
 		headers: {
 			Accept: 'text/csv, application/octet-stream, */*',
 		},
-	});
+	}, false);
 
 	if (!response.ok) {
 		const error = await buildAPIError(response);
@@ -100,7 +103,12 @@ export function encodePath(value: string): string {
 /**
  * safeFetch converts network-level failures into the same ApiClientError path as server failures.
  */
-async function safeFetch(path: string, method: string, init: RequestInit): Promise<Response> {
+async function safeFetch(
+	path: string,
+	method: string,
+	init: RequestInit,
+	suppressErrorToast: boolean,
+): Promise<Response> {
 	try {
 		return await fetch(buildURL(path), init);
 	} catch (error: unknown) {
@@ -108,7 +116,9 @@ async function safeFetch(path: string, method: string, init: RequestInit): Promi
 			? error.message
 			: 'Campfire could not reach the server. Check your connection and try again.';
 		const apiError = new ApiClientError('network_error', message, 0);
-		publishAPIError(apiError, { method, path });
+		if (!suppressErrorToast) {
+			publishAPIError(apiError, { method, path });
+		}
 		throw apiError;
 	}
 }

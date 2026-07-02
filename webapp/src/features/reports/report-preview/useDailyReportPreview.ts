@@ -11,7 +11,7 @@ import type { DailyReportPreview, StandupSubmissionSortMode, Workspace } from '@
 
 import {
 	buildDailyReportCalendarLabels,
-	errorToMessage,
+	reportPreviewErrorToMessage,
 	getTodayLocalDateString,
 	markdownLineCount,
 	toDailyReportSortMode,
@@ -109,7 +109,7 @@ export function useDailyReportPreview(input: UseDailyReportPreviewInput): UseDai
 			});
 		},
 		onError: (error: unknown): void => {
-			const errorMessage = errorToMessage(error, t('reports.preview.error.fallback'));
+			const errorMessage = reportPreviewErrorToMessage(error, t);
 
 			setManualMessage('');
 			setManualError(errorMessage);
@@ -168,7 +168,7 @@ export function useDailyReportPreview(input: UseDailyReportPreviewInput): UseDai
 		return markdownLineCount(preview?.markdown ?? '');
 	}, [preview]);
 
-	const queryErrorMessage = previewQuery.isError ? errorToMessage(previewQuery.error, t('reports.preview.error.fallback')) : '';
+	const queryErrorMessage = previewQuery.isError ? reportPreviewErrorToMessage(previewQuery.error, t) : '';
 	const message = manualError || validationError || queryErrorMessage || manualMessage;
 	const loadState = resolveReportPreviewLoadState({
 		validationError,
