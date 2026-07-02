@@ -40,8 +40,8 @@ export function CampfireReportSummaryBar(props: CampfireReportSummaryBarProps): 
 					key={`${item.label}-${item.value}`}
 					className={cn('campfire-report-summary-item', item.tone !== undefined && `campfire-report-summary-item--${item.tone}`)}
 				>
-					<span>{item.label}</span>
-					<strong>{item.value}</strong>
+					<span dir="auto">{item.label}</span>
+					<strong dir="auto">{item.value}</strong>
 				</span>
 			))}
 		</div>

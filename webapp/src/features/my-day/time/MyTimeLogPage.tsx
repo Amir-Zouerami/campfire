@@ -78,125 +78,127 @@ export function MyTimeLogPage(props: MyTimeLogPageProps): ReactElement {
 			<MyTimeFeedback state={timeLog.loadState} message={timeLog.message} />
 			{timeLog.loadState === 'loading' && <MyTimeLoading />}
 
-			<div className="campfire-time-layout">
-				<CampfireSurface className="campfire-table-surface campfire-readable-table-surface">
-					<div className="campfire-surface-header">
-						<div>
-							<h3 className="campfire-surface-title">{t('myDay.time.recent.title')}</h3>
+			{timeLog.loadState !== 'loading' && (
+				<div className="campfire-time-layout">
+					<CampfireSurface className="campfire-table-surface campfire-readable-table-surface">
+						<div className="campfire-surface-header">
+							<div>
+								<h3 className="campfire-surface-title">{t('myDay.time.recent.title')}</h3>
+							</div>
 						</div>
-					</div>
 
-					<CampfireDataTable
-						label={t('myDay.time.table.label')}
-						columns={[
-							t('myDay.time.table.column.task'),
-							t('myDay.time.table.column.date'),
-							t('myDay.time.table.column.duration'),
-							t('myDay.time.table.column.note'),
-							t('common.delete'),
-						]}
-						className="campfire-data-table--time campfire-data-table--personal-time"
-						columnsTemplate="minmax(0, 1.25fr) minmax(8rem, 0.72fr) minmax(7rem, 0.58fr) minmax(0, 1fr) minmax(3.2rem, 0.22fr)"
-						empty={recentEntries.length === 0 ? (
-							<CampfireEmptyState
-								icon={Inbox}
-								title={t('myDay.time.empty.title')}
-								description={t('myDay.time.empty.description')}
-							/>
-						) : undefined}
-						footer={<>{t('myDay.time.footer.showing', { visible: recentEntries.length, total: timeLog.timeEntries.length })}</>}
-					>
-						{recentEntries.map(entry => (
-							<TimeEntryRow
-								key={entry.id}
-								entry={entry}
-								disabled={timeLog.isBusy}
-								locale={htmlLang}
-								taskTitle={taskLabelForID(timeLog.tasksByID, entry.taskId, t('myDay.time.task.unknown'))}
-								onDelete={() => {
-									if (window.confirm(t('myDay.time.confirm.deleteEntry'))) {
-										void timeLog.deleteTimeEntry(entry.id);
-									}
-								}}
-							/>
-						))}
-					</CampfireDataTable>
-				</CampfireSurface>
+						<CampfireDataTable
+							label={t('myDay.time.table.label')}
+							columns={[
+								t('myDay.time.table.column.task'),
+								t('myDay.time.table.column.date'),
+								t('myDay.time.table.column.duration'),
+								t('myDay.time.table.column.note'),
+								t('common.delete'),
+							]}
+							className="campfire-data-table--time campfire-data-table--personal-time"
+							columnsTemplate="minmax(0, 1.25fr) minmax(8rem, 0.72fr) minmax(7rem, 0.58fr) minmax(0, 1fr) minmax(3.2rem, 0.22fr)"
+							empty={recentEntries.length === 0 ? (
+								<CampfireEmptyState
+									icon={Inbox}
+									title={t('myDay.time.empty.title')}
+									description={t('myDay.time.empty.description')}
+								/>
+							) : undefined}
+							footer={<>{t('myDay.time.footer.showing', { visible: recentEntries.length, total: timeLog.timeEntries.length })}</>}
+						>
+							{recentEntries.map(entry => (
+								<TimeEntryRow
+									key={entry.id}
+									entry={entry}
+									disabled={timeLog.isBusy}
+									locale={htmlLang}
+									taskTitle={taskLabelForID(timeLog.tasksByID, entry.taskId, t('myDay.time.task.unknown'))}
+									onDelete={() => {
+										if (window.confirm(t('myDay.time.confirm.deleteEntry'))) {
+											void timeLog.deleteTimeEntry(entry.id);
+										}
+									}}
+								/>
+							))}
+						</CampfireDataTable>
+					</CampfireSurface>
 
-				<CampfireSurface className="campfire-time-entry-panel">
-					<div className="campfire-surface-header">
-						<div>
-							<h3 className="campfire-surface-title">{t('myDay.time.log.title')}</h3>
-							<p className="campfire-surface-description">{t('myDay.time.log.description')}</p>
+					<CampfireSurface className="campfire-time-entry-panel">
+						<div className="campfire-surface-header">
+							<div>
+								<h3 className="campfire-surface-title">{t('myDay.time.log.title')}</h3>
+								<p className="campfire-surface-description">{t('myDay.time.log.description')}</p>
+							</div>
 						</div>
-					</div>
 
-					<div className="campfire-form-stack">
-						<label className="campfire-form-field">
-							<span>{t('myDay.time.field.task')}</span>
-							<CampfireSelect
-								id="campfire-time-log-task"
-								value={timeLog.timeDraft.taskId}
-								disabled={timeLog.isBusy || timeLog.loggableTasks.length === 0}
-								onValueChange={timeLog.handleTimeTaskChange}
-								searchable={true}
-								searchPlaceholder={t('myDay.time.searchTasks.placeholder')}
-								maxVisibleOptions={50}
-							>
-								<option value="">{t('myDay.time.field.task.placeholder')}</option>
-								{timeLog.loggableTasks.map(task => (
-									<option key={task.id} value={task.id}>
-										{task.title}
-									</option>
-								))}
-							</CampfireSelect>
-							<CampfireFieldError message={timeLog.timeDraftErrors.taskId} />
-						</label>
+						<div className="campfire-form-stack">
+							<label className="campfire-form-field">
+								<span>{t('myDay.time.field.task')}</span>
+								<CampfireSelect
+									id="campfire-time-log-task"
+									value={timeLog.timeDraft.taskId}
+									disabled={timeLog.isBusy || timeLog.loggableTasks.length === 0}
+									onValueChange={timeLog.handleTimeTaskChange}
+									searchable={true}
+									searchPlaceholder={t('myDay.time.searchTasks.placeholder')}
+									maxVisibleOptions={50}
+								>
+									<option value="">{t('myDay.time.field.task.placeholder')}</option>
+									{timeLog.loggableTasks.map(task => (
+										<option key={task.id} value={task.id}>
+											{task.title}
+										</option>
+									))}
+								</CampfireSelect>
+								<CampfireFieldError message={timeLog.timeDraftErrors.taskId} />
+							</label>
 
-						<label className="campfire-form-field">
-							<span>{t('myDay.time.field.entryDate')}</span>
-							<CampfireDateInput
-								id="campfire-time-log-date"
-								disabled={timeLog.isBusy}
-								timezone={props.workspace.timezone}
-								workingDays={props.workspace.workingDays}
-								value={timeLog.timeDraft.entryDate}
-								onValueChange={value => timeLog.updateTimeDraft({ entryDate: value })}
-							/>
-						</label>
+							<label className="campfire-form-field">
+								<span>{t('myDay.time.field.entryDate')}</span>
+								<CampfireDateInput
+									id="campfire-time-log-date"
+									disabled={timeLog.isBusy}
+									timezone={props.workspace.timezone}
+									workingDays={props.workspace.workingDays}
+									value={timeLog.timeDraft.entryDate}
+									onValueChange={value => timeLog.updateTimeDraft({ entryDate: value })}
+								/>
+							</label>
 
-						<label className="campfire-form-field">
-							<span>{t('myDay.time.field.minutes')}</span>
-							<CampfireResponsiveInput
-								type="number"
-								min="1"
-								step="5"
-								value={timeLog.timeDraft.minutes}
-								disabled={timeLog.isBusy}
-								aria-invalid={timeLog.timeDraftErrors.minutes !== undefined}
-								onValueChange={value => timeLog.updateTimeDraft({ minutes: value })}
-							/>
-							<CampfireFieldError message={timeLog.timeDraftErrors.minutes} />
-						</label>
+							<label className="campfire-form-field">
+								<span>{t('myDay.time.field.minutes')}</span>
+								<CampfireResponsiveInput
+									type="number"
+									min="1"
+									step="5"
+									value={timeLog.timeDraft.minutes}
+									disabled={timeLog.isBusy}
+									aria-invalid={timeLog.timeDraftErrors.minutes !== undefined}
+									onValueChange={value => timeLog.updateTimeDraft({ minutes: value })}
+								/>
+								<CampfireFieldError message={timeLog.timeDraftErrors.minutes} />
+							</label>
 
-						<label className="campfire-form-field">
-							<span>{t('myDay.time.field.note')}</span>
-							<CampfireResponsiveTextarea
-								value={timeLog.timeDraft.note}
-								disabled={timeLog.isBusy}
-								placeholder={t('myDay.time.field.note.placeholder')}
-								onValueChange={value => timeLog.updateTimeDraft({ note: value })}
-							/>
-						</label>
-					</div>
+							<label className="campfire-form-field">
+								<span>{t('myDay.time.field.note')}</span>
+								<CampfireResponsiveTextarea
+									value={timeLog.timeDraft.note}
+									disabled={timeLog.isBusy}
+									placeholder={t('myDay.time.field.note.placeholder')}
+									onValueChange={value => timeLog.updateTimeDraft({ note: value })}
+								/>
+							</label>
+						</div>
 
-					<div className="campfire-form-actions">
-						<Button type="button" disabled={timeLog.isBusy} onClick={() => void timeLog.submitTimeEntry()}>
-							{t('myDay.time.action.saveEntry')}
-						</Button>
-					</div>
-				</CampfireSurface>
-			</div>
+						<div className="campfire-form-actions">
+							<Button type="button" disabled={timeLog.isBusy} onClick={() => void timeLog.submitTimeEntry()}>
+								{t('myDay.time.action.saveEntry')}
+							</Button>
+						</div>
+					</CampfireSurface>
+				</div>
+			)}
 		</div>
 	);
 }

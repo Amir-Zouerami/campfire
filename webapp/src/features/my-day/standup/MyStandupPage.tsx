@@ -88,7 +88,7 @@ export function MyStandupPage(props: MyStandupPageProps): ReactElement {
 						/>
 					)}
 
-					{standup.schedules.length > 0 && (
+					{standup.loadState !== 'loading' && standup.schedules.length > 0 && (
 						<form className="campfire-standup-form" onSubmit={handleSubmit}>
 							<MyStandupControls
 								schedules={standup.availableSchedules}

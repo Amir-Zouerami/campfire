@@ -34,6 +34,16 @@ export function TeamStandupsPage(props: TeamStandupsPageProps): ReactElement {
 	const missingCount = standups.summary?.missingUserIds.length ?? 0;
 	const onLeaveCount = standups.summary?.onLeaveUserIds.length ?? 0;
 	const excludedCount = standups.summary?.excludedUserIds.length ?? 0;
+	const loadingSummaryValue = t('common.loading');
+	const memberSummaryValue = standups.loadState === 'loading' ? loadingSummaryValue : String(memberCount);
+	const submittedSummaryValue = standups.loadState === 'loading' ? loadingSummaryValue : String(submittedCount);
+	const missingSummaryValue = standups.loadState === 'loading' ? loadingSummaryValue : String(missingCount);
+	const onLeaveSummaryValue = standups.loadState === 'loading' ? loadingSummaryValue : String(onLeaveCount);
+	const excludedSummaryValue = standups.loadState === 'loading' ? loadingSummaryValue : String(excludedCount);
+	const completeSummaryValue = standups.loadState === 'loading' ? loadingSummaryValue : `${standups.submittedPercent}%`;
+	const submittedSummaryTone = standups.loadState === 'loading' ? 'neutral' : 'success';
+	const missingSummaryTone = standups.loadState === 'loading' ? 'neutral' : missingCount > 0 ? 'danger' : 'neutral';
+	const completeSummaryTone = standups.loadState === 'loading' ? 'neutral' : standups.submittedPercent >= 80 ? 'success' : 'warning';
 
 	return (
 		<div className="campfire-team-standups-page campfire-team-review-clean-page">
@@ -54,12 +64,12 @@ export function TeamStandupsPage(props: TeamStandupsPageProps): ReactElement {
 			>
 				<CampfireReportSummaryBar
 					items={[
-						{ label: t('teamReview.standups.summary.participants'), value: String(memberCount) },
-						{ label: t('teamReview.standups.summary.excluded'), value: String(excludedCount) },
-						{ label: t('teamReview.standups.summary.submitted'), value: String(submittedCount), tone: 'success' },
-						{ label: t('teamReview.standups.summary.missing'), value: String(missingCount), tone: missingCount > 0 ? 'danger' : 'neutral' },
-						{ label: t('teamReview.standups.summary.onLeave'), value: String(onLeaveCount) },
-						{ label: t('teamReview.standups.summary.complete'), value: `${standups.submittedPercent}%`, tone: standups.submittedPercent >= 80 ? 'success' : 'warning' },
+						{ label: t('teamReview.standups.summary.participants'), value: memberSummaryValue },
+						{ label: t('teamReview.standups.summary.excluded'), value: excludedSummaryValue },
+						{ label: t('teamReview.standups.summary.submitted'), value: submittedSummaryValue, tone: submittedSummaryTone },
+						{ label: t('teamReview.standups.summary.missing'), value: missingSummaryValue, tone: missingSummaryTone },
+						{ label: t('teamReview.standups.summary.onLeave'), value: onLeaveSummaryValue },
+						{ label: t('teamReview.standups.summary.complete'), value: completeSummaryValue, tone: completeSummaryTone },
 					]}
 				/>
 			</CampfireControlsPanel>

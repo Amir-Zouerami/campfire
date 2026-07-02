@@ -28,16 +28,16 @@ export function CampfireSettingsPanel(props: CampfireSettingsPanelProps): ReactE
 		<section className={cn('campfire-settings-panel', props.className)}>
 			<header className="campfire-settings-panel-header">
 				<div className="campfire-settings-panel-title-group">
-					{props.eyebrow !== undefined && <p className="campfire-page-eyebrow">{props.eyebrow}</p>}
+					{props.eyebrow !== undefined && <p className="campfire-page-eyebrow" dir="auto">{props.eyebrow}</p>}
 					<div className="campfire-settings-panel-title-row">
 						{Icon !== undefined && (
 							<span className="campfire-settings-panel-icon" aria-hidden="true">
 								<Icon className="cf:size-5" />
 							</span>
 						)}
-						<h3>{props.title}</h3>
+						<h3 dir="auto">{props.title}</h3>
 					</div>
-					{props.description !== undefined && <p>{props.description}</p>}
+					{props.description !== undefined && <p dir="auto">{props.description}</p>}
 				</div>
 
 				{props.meta !== undefined && <div className="campfire-settings-panel-meta">{props.meta}</div>}

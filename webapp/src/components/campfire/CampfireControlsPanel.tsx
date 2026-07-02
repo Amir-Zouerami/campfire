@@ -31,9 +31,9 @@ export function CampfireControlsPanel(
       aria-labelledby={titleID}
     >
       <div className="campfire-controls-panel-header">
-        <p className="campfire-controls-panel-eyebrow">{props.eyebrow}</p>
-        <h3 id={titleID}>{props.title}</h3>
-        <p>{props.description}</p>
+        <p className="campfire-controls-panel-eyebrow" dir="auto">{props.eyebrow}</p>
+        <h3 id={titleID} dir="auto">{props.title}</h3>
+        <p dir="auto">{props.description}</p>
       </div>
 
       <div className="campfire-controls-panel-controls">{props.controls}</div>

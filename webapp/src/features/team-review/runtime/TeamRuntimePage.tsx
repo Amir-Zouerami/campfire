@@ -29,6 +29,17 @@ export function TeamRuntimePage(props: TeamRuntimePageProps): ReactElement {
 	const { t } = useI18n();
 	const runtime = useTeamRuntime(props);
 	const profiles = useUserProfiles(runtime.userIDsForProfiles);
+	const loadingSummaryValue = t('common.loading');
+	const decisionSummaryValue = runtime.loadState === 'loading' ? loadingSummaryValue : runtimeDecisionLabel(runtime.decision, t);
+	const reasonSummaryValue = runtime.loadState === 'loading'
+		? loadingSummaryValue
+		: runtime.decision === null
+			? t('teamReview.runtime.decision.notEvaluated')
+			: runtimeReasonLabel(runtime.decision.reason, t);
+	const participantSummaryValue = runtime.loadState === 'loading' ? loadingSummaryValue : String(runtime.decision?.memberCount ?? 0);
+	const onLeaveSummaryValue = runtime.loadState === 'loading' ? loadingSummaryValue : String(runtime.decision?.onLeaveMemberCount ?? 0);
+	const excludedSummaryValue = runtime.loadState === 'loading' ? loadingSummaryValue : String(runtime.decision?.excludedMemberCount ?? 0);
+	const decisionSummaryTone = runtime.loadState === 'loading' ? 'neutral' : runtime.decision?.shouldRun === false ? 'danger' : 'success';
 
 	return (
 		<div className="campfire-team-workflow campfire-team-review-clean-page">
@@ -50,18 +61,16 @@ export function TeamRuntimePage(props: TeamRuntimePageProps): ReactElement {
 					items={[
 						{
 							label: t('teamReview.runtime.summary.decision'),
-							value: runtimeDecisionLabel(runtime.decision, t),
-							tone: runtime.decision?.shouldRun === false ? 'danger' : 'success',
+							value: decisionSummaryValue,
+							tone: decisionSummaryTone,
 						},
 						{
 							label: t('teamReview.runtime.summary.reason'),
-							value: runtime.decision === null
-								? t('teamReview.runtime.decision.notEvaluated')
-								: runtimeReasonLabel(runtime.decision.reason, t),
+							value: reasonSummaryValue,
 						},
-						{ label: t('teamReview.runtime.summary.participants'), value: String(runtime.decision?.memberCount ?? 0) },
-						{ label: t('teamReview.runtime.summary.onLeave'), value: String(runtime.decision?.onLeaveMemberCount ?? 0) },
-						{ label: t('teamReview.runtime.summary.excluded'), value: String(runtime.decision?.excludedMemberCount ?? 0) },
+						{ label: t('teamReview.runtime.summary.participants'), value: participantSummaryValue },
+						{ label: t('teamReview.runtime.summary.onLeave'), value: onLeaveSummaryValue },
+						{ label: t('teamReview.runtime.summary.excluded'), value: excludedSummaryValue },
 						{ label: t('teamReview.runtime.summary.profiles'), value: profiles.loading ? t('common.loading') : t('common.ready') },
 					]}
 				/>

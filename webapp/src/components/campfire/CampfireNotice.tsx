@@ -34,11 +34,11 @@ export function CampfireNotice(props: CampfireNoticeProps): ReactElement {
 			<div className="campfire-notice-row-copy">
 				{hasStructuredCopy ? (
 					<>
-						{props.title !== undefined && <strong>{props.title}</strong>}
-						{props.description !== undefined && <p>{props.description}</p>}
+						{props.title !== undefined && <strong dir="auto">{props.title}</strong>}
+						{props.description !== undefined && <p dir="auto">{props.description}</p>}
 					</>
 				) : (
-					<p>{props.children}</p>
+					<p dir="auto">{props.children}</p>
 				)}
 			</div>
 

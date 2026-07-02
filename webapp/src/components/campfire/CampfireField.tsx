@@ -21,7 +21,7 @@ export function CampfireField(props: CampfireFieldProps): ReactElement {
   return (
     <div className="campfire-field cf:grid cf:gap-2">
       <div className="campfire-field-label-row">
-        <Label htmlFor={props.id}>{props.label}</Label>
+        <Label htmlFor={props.id} dir="auto">{props.label}</Label>
         {props.labelAction !== undefined && (
           <span className="campfire-field-label-action">
             {props.labelAction}
@@ -32,7 +32,7 @@ export function CampfireField(props: CampfireFieldProps): ReactElement {
       {props.children}
 
       {props.error !== undefined && props.error.trim() !== "" ? (
-        <p className="cf:m-0 cf:text-xs cf:font-bold cf:leading-5 cf:text-red-100">
+        <p className="cf:m-0 cf:text-xs cf:font-bold cf:leading-5 cf:text-red-100" dir="auto">
           {props.error}
         </p>
       ) : null}
@@ -40,7 +40,7 @@ export function CampfireField(props: CampfireFieldProps): ReactElement {
       {props.error === undefined &&
       props.description !== undefined &&
       props.description.trim() !== "" ? (
-        <p className="cf:m-0 cf:text-xs cf:font-semibold cf:leading-5 cf:text-muted-foreground">
+        <p className="cf:m-0 cf:text-xs cf:font-semibold cf:leading-5 cf:text-muted-foreground" dir="auto">
           {props.description}
         </p>
       ) : null}

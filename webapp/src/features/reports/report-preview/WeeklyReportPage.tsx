@@ -13,7 +13,7 @@ import type { Workspace } from '@/types/domain';
 import { toWeeklyReportSortMode, weeklyReportSortOptions } from './report-preview.helpers';
 import { translateReportSortMode } from './report-preview.i18n';
 import { ReportMarkdownPreview } from './ReportMarkdownPreview';
-import { ReportPreviewFeedback, ReportPreviewLoading } from './ReportPreviewFeedback';
+import { ReportPreviewFeedback } from './ReportPreviewFeedback';
 import { useWeeklyReportPreview } from './useWeeklyReportPreview';
 
 /**
@@ -31,6 +31,7 @@ export function WeeklyReportPage(props: WeeklyReportPageProps): ReactElement {
 	const { t } = useI18n();
 	const report = useWeeklyReportPreview(props);
 	const missingCount = report.preview?.missingCount ?? 0;
+	const previewLoading = report.isBusy && report.preview === null;
 
 	return (
 		<div className="campfire-page-stack campfire-report-page-stack">
@@ -88,7 +89,6 @@ export function WeeklyReportPage(props: WeeklyReportPageProps): ReactElement {
 				<ReportPreviewFeedback state={report.loadState} message={report.message} />
 			</CampfireControlsPanel>
 
-			{report.loadState === 'loading' && <ReportPreviewLoading />}
 
 			{report.preview !== null && (
 				<CampfireReportSummaryBar
@@ -106,6 +106,7 @@ export function WeeklyReportPage(props: WeeklyReportPageProps): ReactElement {
 			<ReportMarkdownPreview
 				markdown={report.preview?.markdown ?? ''}
 				disabled={report.isBusy || report.preview === null}
+				loading={previewLoading}
 				onPost={report.postReport}
 			/>
 		</div>

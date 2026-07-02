@@ -34,6 +34,11 @@ export function TeamAvailabilityPage(props: TeamAvailabilityPageProps): ReactEle
 	}, [availability.leaveRequests]);
 
 	const profiles = useUserProfiles(userIDsForProfiles);
+	const loadingSummaryValue = t('common.loading');
+	const todayLeaveCount = availability.loadState === 'loading' ? loadingSummaryValue : String(availability.todayLeaves.length);
+	const weekLeaveCount = availability.loadState === 'loading' ? loadingSummaryValue : String(availability.weekLeaves.length);
+	const selectedRangeCount = availability.loadState === 'loading' ? loadingSummaryValue : String(availability.leaveRequests.length);
+	const selectedRangeTone = availability.loadState === 'loading' ? 'neutral' : availability.leaveRequests.length > 0 ? 'success' : 'neutral';
 
 	return (
 		<div className="campfire-team-workflow campfire-team-review-clean-page">
@@ -52,9 +57,9 @@ export function TeamAvailabilityPage(props: TeamAvailabilityPageProps): ReactEle
 			>
 				<CampfireReportSummaryBar
 					items={[
-						{ label: t('teamReview.availability.summary.today'), value: String(availability.todayLeaves.length) },
-						{ label: t('teamReview.availability.summary.thisWeek'), value: String(availability.weekLeaves.length) },
-						{ label: t('teamReview.availability.summary.selectedRange'), value: String(availability.leaveRequests.length), tone: availability.leaveRequests.length > 0 ? 'success' : 'neutral' },
+						{ label: t('teamReview.availability.summary.today'), value: todayLeaveCount },
+						{ label: t('teamReview.availability.summary.thisWeek'), value: weekLeaveCount },
+						{ label: t('teamReview.availability.summary.selectedRange'), value: selectedRangeCount, tone: selectedRangeTone },
 						{ label: t('teamReview.availability.summary.profiles'), value: profiles.loading ? t('common.loading') : t('common.ready') },
 					]}
 				/>

@@ -20,9 +20,9 @@ export function CampfirePageIntro(props: CampfirePageIntroProps): ReactElement {
 	return (
 		<header className={cn('campfire-page-intro-card', props.className)}>
 			<div className="campfire-page-intro-copy">
-				<p className="campfire-page-eyebrow">{props.eyebrow}</p>
-				<h2>{props.title}</h2>
-				<p>{props.description}</p>
+				<p className="campfire-page-eyebrow" dir="auto">{props.eyebrow}</p>
+				<h2 dir="auto">{props.title}</h2>
+				<p dir="auto">{props.description}</p>
 			</div>
 
 			{props.actions !== undefined && <div className="campfire-page-intro-actions">{props.actions}</div>}

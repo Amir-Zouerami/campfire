@@ -3131,3 +3131,74 @@ body,
   background: transparent !important;
   box-shadow: none !important;
 }
+
+/* Source: 158-global-bidi-and-loading-state-polish.css */
+
+/*
+ * Apply plaintext bidi isolation broadly inside the Campfire modal. This keeps
+ * mixed Persian/Arabic/English copy, punctuation, numbers, dates, and paths
+ * readable even when a translated layout direction differs from the text's own
+ * first strong character.
+ */
+.campfire-overlay.campfire-theme :where(
+	h1,
+	h2,
+	h3,
+	h4,
+	h5,
+	h6,
+	p,
+	span,
+	strong,
+	em,
+	small,
+	label,
+	legend,
+	button,
+	a,
+	li,
+	dt,
+	dd,
+	th,
+	td,
+	summary,
+	code,
+	pre,
+	input,
+	textarea,
+	select,
+	option
+) {
+	unicode-bidi: plaintext;
+}
+
+.campfire-overlay.campfire-theme :where(input, textarea, select) {
+	text-align: start;
+}
+
+.campfire-overlay.campfire-theme :where(.campfire-bidi-text, .campfire-ellipsis-text, bdi) {
+	unicode-bidi: isolate;
+}
+
+.campfire-overlay.campfire-theme :where(.campfire-empty-state-copy h3, .campfire-empty-state-copy p, .campfire-loading-state-copy h3, .campfire-loading-state-copy p) {
+	text-align: center;
+}
+
+.campfire-theme .campfire-report-preview-state {
+	display: grid;
+	min-height: 25rem;
+	place-items: center;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 1rem;
+	background:
+		radial-gradient(circle at 0% 0%, rgba(245, 158, 11, 0.08), transparent 16rem),
+		rgba(0, 0, 0, 0.22);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.045),
+		0 18px 38px rgba(0, 0, 0, 0.18);
+	padding: clamp(1rem, 0.85rem + 0.65vw, 1.45rem);
+}
+
+.campfire-theme .campfire-report-preview-state .campfire-loading-state {
+	padding-block: clamp(2rem, 5vw, 4rem);
+}

@@ -11,7 +11,7 @@ import type { Workspace } from '@/types/domain';
 import { dailyReportSortOptions, toDailyReportSortMode } from './report-preview.helpers';
 import { translateReportSortMode } from './report-preview.i18n';
 import { ReportMarkdownPreview } from './ReportMarkdownPreview';
-import { ReportPreviewFeedback, ReportPreviewLoading } from './ReportPreviewFeedback';
+import { ReportPreviewFeedback } from './ReportPreviewFeedback';
 import { useDailyReportPreview } from './useDailyReportPreview';
 
 /**
@@ -28,6 +28,7 @@ type DailyReportPageProps = {
 export function DailyReportPage(props: DailyReportPageProps): ReactElement {
 	const { t } = useI18n();
 	const report = useDailyReportPreview(props);
+	const previewLoading = report.isBusy && report.preview === null;
 
 	return (
 		<div className="campfire-page-stack campfire-report-page-stack">
@@ -69,7 +70,6 @@ export function DailyReportPage(props: DailyReportPageProps): ReactElement {
 				<ReportPreviewFeedback state={report.loadState} message={report.message} />
 			</CampfireControlsPanel>
 
-			{report.loadState === 'loading' && <ReportPreviewLoading />}
 
 			{report.preview !== null && (
 				<CampfireReportSummaryBar
@@ -86,6 +86,7 @@ export function DailyReportPage(props: DailyReportPageProps): ReactElement {
 			<ReportMarkdownPreview
 				markdown={report.preview?.markdown ?? ''}
 				disabled={report.isBusy || report.preview === null}
+				loading={previewLoading}
 				onPost={report.postReport}
 			/>
 		</div>

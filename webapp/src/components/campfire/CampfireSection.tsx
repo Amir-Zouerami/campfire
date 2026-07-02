@@ -29,7 +29,7 @@ export function CampfireSection(props: CampfireSectionProps): ReactElement {
 			{(props.eyebrow !== undefined || props.title !== undefined || props.description !== undefined || props.meta !== undefined || props.actions !== undefined) && (
 				<header className="campfire-section-header">
 					<div className="campfire-section-title-group">
-						{props.eyebrow !== undefined && <p className="campfire-page-eyebrow">{props.eyebrow}</p>}
+						{props.eyebrow !== undefined && <p className="campfire-page-eyebrow" dir="auto">{props.eyebrow}</p>}
 						{props.title !== undefined && (
 							<div className="campfire-section-title-row">
 								{Icon !== undefined && (
@@ -37,10 +37,10 @@ export function CampfireSection(props: CampfireSectionProps): ReactElement {
 										<Icon className="cf:size-5" />
 									</span>
 								)}
-								<h3>{props.title}</h3>
+								<h3 dir="auto">{props.title}</h3>
 							</div>
 						)}
-						{props.description !== undefined && <p className="campfire-section-description">{props.description}</p>}
+						{props.description !== undefined && <p className="campfire-section-description" dir="auto">{props.description}</p>}
 					</div>
 
 					{props.meta !== undefined && <div className="campfire-section-meta">{props.meta}</div>}

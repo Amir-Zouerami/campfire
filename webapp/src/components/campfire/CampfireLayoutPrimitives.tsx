@@ -227,8 +227,8 @@ export function CampfireEmptyState(props: CampfireEmptyStateProps): ReactElement
 				<Icon className="cf:size-6" />
 			</span>
 			<div className="campfire-empty-state-copy">
-				<h3>{props.title}</h3>
-				<p>{props.description}</p>
+				<h3 dir="auto">{props.title}</h3>
+				<p dir="auto">{props.description}</p>
 				{props.action !== undefined && <div className="campfire-empty-state-action">{props.action}</div>}
 			</div>
 		</div>
@@ -250,8 +250,8 @@ export function CampfireEmpty(props: CampfireEmptyProps): ReactElement {
 				</span>
 			)}
 			<div className="campfire-empty-state-copy">
-				<h3>{props.title}</h3>
-				<p>{props.description}</p>
+				<h3 dir="auto">{props.title}</h3>
+				<p dir="auto">{props.description}</p>
 				{props.action !== undefined && <div className="campfire-empty-state-action">{props.action}</div>}
 			</div>
 		</div>
@@ -281,7 +281,7 @@ export function CampfireFieldError(props: CampfireFieldErrorProps): ReactElement
 	}
 
 	return (
-		<span id={props.id} className="campfire-field-error" role="alert">
+		<span id={props.id} className="campfire-field-error" role="alert" dir="auto">
 			{message}
 		</span>
 	);
@@ -299,10 +299,10 @@ export function CampfirePageHeader(props: CampfirePageHeaderProps): ReactElement
 		<header className={cn('campfire-page-header', props.className)}>
 			<div className="cf:min-w-0">
 				{eyebrow !== '' && (
-					<p className="campfire-page-eyebrow">{eyebrow}</p>
+					<p className="campfire-page-eyebrow" dir="auto">{eyebrow}</p>
 				)}
-				<h2 className="campfire-page-title">{title}</h2>
-				<p className="campfire-page-description">{description}</p>
+				<h2 className="campfire-page-title" dir="auto">{title}</h2>
+				<p className="campfire-page-description" dir="auto">{description}</p>
 			</div>
 
 			{props.actions !== undefined && <div className="campfire-page-actions">{props.actions}</div>}
@@ -323,9 +323,9 @@ export function CampfireWorkflowIntro(props: CampfireWorkflowIntroProps): ReactE
 		<section className={cn('campfire-workflow-intro', props.className)} aria-labelledby={titleID}>
 			<div className="campfire-workflow-intro-row">
 				<div className="campfire-workflow-intro-copy">
-					<p className="campfire-workflow-intro-eyebrow">{stripTrailingTitlePeriod(props.eyebrow)}</p>
-					<h3 id={titleID}>{stripTrailingTitlePeriod(props.title)}</h3>
-					<p>{stripTrailingTitlePeriod(props.description)}</p>
+					<p className="campfire-workflow-intro-eyebrow" dir="auto">{stripTrailingTitlePeriod(props.eyebrow)}</p>
+					<h3 id={titleID} dir="auto">{stripTrailingTitlePeriod(props.title)}</h3>
+					<p dir="auto">{stripTrailingTitlePeriod(props.description)}</p>
 				</div>
 
 				{props.controls !== undefined && (
@@ -351,10 +351,10 @@ export function CampfireStatCard(props: CampfireStatCardProps): ReactElement {
 				<Icon className="cf:size-5" />
 			</span>
 			<span className="campfire-stat-copy">
-				<span className="campfire-stat-label">{props.label}</span>
-				<span className="campfire-stat-value">{props.value}</span>
+				<span className="campfire-stat-label" dir="auto">{props.label}</span>
+				<span className="campfire-stat-value" dir="auto">{props.value}</span>
 				{props.helper !== undefined && props.helper.trim() !== '' && (
-					<span className="campfire-stat-helper">{props.helper}</span>
+					<span className="campfire-stat-helper" dir="auto">{props.helper}</span>
 				)}
 			</span>
 		</div>
@@ -373,8 +373,8 @@ export function CampfireQuickLink(props: CampfireQuickLinkProps): ReactElement {
 				<Icon className="cf:size-5" />
 			</span>
 			<span className="campfire-quick-link-copy">
-				<span className="campfire-quick-link-label">{props.label}</span>
-				<span className="campfire-quick-link-description">{props.description}</span>
+				<span className="campfire-quick-link-label" dir="auto">{props.label}</span>
+				<span className="campfire-quick-link-description" dir="auto">{props.description}</span>
 			</span>
 			<span className="campfire-quick-link-arrow" aria-hidden="true">
 				→
@@ -397,8 +397,8 @@ export function CampfireWorkflowNote(props: CampfireWorkflowNoteProps): ReactEle
 				<Icon className="cf:size-4" />
 			</span>
 			<span className="campfire-workflow-note-copy">
-				<strong>{props.title}</strong>
-				<span>{props.description}</span>
+				<strong dir="auto">{props.title}</strong>
+				<span dir="auto">{props.description}</span>
 				{props.children}
 			</span>
 		</div>

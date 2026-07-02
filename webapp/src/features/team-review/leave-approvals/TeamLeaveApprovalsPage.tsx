@@ -28,6 +28,11 @@ export function TeamLeaveApprovalsPage(props: TeamLeaveApprovalsPageProps): Reac
 	const { t } = useI18n();
 	const approvals = useTeamLeaveApprovals(props);
 	const profiles = useUserProfiles(approvals.userIDsForProfiles);
+	const loadingSummaryValue = t('common.loading');
+	const pendingSummaryValue = approvals.loadState === 'loading' ? loadingSummaryValue : String(approvals.pendingCount);
+	const changeRequestSummaryValue = approvals.loadState === 'loading' ? loadingSummaryValue : String(approvals.changeRequests.length);
+	const pendingSummaryTone = approvals.loadState === 'loading' ? 'neutral' : approvals.pendingCount > 0 ? 'warning' : 'success';
+	const changeRequestSummaryTone = approvals.loadState === 'loading' ? 'neutral' : approvals.changeRequests.length > 0 ? 'warning' : 'neutral';
 
 	if (approvals.loadState === 'hidden') {
 		return null;
@@ -44,8 +49,8 @@ export function TeamLeaveApprovalsPage(props: TeamLeaveApprovalsPageProps): Reac
 
 			<CampfireReportSummaryBar
 				items={[
-					{ label: t('teamReview.approvals.summary.pending'), value: String(approvals.pendingCount), tone: approvals.pendingCount > 0 ? 'warning' : 'success' },
-					{ label: t('teamReview.approvals.summary.editRequests'), value: String(approvals.changeRequests.length), tone: approvals.changeRequests.length > 0 ? 'warning' : 'neutral' },
+					{ label: t('teamReview.approvals.summary.pending'), value: pendingSummaryValue, tone: pendingSummaryTone },
+					{ label: t('teamReview.approvals.summary.editRequests'), value: changeRequestSummaryValue, tone: changeRequestSummaryTone },
 					{ label: t('teamReview.approvals.summary.profiles'), value: profiles.loading ? t('common.loading') : t('common.ready') },
 				]}
 			/>

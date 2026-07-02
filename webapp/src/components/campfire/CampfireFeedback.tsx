@@ -73,7 +73,7 @@ export function CampfireFeedback(props: CampfireFeedbackProps): ReactElement | n
 			aria-live="polite"
 		>
 			{feedbackIcon(props.tone)}
-			<span>{message}</span>
+			<span dir="auto">{message}</span>
 		</div>
 	);
 }

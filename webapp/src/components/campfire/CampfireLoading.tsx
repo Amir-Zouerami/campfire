@@ -67,8 +67,8 @@ export function CampfireLoadingState(props: CampfireLoadingStateProps): ReactEle
 			<CampfireLoader label={props.title} size="lg" />
 
 			<div className="campfire-loading-state-copy">
-				<h3>{props.title}</h3>
-				<p>{props.description}</p>
+				<h3 dir="auto">{props.title}</h3>
+				<p dir="auto">{props.description}</p>
 			</div>
 		</div>
 	);
@@ -81,7 +81,7 @@ export function CampfireInlineLoading(props: CampfireInlineLoadingProps): ReactE
 	return (
 		<span className={cn('campfire-inline-loading', props.className)} aria-live="polite">
 			<CampfireLoader label={props.label} size="sm" />
-			<span>{props.label}</span>
+			<span dir="auto">{props.label}</span>
 		</span>
 	);
 }

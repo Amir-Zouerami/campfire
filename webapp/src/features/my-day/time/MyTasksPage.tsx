@@ -75,7 +75,7 @@ export function MyTasksPage(props: MyTasksPageProps): ReactElement {
 				title={t('myDay.tasks.page.title')}
 				description={t('myDay.tasks.page.description')}
 				actions={
-					<Button type="button" onClick={() => setCreateOpen(current => !current)}>
+					<Button type="button" disabled={timeLog.isBusy} onClick={() => setCreateOpen(current => !current)}>
 						<Plus className="cf:size-4" />
 						{t('myDay.tasks.action.newTask')}
 					</Button>
@@ -85,7 +85,7 @@ export function MyTasksPage(props: MyTasksPageProps): ReactElement {
 			<MyTimeFeedback state={timeLog.loadState} message={timeLog.message} />
 			{timeLog.loadState === 'loading' && <MyTimeLoading />}
 
-			{createOpen && (
+			{timeLog.loadState !== 'loading' && createOpen && (
 				<CampfireSurface>
 					<div className="campfire-surface-header campfire-surface-header--with-action">
 						<div>
@@ -140,70 +140,72 @@ export function MyTasksPage(props: MyTasksPageProps): ReactElement {
 				</CampfireSurface>
 			)}
 
-			<CampfireSurface className="campfire-table-surface campfire-readable-table-surface">
-				<div className="campfire-list-toolbar">
-					<CampfireSearchInput value={query} placeholder={t('myDay.tasks.search.placeholder')} onValueChange={setQuery} />
+			{timeLog.loadState !== 'loading' && (
+				<CampfireSurface className="campfire-table-surface campfire-readable-table-surface">
+					<div className="campfire-list-toolbar">
+						<CampfireSearchInput value={query} placeholder={t('myDay.tasks.search.placeholder')} onValueChange={setQuery} />
 
-					<CampfireSelect
-						id="campfire-my-task-status-filter"
-						value={statusFilter}
-						onValueChange={value => setStatusFilter(value as TaskStatusFilter)}
-					>
-						<option value="all">{t('myDay.tasks.filter.allStatuses')}</option>
-						{taskStatusOptions.map(status => (
-							<option key={status} value={status}>
-								{t(taskStatusTranslationKey(status))}
-							</option>
-						))}
-					</CampfireSelect>
+						<CampfireSelect
+							id="campfire-my-task-status-filter"
+							value={statusFilter}
+							onValueChange={value => setStatusFilter(value as TaskStatusFilter)}
+						>
+							<option value="all">{t('myDay.tasks.filter.allStatuses')}</option>
+							{taskStatusOptions.map(status => (
+								<option key={status} value={status}>
+									{t(taskStatusTranslationKey(status))}
+								</option>
+							))}
+						</CampfireSelect>
 
-					<CampfireInlineCheckbox
-						checked={timeLog.includeArchived}
-						disabled={timeLog.isBusy}
-						label={t('myDay.tasks.filter.includeArchived')}
-						onCheckedChange={timeLog.setIncludeArchived}
-					/>
-				</div>
-
-				<CampfireDataTable
-					label={t('myDay.tasks.table.label')}
-					columns={[
-						t('myDay.tasks.table.column.task'),
-						t('myDay.tasks.table.column.status'),
-						t('myDay.tasks.table.column.source'),
-						t('myDay.tasks.table.column.updated'),
-						t('myDay.tasks.table.column.changeStatus'),
-						t('common.delete'),
-					]}
-					className="campfire-data-table--personal-tasks"
-					columnsTemplate="minmax(0, 1.35fr) minmax(7rem, 0.65fr) minmax(7rem, 0.62fr) minmax(9rem, 0.78fr) minmax(11rem, 0.9fr) minmax(3.2rem, 0.22fr)"
-					empty={visibleTasks.length === 0 ? (
-						<CampfireEmptyState
-							icon={Inbox}
-							title={t('myDay.tasks.empty.title')}
-							description={t('myDay.tasks.empty.description')}
-						/>
-					) : undefined}
-					footer={<>{t('myDay.tasks.footer.showing', { visible: visibleTasks.length, total: timeLog.tasks.length })}</>}
-				>
-					{visibleTasks.map(task => (
-						<TaskRow
-							key={task.id}
-							task={task}
+						<CampfireInlineCheckbox
+							checked={timeLog.includeArchived}
 							disabled={timeLog.isBusy}
-							locale={htmlLang}
-							onStatusChange={status => {
-								void timeLog.changeTaskStatus(task.id, status);
-							}}
-							onRemove={() => {
-								if (window.confirm(t('myDay.tasks.confirm.removeTask'))) {
-									void timeLog.removeTask(task.id);
-								}
-							}}
+							label={t('myDay.tasks.filter.includeArchived')}
+							onCheckedChange={timeLog.setIncludeArchived}
 						/>
-					))}
-				</CampfireDataTable>
-			</CampfireSurface>
+					</div>
+
+					<CampfireDataTable
+						label={t('myDay.tasks.table.label')}
+						columns={[
+							t('myDay.tasks.table.column.task'),
+							t('myDay.tasks.table.column.status'),
+							t('myDay.tasks.table.column.source'),
+							t('myDay.tasks.table.column.updated'),
+							t('myDay.tasks.table.column.changeStatus'),
+							t('common.delete'),
+						]}
+						className="campfire-data-table--personal-tasks"
+						columnsTemplate="minmax(0, 1.35fr) minmax(7rem, 0.65fr) minmax(7rem, 0.62fr) minmax(9rem, 0.78fr) minmax(11rem, 0.9fr) minmax(3.2rem, 0.22fr)"
+						empty={visibleTasks.length === 0 ? (
+							<CampfireEmptyState
+								icon={Inbox}
+								title={t('myDay.tasks.empty.title')}
+								description={t('myDay.tasks.empty.description')}
+							/>
+						) : undefined}
+						footer={<>{t('myDay.tasks.footer.showing', { visible: visibleTasks.length, total: timeLog.tasks.length })}</>}
+					>
+						{visibleTasks.map(task => (
+							<TaskRow
+								key={task.id}
+								task={task}
+								disabled={timeLog.isBusy}
+								locale={htmlLang}
+								onStatusChange={status => {
+									void timeLog.changeTaskStatus(task.id, status);
+								}}
+								onRemove={() => {
+									if (window.confirm(t('myDay.tasks.confirm.removeTask'))) {
+										void timeLog.removeTask(task.id);
+									}
+								}}
+							/>
+						))}
+					</CampfireDataTable>
+				</CampfireSurface>
+			)}
 		</div>
 	);
 }

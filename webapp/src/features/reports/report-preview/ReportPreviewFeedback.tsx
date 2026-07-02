@@ -17,7 +17,13 @@ type ReportPreviewFeedbackProps = {
  * ReportPreviewFeedback renders compact local workflow feedback.
  */
 export function ReportPreviewFeedback(props: ReportPreviewFeedbackProps): ReactElement | null {
-	return <CampfireFeedback message={props.message} tone={props.state === 'error' ? 'error' : 'success'} />;
+	return (
+		<CampfireFeedback
+			message={props.message}
+			tone={props.state === 'error' ? 'error' : 'success'}
+			showInlineError={props.state === 'error'}
+		/>
+	);
 }
 
 /**

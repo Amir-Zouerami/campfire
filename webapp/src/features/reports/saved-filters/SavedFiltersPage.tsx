@@ -38,39 +38,43 @@ export function SavedFiltersPage(props: SavedFiltersPageProps): ReactElement {
 			<SavedFiltersFeedback state={savedFilters.loadState} message={savedFilters.message} />
 			{savedFilters.loadState === 'loading' && <SavedFiltersLoading />}
 
-			<CampfireReportSummaryBar
-				items={[
-					{ label: t('reports.saved.summary.savedFilters'), value: String(savedFilters.sortedFilters.length), tone: 'neutral' },
-					{
-						label: t('reports.saved.summary.visibleLibrary'),
-						value: savedFilterReportKindLabel(savedFilters.selectedReportType, t),
-						tone: 'neutral',
-					},
-					{
-						label: t('reports.saved.summary.state'),
-						value: savedFilters.isBusy ? t('common.working') : t('common.ready'),
-						tone: savedFilters.isBusy ? 'warning' : 'success',
-					},
-				]}
-			/>
+			{savedFilters.loadState !== 'loading' && (
+				<>
+					<CampfireReportSummaryBar
+						items={[
+							{ label: t('reports.saved.summary.savedFilters'), value: String(savedFilters.sortedFilters.length), tone: 'neutral' },
+							{
+								label: t('reports.saved.summary.visibleLibrary'),
+								value: savedFilterReportKindLabel(savedFilters.selectedReportType, t),
+								tone: 'neutral',
+							},
+							{
+								label: t('reports.saved.summary.state'),
+								value: savedFilters.isBusy ? t('common.working') : t('common.ready'),
+								tone: savedFilters.isBusy ? 'warning' : 'success',
+							},
+						]}
+					/>
 
-			<div className="campfire-report-saved-filter-layout">
-				<SavedFilterCreatePanel
-					draft={savedFilters.draft}
-					disabled={savedFilters.isBusy}
-					onChange={savedFilters.updateDraft}
-					onCreate={savedFilters.createFilter}
-				/>
+					<div className="campfire-report-saved-filter-layout">
+						<SavedFilterCreatePanel
+							draft={savedFilters.draft}
+							disabled={savedFilters.isBusy}
+							onChange={savedFilters.updateDraft}
+							onCreate={savedFilters.createFilter}
+						/>
 
-				<SavedFilterListPanel
-					selectedReportType={savedFilters.selectedReportType}
-					filters={savedFilters.sortedFilters}
-					disabled={savedFilters.isBusy}
-					onReportTypeChange={savedFilters.setSelectedReportType}
-					onApply={savedFilters.applyFilter}
-					onDelete={savedFilters.deleteFilter}
-				/>
-			</div>
+						<SavedFilterListPanel
+							selectedReportType={savedFilters.selectedReportType}
+							filters={savedFilters.sortedFilters}
+							disabled={savedFilters.isBusy}
+							onReportTypeChange={savedFilters.setSelectedReportType}
+							onApply={savedFilters.applyFilter}
+							onDelete={savedFilters.deleteFilter}
+						/>
+					</div>
+				</>
+			)}
 		</div>
 	);
 }

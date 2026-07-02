@@ -12,6 +12,7 @@ import { useI18n } from '@/i18n';
 type ReportMarkdownPreviewProps = {
 	readonly markdown: string;
 	readonly disabled: boolean;
+	readonly loading: boolean;
 	readonly onPost: () => Promise<void>;
 };
 
@@ -24,7 +25,7 @@ type ReportMarkdownPreviewProps = {
 export function ReportMarkdownPreview(props: ReportMarkdownPreviewProps): ReactElement {
 	const { t } = useI18n();
 	const hasMarkdown = props.markdown.trim() !== '';
-	const actionDisabled = props.disabled || !hasMarkdown;
+	const actionDisabled = props.disabled || props.loading || !hasMarkdown;
 
 	/**
 	 * handleCopy copies the current Markdown to the clipboard.
@@ -55,8 +56,11 @@ export function ReportMarkdownPreview(props: ReportMarkdownPreviewProps): ReactE
 
 				<CampfireMarkdownDocument
 					markdown={props.markdown}
+					loading={props.loading}
 					emptyTitle={t('reports.preview.markdown.emptyTitle')}
 					emptyDescription={t('reports.preview.markdown.emptyDescription')}
+					loadingTitle={t('reports.preview.markdown.loadingTitle')}
+					loadingDescription={t('reports.preview.markdown.loadingDescription')}
 				/>
 			</div>
 
