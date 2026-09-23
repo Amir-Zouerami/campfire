@@ -79,6 +79,7 @@ export function MyDayPage(props: WorkspaceShellProps): ReactElement {
 			{activeView === 'overview' && (
 				<MyStandupPage
 					workspace={props.workspace}
+					currentUserId={props.currentUser.id}
 					canSubmitStandup={props.capabilities.canSubmitStandup}
 					onStandupSubmitted={props.onStandupSubmitted}
 				/>

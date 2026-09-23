@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/amir-zouerami/campfire/server/domain"
+	"github.com/amir-zouerami/campfire/server/i18n"
 	"github.com/amir-zouerami/campfire/server/store"
 	"github.com/google/uuid"
 )
@@ -1831,8 +1832,8 @@ func buildWeeklyReportMarkdown(
 		fmt.Sprintf(
 			"# %s — %s → %s",
 			copy.WeeklyTitle,
-			formatReportDate(preview.PeriodStart, calendarLabels),
-			formatReportDate(preview.PeriodEnd, calendarLabels),
+			formatReportDate(preview.PeriodStart, calendarLabels, copy.Language),
+			formatReportDate(preview.PeriodEnd, calendarLabels, copy.Language),
 		),
 		"",
 		fmt.Sprintf("**%s:** `%s`", copy.WorkspaceTimezone, reportTimezoneLabel(workspace.Timezone)),
@@ -1870,7 +1871,7 @@ func buildDailyReportMarkdown(
 ) string {
 	copy := reportCopyForLanguage(language)
 	lines := []string{
-		fmt.Sprintf("# %s — %s", copy.DailyTitle, formatReportDate(preview.OccurrenceDate, calendarLabels)),
+		fmt.Sprintf("# %s — %s", copy.DailyTitle, formatReportDate(preview.OccurrenceDate, calendarLabels, copy.Language)),
 		"",
 		fmt.Sprintf("**%s:** `%s`", copy.WorkspaceTimezone, reportTimezoneLabel(workspace.Timezone)),
 		"",
@@ -2067,8 +2068,8 @@ func appendReportTimeSummary(
 			fmt.Sprintf(
 				"_%s: %s → %s_",
 				copy.Period,
-				formatReportDate(summary.StartDate, calendarLabels),
-				formatReportDate(summary.EndDate, calendarLabels),
+				formatReportDate(summary.StartDate, calendarLabels, copy.Language),
+				formatReportDate(summary.EndDate, calendarLabels, copy.Language),
 			),
 			"",
 		)
@@ -2122,8 +2123,8 @@ func formatReportSubmissionMeta(
 	calendarLabels map[string]string,
 	copy reportCopy,
 ) string {
-	first := formatReportTime(firstSubmittedAt, timezone, calendarLabels)
-	last := formatReportTime(lastUpdatedAt, timezone, calendarLabels)
+	first := formatReportTime(firstSubmittedAt, timezone, calendarLabels, copy.Language)
+	last := formatReportTime(lastUpdatedAt, timezone, calendarLabels, copy.Language)
 
 	parts := []string{}
 	if first != "" {
@@ -2239,6 +2240,7 @@ type reportMetricRow struct {
 reportCopy contains generated report labels for one language.
 */
 type reportCopy struct {
+	Language               domain.ReportLanguage
 	DailyTitle             string
 	WeeklyTitle            string
 	WorkspaceTimezone      string
@@ -2278,6 +2280,7 @@ func reportCopyForLanguage(language domain.ReportLanguage) reportCopy {
 	switch normalizeReportLanguage(language) {
 	case domain.ReportLanguagePersian:
 		return reportCopy{
+			Language:               domain.ReportLanguagePersian,
 			DailyTitle:             "گزارش روزانه",
 			WeeklyTitle:            "گزارش هفتگی",
 			WorkspaceTimezone:      "منطقه زمانی کاری",
@@ -2311,6 +2314,7 @@ func reportCopyForLanguage(language domain.ReportLanguage) reportCopy {
 		}
 	case domain.ReportLanguageArabic:
 		return reportCopy{
+			Language:               domain.ReportLanguageArabic,
 			DailyTitle:             "التقرير اليومي",
 			WeeklyTitle:            "التقرير الأسبوعي",
 			WorkspaceTimezone:      "المنطقة الزمنية",
@@ -2344,6 +2348,7 @@ func reportCopyForLanguage(language domain.ReportLanguage) reportCopy {
 		}
 	default:
 		return reportCopy{
+			Language:               domain.ReportLanguageEnglish,
 			DailyTitle:             "Daily Standup",
 			WeeklyTitle:            "Weekly Standup Summary",
 			WorkspaceTimezone:      "Workspace timezone",
@@ -2762,9 +2767,15 @@ func sanitizeMarkdownLine(value string) string {
 /*
 formatReportDate formats one canonical local date with a browser-provided alternate calendar hint.
 */
-func formatReportDate(date domain.LocalDate, calendarLabels map[string]string) string {
+func formatReportDate(date domain.LocalDate, calendarLabels map[string]string, language domain.ReportLanguage) string {
 	formatted := date.String()
-	if calendarLabel := reportCalendarLabelForDate(date, calendarLabels); calendarLabel != "" {
+
+	calendarLabel := reportCalendarLabelForDate(date, calendarLabels)
+	if calendarLabel == "" {
+		calendarLabel = i18n.AlternateCalendarLabel(language, date.String())
+	}
+
+	if calendarLabel != "" {
 		return fmt.Sprintf("%s (%s)", formatted, calendarLabel)
 	}
 
@@ -2890,7 +2901,7 @@ func markdownTableCell(value string) string {
 /*
 formatReportTime formats a report timestamp in the workspace timezone.
 */
-func formatReportTime(value time.Time, timezone string, calendarLabels map[string]string) string {
+func formatReportTime(value time.Time, timezone string, calendarLabels map[string]string, language domain.ReportLanguage) string {
 	if value.IsZero() {
 		return ""
 	}
@@ -2900,7 +2911,12 @@ func formatReportTime(value time.Time, timezone string, calendarLabels map[strin
 	localDate := domain.LocalDate(localTime.Format("2006-01-02"))
 	formatted := localTime.Format("2006-01-02 15:04")
 
-	if calendarLabel := reportCalendarLabelForDate(localDate, calendarLabels); calendarLabel != "" {
+	calendarLabel := reportCalendarLabelForDate(localDate, calendarLabels)
+	if calendarLabel == "" {
+		calendarLabel = i18n.AlternateCalendarLabel(language, localDate.String())
+	}
+
+	if calendarLabel != "" {
 		return fmt.Sprintf("%s (%s)", formatted, calendarLabel)
 	}
 

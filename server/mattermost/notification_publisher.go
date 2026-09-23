@@ -845,24 +845,7 @@ func formatLocalizedDateRange(language domain.ReportLanguage, startDate string, 
 formatLocalizedDate renders one workspace-local ISO date for generated messages.
 */
 func formatLocalizedDate(language domain.ReportLanguage, dateValue string) string {
-	cleanDate := strings.TrimSpace(dateValue)
-	year, month, day, ok := parseISODateParts(cleanDate)
-	if !ok {
-		return localizeNumberString(language, cleanDate)
-	}
-
-	switch language {
-	case domain.ReportLanguagePersian:
-		jalaliYear, jalaliMonth, jalaliDay := gregorianToJalali(year, month, day)
-
-		return toPersianDigits(fmt.Sprintf("%d %s %d", jalaliDay, persianMonthName(jalaliMonth), jalaliYear))
-
-	case domain.ReportLanguageArabic:
-		return toArabicDigits(fmt.Sprintf("%d %s %d", day, arabicGregorianMonthName(month), year))
-
-	default:
-		return cleanDate
-	}
+	return i18n.LocalizedCalendarDate(language, dateValue)
 }
 
 /*
@@ -870,173 +853,14 @@ formatLocalizedTimeOfDay renders an HH:mm workspace-local time in the generated
 message language without changing the underlying local time value.
 */
 func formatLocalizedTimeOfDay(language domain.ReportLanguage, timeValue string) string {
-	return localizeNumberString(language, strings.TrimSpace(timeValue))
-}
-
-/*
-parseISODateParts parses a canonical YYYY-MM-DD date into Gregorian parts.
-*/
-func parseISODateParts(value string) (int, int, int, bool) {
-	var year int
-	var month int
-	var day int
-
-	if _, err := fmt.Sscanf(value, "%04d-%02d-%02d", &year, &month, &day); err != nil {
-		return 0, 0, 0, false
-	}
-
-	if month < 1 || month > 12 || day < 1 || day > 31 {
-		return 0, 0, 0, false
-	}
-
-	return year, month, day, true
-}
-
-/*
-gregorianToJalali converts a Gregorian date to the Persian Jalali calendar.
-
-The algorithm is integer-only and is intentionally kept local to notification
-rendering so Campfire storage and API contracts remain Gregorian ISO dates.
-*/
-func gregorianToJalali(gy int, gm int, gd int) (int, int, int) {
-	gDaysInMonth := []int{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
-	jDaysInMonth := []int{31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29}
-
-	gy -= 1600
-	gm--
-	gd--
-
-	gDayNumber := 365*gy + (gy+3)/4 - (gy+99)/100 + (gy+399)/400
-	for i := 0; i < gm; i++ {
-		gDayNumber += gDaysInMonth[i]
-	}
-
-	if gm > 1 && ((gy+1600)%4 == 0 && ((gy+1600)%100 != 0 || (gy+1600)%400 == 0)) {
-		gDayNumber++
-	}
-
-	gDayNumber += gd
-	jDayNumber := gDayNumber - 79
-	jNp := jDayNumber / 12053
-	jDayNumber %= 12053
-
-	jy := 979 + 33*jNp + 4*(jDayNumber/1461)
-	jDayNumber %= 1461
-
-	if jDayNumber >= 366 {
-		jy += (jDayNumber - 1) / 365
-		jDayNumber = (jDayNumber - 1) % 365
-	}
-
-	jm := 0
-	for jm < 11 && jDayNumber >= jDaysInMonth[jm] {
-		jDayNumber -= jDaysInMonth[jm]
-		jm++
-	}
-
-	return jy, jm + 1, jDayNumber + 1
-}
-
-/*
-persianMonthName returns the Persian Jalali month name for a 1-based month.
-*/
-func persianMonthName(month int) string {
-	months := []string{
-		"فروردین",
-		"اردیبهشت",
-		"خرداد",
-		"تیر",
-		"مرداد",
-		"شهریور",
-		"مهر",
-		"آبان",
-		"آذر",
-		"دی",
-		"بهمن",
-		"اسفند",
-	}
-
-	if month < 1 || month > len(months) {
-		return ""
-	}
-
-	return months[month-1]
-}
-
-/*
-arabicGregorianMonthName returns an Arabic Gregorian month name for a 1-based month.
-*/
-func arabicGregorianMonthName(month int) string {
-	months := []string{
-		"يناير",
-		"فبراير",
-		"مارس",
-		"أبريل",
-		"مايو",
-		"يونيو",
-		"يوليو",
-		"أغسطس",
-		"سبتمبر",
-		"أكتوبر",
-		"نوفمبر",
-		"ديسمبر",
-	}
-
-	if month < 1 || month > len(months) {
-		return ""
-	}
-
-	return months[month-1]
+	return i18n.LocalizeDigits(language, strings.TrimSpace(timeValue))
 }
 
 /*
 localizeNumberString localizes digits without changing separators or text.
 */
 func localizeNumberString(language domain.ReportLanguage, value string) string {
-	switch language {
-	case domain.ReportLanguagePersian:
-		return toPersianDigits(value)
-	case domain.ReportLanguageArabic:
-		return toArabicDigits(value)
-	default:
-		return value
-	}
-}
-
-/*
-toPersianDigits converts ASCII digits to Persian digits.
-*/
-func toPersianDigits(value string) string {
-	return strings.NewReplacer(
-		"0", "۰",
-		"1", "۱",
-		"2", "۲",
-		"3", "۳",
-		"4", "۴",
-		"5", "۵",
-		"6", "۶",
-		"7", "۷",
-		"8", "۸",
-		"9", "۹",
-	).Replace(value)
-}
-
-/*
-toArabicDigits converts ASCII digits to Arabic-Indic digits.
-*/
-func toArabicDigits(value string) string {
-	return strings.NewReplacer(
-		"0", "٠",
-		"1", "١",
-		"2", "٢",
-		"3", "٣",
-		"4", "٤",
-		"5", "٥",
-		"6", "٦",
-		"7", "٧",
-		"8", "٨",
-		"9", "٩",
-	).Replace(value)
+	return i18n.LocalizeDigits(language, value)
 }
 
 /*

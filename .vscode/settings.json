@@ -3,8 +3,10 @@
         "statusBar.background": "#1e5f70",
         "statusBar.foreground": "#e7e7e7",
         "statusBarItem.hoverBackground": "#298198",
-        "statusBarItem.remoteBackground": "#1e5f70",
-        "statusBarItem.remoteForeground": "#e7e7e7"
+        "statusBarItem.remoteBackground": "#d768c0",
+        "statusBarItem.remoteForeground": "#e7e7e7",
+        "statusBar.debuggingBackground": "#1e5f70",
+        "statusBar.debuggingForeground": "#e7e7e7"
     },
     "peacock.color": "#1e5f70",
     "cSpell.words": [

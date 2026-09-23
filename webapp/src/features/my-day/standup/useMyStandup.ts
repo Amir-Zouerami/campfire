@@ -23,6 +23,7 @@ import type { AnswerDrafts, AnswerDraftValue, MyStandupLoadState } from './my-st
  */
 type UseMyStandupInput = {
 	readonly workspace: Workspace;
+	readonly currentUserId: string;
 	readonly onStandupSubmitted: () => void;
 };
 
@@ -37,6 +38,7 @@ export type UseMyStandupResult = {
 	readonly availableSchedules: readonly StandupSchedule[];
 	readonly tasks: readonly Task[];
 	readonly runtimeDecision: StandupRunDecision | null;
+	readonly viewerOnApprovedLeave: boolean;
 	readonly canSubmitToday: boolean;
 	readonly selectedSchedule: StandupSchedule | null;
 	readonly selectedTemplate: StandupTemplate | null;
@@ -246,8 +248,19 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 		};
 	}, [input.workspace.id, language, occurrenceDate, questions, selectedSchedule, selectedTemplate, t, today, visibleQuestions]);
 
+	const viewerOnApprovedLeave = useMemo(() => {
+		return runtimeDecisionCoversViewerLeave(runtimeDecision, input.currentUserId);
+	}, [runtimeDecision, input.currentUserId]);
+
 	const isBusy = loadState === 'loading' || loadState === 'saving';
-	const dateBlockedMessage = blockedDateMessage(occurrenceDate, today, runtimeDecision, availableSchedules, t);
+	const dateBlockedMessage = blockedDateMessage(
+		occurrenceDate,
+		today,
+		runtimeDecision,
+		availableSchedules,
+		viewerOnApprovedLeave,
+		t,
+	);
 	const canSubmitToday = dateBlockedMessage === '' && selectedSchedule !== null;
 
 	/**
@@ -363,6 +376,7 @@ export function useMyStandup(input: UseMyStandupInput): UseMyStandupResult {
 		availableSchedules,
 		tasks,
 		runtimeDecision,
+		viewerOnApprovedLeave,
 		canSubmitToday,
 		selectedSchedule,
 		selectedTemplate,
@@ -450,6 +464,26 @@ function storedAnswerToDraftValue(question: StandupQuestion, valueJSON: string |
 }
 
 /**
+ * runtimeDecisionCoversViewerLeave returns true when the signed-in user has
+ * approved leave covering the evaluated date.
+ *
+ * The runtime decision already carries every approved leave row for the date, so
+ * the check-in form can skip prompting a member who is off, matching the way the
+ * backend suppresses their DM reminders and keeps them out of the missing list.
+ */
+function runtimeDecisionCoversViewerLeave(
+	runtimeDecision: StandupRunDecision | null,
+	currentUserId: string,
+): boolean {
+	const cleanUserId = currentUserId.trim();
+	if (runtimeDecision === null || cleanUserId === '') {
+		return false;
+	}
+
+	return runtimeDecision.approvedLeaves.some(leave => leave.leaveRequest.userId === cleanUserId);
+}
+
+/**
  * scheduleAllowsDate returns true when a schedule can be selected for the
  * current runtime decision.
  */
@@ -480,6 +514,7 @@ function blockedDateMessage(
 	today: string,
 	runtimeDecision: StandupRunDecision | null,
 	availableSchedules: readonly StandupSchedule[],
+	viewerOnApprovedLeave: boolean,
 	t: (key: TranslationKey, values?: Record<string, string | number | boolean>) => string,
 ): string {
 	if (occurrenceDate.trim() === '') {
@@ -488,6 +523,10 @@ function blockedDateMessage(
 
 	if (occurrenceDate > today) {
 		return t('myDay.standup.error.futureDate');
+	}
+
+	if (viewerOnApprovedLeave) {
+		return t('myDay.standup.error.onApprovedLeave');
 	}
 
 	if (runtimeDecision !== null && !runtimeDecision.shouldRun) {

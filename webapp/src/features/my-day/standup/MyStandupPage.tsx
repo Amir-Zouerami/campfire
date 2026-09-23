@@ -18,6 +18,7 @@ import { useMyStandup } from './useMyStandup';
  */
 type MyStandupPageProps = {
 	readonly workspace: Workspace;
+	readonly currentUserId: string;
 	readonly canSubmitStandup: boolean;
 	readonly onStandupSubmitted: () => void;
 };
@@ -105,7 +106,11 @@ export function MyStandupPage(props: MyStandupPageProps): ReactElement {
 							{formBlocked && (
 								<CampfireEmpty
 									icon={CalendarX2}
-									title={t('myDay.standup.form.blocked.title')}
+									title={
+										standup.viewerOnApprovedLeave
+											? t('myDay.standup.form.blocked.onLeaveTitle')
+											: t('myDay.standup.form.blocked.title')
+									}
 									description={standup.dateBlockedMessage}
 								/>
 							)}

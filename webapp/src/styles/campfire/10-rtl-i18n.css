@@ -928,27 +928,40 @@
  */
 .campfire-picker-portal-scope.campfire-date-picker-popover,
 .campfire-theme .campfire-date-picker-popover.campfire-floating-popover {
-	inline-size: 24rem !important;
-	min-inline-size: 24rem !important;
-	max-inline-size: min(24rem, calc(100vw - 2rem)) !important;
+	inline-size: var(--campfire-floating-width, min(24rem, calc(100vw - 1.5rem))) !important;
+	min-inline-size: 0 !important;
+	max-inline-size: calc(100vw - 1.5rem) !important;
 	block-size: auto !important;
 	min-block-size: auto !important;
-	max-block-size: min(36rem, calc(100vh - 2rem)) !important;
+	max-block-size: min(36rem, calc(100dvh - 2rem)) !important;
 	display: grid !important;
 	grid-template-columns: minmax(0, 1fr) !important;
 	gap: 0.9rem !important;
-	overflow: hidden !important;
+	/*
+	 * `overflow: hidden` here used to clip the lower rows whenever the popover was
+	 * taller than the space the floating hook positioned it into. Allow the panel
+	 * itself to scroll as a fallback.
+	 */
+	overflow-x: hidden !important;
+	overflow-y: auto !important;
 }
 
 .campfire-picker-portal-scope.campfire-time-picker-popover,
 .campfire-theme .campfire-time-picker-popover.campfire-floating-popover {
-	inline-size: 20rem !important;
-	min-inline-size: 20rem !important;
-	max-inline-size: min(20rem, calc(100vw - 2rem)) !important;
+	inline-size: var(--campfire-floating-width, min(20rem, calc(100vw - 1.5rem))) !important;
+	min-inline-size: 0 !important;
+	max-inline-size: calc(100vw - 1.5rem) !important;
 	block-size: auto !important;
 	min-block-size: auto !important;
-	max-block-size: min(34rem, calc(100vh - 2rem)) !important;
-	overflow: hidden !important;
+	/*
+	 * Defer the vertical bound to the shared floating hook. It measures the
+	 * trigger and the visual viewport and positions the popover for exactly this
+	 * height; a taller hard-coded max-block-size pushed the hour/minute columns
+	 * past the viewport edge where `overflow: hidden` then left them unreachable.
+	 */
+	max-block-size: var(--campfire-floating-max-height, min(34rem, calc(100dvh - 2rem))) !important;
+	overflow-x: hidden !important;
+	overflow-y: auto !important;
 }
 
 .campfire-picker-portal-scope .campfire-date-picker-header,
