@@ -113,6 +113,7 @@ func (s *StandupRuntimeService) EvaluateDay(
 	if err != nil {
 		return nil, NewError(ErrorCodeInternal, "Could not evaluate approved leave.")
 	}
+	approvedLeaves = approvedLeavesForDayGate(approvedLeaves)
 
 	memberUserIDs, excludedUserIDs, err := standupParticipantsFromMembers(
 		ctx,

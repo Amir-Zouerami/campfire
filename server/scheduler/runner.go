@@ -489,6 +489,7 @@ func (r *Runner) executeDueReminderSequences(
 			ScheduleID:     schedule.ID.String(),
 			OccurrenceDate: occurrenceDate.String(),
 			SequenceNumber: sequenceNumber,
+			ReferenceTime:  localNow.Format("15:04"),
 		})
 		if err != nil {
 			r.logger.Warn(

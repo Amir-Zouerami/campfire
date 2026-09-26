@@ -28,6 +28,7 @@ StandupOccurrenceSummary contains submissions and missing-user data for one date
 type StandupOccurrenceSummary struct {
 	WorkspaceID    string
 	OccurrenceDate string
+	ReferenceTime  string
 	SortMode       domain.StandupSubmissionSortMode
 
 	MemberUserIDs    []string
@@ -46,6 +47,7 @@ type ListStandupSubmissionsInput struct {
 	ActorUserID    string
 	WorkspaceID    string
 	OccurrenceDate string
+	ReferenceTime  string
 	SortMode       string
 }
 
@@ -889,6 +891,7 @@ func (s *StandupService) ListSubmissions(
 	if err != nil {
 		return nil, NewError(ErrorCodeInternal, "Could not load approved leave.")
 	}
+	approvedLeaves = approvedLeavesAtTime(approvedLeaves, domain.TimeOfDay(strings.TrimSpace(input.ReferenceTime)))
 
 	sortMode := normalizeStandupSubmissionSortMode(input.SortMode)
 	sortStandupSubmissions(submissions, sortMode)
@@ -1337,6 +1340,7 @@ func (s *StandupService) requireStandupRunsForSubmission(
 	if err != nil {
 		return NewError(ErrorCodeInternal, "Could not evaluate approved leave.")
 	}
+	approvedLeaves = approvedLeavesForDayGate(approvedLeaves)
 
 	memberUserIDs, excludedUserIDs, err := standupParticipantsFromMembers(ctx, s.workspaceRoleStore, workspace.ID, memberUserIDs)
 	if err != nil {

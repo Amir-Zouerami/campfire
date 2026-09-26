@@ -23,6 +23,7 @@ type ExecuteReminderSequenceInput struct {
 	ScheduleID     string
 	OccurrenceDate string
 	SequenceNumber int
+	ReferenceTime  string
 }
 
 /*
@@ -135,6 +136,7 @@ func (s *ReminderExecutionService) ExecuteSequence(
 		ActorUserID:    schedulerActorUserID,
 		WorkspaceID:    workspaceID.String(),
 		OccurrenceDate: occurrenceDate.String(),
+		ReferenceTime:  input.ReferenceTime,
 		SortMode:       string(domain.StandupSubmissionSortName),
 	})
 	if err != nil {
