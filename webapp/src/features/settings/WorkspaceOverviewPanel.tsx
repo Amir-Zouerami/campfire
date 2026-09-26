@@ -392,20 +392,20 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 				</div>
 
 				<div className="campfire-field-stack">
-					<label className="campfire-field-label" htmlFor="campfire-leave-absence-scope">Standup leave scope</label>
+					<label className="campfire-field-label" htmlFor="campfire-leave-absence-scope">{t('settings.overview.leaveScope.label')}</label>
 					<select id="campfire-leave-absence-scope" value={leaveAbsenceScope} disabled={!canEditWorkspaceSettings || isSavingNotifications} onChange={event => setLeaveAbsenceScope(event.target.value as LeaveAbsenceScope)}>
-						<option value="all_workspaces">Any approved leave in any workspace</option>
-						<option value="channel">Approved leave in one specific channel</option>
-						<option value="same_workspace">Approved leave in this channel only</option>
+						<option value="all_workspaces">{t('settings.overview.leaveScope.all')}</option>
+						<option value="channel">{t('settings.overview.leaveScope.channel')}</option>
+						<option value="same_workspace">{t('settings.overview.leaveScope.same')}</option>
 					</select>
-					<p>Controls which approved leave makes a member absent from this workspace’s standups.</p>
+					<p>{t('settings.overview.leaveScope.help')}</p>
 				</div>
 
 				{leaveAbsenceScope === 'channel' && (
 					<div className="campfire-field-stack">
-						<label className="campfire-field-label" htmlFor="campfire-leave-absence-channel">Leave channel ID</label>
+						<label className="campfire-field-label" htmlFor="campfire-leave-absence-channel">{t('settings.overview.leaveScope.channelId')}</label>
 						<CampfireResponsiveInput id="campfire-leave-absence-channel" disabled={!canEditWorkspaceSettings || isSavingNotifications} value={leaveAbsenceChannelID} onValueChange={setLeaveAbsenceChannelID} />
-						<p>Paste the Mattermost channel ID where leave is managed.</p>
+						<p>{t('settings.overview.leaveScope.channelHelp')}</p>
 					</div>
 				)}
 
