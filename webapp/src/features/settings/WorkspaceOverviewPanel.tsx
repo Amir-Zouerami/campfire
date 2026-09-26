@@ -20,6 +20,7 @@ import type { LucideIcon } from 'lucide-react';
 import { deleteWorkspace, updateWorkspaceNotificationSettings, updateWorkspaceTimezone } from '@/api';
 import { useUserProfiles } from '@/app/useUserProfiles';
 import { CampfireLanguageSelect } from '@/components/campfire/CampfireLanguageSelect';
+import { CampfireSelect } from '@/components/campfire/CampfireSelect';
 import { CampfireTimezoneSelect } from '@/components/campfire/CampfireTimezoneSelect';
 import { CampfireUserMultiPicker } from '@/components/campfire/CampfireUserMultiPicker';
 import { CampfireSurface, CampfireWorkflowNote } from '@/components/campfire/CampfireLayoutPrimitives';
@@ -393,11 +394,11 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 
 				<div className="campfire-field-stack">
 					<label className="campfire-field-label" htmlFor="campfire-leave-absence-scope">{t('settings.overview.leaveScope.label')}</label>
-					<select id="campfire-leave-absence-scope" value={leaveAbsenceScope} disabled={!canEditWorkspaceSettings || isSavingNotifications} onChange={event => setLeaveAbsenceScope(event.target.value as LeaveAbsenceScope)}>
+					<CampfireSelect id="campfire-leave-absence-scope" value={leaveAbsenceScope} disabled={!canEditWorkspaceSettings || isSavingNotifications} onValueChange={value => setLeaveAbsenceScope(value as LeaveAbsenceScope)}>
 						<option value="all_workspaces">{t('settings.overview.leaveScope.all')}</option>
 						<option value="channel">{t('settings.overview.leaveScope.channel')}</option>
 						<option value="same_workspace">{t('settings.overview.leaveScope.same')}</option>
-					</select>
+					</CampfireSelect>
 					<p>{t('settings.overview.leaveScope.help')}</p>
 				</div>
 
