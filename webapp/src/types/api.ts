@@ -160,6 +160,8 @@ export type WorkspaceByChannelResponse = {
  */
 export type UpdateWorkspaceNotificationSettingsRequest = {
 	readonly approvedLeaveNotificationChannelId: string;
+	readonly leaveAbsenceScope: import('./domain').LeaveAbsenceScope;
+	readonly leaveAbsenceChannelId: string;
 	readonly leaveRequestNotificationRecipientIds: readonly string[];
 	readonly leaveNotificationLanguage: ReportLanguage;
 	readonly generatedMessageLanguage: CampfireLanguage;

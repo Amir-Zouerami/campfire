@@ -885,12 +885,7 @@ func (s *StandupService) ListSubmissions(
 		return nil, NewError(ErrorCodeInternal, "Could not load workspace members.")
 	}
 
-	approvedLeaves, err := s.leaveStore.ListApprovedByWorkspaceIDBetween(
-		ctx,
-		workspaceID,
-		occurrenceDate,
-		occurrenceDate,
-	)
+	approvedLeaves, err := approvedLeavesForStandupParticipants(ctx, s.workspaceStore, s.leaveStore, *workspace, memberUserIDs, occurrenceDate)
 	if err != nil {
 		return nil, NewError(ErrorCodeInternal, "Could not load approved leave.")
 	}
@@ -1333,14 +1328,14 @@ func (s *StandupService) requireStandupRunsForSubmission(
 		return NewError(ErrorCodeInternal, "Could not evaluate workspace off-days.")
 	}
 
-	approvedLeaves, err := s.leaveStore.ListApprovedByWorkspaceIDBetween(ctx, workspace.ID, occurrenceDate, occurrenceDate)
-	if err != nil {
-		return NewError(ErrorCodeInternal, "Could not evaluate approved leave.")
-	}
-
 	memberUserIDs, err := s.memberProvider.ListWorkspaceMemberUserIDs(ctx, workspace)
 	if err != nil {
 		return NewError(ErrorCodeInternal, "Could not evaluate workspace members.")
+	}
+
+	approvedLeaves, err := approvedLeavesForStandupParticipants(ctx, s.workspaceStore, s.leaveStore, workspace, memberUserIDs, occurrenceDate)
+	if err != nil {
+		return NewError(ErrorCodeInternal, "Could not evaluate approved leave.")
 	}
 
 	memberUserIDs, excludedUserIDs, err := standupParticipantsFromMembers(ctx, s.workspaceRoleStore, workspace.ID, memberUserIDs)

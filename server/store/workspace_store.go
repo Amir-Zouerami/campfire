@@ -50,6 +50,8 @@ type WorkspaceStore interface {
 		ctx context.Context,
 		workspaceID domain.ID,
 		channelID string,
+		leaveAbsenceScope domain.LeaveAbsenceScope,
+		leaveAbsenceChannelID string,
 		leaveRequestNotificationRecipientIDs []string,
 		leaveNotificationLanguage domain.ReportLanguage,
 		generatedMessageLanguage domain.Language,
@@ -135,6 +137,8 @@ func (s *SQLWorkspaceStore) UpdateNotificationSettings(
 	ctx context.Context,
 	workspaceID domain.ID,
 	channelID string,
+	leaveAbsenceScope domain.LeaveAbsenceScope,
+	leaveAbsenceChannelID string,
 	leaveRequestNotificationRecipientIDs []string,
 	leaveNotificationLanguage domain.ReportLanguage,
 	generatedMessageLanguage domain.Language,
@@ -148,6 +152,8 @@ func (s *SQLWorkspaceStore) UpdateNotificationSettings(
 	query := s.db.Rebind(`
 		UPDATE campfire_workspaces
 		SET approved_leave_notification_channel_id = ?,
+			leave_absence_scope = ?,
+			leave_absence_channel_id = ?,
 			leave_request_notification_recipient_ids = ?,
 			leave_notification_language = ?,
 			generated_message_language = ?,
@@ -159,6 +165,8 @@ func (s *SQLWorkspaceStore) UpdateNotificationSettings(
 		ctx,
 		query,
 		channelID,
+		string(leaveAbsenceScope),
+		leaveAbsenceChannelID,
 		recipientIDsJSON,
 		string(leaveNotificationLanguage),
 		string(generatedMessageLanguage),
@@ -233,6 +241,8 @@ func (s *SQLWorkspaceStore) GetByID(ctx context.Context, workspaceID domain.ID) 
 			description,
 			board_url,
 			approved_leave_notification_channel_id,
+			leave_absence_scope,
+			leave_absence_channel_id,
 			leave_request_notification_recipient_ids,
 			leave_notification_language,
 			generated_message_language,
@@ -280,6 +290,8 @@ func (s *SQLWorkspaceStore) GetByChannelID(ctx context.Context, channelID string
 			description,
 			board_url,
 			approved_leave_notification_channel_id,
+			leave_absence_scope,
+			leave_absence_channel_id,
 			leave_request_notification_recipient_ids,
 			leave_notification_language,
 			generated_message_language,
@@ -327,6 +339,8 @@ func (s *SQLWorkspaceStore) ListActive(ctx context.Context) ([]domain.Workspace,
 			description,
 			board_url,
 			approved_leave_notification_channel_id,
+			leave_absence_scope,
+			leave_absence_channel_id,
 			leave_request_notification_recipient_ids,
 			leave_notification_language,
 			generated_message_language,
@@ -458,6 +472,8 @@ func (s *SQLWorkspaceStore) insertWorkspace(ctx context.Context, tx *sqlx.Tx, wo
 				description,
 				board_url,
 				approved_leave_notification_channel_id,
+				leave_absence_scope,
+				leave_absence_channel_id,
 				leave_request_notification_recipient_ids,
 				leave_notification_language,
 				generated_message_language,
@@ -466,7 +482,7 @@ func (s *SQLWorkspaceStore) insertWorkspace(ctx context.Context, tx *sqlx.Tx, wo
 				created_at,
 				updated_at,
 				is_archived
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`),
 		workspace.ID.String(),
 		workspace.TeamID,
@@ -475,6 +491,8 @@ func (s *SQLWorkspaceStore) insertWorkspace(ctx context.Context, tx *sqlx.Tx, wo
 		workspace.Description,
 		workspace.BoardURL,
 		workspace.ApprovedLeaveNotificationChannelID,
+		string(storedLeaveAbsenceScope(string(workspace.LeaveAbsenceScope))),
+		workspace.LeaveAbsenceChannelID,
 		mustEncodeWorkspaceUserIDs(workspace.LeaveRequestNotificationRecipientIDs),
 		string(workspace.LeaveNotificationLanguage),
 		string(workspace.GeneratedMessageLanguage),
@@ -880,6 +898,8 @@ type workspaceRecord struct {
 	Description                          string    `db:"description"`
 	BoardURL                             string    `db:"board_url"`
 	ApprovedLeaveNotificationChannelID   string    `db:"approved_leave_notification_channel_id"`
+	LeaveAbsenceScope                    string    `db:"leave_absence_scope"`
+	LeaveAbsenceChannelID                string    `db:"leave_absence_channel_id"`
 	LeaveRequestNotificationRecipientIDs string    `db:"leave_request_notification_recipient_ids"`
 	LeaveNotificationLanguage            string    `db:"leave_notification_language"`
 	GeneratedMessageLanguage             string    `db:"generated_message_language"`
@@ -902,6 +922,8 @@ func (r workspaceRecord) toDomain() domain.Workspace {
 		Description:                          r.Description,
 		BoardURL:                             r.BoardURL,
 		ApprovedLeaveNotificationChannelID:   r.ApprovedLeaveNotificationChannelID,
+		LeaveAbsenceScope:                    storedLeaveAbsenceScope(r.LeaveAbsenceScope),
+		LeaveAbsenceChannelID:                r.LeaveAbsenceChannelID,
 		LeaveRequestNotificationRecipientIDs: decodeWorkspaceUserIDs(r.LeaveRequestNotificationRecipientIDs),
 		LeaveNotificationLanguage:            domain.ReportLanguage(r.LeaveNotificationLanguage),
 		GeneratedMessageLanguage:             storedWorkspaceLanguage(r.GeneratedMessageLanguage, r.LeaveNotificationLanguage),
@@ -911,6 +933,15 @@ func (r workspaceRecord) toDomain() domain.Workspace {
 		UpdatedAt:                            parseStoredTime(r.UpdatedAt),
 		IsArchived:                           r.IsArchived,
 	}
+}
+
+func storedLeaveAbsenceScope(value string) domain.LeaveAbsenceScope {
+	scope := domain.LeaveAbsenceScope(strings.TrimSpace(value))
+	if !scope.IsValid() {
+		return domain.LeaveAbsenceScopeSameWorkspace
+	}
+
+	return scope
 }
 
 /*

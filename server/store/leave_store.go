@@ -86,6 +86,12 @@ type LeaveStore interface {
 		startDate domain.LocalDate,
 		endDate domain.LocalDate,
 	) ([]domain.LeaveRequestWithType, error)
+	ListApprovedByUserIDsBetween(
+		ctx context.Context,
+		userIDs []string,
+		startDate domain.LocalDate,
+		endDate domain.LocalDate,
+	) ([]domain.LeaveRequestWithType, error)
 	ListPendingChangeRequestsByWorkspaceID(
 		ctx context.Context,
 		workspaceID domain.ID,
@@ -441,6 +447,90 @@ func (s *SQLLeaveStore) ListApprovedByWorkspaceIDBetween(
 	}
 
 	return results, nil
+}
+
+/*
+ListApprovedByUserIDsBetween returns approved leave overlapping an inclusive date range
+for the supplied users, regardless of which Campfire workspace recorded the leave.
+
+Leave planning commonly lives in a dedicated workspace while standups run in
+team-specific workspaces. Standup eligibility must therefore consider a
+member's approved leave across the installation, not only in the workspace
+where that leave happened to be requested.
+*/
+func (s *SQLLeaveStore) ListApprovedByUserIDsBetween(
+	ctx context.Context,
+	userIDs []string,
+	startDate domain.LocalDate,
+	endDate domain.LocalDate,
+) ([]domain.LeaveRequestWithType, error) {
+	uniqueUserIDs := uniqueLeaveUserIDs(userIDs)
+	if len(uniqueUserIDs) == 0 {
+		return []domain.LeaveRequestWithType{}, nil
+	}
+
+	query, arguments, err := sqlx.In(`
+		SELECT
+			requests.id,
+			requests.workspace_id,
+			requests.user_id,
+			requests.leave_type_id,
+			requests.start_date,
+			requests.end_date,
+			requests.duration_mode,
+			requests.half_day_part,
+			requests.start_time,
+			requests.end_time,
+			requests.reason,
+			requests.backup_user_id,
+			requests.can_contact_if_needed,
+			requests.status,
+			requests.created_at,
+			requests.updated_at,
+			requests.cancelled_at,
+			types.name AS leave_type_name,
+			types.color AS leave_type_color
+		FROM campfire_leave_requests requests
+		INNER JOIN campfire_leave_types types
+			ON types.id = requests.leave_type_id
+		WHERE requests.user_id IN (?)
+			AND requests.status = ?
+			AND requests.start_date <= ?
+			AND requests.end_date >= ?
+		ORDER BY requests.start_date ASC, requests.created_at ASC
+	`, uniqueUserIDs, string(domain.LeaveStatusApproved), endDate.String(), startDate.String())
+	if err != nil {
+		return nil, fmt.Errorf("build approved leave users query: %w", err)
+	}
+
+	records := []leaveRequestWithTypeRecord{}
+	if err := s.db.SelectContext(ctx, &records, s.db.Rebind(query), arguments...); err != nil {
+		return nil, fmt.Errorf("list approved leave requests by users: %w", err)
+	}
+
+	results := make([]domain.LeaveRequestWithType, 0, len(records))
+	for _, record := range records {
+		results = append(results, record.toDomain())
+	}
+
+	return results, nil
+}
+
+func uniqueLeaveUserIDs(userIDs []string) []string {
+	seen := make(map[string]bool, len(userIDs))
+	uniqueUserIDs := make([]string, 0, len(userIDs))
+
+	for _, userID := range userIDs {
+		cleanUserID := strings.TrimSpace(userID)
+		if cleanUserID == "" || seen[cleanUserID] {
+			continue
+		}
+
+		seen[cleanUserID] = true
+		uniqueUserIDs = append(uniqueUserIDs, cleanUserID)
+	}
+
+	return uniqueUserIDs
 }
 
 /*

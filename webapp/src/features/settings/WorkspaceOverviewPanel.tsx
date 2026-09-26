@@ -29,6 +29,7 @@ import { CampfireResponsiveInput } from '@/components/campfire/CampfireResponsiv
 import { useI18n } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import type { WorkspaceShellProps } from '@/features/workspace-shell/workspace-shell.types';
+import type { LeaveAbsenceScope } from '@/types/domain';
 
 /**
  * WorkspaceOverviewPanel renders workspace identity, notification routing, and
@@ -41,6 +42,8 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 	const [notificationChannelID, setNotificationChannelID] = useState(
 		props.workspace.approvedLeaveNotificationChannelId,
 	);
+	const [leaveAbsenceScope, setLeaveAbsenceScope] = useState<LeaveAbsenceScope>(props.workspace.leaveAbsenceScope);
+	const [leaveAbsenceChannelID, setLeaveAbsenceChannelID] = useState(props.workspace.leaveAbsenceChannelId);
 	const [generatedMessageLanguage, setGeneratedMessageLanguage] = useState(
 		props.workspace.generatedMessageLanguage,
 	);
@@ -65,7 +68,9 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 	const savedLeaveRequestRecipientKey = props.workspace.leaveRequestNotificationRecipientIds.join('|');
 	const draftLeaveRequestRecipientKey = leaveRequestRecipientIDs.join('|');
 	const notificationDirty = draftNotificationChannelID !== savedNotificationChannelID
-		|| draftLeaveRequestRecipientKey !== savedLeaveRequestRecipientKey;
+		|| draftLeaveRequestRecipientKey !== savedLeaveRequestRecipientKey
+		|| leaveAbsenceScope !== props.workspace.leaveAbsenceScope
+		|| leaveAbsenceChannelID.trim() !== props.workspace.leaveAbsenceChannelId.trim();
 	const notificationTargetLabel =
 		savedNotificationChannelID === ''
 			? t('settings.overview.notifications.workspaceChannel')
@@ -77,10 +82,14 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 		setNotificationChannelID(props.workspace.approvedLeaveNotificationChannelId);
 		setGeneratedMessageLanguage(props.workspace.generatedMessageLanguage);
 		setLeaveRequestRecipientIDs(props.workspace.leaveRequestNotificationRecipientIds);
+		setLeaveAbsenceScope(props.workspace.leaveAbsenceScope);
+		setLeaveAbsenceChannelID(props.workspace.leaveAbsenceChannelId);
 		setTimezone(props.workspace.timezone);
 	}, [
 		props.workspace.approvedLeaveNotificationChannelId,
 		props.workspace.generatedMessageLanguage,
+		props.workspace.leaveAbsenceScope,
+		props.workspace.leaveAbsenceChannelId,
 		props.workspace.timezone,
 		savedLeaveRequestRecipientKey,
 	]);
@@ -101,6 +110,8 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 				leaveRequestNotificationRecipientIds: leaveRequestRecipientIDs,
 				leaveNotificationLanguage: generatedMessageLanguage,
 				generatedMessageLanguage,
+				leaveAbsenceScope,
+				leaveAbsenceChannelId: leaveAbsenceChannelID.trim(),
 			});
 
 			toast.success(t('settings.notifications.language.saved'));
@@ -130,6 +141,8 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 				leaveRequestNotificationRecipientIds: props.workspace.leaveRequestNotificationRecipientIds,
 				leaveNotificationLanguage: generatedMessageLanguage,
 				generatedMessageLanguage,
+				leaveAbsenceScope: props.workspace.leaveAbsenceScope,
+				leaveAbsenceChannelId: props.workspace.leaveAbsenceChannelId,
 			});
 
 			toast.success(t('settings.overview.language.toast.saved'));
@@ -377,6 +390,24 @@ export function WorkspaceOverviewPanel(props: WorkspaceShellProps): ReactElement
 					<OverviewFact icon={BellRing} label={t('settings.overview.notifications.currentTarget')} value={notificationTargetLabel} helper={t('settings.overview.notifications.currentTarget.helper')} />
 					<OverviewFact icon={Hash} label={t('settings.overview.notifications.fallback')} value={t('settings.overview.notifications.workspaceChannel')} helper={t('settings.overview.notifications.fallback.helper')} />
 				</div>
+
+				<div className="campfire-field-stack">
+					<label className="campfire-field-label" htmlFor="campfire-leave-absence-scope">Standup leave scope</label>
+					<select id="campfire-leave-absence-scope" value={leaveAbsenceScope} disabled={!canEditWorkspaceSettings || isSavingNotifications} onChange={event => setLeaveAbsenceScope(event.target.value as LeaveAbsenceScope)}>
+						<option value="all_workspaces">Any approved leave in any workspace</option>
+						<option value="channel">Approved leave in one specific channel</option>
+						<option value="same_workspace">Approved leave in this channel only</option>
+					</select>
+					<p>Controls which approved leave makes a member absent from this workspace’s standups.</p>
+				</div>
+
+				{leaveAbsenceScope === 'channel' && (
+					<div className="campfire-field-stack">
+						<label className="campfire-field-label" htmlFor="campfire-leave-absence-channel">Leave channel ID</label>
+						<CampfireResponsiveInput id="campfire-leave-absence-channel" disabled={!canEditWorkspaceSettings || isSavingNotifications} value={leaveAbsenceChannelID} onValueChange={setLeaveAbsenceChannelID} />
+						<p>Paste the Mattermost channel ID where leave is managed.</p>
+					</div>
+				)}
 
 				<div className="campfire-field-stack">
 					<label htmlFor="campfire-approved-leave-notification-channel" className="campfire-field-label">

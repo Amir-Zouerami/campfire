@@ -104,14 +104,14 @@ func (s *StandupRuntimeService) EvaluateDay(
 		return nil, NewError(ErrorCodeInternal, "Could not evaluate workspace off-days.")
 	}
 
-	approvedLeaves, err := s.leaveStore.ListApprovedByWorkspaceIDBetween(ctx, workspace.ID, dateValue, dateValue)
-	if err != nil {
-		return nil, NewError(ErrorCodeInternal, "Could not evaluate approved leave.")
-	}
-
 	memberUserIDs, err := s.memberProvider.ListWorkspaceMemberUserIDs(ctx, *workspace)
 	if err != nil {
 		return nil, NewError(ErrorCodeInternal, "Could not evaluate workspace members.")
+	}
+
+	approvedLeaves, err := approvedLeavesForStandupParticipants(ctx, s.workspaceStore, s.leaveStore, *workspace, memberUserIDs, dateValue)
+	if err != nil {
+		return nil, NewError(ErrorCodeInternal, "Could not evaluate approved leave.")
 	}
 
 	memberUserIDs, excludedUserIDs, err := standupParticipantsFromMembers(

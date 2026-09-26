@@ -60,6 +60,8 @@ export type LeaveHalfDayPart = 'morning' | 'afternoon';
  */
 export type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
 
+export type LeaveAbsenceScope = 'all_workspaces' | 'channel' | 'same_workspace';
+
 /**
  * ReportKind identifies the type of report Campfire can generate.
  */
@@ -106,6 +108,8 @@ export type Workspace = {
 	readonly description: string;
 	readonly boardUrl: string;
 	readonly approvedLeaveNotificationChannelId: string;
+	readonly leaveAbsenceScope: LeaveAbsenceScope;
+	readonly leaveAbsenceChannelId: string;
 	readonly leaveRequestNotificationRecipientIds: readonly string[];
 	readonly leaveNotificationLanguage: ReportLanguage;
 	readonly generatedMessageLanguage: CampfireLanguage;

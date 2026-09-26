@@ -2,6 +2,18 @@ package domain
 
 import "time"
 
+type LeaveAbsenceScope string
+
+const (
+	LeaveAbsenceScopeSameWorkspace LeaveAbsenceScope = "same_workspace"
+	LeaveAbsenceScopeChannel       LeaveAbsenceScope = "channel"
+	LeaveAbsenceScopeAllWorkspaces LeaveAbsenceScope = "all_workspaces"
+)
+
+func (s LeaveAbsenceScope) IsValid() bool {
+	return s == LeaveAbsenceScopeSameWorkspace || s == LeaveAbsenceScopeChannel || s == LeaveAbsenceScopeAllWorkspaces
+}
+
 /*
 Workspace represents Campfire configuration for a Mattermost channel.
 
@@ -24,6 +36,8 @@ type Workspace struct {
 		When empty, Campfire posts those announcements to the workspace channel.
 	*/
 	ApprovedLeaveNotificationChannelID string
+	LeaveAbsenceScope                  LeaveAbsenceScope
+	LeaveAbsenceChannelID              string
 
 	/*
 		LeaveRequestNotificationRecipientIDs lists the exact Mattermost users who

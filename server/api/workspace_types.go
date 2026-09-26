@@ -18,6 +18,8 @@ type WorkspacePayload struct {
 	Description                          string   `json:"description"`
 	BoardURL                             string   `json:"boardUrl"`
 	ApprovedLeaveNotificationChannelID   string   `json:"approvedLeaveNotificationChannelId"`
+	LeaveAbsenceScope                    string   `json:"leaveAbsenceScope"`
+	LeaveAbsenceChannelID                string   `json:"leaveAbsenceChannelId"`
 	LeaveRequestNotificationRecipientIDs []string `json:"leaveRequestNotificationRecipientIds"`
 	LeaveNotificationLanguage            string   `json:"leaveNotificationLanguage"`
 	GeneratedMessageLanguage             string   `json:"generatedMessageLanguage"`
@@ -74,6 +76,8 @@ UpdateWorkspaceNotificationSettingsRequest updates workspace notification routin
 */
 type UpdateWorkspaceNotificationSettingsRequest struct {
 	ApprovedLeaveNotificationChannelID   string   `json:"approvedLeaveNotificationChannelId"`
+	LeaveAbsenceScope                    string   `json:"leaveAbsenceScope"`
+	LeaveAbsenceChannelID                string   `json:"leaveAbsenceChannelId"`
 	LeaveRequestNotificationRecipientIDs []string `json:"leaveRequestNotificationRecipientIds"`
 	LeaveNotificationLanguage            string   `json:"leaveNotificationLanguage"`
 	GeneratedMessageLanguage             string   `json:"generatedMessageLanguage"`
@@ -136,6 +140,8 @@ func WorkspaceToPayload(workspace domain.Workspace) WorkspacePayload {
 		Description:                          workspace.Description,
 		BoardURL:                             workspace.BoardURL,
 		ApprovedLeaveNotificationChannelID:   workspace.ApprovedLeaveNotificationChannelID,
+		LeaveAbsenceScope:                    string(workspace.LeaveAbsenceScope),
+		LeaveAbsenceChannelID:                workspace.LeaveAbsenceChannelID,
 		LeaveRequestNotificationRecipientIDs: workspace.LeaveRequestNotificationRecipientIDs,
 		LeaveNotificationLanguage:            string(workspace.LeaveNotificationLanguage),
 		GeneratedMessageLanguage:             string(workspace.GeneratedMessageLanguage),
@@ -204,6 +210,8 @@ func (r UpdateWorkspaceNotificationSettingsRequest) ToServiceInput(
 		ActorUserID:                          actorUserID,
 		WorkspaceID:                          workspaceID,
 		ApprovedLeaveNotificationChannelID:   r.ApprovedLeaveNotificationChannelID,
+		LeaveAbsenceScope:                    r.LeaveAbsenceScope,
+		LeaveAbsenceChannelID:                r.LeaveAbsenceChannelID,
 		LeaveRequestNotificationRecipientIDs: r.LeaveRequestNotificationRecipientIDs,
 		LeaveNotificationLanguage:            r.LeaveNotificationLanguage,
 		GeneratedMessageLanguage:             r.GeneratedMessageLanguage,

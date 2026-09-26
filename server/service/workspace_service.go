@@ -73,6 +73,8 @@ type UpdateWorkspaceNotificationSettingsInput struct {
 	ActorUserID                          string
 	WorkspaceID                          string
 	ApprovedLeaveNotificationChannelID   string
+	LeaveAbsenceScope                    string
+	LeaveAbsenceChannelID                string
 	LeaveRequestNotificationRecipientIDs []string
 	LeaveNotificationLanguage            string
 	GeneratedMessageLanguage             string
@@ -241,6 +243,7 @@ func (s *WorkspaceService) Create(ctx context.Context, input CreateWorkspaceInpu
 			Name:                      cleanName,
 			Description:               strings.TrimSpace(input.Description),
 			BoardURL:                  strings.TrimSpace(input.BoardURL),
+			LeaveAbsenceScope:         domain.LeaveAbsenceScopeSameWorkspace,
 			LeaveNotificationLanguage: generatedLanguage,
 			GeneratedMessageLanguage:  generatedLanguage,
 			WorkingDays:               workingDayRecordsToWeekdays(workingDays),
@@ -353,6 +356,29 @@ func (s *WorkspaceService) UpdateApprovedLeaveNotificationChannelID(
 	}
 
 	cleanChannelID := strings.TrimSpace(input.ApprovedLeaveNotificationChannelID)
+	leaveAbsenceScope := domain.LeaveAbsenceScope(strings.TrimSpace(input.LeaveAbsenceScope))
+	if leaveAbsenceScope == "" {
+		leaveAbsenceScope = domain.LeaveAbsenceScopeSameWorkspace
+	}
+	if !leaveAbsenceScope.IsValid() {
+		return nil, NewError(ErrorCodeValidationFailed, "Leave absence scope is not supported.")
+	}
+	leaveAbsenceChannelID := strings.TrimSpace(input.LeaveAbsenceChannelID)
+	if leaveAbsenceScope == domain.LeaveAbsenceScopeChannel && leaveAbsenceChannelID == "" {
+		return nil, NewError(ErrorCodeValidationFailed, "A leave channel ID is required for the selected absence scope.")
+	}
+	if leaveAbsenceScope == domain.LeaveAbsenceScopeChannel {
+		if _, err := s.workspaceStore.GetByChannelID(ctx, leaveAbsenceChannelID); err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				return nil, NewError(ErrorCodeValidationFailed, "The leave channel must be an active Campfire workspace.")
+			}
+
+			return nil, NewError(ErrorCodeInternal, "Could not validate the leave channel.")
+		}
+	}
+	if leaveAbsenceScope != domain.LeaveAbsenceScopeChannel {
+		leaveAbsenceChannelID = ""
+	}
 	leaveRequestRecipientIDs := normalizeNotificationRecipientIDs(input.LeaveRequestNotificationRecipientIDs, "")
 	leaveNotificationLanguage := normalizeWorkspaceNotificationLanguage(input.LeaveNotificationLanguage)
 	generatedMessageLanguage := normalizeGeneratedMessageLanguage(
@@ -364,6 +390,8 @@ func (s *WorkspaceService) UpdateApprovedLeaveNotificationChannelID(
 		ctx,
 		domain.ID(cleanWorkspaceID),
 		cleanChannelID,
+		leaveAbsenceScope,
+		leaveAbsenceChannelID,
 		leaveRequestRecipientIDs,
 		leaveNotificationLanguage,
 		generatedMessageLanguage,
