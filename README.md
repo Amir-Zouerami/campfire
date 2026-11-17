@@ -28,6 +28,7 @@
 ## Table of contents
 
 - [Table of contents](#table-of-contents)
+- [Screenshots](#screenshots)
 - [What Campfire is](#what-campfire-is)
 - [Who it is for](#who-it-is-for)
 - [Core features](#core-features)
@@ -52,6 +53,22 @@
 - [Release artifacts](#release-artifacts)
 - [Data and privacy](#data-and-privacy)
 - [Status](#status)
+
+---
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/availability-dark.png" alt="Availability: who is out today and this week, in the dark theme" width="900" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/weekly-light.png" alt="Weekly report preview in the light theme" width="900" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/standups-dark-fa.png" alt="Team standups in Persian with right-to-left layout" width="900" />
+</p>
 
 ---
 
@@ -252,7 +269,7 @@ Campfire is organized around four primary areas:
 | **Reports**     | Markdown previews, CSV exports, saved filters, and report posting        |
 | **Settings**    | Roles, calendar, forms, reminders, report rules, audit log, and off-days |
 
-The UI is built as a focused full-screen workspace inside Mattermost, with dark styling, compact navigation, reusable form controls, and channel-aware bootstrap behavior.
+The UI is built as a focused full-screen workspace inside Mattermost, with a dark theme by default (and a light theme, switchable per user), compact navigation, reusable form controls, and channel-aware bootstrap behavior.
 
 When Campfire opens from a Mattermost channel, it loads the workspace context for that channel instead of reusing stale state from a previously opened channel.
 
