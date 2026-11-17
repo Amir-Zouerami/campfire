@@ -1,0 +1,156 @@
+/*
+ * Campfire base styles, scoped to `.cf-root`.
+ *
+ * Mattermost owns the page, so nothing here may touch elements outside the
+ * Campfire overlay. There is deliberately no global reset: components style
+ * every element they render explicitly through utilities.
+ */
+@font-face {
+	font-family: 'Campfire Sans';
+	font-style: normal;
+	font-weight: 200 800;
+	font-display: swap;
+	src: url('@assets/fonts/PlusJakartaSans-Variable-latin.woff2') format('woff2');
+}
+
+@font-face {
+	font-family: 'Campfire Vazirmatn';
+	font-style: normal;
+	font-weight: 100 900;
+	font-display: swap;
+	src: url('@assets/fonts/Vazirmatn-Variable.woff2') format('woff2');
+}
+
+/*
+ * Mattermost sets its own font on headings and form controls with unlayered rules, which
+ * beat everything in a layer. These rules are unlayered and more specific, so those elements
+ * use Campfire's font instead; without it Persian and Arabic headings fall back to a font
+ * with no proper Arabic-script design.
+ */
+.cf-root {
+	font-family: var(--cf-font-sans) !important;
+}
+
+.cf-root :is(h1, h2, h3, h4, h5, h6, button, input, select, optgroup, option, textarea) {
+	font-family: inherit !important;
+}
+
+.cf-root :is(code, pre, kbd, samp) {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+}
+
+/* Persian and Arabic use Vazirmatn for Latin text and digits too, so mixed content stays uniform. */
+.cf-root[dir='rtl'],
+.cf-root [dir='rtl'],
+.cf-root[lang='fa'],
+.cf-root [lang='fa'],
+.cf-root[lang='ar'],
+.cf-root [lang='ar'] {
+	--cf-font-sans: 'Campfire Vazirmatn', 'Campfire Sans', system-ui, sans-serif;
+}
+
+/*
+ * The dark theme redefines the colour tokens; every component reads them, so nothing else
+ * changes. `color-scheme` makes native controls (select lists, scrollbars) dark as well.
+ */
+.cf-root[data-theme='light'] {
+	color-scheme: light;
+}
+
+.cf-root[data-theme='dark'] {
+	color-scheme: dark;
+
+	--cf-color-canvas: #131417;
+	--cf-color-surface: #1a1b1f;
+	--cf-color-sunken: #222328;
+	--cf-color-ink: #f3f4f6;
+	--cf-color-muted: #9ca3af;
+	--cf-color-subtle: #6b7280;
+	--cf-color-line: #2a2b30;
+	--cf-color-line-strong: #3b3c43;
+	--cf-color-brand: #f3f4f6;
+	--cf-color-brand-hover: #ffffff;
+	--cf-color-on-brand: #131417;
+	--cf-color-overlay: rgb(0 0 0 / 0.75);
+
+	--cf-color-blue: #60a5fa;
+	--cf-color-blue-soft: #1f2430;
+	--cf-color-blue-ink: #93c5fd;
+	--cf-color-violet: #a78bfa;
+	--cf-color-violet-soft: #2e2640;
+	--cf-color-violet-ink: #c4b5fd;
+	--cf-color-teal: #2dd4bf;
+	--cf-color-teal-soft: #14332f;
+	--cf-color-teal-ink: #5eead4;
+	--cf-color-rose: #fb7185;
+	--cf-color-rose-soft: #3f1d26;
+	--cf-color-rose-ink: #fda4af;
+	--cf-color-flame: #fb923c;
+	--cf-color-flame-soft: #3c2415;
+	--cf-color-flame-ink: #fdba74;
+
+	--cf-color-shadow: rgb(0 0 0 / 0.6);
+	--cf-color-shadow-ring: rgb(255 255 255 / 0.08);
+	--cf-color-shadow-deep: rgb(0 0 0 / 0.8);
+}
+
+@layer base {
+	.cf-root {
+		--cf-area: var(--cf-color-blue);
+		--cf-area-soft: var(--cf-color-blue-soft);
+		--cf-area-ink: var(--cf-color-blue-ink);
+
+		font-family: var(--cf-font-sans);
+		font-size: 14px;
+		line-height: 1.55;
+		color: var(--cf-color-ink);
+		-webkit-font-smoothing: antialiased;
+		text-rendering: optimizeLegibility;
+	}
+
+	/* Plus Jakarta Sans has a very narrow space glyph; open it up slightly for running text. */
+	.cf-root[lang='en'] {
+		word-spacing: 0.08em;
+	}
+
+	/* Persian and Arabic use Vazirmatn for Latin text and digits too, so mixed content stays uniform. */
+	.cf-root[dir='rtl'] {
+		--cf-font-sans: 'Campfire Vazirmatn', 'Campfire Sans', system-ui, sans-serif;
+	}
+
+	.cf-root[data-area='team'],
+	.cf-root [data-area='team'] {
+		--cf-area: var(--cf-color-violet);
+		--cf-area-soft: var(--cf-color-violet-soft);
+		--cf-area-ink: var(--cf-color-violet-ink);
+	}
+
+	.cf-root[data-area='reports'],
+	.cf-root [data-area='reports'] {
+		--cf-area: var(--cf-color-teal);
+		--cf-area-soft: var(--cf-color-teal-soft);
+		--cf-area-ink: var(--cf-color-teal-ink);
+	}
+
+	.cf-root[data-area='settings'],
+	.cf-root [data-area='settings'] {
+		--cf-area: var(--cf-color-rose);
+		--cf-area-soft: var(--cf-color-rose-soft);
+		--cf-area-ink: var(--cf-color-rose-ink);
+	}
+
+	.cf-root *,
+	.cf-root *::before,
+	.cf-root *::after {
+		box-sizing: border-box;
+	}
+
+	/* Native <dialog> elements keep their UA centring; only the frame is restyled. */
+	.cf-root dialog {
+		color: inherit;
+	}
+
+	.cf-root ::selection {
+		background: var(--cf-color-blue-soft);
+	}
+}

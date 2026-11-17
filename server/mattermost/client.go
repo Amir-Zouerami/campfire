@@ -2,6 +2,7 @@ package mattermost
 
 import (
 	"errors"
+	"net/http"
 	"strings"
 
 	"github.com/mattermost/mattermost/server/public/plugin"
@@ -29,9 +30,10 @@ raw Mattermost plugin API.
 */
 type Client interface {
 	GetUser(userID string) (*User, error)
-	GetUserFromSessionToken(sessionToken string) (*User, error)
+	GetUserFromSessionID(sessionID string) (*User, error)
 	GetChannelType(channelID string) (string, error)
 	IsChannelAdmin(channelID string, userID string) (bool, error)
+	IsChannelMember(channelID string, userID string) (bool, error)
 }
 
 /*
@@ -74,25 +76,29 @@ func (c *PluginClient) GetUser(userID string) (*User, error) {
 }
 
 /*
-GetUserFromSessionToken resolves a verified Mattermost session token to a user.
+GetUserFromSessionID resolves a Mattermost session ID to its user.
 
-This is a safe fallback for plugin HTTP requests where Mattermost did not inject
-the Mattermost-User-Id header but the browser still sent the Mattermost session
-cookie.
+Callers must only pass a session ID that came from Mattermost's plugin context,
+never a value supplied by the browser: a session ID identifies the user without
+any further proof.
 */
-func (c *PluginClient) GetUserFromSessionToken(sessionToken string) (*User, error) {
-	cleanSessionToken := strings.TrimSpace(sessionToken)
-	if cleanSessionToken == "" {
-		return nil, errors.New("session token is required")
+func (c *PluginClient) GetUserFromSessionID(sessionID string) (*User, error) {
+	cleanSessionID := strings.TrimSpace(sessionID)
+	if cleanSessionID == "" {
+		return nil, errors.New("session ID is required")
 	}
 
-	session, appErr := c.api.GetSession(cleanSessionToken)
+	session, appErr := c.api.GetSession(cleanSessionID)
 	if appErr != nil {
 		return nil, appErr
 	}
 
 	if session == nil || strings.TrimSpace(session.UserId) == "" {
 		return nil, errors.New("session has no user")
+	}
+
+	if session.IsExpired() {
+		return nil, errors.New("session has expired")
 	}
 
 	return c.GetUser(session.UserId)
@@ -154,6 +160,35 @@ func (c *PluginClient) IsChannelAdmin(channelID string, userID string) (bool, er
 	}
 
 	return hasRole(member.Roles, "channel_admin"), nil
+}
+
+/*
+IsChannelMember reports whether a Mattermost user belongs to a channel.
+
+Campfire workspaces are bound to one channel, and channel membership is what makes
+someone a workspace member. A missing membership is a normal "no", not an error.
+*/
+func (c *PluginClient) IsChannelMember(channelID string, userID string) (bool, error) {
+	cleanChannelID := strings.TrimSpace(channelID)
+	if cleanChannelID == "" {
+		return false, errors.New("channel ID is required")
+	}
+
+	cleanUserID := strings.TrimSpace(userID)
+	if cleanUserID == "" {
+		return false, errors.New("user ID is required")
+	}
+
+	member, appErr := c.api.GetChannelMember(cleanChannelID, cleanUserID)
+	if appErr != nil {
+		if appErr.StatusCode == http.StatusNotFound {
+			return false, nil
+		}
+
+		return false, appErr
+	}
+
+	return member != nil, nil
 }
 
 /*

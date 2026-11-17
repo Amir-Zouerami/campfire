@@ -25,7 +25,7 @@ type WorkspaceProvider interface {
 StandupScheduleProvider defines the standup schedule reads needed by the scheduler.
 */
 type StandupScheduleProvider interface {
-	ListSchedulesByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.StandupSchedule, error)
+	ListRunnableSchedulesByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.StandupSchedule, error)
 }
 
 /*
@@ -182,17 +182,62 @@ func (r *Runner) run(ctx context.Context) {
 	ticker := time.NewTicker(r.interval)
 	defer ticker.Stop()
 
-	r.tick(ctx, time.Now().UTC())
+	lastMinute := time.Time{}
 
 	for {
+		lastMinute = r.tickThrough(ctx, lastMinute, time.Now().UTC())
+
 		select {
 		case <-ctx.Done():
 			return
 
-		case tickTime := <-ticker.C:
-			r.tick(ctx, tickTime.UTC())
+		case <-ticker.C:
 		}
 	}
+}
+
+/*
+maxCatchUpMinutes bounds how far back the scheduler replays missed minutes.
+*/
+const maxCatchUpMinutes = 10
+
+/*
+tickThrough runs one scheduler pass for every minute since the last processed
+minute, and returns the minute it reached.
+
+Reminders and reports are due in one exact local minute. The ticker alone cannot
+guarantee every minute is seen: a slow pass, a busy host or timer drift can make
+two ticks land in non-adjacent minutes, which would silently drop whatever was
+due in between. Replaying the skipped minutes (a bounded number of them) makes
+delivery independent of tick timing. A minute is never processed twice by one
+runner, and executors additionally de-duplicate by run key.
+*/
+func (r *Runner) tickThrough(ctx context.Context, lastMinute time.Time, now time.Time) time.Time {
+	currentMinute := now.Truncate(time.Minute)
+
+	if !lastMinute.IsZero() && !currentMinute.After(lastMinute) {
+		return lastMinute
+	}
+
+	firstMinute := currentMinute
+	if !lastMinute.IsZero() {
+		firstMinute = lastMinute.Add(time.Minute)
+
+		if earliest := currentMinute.Add(-(maxCatchUpMinutes - 1) * time.Minute); firstMinute.Before(earliest) {
+			firstMinute = earliest
+		}
+	}
+
+	for minute := firstMinute; !minute.After(currentMinute); minute = minute.Add(time.Minute) {
+		if ctx.Err() != nil {
+			return lastMinute
+		}
+
+		r.tick(ctx, minute)
+		lastMinute = minute
+	}
+
+	return lastMinute
 }
 
 /*
@@ -211,8 +256,28 @@ func (r *Runner) tick(ctx context.Context, now time.Time) {
 	}
 
 	for _, workspace := range workspaces {
-		r.tickWorkspace(ctx, workspace, now)
+		r.tickWorkspaceSafely(ctx, workspace, now)
 	}
+}
+
+/*
+tickWorkspaceSafely runs one workspace's pass and contains a panic to that
+workspace. The scheduler runs in a background goroutine, where an unrecovered
+panic would take the whole plugin process down and stop automation for every
+workspace.
+*/
+func (r *Runner) tickWorkspaceSafely(ctx context.Context, workspace domain.Workspace, now time.Time) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			r.logger.Warn(
+				"scheduler recovered from a panic while processing a workspace",
+				logger.String("workspace_id", workspace.ID.String()),
+				logger.String("panic", fmt.Sprint(recovered)),
+			)
+		}
+	}()
+
+	r.tickWorkspace(ctx, workspace, now)
 }
 
 /*
@@ -270,7 +335,7 @@ func (r *Runner) tickWorkspace(ctx context.Context, workspace domain.Workspace, 
 		return
 	}
 
-	schedules, err := r.standupScheduleProvider.ListSchedulesByWorkspaceID(ctx, workspace.ID)
+	schedules, err := r.standupScheduleProvider.ListRunnableSchedulesByWorkspaceID(ctx, workspace.ID)
 	if err != nil {
 		r.logger.Warn(
 			"scheduler failed to load workspace standup schedules",

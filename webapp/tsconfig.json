@@ -1,28 +1,23 @@
 {
 	"compilerOptions": {
-		"allowSyntheticDefaultImports": true,
-		"declaration": false,
-		"esModuleInterop": true,
-		"jsx": "react-jsx",
-		"lib": ["DOM", "ES2022"],
+		"target": "ES2023",
+		"lib": ["DOM", "DOM.Iterable", "ES2023"],
 		"module": "ESNext",
 		"moduleResolution": "Bundler",
-		"noFallthroughCasesInSwitch": true,
+		"jsx": "react-jsx",
+		"types": ["vite/client", "node"],
+		"strict": true,
+		"noUncheckedIndexedAccess": true,
 		"noImplicitOverride": true,
 		"noImplicitReturns": true,
-		"noUncheckedIndexedAccess": true,
+		"noFallthroughCasesInSwitch": true,
 		"noUnusedLocals": true,
 		"noUnusedParameters": true,
+		"verbatimModuleSyntax": true,
+		"isolatedModules": true,
 		"skipLibCheck": true,
-		"strict": true,
-		"target": "ES2022",
-		"useDefineForClassFields": true,
-
-		"ignoreDeprecations": "6.0",
-		"baseUrl": ".",
-		"paths": {
-			"@/*": ["./src/*"]
-		}
+		"noEmit": true,
+		"paths": { "@/*": ["./src/*"] }
 	},
-	"include": ["src/**/*", "vite.config.mjs"]
+	"include": ["src", "*.ts"]
 }

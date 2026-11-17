@@ -16,6 +16,7 @@ func handleValidateLeave(
 	log logger.Logger,
 	mm mattermost.Client,
 	leaveValidationService *service.LeaveValidationService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -26,6 +27,10 @@ func handleValidateLeave(
 		var request ValidateLeaveRequest
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			WriteError(w, http.StatusBadRequest, "invalid_request", "Request body must be valid JSON.")
+			return
+		}
+
+		if !requireWorkspaceMember(w, r, log, permissionService, user, request.WorkspaceID) {
 			return
 		}
 

@@ -52,6 +52,9 @@ func NewRouter(config RouterConfig) http.Handler {
 	router.MethodNotAllowed(handleAPIMethodNotAllowed())
 
 	router.Route("/api/v1", func(api chi.Router) {
+		api.Use(limitRequestBody)
+		api.Use(requireWorkspaceAccess(config.Logger, config.Mattermost, config.PermissionService))
+
 		api.Get("/health", handleHealth(config.Logger))
 		api.Get("/me", handleMe(config.Logger, config.Mattermost))
 		api.Post("/users/lookup", handleLookupUsers(config.Logger, config.Mattermost, config.UserDirectoryService))
@@ -328,7 +331,7 @@ func NewRouter(config RouterConfig) http.Handler {
 		)
 		api.Post(
 			"/standups/submissions",
-			handleSubmitStandup(config.Logger, config.Mattermost, config.StandupService, config.AuditService),
+			handleSubmitStandup(config.Logger, config.Mattermost, config.StandupService, config.AuditService, config.PermissionService),
 		)
 		api.Get(
 			"/workspaces/{workspaceID}/standup-runtime/day",
@@ -586,11 +589,11 @@ func NewRouter(config RouterConfig) http.Handler {
 
 		api.Post(
 			"/leaves/validate",
-			handleValidateLeave(config.Logger, config.Mattermost, config.LeaveValidationService),
+			handleValidateLeave(config.Logger, config.Mattermost, config.LeaveValidationService, config.PermissionService),
 		)
 		api.Post(
 			"/leaves",
-			handleCreateLeave(config.Logger, config.Mattermost, config.LeaveService, config.AuditService),
+			handleCreateLeave(config.Logger, config.Mattermost, config.LeaveService, config.AuditService, config.PermissionService),
 		)
 		api.Put(
 			"/leaves/{leaveRequestID}",

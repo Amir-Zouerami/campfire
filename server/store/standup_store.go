@@ -38,6 +38,7 @@ type StandupStore interface {
 	ListQuestionsByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.StandupQuestion, error)
 	ListAllQuestionsByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.StandupQuestion, error)
 	ListSchedulesByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.StandupSchedule, error)
+	ListRunnableSchedulesByWorkspaceID(ctx context.Context, workspaceID domain.ID) ([]domain.StandupSchedule, error)
 	CreateTemplate(ctx context.Context, template domain.StandupTemplate) (*domain.StandupTemplate, error)
 	UpdateTemplate(ctx context.Context, template domain.StandupTemplate) (*domain.StandupTemplate, error)
 	DeleteTemplate(ctx context.Context, workspaceID domain.ID, templateID domain.ID) error
@@ -894,6 +895,61 @@ func (s *SQLStandupStore) ListSchedulesByWorkspaceID(
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list standup schedules: %w", err)
+	}
+
+	schedules := make([]domain.StandupSchedule, 0, len(records))
+	for _, record := range records {
+		schedules = append(schedules, record.toDomain())
+	}
+
+	return schedules, nil
+}
+
+/*
+ListRunnableSchedulesByWorkspaceID returns the schedules automation may act on:
+those whose template is still active.
+
+Members can only fill in forms of active templates. A schedule left behind by a
+deactivated template (for example the previous daily template, which is
+deactivated automatically when another daily template becomes active) must
+therefore not open, remind or report: people would be chased for a standup they
+cannot submit.
+*/
+func (s *SQLStandupStore) ListRunnableSchedulesByWorkspaceID(
+	ctx context.Context,
+	workspaceID domain.ID,
+) ([]domain.StandupSchedule, error) {
+	records := []standupScheduleRecord{}
+
+	err := s.db.SelectContext(
+		ctx,
+		&records,
+		s.db.Rebind(`
+			SELECT
+				schedules.id,
+				schedules.workspace_id,
+				schedules.template_id,
+				schedules.kind,
+				schedules.enabled,
+				schedules.opens_at,
+				schedules.time_of_day,
+				schedules.skip_non_working_days,
+				schedules.weekly_mode,
+				schedules.skip_daily_when_weekly_runs,
+				schedules.created_by,
+				schedules.created_at,
+				schedules.updated_at
+			FROM campfire_standup_schedules schedules
+			INNER JOIN campfire_standup_templates templates
+				ON templates.id = schedules.template_id
+			WHERE schedules.workspace_id = ?
+				AND templates.is_active = TRUE
+			ORDER BY schedules.kind ASC, schedules.time_of_day ASC, schedules.created_at ASC
+		`),
+		workspaceID.String(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list runnable standup schedules: %w", err)
 	}
 
 	schedules := make([]domain.StandupSchedule, 0, len(records))

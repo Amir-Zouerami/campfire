@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 
 	"github.com/amir-zouerami/campfire/server/domain"
@@ -94,7 +95,7 @@ it as endpoint-by-endpoint permission enforcement is consolidated.
 type PermissionService struct {
 	workspaceStore      store.WorkspaceStore
 	workspaceRoleStore  store.WorkspaceRoleStore
-	channelAdminChecker ChannelAdminChecker
+	channelAdminChecker ChannelMembershipChecker
 }
 
 /*
@@ -103,7 +104,7 @@ NewPermissionService creates a centralized permission service.
 func NewPermissionService(
 	workspaceStore store.WorkspaceStore,
 	workspaceRoleStore store.WorkspaceRoleStore,
-	channelAdminChecker ChannelAdminChecker,
+	channelAdminChecker ChannelMembershipChecker,
 ) *PermissionService {
 	return &PermissionService{
 		workspaceStore:      workspaceStore,
@@ -168,30 +169,16 @@ func (s *PermissionService) GetWorkspaceAccess(
 		return nil, NewError(ErrorCodeInternal, "Could not load workspace role settings.")
 	}
 
-	hasExplicitAdmin, err := s.userHasRole(ctx, workspace.ID, cleanUserID, domain.RoleAdmin)
+	explicitRoles, err := s.workspaceRoleStore.ListRolesForUser(ctx, workspace.ID, cleanUserID)
 	if err != nil {
-		return nil, err
+		return nil, NewError(ErrorCodeInternal, "Could not verify workspace role access.")
 	}
 
-	hasExplicitLead, err := s.userHasRole(ctx, workspace.ID, cleanUserID, domain.RoleLead)
-	if err != nil {
-		return nil, err
-	}
-
-	hasExplicitApprover, err := s.userHasRole(ctx, workspace.ID, cleanUserID, domain.RoleApprover)
-	if err != nil {
-		return nil, err
-	}
-
-	hasExplicitViewer, err := s.userHasRole(ctx, workspace.ID, cleanUserID, domain.RoleViewer)
-	if err != nil {
-		return nil, err
-	}
-
-	hasExplicitExcluded, err := s.userHasRole(ctx, workspace.ID, cleanUserID, domain.RoleExcluded)
-	if err != nil {
-		return nil, err
-	}
+	hasExplicitAdmin := slices.Contains(explicitRoles, domain.RoleAdmin)
+	hasExplicitLead := slices.Contains(explicitRoles, domain.RoleLead)
+	hasExplicitApprover := slices.Contains(explicitRoles, domain.RoleApprover)
+	hasExplicitViewer := slices.Contains(explicitRoles, domain.RoleViewer)
+	hasExplicitExcluded := slices.Contains(explicitRoles, domain.RoleExcluded)
 
 	isChannelAdmin := false
 	if settings.ChannelAdminsAreLeads {
@@ -365,20 +352,92 @@ func (s *PermissionService) accessByWorkspaceID(
 }
 
 /*
-userHasRole checks one explicit Campfire role assignment.
+CanAccessWorkspace reports whether a user may use a workspace at all.
+
+Every workspace API call passes through this check before any capability check.
+A user may use a workspace when they are a member of its Mattermost channel, hold
+an explicit Campfire role in it, or are a Mattermost system admin. Without it,
+any signed-in Mattermost user who learned a workspace ID could read the member
+list, approved leave and standup configuration of a private channel.
+
+A workspace that does not exist is reported as accessible so the handler can
+answer with its own "not found" error.
 */
-func (s *PermissionService) userHasRole(
+func (s *PermissionService) CanAccessWorkspace(
 	ctx context.Context,
-	workspaceID domain.ID,
-	userID string,
-	role domain.Role,
+	workspaceID string,
+	user PermissionUser,
 ) (bool, error) {
-	hasRole, err := s.workspaceRoleStore.UserHasAnyRole(ctx, workspaceID, userID, []domain.Role{role})
+	cleanUserID := strings.TrimSpace(user.ID)
+	if cleanUserID == "" {
+		return false, nil
+	}
+
+	if user.IsSystemAdmin {
+		return true, nil
+	}
+
+	cleanWorkspaceID := domain.ID(strings.TrimSpace(workspaceID))
+	if cleanWorkspaceID.String() == "" {
+		return true, nil
+	}
+
+	workspace, err := s.workspaceStore.GetByID(ctx, cleanWorkspaceID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return true, nil
+		}
+
+		return false, NewError(ErrorCodeInternal, "Could not load workspace.")
+	}
+
+	isMember, err := s.CanAccessChannel(workspace.ChannelID, user)
+	if err != nil {
+		return false, err
+	}
+
+	if isMember {
+		return true, nil
+	}
+
+	explicitRoles, err := s.workspaceRoleStore.ListRolesForUser(ctx, workspace.ID, cleanUserID)
 	if err != nil {
 		return false, NewError(ErrorCodeInternal, "Could not verify workspace role access.")
 	}
 
-	return hasRole, nil
+	for _, role := range explicitRoles {
+		if role != domain.RoleExcluded {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+/*
+CanAccessChannel reports whether a user may see Campfire data bound to a channel:
+they are a member of the channel or a Mattermost system admin.
+*/
+func (s *PermissionService) CanAccessChannel(channelID string, user PermissionUser) (bool, error) {
+	cleanUserID := strings.TrimSpace(user.ID)
+	if cleanUserID == "" {
+		return false, nil
+	}
+
+	if user.IsSystemAdmin {
+		return true, nil
+	}
+
+	if s.channelAdminChecker == nil {
+		return false, nil
+	}
+
+	isMember, err := s.channelAdminChecker.IsChannelMember(channelID, cleanUserID)
+	if err != nil {
+		return false, NewError(ErrorCodeInternal, "Could not verify channel membership.")
+	}
+
+	return isMember, nil
 }
 
 /*

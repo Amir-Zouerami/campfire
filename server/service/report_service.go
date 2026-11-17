@@ -345,44 +345,6 @@ func (s *ReportService) reportFormatSettingsForKind(
 }
 
 /*
-reportTimeSummary returns a workspace time summary when the report settings ask
-daily or weekly reports to include time tracking.
-*/
-func (s *ReportService) reportTimeSummary(
-	ctx context.Context,
-	workspaceID domain.ID,
-	startDate domain.LocalDate,
-	endDate domain.LocalDate,
-	includeTime bool,
-) (*domain.TimeReportSummary, error) {
-	if s.taskStore == nil || !includeTime {
-		return nil, nil
-	}
-
-	entries, err := s.taskStore.ListTimeEntriesByWorkspaceIDBetween(ctx, workspaceID, startDate, endDate)
-	if err != nil {
-		return nil, NewError(ErrorCodeInternal, "Could not load time entries for the report.")
-	}
-
-	tasks, err := s.taskStore.ListTasksByWorkspaceID(ctx, workspaceID, true)
-	if err != nil {
-		return nil, NewError(ErrorCodeInternal, "Could not load tasks for the report time summary.")
-	}
-
-	tasksByID := indexTimeReportTasks(tasks)
-	summary := buildTimeReportSummary(
-		workspaceID,
-		startDate,
-		endDate,
-		domain.TimeReportGroupByPerson,
-		entries,
-		tasksByID,
-	)
-
-	return summary, nil
-}
-
-/*
 applyReportItemTimes annotates report-visible progress items with tracked time.
 
 The lookup is display-only. Time is attached to matching Campfire tasks for the
@@ -1624,24 +1586,6 @@ func collectWeeklyPreviewUserIDs(preview domain.WeeklyReportPreview) []string {
 }
 
 /*
-collectTimeSummaryUserIDs returns user IDs shown in an optional time summary.
-*/
-func collectTimeSummaryUserIDs(summary *domain.TimeReportSummary) []string {
-	if summary == nil {
-		return []string{}
-	}
-
-	userIDs := make([]string, 0, len(summary.Rows))
-	for _, row := range summary.Rows {
-		if strings.TrimSpace(row.UserID) != "" {
-			userIDs = append(userIDs, row.UserID)
-		}
-	}
-
-	return normalizeUserIDs(userIDs)
-}
-
-/*
 userProfileReportLabel formats a Mattermost profile for report Markdown.
 */
 func userProfileReportLabel(profile UserProfile) string {
@@ -1727,22 +1671,6 @@ func reportEmptyItemMinutes(items []string) []int {
 	}
 
 	return make([]int, len(items))
-}
-
-/*
-clearReportItemTimes removes item-level time labels from a daily preview.
-*/
-func clearReportItemTimes(preview *domain.DailyReportPreview) {
-	if preview == nil {
-		return
-	}
-
-	for rowIndex := range preview.Rows {
-		for answerIndex := range preview.Rows[rowIndex].Answers {
-			answer := &preview.Rows[rowIndex].Answers[answerIndex]
-			answer.ValueItemMinutes = reportEmptyItemMinutes(answer.ValueItems)
-		}
-	}
 }
 
 /*
@@ -2012,82 +1940,6 @@ func appendReportSubmittedSection(
 
 		*lines = append(*lines, "")
 	}
-}
-
-/*
-appendReportTimeSummary appends the optional time-tracking section when enabled
-in the workspace report rule.
-*/
-func appendReportTimeSummary(
-	lines *[]string,
-	headingLevel int,
-	summary *domain.TimeReportSummary,
-	userLabels map[string]string,
-	calendarLabels map[string]string,
-	copy reportCopy,
-) {
-	if summary == nil {
-		return
-	}
-
-	*lines = append(
-		*lines,
-		reportHeading(headingLevel, copy.TimeTracking),
-		"",
-		fmt.Sprintf("**%s:** %s", copy.TotalTracked, formatReportDuration(summary.TotalMinutes, copy)),
-		"",
-	)
-
-	if len(summary.Rows) == 0 {
-		*lines = append(*lines, copy.NoTimeEntries, "")
-		return
-	}
-
-	*lines = append(
-		*lines,
-		fmt.Sprintf("| # | %s | %s | %s |", markdownTableCell(copy.Person), markdownTableCell(copy.Time), markdownTableCell(copy.Entries)),
-		"| ---: | --- | ---: | ---: |",
-	)
-	for index, row := range summary.Rows {
-		*lines = append(
-			*lines,
-			fmt.Sprintf(
-				"| %d | %s | %s | %d |",
-				index+1,
-				markdownTableCell(timeReportPersonLabel(row, userLabels, copy)),
-				markdownTableCell(formatReportDuration(row.Minutes, copy)),
-				row.EntryCount,
-			),
-		)
-	}
-
-	if summary.StartDate != "" && summary.EndDate != "" {
-		*lines = append(
-			*lines,
-			"",
-			fmt.Sprintf(
-				"_%s: %s → %s_",
-				copy.Period,
-				formatReportDate(summary.StartDate, calendarLabels, copy.Language),
-				formatReportDate(summary.EndDate, calendarLabels, copy.Language),
-			),
-			"",
-		)
-		return
-	}
-
-	*lines = append(*lines, "")
-}
-
-/*
-timeReportPersonLabel resolves a person-grouped time-report row to display copy.
-*/
-func timeReportPersonLabel(row domain.TimeReportRow, userLabels map[string]string, copy reportCopy) string {
-	if strings.TrimSpace(row.UserID) != "" {
-		return reportUserLabelForLanguage(userLabels, row.UserID, copy)
-	}
-
-	return firstNonEmptyReportString(row.Label, row.Key, copy.UnknownUser)
 }
 
 /*

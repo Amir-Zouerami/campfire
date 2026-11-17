@@ -21,6 +21,17 @@ type ChannelAdminChecker interface {
 }
 
 /*
+ChannelMembershipChecker checks whether a user belongs to a Mattermost channel.
+
+A Campfire workspace is bound to one channel, so channel membership is what
+decides who may use that workspace at all.
+*/
+type ChannelMembershipChecker interface {
+	ChannelAdminChecker
+	IsChannelMember(channelID string, userID string) (bool, error)
+}
+
+/*
 ListWorkspaceRolesInput contains the workspace role list request.
 */
 type ListWorkspaceRolesInput struct {

@@ -183,6 +183,7 @@ func handleCreateLeave(
 	mm mattermost.Client,
 	leaveService *service.LeaveService,
 	auditService *service.AuditService,
+	permissionService *service.PermissionService,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := loadCurrentUser(w, r, log, mm)
@@ -193,6 +194,10 @@ func handleCreateLeave(
 		var request CreateLeaveRequest
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			WriteError(w, http.StatusBadRequest, "invalid_request", "Request body must be valid JSON.")
+			return
+		}
+
+		if !requireWorkspaceMember(w, r, log, permissionService, user, request.WorkspaceID) {
 			return
 		}
 

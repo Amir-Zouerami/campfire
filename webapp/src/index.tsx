@@ -1,8 +1,9 @@
-import { CampfirePlugin } from './plugin';
-import './styles/globals.css';
+import './shared/ui/styles/index.css';
 
-const pluginID = 'dev.zouerami.campfire';
+import { CampfirePlugin } from './plugin/CampfirePlugin';
+
+const PLUGIN_ID = 'dev.zouerami.campfire';
 
 if (window.registerPlugin !== undefined) {
-	window.registerPlugin(pluginID, new CampfirePlugin());
+	window.registerPlugin(PLUGIN_ID, new CampfirePlugin());
 }

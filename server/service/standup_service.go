@@ -1677,8 +1677,8 @@ func buildStandupScheduleFromInput(
 
 	// Weekly and daily schedules are independent in Campfire. The legacy
 	// skipDailyWhenWeeklyRuns field stays in the API/database only for backward
-	// compatibility and must not create runtime coupling.
-	skipDailyWhenWeeklyRuns = false
+	// compatibility and must not create runtime coupling, so it is always stored as false.
+	_ = skipDailyWhenWeeklyRuns
 
 	return &domain.StandupSchedule{
 		ID:                      scheduleID,
@@ -1690,7 +1690,7 @@ func buildStandupScheduleFromInput(
 		TimeOfDay:               timeOfDay,
 		SkipNonWorkingDays:      skipNonWorkingDays,
 		WeeklyMode:              weeklyMode,
-		SkipDailyWhenWeeklyRuns: skipDailyWhenWeeklyRuns,
+		SkipDailyWhenWeeklyRuns: false,
 		CreatedBy:               strings.TrimSpace(createdBy),
 		CreatedAt:               now,
 		UpdatedAt:               now,

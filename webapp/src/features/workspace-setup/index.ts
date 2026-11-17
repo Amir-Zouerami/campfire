@@ -1,0 +1,1 @@
+export { WorkspaceSetupPage } from './WorkspaceSetupPage';

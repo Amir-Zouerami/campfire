@@ -4,12 +4,14 @@ Campfire supports English, Persian, and Arabic across generated messages and the
 
 ## Frontend rules
 
-- UI text must use typed translation keys from `webapp/src/i18n/messages`.
+- UI text must use typed translation keys from `webapp/src/shared/i18n/messages`.
 - English is the source catalog. Persian and Arabic must contain the same keys and the same interpolation placeholders.
 - Components should call `useI18n()` instead of importing catalogs directly.
 - Dynamic user-authored values must remain user-authored. Do not translate names, question labels, reasons, task titles, saved filter names, workspace names, or free text answers.
-- Dynamic values inside translated sentences should be rendered with `BidiText` or the `bidi` helper where mixed RTL/LTR content can occur.
+- Dynamic values inside translated sentences should be wrapped with `isolateBidi`, and user-authored text rendered with `dir="auto"` (the `userContent` prop), where mixed RTL/LTR content can occur.
 - Layout direction comes from the active language. Persian and Arabic are RTL; English is LTR.
+- The active language is resolved per person: their own choice (stored in Mattermost user preferences) wins, then the workspace language, then the workspace timezone, then the browser timezone.
+- Validation messages in form schemas are translation keys (`msg('…')`), translated when displayed.
 - Date and time controls must store ISO/Gregorian values even when they show localized helper text.
 
 ## Backend rules
@@ -22,11 +24,13 @@ Campfire supports English, Persian, and Arabic across generated messages and the
 
 ## Quality gates
 
-`npm run check` runs `npm run check:i18n` before TypeScript validation. The parity check enforces:
+`npm run check` runs the catalog parity test (`webapp/src/shared/i18n/catalogs.test.ts`) with the rest of the unit tests. It enforces:
 
-- no duplicate frontend translation keys;
 - Persian and Arabic contain every English key;
 - Persian and Arabic do not introduce extra keys;
+- no message is empty;
 - interpolation placeholders match across all three catalogs.
+
+Duplicate keys are a TypeScript error, so the type check catches them.
 
 Backend tests in `server/i18n` verify timezone inference, direction mapping, catalog parity, non-empty notification copy, and RTL bidi isolation behavior.

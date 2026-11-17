@@ -15,11 +15,13 @@
   <a href="https://github.com/Amir-Zouerami/campfire/releases">
     <img alt="Release" src="https://img.shields.io/github/v/release/Amir-Zouerami/campfire?label=Release&style=for-the-badge" />
   </a>
-  <img alt="Version" src="https://img.shields.io/badge/version-1.3.2-f0a85a?style=for-the-badge" />
-  <img alt="Mattermost" src="https://img.shields.io/badge/Mattermost-Plugin-2b2b2b?style=for-the-badge" />
+  <img alt="Version" src="https://img.shields.io/badge/version-1.4.0-f0a85a?style=for-the-badge" />
+  <img alt="Mattermost" src="https://img.shields.io/badge/Mattermost-12%2B-2b2b2b?style=for-the-badge" />
   <img alt="Go" src="https://img.shields.io/badge/Go-Server-2b2b2b?style=for-the-badge" />
   <img alt="React" src="https://img.shields.io/badge/React-Webapp-2b2b2b?style=for-the-badge" />
 </p>
+
+> **Compatibility:** Campfire 1.4.0 and newer require **Mattermost 12.0 or newer** (the webapp runs on the React 19 that Mattermost 12 provides, and Mattermost 11 refuses to install it). **If you are on Mattermost 11 or older, use [Campfire v1.3.7](https://github.com/Amir-Zouerami/campfire/releases/tag/v1.3.7)**, the last release for those versions. It is no longer updated. We recommend upgrading to Mattermost 12 and using the latest Campfire.
 
 ---
 
@@ -398,22 +400,16 @@ The backend is written in Go and handles:
 
 ### Frontend
 
-The webapp is built with React and TypeScript.
+The webapp is built with React 19 and TypeScript, compiled with the React Compiler and bundled by Vite into a single file that uses Mattermost's own React instance. It requires Mattermost 12.0 or newer.
 
-The UI uses shared Campfire components for:
+The code is organised in layers, enforced by lint rules:
 
-- inputs
-- selects
-- date pickers
-- time pickers
-- channel/user pickers
-- question cards
-- report panels
-- layout sections
-- title cards and data cards
-- bidi-safe text rendering
+- `webapp/src/shared/ui` is the design system. Every visual component (inputs, selects, date and time pickers, lists, dialogs, charts, layout) is defined once here, and it is the only place that contains styling.
+- `webapp/src/shared` also holds the API client, translations, form bindings and data hooks that more than one feature uses.
+- `webapp/src/features` holds one folder per page. A feature composes shared components and never imports another feature.
+- `webapp/src/app` is the shell: the window, sidebar navigation, page registry and permissions.
 
-The UI is intentionally component-driven so behavior, typography, RTL handling, and styling stay consistent across pages.
+Each person can choose English, Persian or Arabic for the interface; by default it follows the workspace language. See [`docs/architecture/webapp.md`](docs/architecture/webapp.md) for details.
 
 ---
 

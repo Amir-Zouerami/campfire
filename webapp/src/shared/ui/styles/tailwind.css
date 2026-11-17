@@ -1,0 +1,98 @@
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme) prefix(cf);
+@import 'tailwindcss/utilities.css' layer(utilities) prefix(cf) important;
+
+/*
+ * Campfire design tokens.
+ *
+ * Utilities are generated with the `cf` prefix and marked `!important` so they
+ * keep winning against Mattermost's own unlayered global CSS (`button`, `a`,
+ * `input`, headings...). Every colour, radius and shadow used anywhere in the
+ * UI is defined here, once.
+ */
+@theme {
+	/*
+	 * Mattermost sets `html { font-size: 10px }`, so any rem-based value would render at 62.5%
+	 * of its intended size. Every dimension token is therefore defined in pixels.
+	 */
+	--spacing: 4px;
+
+	--text-xs: 12px;
+	--text-sm: 14px;
+	--text-base: 16px;
+	--text-lg: 18px;
+	--text-xl: 20px;
+	--text-2xl: 24px;
+	--text-3xl: 30px;
+	--text-4xl: 36px;
+
+	--radius-xs: 2px;
+	--radius-sm: 4px;
+	--radius-md: 6px;
+	--radius-lg: 8px;
+	--radius-xl: 12px;
+	--radius-2xl: 16px;
+	--radius-3xl: 24px;
+
+	--container-3xs: 256px;
+	--container-2xs: 288px;
+	--container-xs: 320px;
+	--container-sm: 384px;
+	--container-md: 448px;
+	--container-lg: 512px;
+	--container-xl: 576px;
+	--container-2xl: 672px;
+	--container-3xl: 768px;
+	--container-4xl: 896px;
+	--container-5xl: 1024px;
+	--container-6xl: 1152px;
+	--container-7xl: 1280px;
+
+	--font-sans: 'Campfire Sans', 'Campfire Vazirmatn', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+	--color-canvas: #f3f5f9;
+	--color-surface: #ffffff;
+	--color-sunken: #eef1f8;
+	--color-ink: #121a33;
+	--color-muted: #4f5b78;
+	--color-subtle: #6b7694;
+	--color-line: #dde2ee;
+	--color-line-strong: #c5ccdf;
+	--color-brand: #121a33;
+	--color-brand-hover: #1f2a4a;
+	--color-on-brand: #ffffff;
+	--color-overlay: rgb(11 16 32 / 0.55);
+
+	--color-blue: #2b5fe8;
+	--color-blue-soft: #e4eafb;
+	--color-blue-ink: #2447b5;
+	--color-violet: #6b3fe0;
+	--color-violet-soft: #ece6fd;
+	--color-violet-ink: #5530c4;
+	--color-teal: #0b7a6c;
+	--color-teal-soft: #daf1ee;
+	--color-teal-ink: #0b6a5e;
+	--color-rose: #c2255c;
+	--color-rose-soft: #fbe3ec;
+	--color-rose-ink: #a31d4d;
+	--color-flame: #f26a1b;
+	--color-flame-soft: #fff4e8;
+	--color-flame-ink: #b4570f;
+
+	--radius-control: 10px;
+	--radius-panel: 14px;
+
+	--color-shadow: rgb(18 26 51 / 0.18);
+	--color-shadow-ring: rgb(18 26 51 / 0.06);
+	--color-shadow-deep: rgb(11 16 32 / 0.35);
+
+	--shadow-popover: 0 14px 40px var(--cf-color-shadow), 0 0 0 1px var(--cf-color-shadow-ring);
+	--shadow-modal: 0 30px 80px var(--cf-color-shadow-deep);
+}
+
+/* The per-page accent. `data-area` on the root picks one of the four area colours. */
+@theme inline {
+	--color-area: var(--cf-area);
+	--color-area-soft: var(--cf-area-soft);
+	--color-area-ink: var(--cf-area-ink);
+}

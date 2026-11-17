@@ -6,9 +6,6 @@ SERVER_MAIN := ./server
 SERVER_DIST := server/dist
 WEBAPP_DIR := webapp
 WEBAPP_DIST := webapp/dist
-WEBAPP_GENERATED_ASSETS := $(WEBAPP_DIR)/src/generated-assets
-FONT_SOURCE := assets/fonts/Vazirmatn-Variable.woff2
-FONT_TARGET_DIR := $(WEBAPP_GENERATED_ASSETS)/fonts
 DIST_DIR := dist
 BUNDLE_ROOT := $(DIST_DIR)/bundle-root
 
@@ -27,7 +24,7 @@ help:
 	@echo "  make check             Run Go tests and TypeScript checks"
 	@echo "  make build-server      Build one server executable for GOOS/GOARCH"
 	@echo "  make build-server-all  Build all server executables declared in plugin.json"
-	@echo "  make build-webapp      Build Vite React webapp bundle without re-running tsc"
+	@echo "  make build-webapp      Build and verify the Vite React webapp bundle"
 	@echo "  make bundle            Build production plugin bundle tar.gz"
 	@echo "  make bundle-check      Run checks once, then build production plugin bundle"
 	@echo "  make clean             Remove build outputs"
@@ -55,20 +52,9 @@ build-server-all:
 		CGO_ENABLED=0 GOOS=$$goos GOARCH=$$goarch go build -trimpath -o $(SERVER_DIST)/$$output $(SERVER_MAIN); \
 	done
 
-.PHONY: prepare-webapp-assets
-prepare-webapp-assets:
-	@if [ ! -f "$(FONT_SOURCE)" ]; then \
-		echo "Missing required font asset: $(FONT_SOURCE)"; \
-		echo "Campfire uses this font for Persian and Arabic typography."; \
-		exit 1; \
-	fi
-	rm -rf $(FONT_TARGET_DIR)
-	mkdir -p $(FONT_TARGET_DIR)
-	cp $(FONT_SOURCE) $(FONT_TARGET_DIR)/Vazirmatn-Variable.woff2
-
 .PHONY: build-webapp
-build-webapp: prepare-webapp-assets
-	cd $(WEBAPP_DIR) && npx vite build
+build-webapp:
+	cd $(WEBAPP_DIR) && npm run build
 
 .PHONY: bundle-check
 bundle-check: check bundle
@@ -80,6 +66,7 @@ bundle: build-server-all build-webapp
 	mkdir -p $(BUNDLE_ROOT)/webapp/dist
 	cp plugin.json $(BUNDLE_ROOT)/plugin.json
 	cp -R assets $(BUNDLE_ROOT)/assets
+	rm -rf $(BUNDLE_ROOT)/assets/fonts
 	cp -R $(SERVER_DIST)/. $(BUNDLE_ROOT)/server/dist/
 	cp -R $(WEBAPP_DIST)/. $(BUNDLE_ROOT)/webapp/dist/
 	mkdir -p $(DIST_DIR)
@@ -87,9 +74,7 @@ bundle: build-server-all build-webapp
 		plugin.json \
 		assets \
 		server \
-		server/dist \
-		webapp \
-		webapp/dist
+		webapp
 	@echo "Created $(DIST_DIR)/$(BUNDLE_NAME)"
 
 .PHONY: clean
@@ -97,4 +82,3 @@ clean:
 	rm -rf $(SERVER_DIST)
 	rm -rf $(DIST_DIR)
 	rm -rf $(WEBAPP_DIST)
-	rm -rf $(WEBAPP_GENERATED_ASSETS)/fonts

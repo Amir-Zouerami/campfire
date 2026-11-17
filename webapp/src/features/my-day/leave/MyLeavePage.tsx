@@ -1,83 +1,49 @@
 import type { ReactElement } from 'react';
 
-import { CampfireEmpty } from '@/components/campfire/CampfireLayoutPrimitives';
-import { CampfirePageIntro } from '@/components/campfire/CampfirePageIntro';
-import { useI18n } from '@/i18n';
-import type { Workspace } from '@/types/domain';
+import { useLeaveTypes } from '@/shared/data/leave';
+import { useI18n } from '@/shared/i18n';
+import { Container, LoadingState, PageHeader, QueryView, Section } from '@/shared/ui';
 
-import { MyActiveLeavePanel } from './MyActiveLeavePanel';
-import { MyLeaveFeedback, MyLeaveLoading, MyLeaveWarnings } from './MyLeaveFeedback';
-import { MyLeaveRequestPanel } from './MyLeaveRequestPanel';
-import { useMyLeaveText } from './my-leave.i18n';
-import { useMyLeave } from './useMyLeave';
+import { ActiveLeaveList } from './ActiveLeaveList';
+import { NewLeaveRequest } from './NewLeaveRequest';
+import { useMyActiveLeaves } from './useLeaveActions';
 
 /**
- * MyLeavePageProps contains workspace context and leave refresh callbacks.
+ * MyLeavePage lets a member request leave and manage their own pending and approved requests.
  */
-type MyLeavePageProps = {
-	readonly workspace: Workspace;
-	readonly onLeaveCreated: () => void;
-	readonly onLeaveCancelled: () => void;
-};
-
-/**
- * MyLeavePage renders the personal leave workflow as one focused page.
- */
-export function MyLeavePage(props: MyLeavePageProps): ReactElement {
+export function MyLeavePage(): ReactElement {
 	const { t } = useI18n();
-	const leaveText = useMyLeaveText();
-	const leave = useMyLeave({
-		workspace: props.workspace,
-		text: leaveText,
-		onLeaveCreated: props.onLeaveCreated,
-		onLeaveCancelled: props.onLeaveCancelled,
-	});
+	const types = useLeaveTypes();
+	const mine = useMyActiveLeaves();
+
 	return (
-		<div className="campfire-page-stack campfire-my-leave-page">
-			<CampfirePageIntro
+		<Container>
+			<PageHeader
 				eyebrow={t('myDay.leave.page.eyebrow')}
 				title={t('myDay.leave.page.title')}
 				description={t('myDay.leave.page.description')}
 			/>
 
-			<MyLeaveFeedback state={leave.loadState} message={leave.message} />
-			{leave.loadState === 'loading' && <MyLeaveLoading />}
-
-			{leave.loadState !== 'loading' && leave.leaveTypes.length === 0 && (
-				<CampfireEmpty
-					title={t('myDay.leave.empty.types.title')}
-					description={t('myDay.leave.empty.types.description')}
-				/>
+			{types.isPending || mine.isPending ? (
+				<LoadingState title={t('myDay.leave.loading')} />
+			) : (
+				<QueryView query={types}>
+					{leaveTypes => (
+						<QueryView query={mine}>
+							{leaves => (
+								<>
+									<Section divided eyebrow={t('myDay.leave.active.eyebrow')} title={t('myDay.leave.active.title')}>
+										<ActiveLeaveList leaves={leaves} leaveTypes={leaveTypes} />
+									</Section>
+									<Section divided eyebrow={t('myDay.leave.request.eyebrow')} title={t('myDay.leave.request.title')}>
+										<NewLeaveRequest leaveTypes={leaveTypes} activeLeaves={leaves} />
+									</Section>
+								</>
+							)}
+						</QueryView>
+					)}
+				</QueryView>
 			)}
-
-			{leave.loadState !== 'loading' && leave.leaveTypes.length > 0 && (
-				<>
-					<MyLeaveWarnings warnings={leave.warnings} />
-
-					<div className="campfire-focused-split campfire-focused-split--leave">
-						<MyLeaveRequestPanel
-							draft={leave.draft}
-							leaveTypes={leave.leaveTypes}
-							disabled={leave.isBusy}
-							timezone={props.workspace.timezone}
-							workingDays={props.workspace.workingDays}
-							onChange={leave.updateDraft}
-							onSubmit={leave.submitLeaveRequest}
-						/>
-
-						<MyActiveLeavePanel
-							leaveRequests={leave.myActiveLeaves}
-							leaveTypes={leave.leaveTypes}
-							disabled={leave.isBusy}
-							timezone={props.workspace.timezone}
-							workingDays={props.workspace.workingDays}
-							onCancel={leave.cancelMyLeaveRequest}
-							onRequestChange={leave.requestMyLeaveChange}
-						/>
-					</div>
-				</>
-			)}
-		</div>
+		</Container>
 	);
 }
-

@@ -18,6 +18,7 @@ type WorkspaceRoleStore interface {
 	GetSettings(ctx context.Context, workspaceID domain.ID) (*domain.WorkspaceRoleSettings, error)
 	ListUserIDsByRoles(ctx context.Context, workspaceID domain.ID, roles []domain.Role) ([]string, error)
 	UserHasAnyRole(ctx context.Context, workspaceID domain.ID, userID string, roles []domain.Role) (bool, error)
+	ListRolesForUser(ctx context.Context, workspaceID domain.ID, userID string) ([]domain.Role, error)
 	CountUserIDsByRoles(ctx context.Context, workspaceID domain.ID, roles []domain.Role) (int, error)
 	UpsertRoleAssignment(ctx context.Context, assignment domain.WorkspaceRoleAssignment) (*domain.WorkspaceRoleAssignment, error)
 	DeleteRoleAssignment(ctx context.Context, workspaceID domain.ID, userID string, role domain.Role) (bool, error)
@@ -149,6 +150,37 @@ func (s *SQLWorkspaceRoleStore) UserHasAnyRole(
 	}
 
 	return count > 0, nil
+}
+
+/*
+ListRolesForUser returns every role explicitly assigned to one user in a workspace.
+
+Permission checks need all of a user's roles at once; reading them in one query
+replaces a separate existence query per role on every API request.
+*/
+func (s *SQLWorkspaceRoleStore) ListRolesForUser(
+	ctx context.Context,
+	workspaceID domain.ID,
+	userID string,
+) ([]domain.Role, error) {
+	values := []string{}
+
+	query := s.db.Rebind(`
+		SELECT role
+		FROM campfire_workspace_role_assignments
+		WHERE workspace_id = ? AND user_id = ?
+	`)
+
+	if err := s.db.SelectContext(ctx, &values, query, workspaceID.String(), userID); err != nil {
+		return nil, fmt.Errorf("list workspace roles for user: %w", err)
+	}
+
+	roles := make([]domain.Role, 0, len(values))
+	for _, value := range values {
+		roles = append(roles, domain.Role(value))
+	}
+
+	return roles, nil
 }
 
 /*

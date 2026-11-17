@@ -987,20 +987,6 @@ func (s *LeaveService) canManageLeaveRequests(
 }
 
 /*
-normalizeLeaveNotificationLanguage returns a safe leave notification language.
-*/
-func normalizeLeaveNotificationLanguage(language domain.ReportLanguage) domain.ReportLanguage {
-	switch language {
-	case domain.ReportLanguagePersian:
-		return domain.ReportLanguagePersian
-	case domain.ReportLanguageArabic:
-		return domain.ReportLanguageArabic
-	default:
-		return domain.ReportLanguageEnglish
-	}
-}
-
-/*
 leaveRequestNotificationRecipients returns the exact users who should receive
 leave request direct-message notifications. Explicit workspace recipients take
 precedence over role-derived recipients so technical leads can manage workspace
@@ -1161,18 +1147,6 @@ func isValidTimeOfDay(value domain.TimeOfDay) bool {
 	_, err := time.Parse("15:04", value.String())
 
 	return err == nil
-}
-
-/*
-isValidHalfDayPart returns true when the half-day part is supported.
-*/
-func isValidHalfDayPart(part domain.LeaveHalfDayPart) bool {
-	switch part {
-	case domain.LeaveHalfDayMorning, domain.LeaveHalfDayAfternoon:
-		return true
-	default:
-		return false
-	}
 }
 
 const localDateLayout = "2006-01-02"

@@ -90,21 +90,21 @@ into the HTTP request headers used by the Campfire API layer.
 Mattermost may not expose browser cookies to the plugin process in every local
 deployment path. The plugin context still carries the authenticated session ID,
 so forwarding it keeps API authentication centralized in server/api/current_user.go.
+
+The header is always overwritten. Mattermost strips a client-supplied
+Mattermost-User-Id but not this header, so a value sent by the browser must never
+be trusted: anyone who learned another user's session ID could otherwise act as them.
 */
 func attachMattermostSessionHeader(context *plugin.Context, r *http.Request) {
+	r.Header.Del("Mattermost-Session-Id")
+
 	if context == nil {
 		return
 	}
 
-	if strings.TrimSpace(r.Header.Get("Mattermost-Session-Id")) != "" {
-		return
+	if sessionID := strings.TrimSpace(context.SessionId); sessionID != "" {
+		r.Header.Set("Mattermost-Session-Id", sessionID)
 	}
-
-	if strings.TrimSpace(context.SessionId) == "" {
-		return
-	}
-
-	r.Header.Set("Mattermost-Session-Id", context.SessionId)
 }
 
 /*
