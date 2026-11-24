@@ -377,8 +377,12 @@ export function DateField(props: DateFieldProps): ReactElement {
 					onKeyDown={handleKeyDown}
 				/>
 				{hasSecondary && props.value !== '' && draft === null && (
-					<span dir="ltr" className="cf:pointer-events-none cf:absolute cf:inset-y-0 cf:end-11 cf:flex cf:items-center cf:pe-2">
-						<span className="cf:rounded-md cf:bg-sunken cf:px-2 cf:py-0.5 cf:text-[11px] cf:font-mono cf:text-subtle">{props.value}</span>
+					// The wrapper has no `dir`, so `end-11` follows the field's direction. Putting `dir="ltr"` on the
+					// positioned element itself would flip "end" to the right in Persian and Arabic and cover the date text.
+					<span className="cf:pointer-events-none cf:absolute cf:inset-y-0 cf:end-11 cf:flex cf:items-center cf:pe-2">
+						<span dir="ltr" className="cf:rounded-md cf:bg-sunken cf:px-2 cf:py-0.5 cf:text-[11px] cf:font-mono cf:text-subtle">
+							{props.value}
+						</span>
 					</span>
 				)}
 				<Popover.Trigger
