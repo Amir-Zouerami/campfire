@@ -620,6 +620,7 @@ export const persianMessages = {
 	'teamReview.approvals.detail.requested': 'درخواست‌شده',
 	'teamReview.approvals.detail.reason': 'توضیحات',
 	'teamReview.approvals.comment.label': 'نظر تأییدکننده',
+	'teamReview.approvals.ownRequest': 'درخواست خودتان را باید شخص دیگری بررسی کند.',
 	'teamReview.approvals.comment.placeholder': 'نظر اختیاری. هنگام رد کردن شدیداً پیشنهاد می‌شود.',
 	'teamReview.approvals.action.reject': 'رد کردن',
 	'teamReview.approvals.action.approve': 'تأیید کردن',

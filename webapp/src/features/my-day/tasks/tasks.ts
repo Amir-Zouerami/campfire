@@ -40,7 +40,7 @@ export function normalizeTitle(value: string): string {
  * TaskIndex finds existing tasks by title, for suggestions while typing a standup item.
  */
 export type TaskIndex = {
-	/** Up to `limit` active tasks whose title contains the query. */
+	/** Up to `limit` tasks whose title contains the query, best matches first. */
 	readonly search: (query: string, limit?: number) => readonly Task[];
 	/** Whether the text is exactly an existing task's title. */
 	readonly hasExact: (text: string) => boolean;
@@ -51,7 +51,7 @@ export type TaskIndex = {
  */
 export function buildTaskIndex(tasks: readonly Task[]): TaskIndex {
 	const entries = tasks
-		.filter(task => task.status !== 'archived')
+		.filter(task => task.status !== 'archived' && task.status !== 'dropped')
 		.map(task => ({ task, key: normalizeTitle(task.title) }))
 		.filter(entry => entry.key !== '');
 	const exact = new Set(entries.map(entry => entry.key));
@@ -64,8 +64,14 @@ export function buildTaskIndex(tasks: readonly Task[]): TaskIndex {
 				return [];
 			}
 
+			// Unfinished before finished, then title start, word start, anywhere. The sort is
+			// stable, so the server's most-recently-used order breaks ties.
+			const rank = (entry: (typeof entries)[number]): number =>
+				(entry.task.status === 'completed' ? 3 : 0) + (entry.key.startsWith(key) ? 0 : entry.key.includes(` ${key}`) ? 1 : 2);
+
 			return entries
 				.filter(entry => entry.key.includes(key))
+				.sort((first, second) => rank(first) - rank(second))
 				.slice(0, limit)
 				.map(entry => entry.task);
 		},

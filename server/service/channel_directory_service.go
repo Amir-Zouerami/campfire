@@ -21,8 +21,8 @@ type ChannelProfile struct {
 ChannelDirectoryProvider defines Mattermost channel lookup/search behavior.
 */
 type ChannelDirectoryProvider interface {
-	LookupChannelsByIDs(ctx context.Context, channelIDs []string) ([]ChannelProfile, error)
-	SearchChannels(ctx context.Context, teamID string, term string, limit int) ([]ChannelProfile, error)
+	LookupChannelsByIDs(ctx context.Context, actorUserID string, channelIDs []string) ([]ChannelProfile, error)
+	SearchChannels(ctx context.Context, actorUserID string, teamID string, term string, limit int) ([]ChannelProfile, error)
 }
 
 /*
@@ -77,7 +77,7 @@ func (s *ChannelDirectoryService) Lookup(ctx context.Context, input LookupChanne
 		return nil, NewError(ErrorCodeValidationFailed, "Channel lookup supports at most 50 channels at a time.")
 	}
 
-	profiles, err := s.channelDirectoryProvider.LookupChannelsByIDs(ctx, channelIDs)
+	profiles, err := s.channelDirectoryProvider.LookupChannelsByIDs(ctx, cleanActorUserID, channelIDs)
 	if err != nil {
 		return nil, NewError(ErrorCodeInternal, "Could not resolve Mattermost channels.")
 	}
@@ -112,7 +112,7 @@ func (s *ChannelDirectoryService) Search(ctx context.Context, input SearchChanne
 		limit = 50
 	}
 
-	profiles, err := s.channelDirectoryProvider.SearchChannels(ctx, cleanTeamID, cleanTerm, limit)
+	profiles, err := s.channelDirectoryProvider.SearchChannels(ctx, cleanActorUserID, cleanTeamID, cleanTerm, limit)
 	if err != nil {
 		return nil, NewError(ErrorCodeInternal, "Could not search Mattermost channels.")
 	}

@@ -62,7 +62,7 @@ export function QuestionDialog(props: QuestionDialogProps): ReactElement {
 					required: true,
 					showInReport: true,
 					isPrivate: false,
-					createsTasks: false,
+					createsTasks: true,
 					position: nextPosition(props.questions, props.templateID),
 					optionsText: '',
 				}

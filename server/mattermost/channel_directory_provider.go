@@ -33,6 +33,7 @@ never break the settings page.
 */
 func (p *ChannelDirectoryProvider) LookupChannelsByIDs(
 	ctx context.Context,
+	actorUserID string,
 	channelIDs []string,
 ) ([]service.ChannelProfile, error) {
 	profiles := make([]service.ChannelProfile, 0, len(channelIDs))
@@ -51,7 +52,7 @@ func (p *ChannelDirectoryProvider) LookupChannelsByIDs(
 		}
 
 		channel, appErr := p.api.GetChannel(cleanChannelID)
-		if appErr != nil || channel == nil {
+		if appErr != nil || channel == nil || !p.canSee(actorUserID, channel) {
 			continue
 		}
 
@@ -66,13 +67,14 @@ SearchChannels returns channels from a Mattermost team matching the search term.
 */
 func (p *ChannelDirectoryProvider) SearchChannels(
 	ctx context.Context,
+	actorUserID string,
 	teamID string,
 	term string,
 	limit int,
 ) ([]service.ChannelProfile, error) {
 	cleanTeamID := strings.TrimSpace(teamID)
 	cleanTerm := strings.TrimSpace(term)
-	if cleanTeamID == "" || cleanTerm == "" {
+	if cleanTeamID == "" || cleanTerm == "" || !p.inTeam(actorUserID, cleanTeamID) {
 		return []service.ChannelProfile{}, nil
 	}
 
@@ -91,7 +93,7 @@ func (p *ChannelDirectoryProvider) SearchChannels(
 		default:
 		}
 
-		if channel == nil || strings.TrimSpace(channel.Id) == "" {
+		if channel == nil || strings.TrimSpace(channel.Id) == "" || !p.canSee(actorUserID, channel) {
 			continue
 		}
 
@@ -174,4 +176,33 @@ func minInt(first int, second int) int {
 	}
 
 	return second
+}
+
+/*
+canSee reports whether a user may learn about a channel: they belong to it, it is
+public in one of their teams, or they are a system admin.
+*/
+func (p *ChannelDirectoryProvider) canSee(userID string, channel *model.Channel) bool {
+	if p.api.HasPermissionTo(userID, model.PermissionManageSystem) {
+		return true
+	}
+
+	if member, appErr := p.api.GetChannelMember(channel.Id, userID); appErr == nil && member != nil {
+		return true
+	}
+
+	return channel.Type == model.ChannelTypeOpen && p.inTeam(userID, channel.TeamId)
+}
+
+/*
+inTeam reports whether a user is a current member of a team, or a system admin.
+*/
+func (p *ChannelDirectoryProvider) inTeam(userID string, teamID string) bool {
+	if p.api.HasPermissionTo(userID, model.PermissionManageSystem) {
+		return true
+	}
+
+	member, appErr := p.api.GetTeamMember(teamID, userID)
+
+	return appErr == nil && member != nil && member.DeleteAt == 0
 }

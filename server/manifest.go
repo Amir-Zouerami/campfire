@@ -11,7 +11,7 @@ PluginVersion is the current Campfire plugin version.
 Keep this value aligned with plugin.json until we add automated manifest
 generation later.
 */
-const PluginVersion = "0.1.0"
+const PluginVersion = "1.4.2"
 
 /*
 PluginName is the public product name shown inside Mattermost.

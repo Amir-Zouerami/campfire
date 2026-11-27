@@ -617,6 +617,7 @@ export const englishMessages = {
 	'teamReview.approvals.detail.requested': 'Requested',
 	'teamReview.approvals.detail.reason': 'Notes',
 	'teamReview.approvals.comment.label': 'Approver comment',
+	'teamReview.approvals.ownRequest': 'Someone else has to decide your own request.',
 	'teamReview.approvals.comment.placeholder': 'Optional comment. Strongly recommended when rejecting.',
 	'teamReview.approvals.action.reject': 'Reject',
 	'teamReview.approvals.action.approve': 'Approve',

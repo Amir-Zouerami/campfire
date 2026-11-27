@@ -15,7 +15,7 @@
   <a href="https://github.com/Amir-Zouerami/campfire/releases">
     <img alt="Release" src="https://img.shields.io/github/v/release/Amir-Zouerami/campfire?label=Release&style=for-the-badge" />
   </a>
-  <img alt="Version" src="https://img.shields.io/badge/version-1.4.1-f0a85a?style=for-the-badge" />
+  <img alt="Version" src="https://img.shields.io/badge/version-1.4.2-f0a85a?style=for-the-badge" />
   <img alt="Mattermost" src="https://img.shields.io/badge/Mattermost-12%2B-2b2b2b?style=for-the-badge" />
   <img alt="Go" src="https://img.shields.io/badge/Go-Server-2b2b2b?style=for-the-badge" />
   <img alt="React" src="https://img.shields.io/badge/React-Webapp-2b2b2b?style=for-the-badge" />
@@ -199,6 +199,8 @@ Supported question behavior includes:
 
 Templates can be daily or weekly and can be attached to schedules.
 
+Work-item questions create tasks by default, and those tasks are what Campfire suggests while you type a later standup. Rows such as "none" are ignored, and private answers never become tasks or appear in CSV exports.
+
 ---
 
 ### 🌴 Leave and availability
@@ -209,7 +211,8 @@ Campfire includes a lightweight leave workflow:
 - users can directly edit or delete pending leave requests
 - users can directly edit or delete approved leave requests before the leave starts
 - users request a change when approved leave is already in progress
-- admins, leads, and approvers can edit or delete leave requests regardless of the requester-side condition
+- admins, leads, and approvers can edit or delete other people's leave requests regardless of the requester-side condition
+- nobody approves or directly changes their own approved leave, except Mattermost system admins
 - approvers review requests and approve or reject them
 - approved leave is reflected in availability screens
 - missing-standup logic skips approved leave users
@@ -358,7 +361,7 @@ Typical roles:
 
 Campfire can also inherit access from Mattermost roles depending on backend settings, such as channel admins or system admins. The current UI displays inherited access behavior; changing those inherited rules requires backend/settings support.
 
-Admins and privileged reviewers can manage leave requests directly when normal users would need to request a change.
+Admins and privileged reviewers can manage other people's leave requests directly when those people would need to request a change. Someone else has to decide their own requests (Mattermost system admins are exempt), so give each workspace at least two approvers.
 
 ---
 

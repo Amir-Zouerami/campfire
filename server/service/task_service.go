@@ -393,6 +393,10 @@ func (s *TaskService) CreateTimeEntry(
 		return nil, NewError(ErrorCodeInternal, "Could not load task.")
 	}
 
+	if task.UserID != cleanActorUserID {
+		return nil, NewError(ErrorCodePermissionDenied, "You can only log time on your own tasks.")
+	}
+
 	entryDate := domain.LocalDate(strings.TrimSpace(input.EntryDate))
 	if _, err := parseLocalDate(entryDate); err != nil {
 		return nil, NewError(ErrorCodeValidationFailed, "Entry date must be a real YYYY-MM-DD calendar date.")

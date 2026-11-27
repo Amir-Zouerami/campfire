@@ -149,6 +149,7 @@ type UpdateLeaveInput struct {
 LeaveService owns leave request business rules.
 */
 type LeaveService struct {
+	permissions            *PermissionService
 	leaveStore             store.LeaveStore
 	leaveValidationService *LeaveValidationService
 	workspaceStore         store.WorkspaceStore
@@ -165,8 +166,10 @@ func NewLeaveService(
 	workspaceStore store.WorkspaceStore,
 	workspaceRoleStore store.WorkspaceRoleStore,
 	notificationPublisher NotificationPublisher,
+	permissions *PermissionService,
 ) *LeaveService {
 	return &LeaveService{
+		permissions:            permissions,
 		leaveStore:             leaveStore,
 		leaveValidationService: leaveValidationService,
 		workspaceStore:         workspaceStore,
@@ -502,7 +505,7 @@ func (s *LeaveService) Update(ctx context.Context, input UpdateLeaveInput) (*dom
 		return nil, NewError(ErrorCodePermissionDenied, "Only the requester, workspace Leads, Approvers, and system admins can edit this leave request.")
 	}
 
-	if existingRequest.UserID == cleanActorUserID && !actorCanManageLeave && existingRequest.Status == domain.LeaveStatusApproved {
+	if existingRequest.UserID == cleanActorUserID && !input.IsSystemAdmin && existingRequest.Status == domain.LeaveStatusApproved {
 		return nil, NewError(ErrorCodeConflict, "Approved leave cannot be changed directly by the requester. Request a leave edit instead.")
 	}
 
@@ -657,6 +660,10 @@ func (s *LeaveService) Decide(ctx context.Context, input DecideLeaveInput) (*dom
 		return nil, err
 	}
 
+	if err := requireNotOwnLeave(cleanActorUserID, existingRequest.UserID, input.IsSystemAdmin); err != nil {
+		return nil, err
+	}
+
 	leaveType, err := s.leaveStore.GetTypeByID(ctx, workspace.ID, existingRequest.LeaveTypeID)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
@@ -782,7 +789,7 @@ func (s *LeaveService) Cancel(ctx context.Context, input CancelLeaveInput) (*dom
 		return nil, NewError(ErrorCodePermissionDenied, "Only the requester, workspace Leads, Approvers, and system admins can cancel this leave request.")
 	}
 
-	if wasApproved && existingRequest.UserID == cleanActorUserID && !actorCanManageLeave {
+	if wasApproved && existingRequest.UserID == cleanActorUserID && !input.IsSystemAdmin {
 		started, lockErr := approvedLeaveHasStarted(now, workspace.Timezone, *existingRequest)
 		if lockErr != nil {
 			return nil, NewError(ErrorCodeInternal, "Could not validate leave deletion window.")
@@ -939,25 +946,7 @@ func (s *LeaveService) requireLeaveDecisionPermission(
 	isSystemAdmin bool,
 	workspaceID domain.ID,
 ) error {
-	if isSystemAdmin {
-		return nil
-	}
-
-	hasRole, err := s.workspaceRoleStore.UserHasAnyRole(
-		ctx,
-		workspaceID,
-		actorUserID,
-		[]domain.Role{domain.RoleLead, domain.RoleApprover},
-	)
-	if err != nil {
-		return NewError(ErrorCodeInternal, "Could not verify leave approval permission.")
-	}
-
-	if !hasRole {
-		return NewError(ErrorCodePermissionDenied, "Only workspace Leads and Approvers can decide leave requests.")
-	}
-
-	return nil
+	return s.permissions.require(ctx, workspaceID, actorUserID, isSystemAdmin, canApproveLeaves, "Only workspace Approvers, Leads, Admins, and System Admins can decide leave requests.")
 }
 
 /*
@@ -969,21 +958,17 @@ func (s *LeaveService) canManageLeaveRequests(
 	isSystemAdmin bool,
 	workspaceID domain.ID,
 ) (bool, error) {
-	if isSystemAdmin {
+	err := s.requireLeaveDecisionPermission(ctx, actorUserID, isSystemAdmin, workspaceID)
+	if err == nil {
 		return true, nil
 	}
 
-	hasRole, err := s.workspaceRoleStore.UserHasAnyRole(
-		ctx,
-		workspaceID,
-		actorUserID,
-		[]domain.Role{domain.RoleLead, domain.RoleApprover},
-	)
-	if err != nil {
-		return false, NewError(ErrorCodeInternal, "Could not verify leave management permission.")
+	var serviceError *Error
+	if errors.As(err, &serviceError) && serviceError.Code == ErrorCodePermissionDenied {
+		return false, nil
 	}
 
-	return hasRole, nil
+	return false, err
 }
 
 /*
@@ -1004,7 +989,7 @@ func (s *LeaveService) leaveRequestNotificationRecipients(
 	roleRecipientUserIDs, err := s.workspaceRoleStore.ListUserIDsByRoles(
 		ctx,
 		workspace.ID,
-		[]domain.Role{domain.RoleLead, domain.RoleApprover},
+		[]domain.Role{domain.RoleLead, domain.RoleApprover, domain.RoleAdmin},
 	)
 	if err != nil {
 		return nil, err
@@ -1033,7 +1018,7 @@ func (s *LeaveService) leaveChangeRequestNotificationRecipients(
 	roleRecipientUserIDs, err := s.workspaceRoleStore.ListUserIDsByRoles(
 		ctx,
 		workspace.ID,
-		[]domain.Role{domain.RoleLead, domain.RoleApprover},
+		[]domain.Role{domain.RoleLead, domain.RoleApprover, domain.RoleAdmin},
 	)
 	if err != nil && len(recipientUserIDs) == 0 {
 		return nil, err
@@ -1150,3 +1135,15 @@ func isValidTimeOfDay(value domain.TimeOfDay) bool {
 }
 
 const localDateLayout = "2006-01-02"
+
+/*
+requireNotOwnLeave stops approvers from approving their own leave. System admins
+are exempt so a workspace with a single approver is never stuck.
+*/
+func requireNotOwnLeave(actorUserID string, requesterUserID string, isSystemAdmin bool) error {
+	if actorUserID == requesterUserID && !isSystemAdmin {
+		return NewError(ErrorCodePermissionDenied, "Someone else has to decide your own leave request.")
+	}
+
+	return nil
+}

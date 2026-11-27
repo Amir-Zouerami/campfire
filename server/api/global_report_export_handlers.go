@@ -2,10 +2,10 @@ package api
 
 import (
 	"bytes"
-	"encoding/csv"
 	"net/http"
 	"strconv"
 
+	"github.com/amir-zouerami/campfire/server/csvsafe"
 	"github.com/amir-zouerami/campfire/server/domain"
 	"github.com/amir-zouerami/campfire/server/logger"
 	"github.com/amir-zouerami/campfire/server/mattermost"
@@ -106,7 +106,7 @@ globalTimeReportCSV builds a CSV document for a global time report.
 */
 func globalTimeReportCSV(summary service.GlobalTimeReportSummary) ([]byte, error) {
 	buffer := bytes.Buffer{}
-	writer := csv.NewWriter(&buffer)
+	writer := csvsafe.NewWriter(&buffer)
 
 	if err := writer.Write([]string{
 		"section",
@@ -199,7 +199,7 @@ globalLeaveReportCSV builds a CSV document for a global leave report.
 */
 func globalLeaveReportCSV(summary service.GlobalLeaveReportSummary) ([]byte, error) {
 	buffer := bytes.Buffer{}
-	writer := csv.NewWriter(&buffer)
+	writer := csvsafe.NewWriter(&buffer)
 
 	if err := writer.Write([]string{
 		"section",

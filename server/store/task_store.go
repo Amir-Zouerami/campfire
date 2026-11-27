@@ -55,6 +55,8 @@ type TaskStore interface {
 	) ([]domain.Task, error)
 	CreateTask(ctx context.Context, params CreateTaskParams) (*domain.Task, error)
 	UpdateTask(ctx context.Context, params UpdateTaskParams) (*domain.Task, error)
+	TouchTask(ctx context.Context, workspaceID domain.ID, taskID domain.ID, updatedAt time.Time) error
+	DeleteUnusedTask(ctx context.Context, workspaceID domain.ID, taskID domain.ID) error
 
 	ListTimeEntriesByWorkspaceIDAndUserID(
 		ctx context.Context,
@@ -684,4 +686,44 @@ func (r timeEntryRecord) toDomain() domain.TimeEntry {
 		CreatedAt:   parseStoredTime(r.CreatedAt),
 		UpdatedAt:   parseStoredTime(r.UpdatedAt),
 	}
+}
+
+/*
+TouchTask marks a task as recently used.
+*/
+func (s *SQLTaskStore) TouchTask(ctx context.Context, workspaceID domain.ID, taskID domain.ID, updatedAt time.Time) error {
+	_, err := s.db.ExecContext(
+		ctx,
+		s.db.Rebind(`UPDATE campfire_tasks SET updated_at = ? WHERE workspace_id = ? AND id = ?`),
+		updatedAt,
+		workspaceID.String(),
+		taskID.String(),
+	)
+	if err != nil {
+		return fmt.Errorf("touch task: %w", err)
+	}
+
+	return nil
+}
+
+/*
+DeleteUnusedTask deletes a task only while no time has been logged against it.
+*/
+func (s *SQLTaskStore) DeleteUnusedTask(ctx context.Context, workspaceID domain.ID, taskID domain.ID) error {
+	_, err := s.db.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			DELETE FROM campfire_tasks
+			WHERE workspace_id = ?
+				AND id = ?
+				AND NOT EXISTS (SELECT 1 FROM campfire_time_entries WHERE task_id = campfire_tasks.id)
+		`),
+		workspaceID.String(),
+		taskID.String(),
+	)
+	if err != nil {
+		return fmt.Errorf("delete unused task: %w", err)
+	}
+
+	return nil
 }

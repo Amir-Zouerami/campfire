@@ -58,7 +58,7 @@ func (p *ReportPublisher) PostWeeklyReport(
 	createdPost, appErr := p.api.CreatePost(&model.Post{
 		UserId:    p.botUserID,
 		ChannelId: cleanChannelID,
-		Message:   message,
+		Message:   neutralizeBroadcastMentions(message),
 	})
 	if appErr != nil {
 		return "", appErr
@@ -101,7 +101,7 @@ func (p *ReportPublisher) PostDailyReport(
 	createdPost, appErr := p.api.CreatePost(&model.Post{
 		UserId:    p.botUserID,
 		ChannelId: cleanChannelID,
-		Message:   message,
+		Message:   neutralizeBroadcastMentions(message),
 	})
 	if appErr != nil {
 		return "", appErr

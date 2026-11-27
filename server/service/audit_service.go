@@ -38,6 +38,7 @@ type ListAuditLogInput struct {
 AuditService records and lists important Campfire actions.
 */
 type AuditService struct {
+	permissions        *PermissionService
 	workspaceStore     store.WorkspaceStore
 	workspaceRoleStore store.WorkspaceRoleStore
 	auditStore         store.AuditStore
@@ -50,8 +51,10 @@ func NewAuditService(
 	workspaceStore store.WorkspaceStore,
 	workspaceRoleStore store.WorkspaceRoleStore,
 	auditStore store.AuditStore,
+	permissions *PermissionService,
 ) *AuditService {
 	return &AuditService{
+		permissions:        permissions,
 		workspaceStore:     workspaceStore,
 		workspaceRoleStore: workspaceRoleStore,
 		auditStore:         auditStore,
@@ -155,25 +158,7 @@ func (s *AuditService) requireAuditViewPermission(
 	isSystemAdmin bool,
 	workspaceID domain.ID,
 ) error {
-	if isSystemAdmin {
-		return nil
-	}
-
-	hasRole, err := s.workspaceRoleStore.UserHasAnyRole(
-		ctx,
-		workspaceID,
-		actorUserID,
-		[]domain.Role{domain.RoleLead, domain.RoleAdmin},
-	)
-	if err != nil {
-		return NewError(ErrorCodeInternal, "Could not verify audit-log permission.")
-	}
-
-	if !hasRole {
-		return NewError(ErrorCodePermissionDenied, "Only workspace Leads, Admins, and System Admins can view the audit log.")
-	}
-
-	return nil
+	return s.permissions.require(ctx, workspaceID, actorUserID, isSystemAdmin, canManageWorkspace, "Only workspace Leads, Admins, and System Admins can view the audit log.")
 }
 
 /*

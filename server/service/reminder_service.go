@@ -39,6 +39,7 @@ type UpdateReminderRuleInput struct {
 ReminderService owns reminder-rule business rules.
 */
 type ReminderService struct {
+	permissions        *PermissionService
 	workspaceStore     store.WorkspaceStore
 	workspaceRoleStore store.WorkspaceRoleStore
 	reminderStore      store.ReminderStore
@@ -53,8 +54,10 @@ func NewReminderService(
 	workspaceRoleStore store.WorkspaceRoleStore,
 	reminderStore store.ReminderStore,
 	standupStore store.StandupStore,
+	permissions *PermissionService,
 ) *ReminderService {
 	return &ReminderService{
+		permissions:        permissions,
 		workspaceStore:     workspaceStore,
 		workspaceRoleStore: workspaceRoleStore,
 		reminderStore:      reminderStore,
@@ -192,25 +195,7 @@ func (s *ReminderService) requireReminderManagement(
 	isSystemAdmin bool,
 	workspaceID domain.ID,
 ) error {
-	if isSystemAdmin {
-		return nil
-	}
-
-	hasRole, err := s.workspaceRoleStore.UserHasAnyRole(
-		ctx,
-		workspaceID,
-		actorUserID,
-		[]domain.Role{domain.RoleLead},
-	)
-	if err != nil {
-		return NewError(ErrorCodeInternal, "Could not verify reminder settings permission.")
-	}
-
-	if !hasRole {
-		return NewError(ErrorCodePermissionDenied, "Only workspace Leads and System Admins can manage reminder settings.")
-	}
-
-	return nil
+	return s.permissions.require(ctx, workspaceID, actorUserID, isSystemAdmin, canManageWorkspace, "Only workspace Leads, Admins, and System Admins can manage reminder settings.")
 }
 
 /*

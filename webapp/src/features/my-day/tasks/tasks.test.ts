@@ -38,4 +38,16 @@ describe('task index', () => {
 		expect(index.search('transl').map(item => item.id)).toEqual(['1']);
 		expect(index.search('old')).toEqual([]);
 	});
+
+	it('ranks closer and unfinished matches first and hides dropped tasks', () => {
+		const ranked = buildTaskIndex([
+			task('inside', 'Prefixlogin cleanup'),
+			task('done', 'Login audit', 'completed'),
+			task('word', 'Fix login'),
+			task('start', 'Login page'),
+			task('dropped', 'Login spike', 'dropped'),
+		]);
+
+		expect(ranked.search('login').map(item => item.id)).toEqual(['start', 'word', 'inside', 'done']);
+	});
 });

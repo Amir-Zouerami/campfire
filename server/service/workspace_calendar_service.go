@@ -62,6 +62,7 @@ type DeleteWorkspaceOffDayInput struct {
 WorkspaceCalendarService owns workspace working-calendar business rules.
 */
 type WorkspaceCalendarService struct {
+	permissions            *PermissionService
 	workspaceStore         store.WorkspaceStore
 	workspaceCalendarStore store.WorkspaceCalendarStore
 	workspaceRoleStore     store.WorkspaceRoleStore
@@ -74,8 +75,10 @@ func NewWorkspaceCalendarService(
 	workspaceStore store.WorkspaceStore,
 	workspaceCalendarStore store.WorkspaceCalendarStore,
 	workspaceRoleStore store.WorkspaceRoleStore,
+	permissions *PermissionService,
 ) *WorkspaceCalendarService {
 	return &WorkspaceCalendarService{
+		permissions:            permissions,
 		workspaceStore:         workspaceStore,
 		workspaceCalendarStore: workspaceCalendarStore,
 		workspaceRoleStore:     workspaceRoleStore,
@@ -404,23 +407,5 @@ func (s *WorkspaceCalendarService) requireWorkspaceCalendarManagement(
 	isSystemAdmin bool,
 	workspaceID domain.ID,
 ) error {
-	if isSystemAdmin {
-		return nil
-	}
-
-	hasRole, err := s.workspaceRoleStore.UserHasAnyRole(
-		ctx,
-		workspaceID,
-		actorUserID,
-		[]domain.Role{domain.RoleLead},
-	)
-	if err != nil {
-		return NewError(ErrorCodeInternal, "Could not verify workspace calendar permission.")
-	}
-
-	if !hasRole {
-		return NewError(ErrorCodePermissionDenied, "Only workspace Leads and System Admins can manage workspace calendar settings.")
-	}
-
-	return nil
+	return s.permissions.require(ctx, workspaceID, actorUserID, isSystemAdmin, canManageWorkspace, "Only workspace Leads, Admins, and System Admins can manage workspace calendar settings.")
 }

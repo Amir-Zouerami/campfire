@@ -267,7 +267,8 @@ func (p *NotificationPublisher) SendChannelMissingReminder(
 sendDirectMessage sends a bot-authored direct message.
 */
 func (p *NotificationPublisher) sendDirectMessage(userID string, message string) error {
-	_, err := p.sendDirectMessageWithPostID(userID, message)
+	// Leave messages carry member-typed reasons and comments.
+	_, err := p.sendDirectMessageWithPostID(userID, neutralizeBroadcastMentions(message))
 
 	return err
 }
@@ -311,7 +312,7 @@ func (p *NotificationPublisher) sendDirectMessageWithPostID(userID string, messa
 sendChannelMessage sends a bot-authored channel message.
 */
 func (p *NotificationPublisher) sendChannelMessage(channelID string, message string) error {
-	_, err := p.sendChannelMessageWithPostID(channelID, message)
+	_, err := p.sendChannelMessageWithPostID(channelID, neutralizeBroadcastMentions(message))
 
 	return err
 }

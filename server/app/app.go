@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/pluginapi"
+	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
 )
 
 const (
@@ -114,7 +116,7 @@ func New(config Config) (*App, error) {
 	workspaceRoleStore := store.NewSQLWorkspaceRoleStore(database)
 	workspaceCalendarStore := store.NewSQLWorkspaceCalendarStore(database)
 
-	workspaceService := service.NewWorkspaceService(workspaceStore)
+	workspaceService := service.NewWorkspaceService(workspaceStore, mattermostClient)
 	permissionService := service.NewPermissionService(
 		workspaceStore,
 		workspaceRoleStore,
@@ -125,6 +127,7 @@ func New(config Config) (*App, error) {
 		workspaceStore,
 		workspaceCalendarStore,
 		workspaceRoleStore,
+		permissionService,
 	)
 
 	globalSkipDateStore := store.NewSQLGlobalSkipDateStore(database)
@@ -165,6 +168,7 @@ func New(config Config) (*App, error) {
 		workspaceStore,
 		workspaceRoleStore,
 		notificationPublisher,
+		permissionService,
 	)
 
 	standupRuntimeService := service.NewStandupRuntimeService(
@@ -185,6 +189,7 @@ func New(config Config) (*App, error) {
 		taskStore,
 		leaveStore,
 		workspaceMemberProvider,
+		permissionService,
 	)
 
 	reminderService := service.NewReminderService(
@@ -192,6 +197,7 @@ func New(config Config) (*App, error) {
 		workspaceRoleStore,
 		reminderStore,
 		standupStore,
+		permissionService,
 	)
 
 	reminderExecutionService := service.NewReminderExecutionService(
@@ -206,6 +212,7 @@ func New(config Config) (*App, error) {
 		workspaceStore,
 		workspaceRoleStore,
 		taskStore,
+		permissionService,
 	)
 
 	globalReportService := service.NewGlobalReportService(
@@ -228,6 +235,7 @@ func New(config Config) (*App, error) {
 		taskStore,
 		reportPublisher,
 		userDirectoryProvider,
+		permissionService,
 	)
 
 	savedReportFilterService := service.NewSavedReportFilterService(
@@ -242,6 +250,7 @@ func New(config Config) (*App, error) {
 		leaveStore,
 		standupService,
 		userDirectoryProvider,
+		permissionService,
 	)
 
 	taskService := service.NewTaskService(
@@ -256,12 +265,26 @@ func New(config Config) (*App, error) {
 		workspaceStore,
 		workspaceRoleStore,
 		auditStore,
+		permissionService,
 	)
 
 	dataRetentionService := service.NewDataRetentionService(
 		workspaceStore,
 		dataRetentionStore,
 	)
+
+	// Without a cluster-wide lock every node would send the same reminders.
+	schedulerMutex, err := cluster.NewMutex(config.API, "campfire_scheduler")
+	if err != nil {
+		return nil, fmt.Errorf("create scheduler lock: %w", err)
+	}
+	schedulerLock := func(ctx context.Context) (func(), error) {
+		if err := schedulerMutex.LockWithContext(ctx); err != nil {
+			return nil, err
+		}
+
+		return schedulerMutex.Unlock, nil
+	}
 
 	schedulerRunner := scheduler.NewRunner(scheduler.Config{
 		Logger:                   appLogger,
@@ -272,6 +295,7 @@ func New(config Config) (*App, error) {
 		ReminderSequenceExecutor: reminderExecutionService,
 		ReportAutomationExecutor: reportService,
 		Interval:                 time.Minute,
+		Lock:                     schedulerLock,
 	})
 
 	router := api.NewRouter(api.RouterConfig{

@@ -6,7 +6,7 @@ import { useI18n } from '@/shared/i18n';
 import type { TranslationKey } from '@/shared/i18n';
 import { useWorkspaceSession } from '@/shared/session';
 import { UserLabel, UserName } from '@/shared/users';
-import { Button, DescriptionList, Field, Inline, Stack, StatusText, TextArea, toast } from '@/shared/ui';
+import { Button, DescriptionList, Field, Inline, Notice, Stack, StatusText, TextArea, toast } from '@/shared/ui';
 
 import type { ApprovalItem } from './approvalItems';
 import { useApprovalDecisions } from './useApprovals';
@@ -60,11 +60,13 @@ type ApprovalDetailProps = {
  */
 export function ApprovalDetail(props: ApprovalDetailProps): ReactElement {
 	const { t, formatDate, formatTimestamp } = useI18n();
-	const { workspace } = useWorkspaceSession();
+	const { workspace, user, isSystemAdmin } = useWorkspaceSession();
 	const { decide, remove } = useApprovalDecisions();
 	const [comment, setComment] = useState('');
 	const { item } = props;
 	const copy = COPY[item.kind];
+	// Mirrors the server: only a system admin may decide their own leave.
+	const ownRequest = item.userID === user.id && !isSystemAdmin;
 
 	const range =
 		item.startDate === item.endDate ? formatDate(item.startDate) : `${formatDate(item.startDate)} → ${formatDate(item.endDate)}`;
@@ -108,26 +110,34 @@ export function ApprovalDetail(props: ApprovalDetailProps): ReactElement {
 				]}
 			/>
 
-			<Field label={t('teamReview.approvals.comment.label')}>
-				<TextArea value={comment} onChange={setComment} placeholder={t(copy.placeholder)} userContent />
-			</Field>
+			{ownRequest ? (
+				<Notice>{t('teamReview.approvals.ownRequest')}</Notice>
+			) : (
+				<Field label={t('teamReview.approvals.comment.label')}>
+					<TextArea value={comment} onChange={setComment} placeholder={t(copy.placeholder)} userContent />
+				</Field>
+			)}
 
 			<Inline gap={3} wrap>
-				<Button
-					variant="secondary"
-					loading={decide.isPending && decide.variables?.decision === 'rejected'}
-					disabled={decide.isPending || remove.isPending}
-					onClick={() => submit('rejected')}
-				>
-					{t(copy.reject)}
-				</Button>
-				<Button
-					loading={decide.isPending && decide.variables?.decision === 'approved'}
-					disabled={decide.isPending || remove.isPending}
-					onClick={() => submit('approved')}
-				>
-					{t(copy.approve)}
-				</Button>
+				{!ownRequest && (
+					<>
+						<Button
+							variant="secondary"
+							loading={decide.isPending && decide.variables?.decision === 'rejected'}
+							disabled={decide.isPending || remove.isPending}
+							onClick={() => submit('rejected')}
+						>
+							{t(copy.reject)}
+						</Button>
+						<Button
+							loading={decide.isPending && decide.variables?.decision === 'approved'}
+							disabled={decide.isPending || remove.isPending}
+							onClick={() => submit('approved')}
+						>
+							{t(copy.approve)}
+						</Button>
+					</>
+				)}
 				{item.kind === 'new' && (
 					<Button variant="ghost" disabled={decide.isPending || remove.isPending} onClick={() => remove.mutate(item.decisionID)}>
 						{t('myDay.leave.action.cancel')}

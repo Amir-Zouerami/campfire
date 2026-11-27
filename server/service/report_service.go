@@ -169,6 +169,7 @@ type PostWeeklyReportAutomationResult struct {
 ReportService builds and publishes Campfire report previews.
 */
 type ReportService struct {
+	permissions           *PermissionService
 	standupService        *StandupService
 	workspaceStore        store.WorkspaceStore
 	workspaceRoleStore    store.WorkspaceRoleStore
@@ -189,8 +190,10 @@ func NewReportService(
 	taskStore store.TaskStore,
 	reportPublisher ReportPublisher,
 	userDirectoryProvider UserDirectoryProvider,
+	permissions *PermissionService,
 ) *ReportService {
 	return &ReportService{
+		permissions:           permissions,
 		standupService:        standupService,
 		workspaceStore:        workspaceStore,
 		workspaceRoleStore:    workspaceRoleStore,
@@ -1501,25 +1504,7 @@ func (s *ReportService) requireReportPostPermission(
 	isSystemAdmin bool,
 	workspaceID domain.ID,
 ) error {
-	if isSystemAdmin {
-		return nil
-	}
-
-	hasRole, err := s.workspaceRoleStore.UserHasAnyRole(
-		ctx,
-		workspaceID,
-		actorUserID,
-		[]domain.Role{domain.RoleLead, domain.RoleApprover},
-	)
-	if err != nil {
-		return NewError(ErrorCodeInternal, "Could not verify report posting permission.")
-	}
-
-	if !hasRole {
-		return NewError(ErrorCodePermissionDenied, "Only workspace Leads, Approvers, and System Admins can post reports.")
-	}
-
-	return nil
+	return s.permissions.require(ctx, workspaceID, actorUserID, isSystemAdmin, canExportReports, "Only workspace Leads, Admins, and System Admins can post reports.")
 }
 
 /*
@@ -1690,8 +1675,13 @@ func reportQuestionShouldShowTaskTime(question domain.StandupQuestion) bool {
 	section := strings.ToLower(strings.TrimSpace(question.Section))
 	prompt := strings.ToLower(strings.TrimSpace(question.Prompt))
 
+	// The default progress sections in each supported language.
+	switch section {
+	case "progress", "yesterday", "کارهای دیروز", "عمل أمس":
+		return true
+	}
+
 	return label == "yesterday / progress" ||
-		section == "progress" ||
 		strings.Contains(prompt, "finish") ||
 		strings.Contains(prompt, "progress")
 }

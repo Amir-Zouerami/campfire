@@ -613,6 +613,7 @@ export const arabicMessages = {
 	'teamReview.approvals.detail.requested': 'وقت الطلب',
 	'teamReview.approvals.detail.reason': 'ملاحظات',
 	'teamReview.approvals.comment.label': 'تعليق المعتمد',
+	'teamReview.approvals.ownRequest': 'يجب أن يبتّ شخص آخر في طلبك.',
 	'teamReview.approvals.comment.placeholder': 'تعليق اختياري. يُنصح به بشدة عند الرفض.',
 	'teamReview.approvals.action.reject': 'رفض',
 	'teamReview.approvals.action.approve': 'موافقة',

@@ -87,6 +87,8 @@ type Config struct {
 	ReminderSequenceExecutor ReminderSequenceExecutor
 	ReportAutomationExecutor ReportAutomationExecutor
 	Interval                 time.Duration
+	// Lock, when set, is held while ticking so only one cluster node works at a time.
+	Lock func(context.Context) (func(), error)
 }
 
 /*
@@ -101,6 +103,7 @@ type Runner struct {
 	reminderSequenceExecutor ReminderSequenceExecutor
 	reportAutomationExecutor ReportAutomationExecutor
 	interval                 time.Duration
+	lock                     func(context.Context) (func(), error)
 
 	mutex  sync.Mutex
 	cancel context.CancelFunc
@@ -125,6 +128,7 @@ func NewRunner(config Config) *Runner {
 		reminderSequenceExecutor: config.ReminderSequenceExecutor,
 		reportAutomationExecutor: config.ReportAutomationExecutor,
 		interval:                 interval,
+		lock:                     config.Lock,
 		done:                     make(chan struct{}),
 	}
 }
@@ -185,7 +189,7 @@ func (r *Runner) run(ctx context.Context) {
 	lastMinute := time.Time{}
 
 	for {
-		lastMinute = r.tickThrough(ctx, lastMinute, time.Now().UTC())
+		lastMinute = r.lockedTick(ctx, lastMinute)
 
 		select {
 		case <-ctx.Done():
@@ -811,3 +815,19 @@ func sameLocalMinute(first time.Time, second time.Time) bool {
 }
 
 const schedulerActorUserID = "campfire-scheduler"
+
+/*
+lockedTick runs the due minutes while holding the cluster lock. Duplicate sends
+are then prevented by the stored notification and report runs.
+*/
+func (r *Runner) lockedTick(ctx context.Context, lastMinute time.Time) time.Time {
+	if r.lock != nil {
+		unlock, err := r.lock(ctx)
+		if err != nil {
+			return lastMinute
+		}
+		defer unlock()
+	}
+
+	return r.tickThrough(ctx, lastMinute, time.Now().UTC())
+}

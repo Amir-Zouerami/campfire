@@ -643,3 +643,42 @@ func roleLabelFromCapabilities(capabilities WorkspaceCapabilities) string {
 
 	return "Member"
 }
+
+/*
+require is the single permission check behind every service-level rule, so
+services allow exactly what the screens (built from the same capabilities) offer.
+Mattermost system admins always pass.
+*/
+func (s *PermissionService) require(
+	ctx context.Context,
+	workspaceID domain.ID,
+	userID string,
+	isSystemAdmin bool,
+	allowed func(WorkspaceCapabilities) bool,
+	message string,
+) error {
+	if isSystemAdmin {
+		return nil
+	}
+
+	if s == nil {
+		return NewError(ErrorCodeInternal, "Campfire permission service is not configured.")
+	}
+
+	access, err := s.accessByWorkspaceID(ctx, workspaceID.String(), PermissionUser{ID: userID})
+	if err != nil {
+		return err
+	}
+
+	if !allowed(access.Capabilities) {
+		return NewError(ErrorCodePermissionDenied, message)
+	}
+
+	return nil
+}
+
+func canManageWorkspace(c WorkspaceCapabilities) bool      { return c.CanManageWorkspace }
+func canManageStandups(c WorkspaceCapabilities) bool       { return c.CanManageStandups }
+func canViewWorkspaceReports(c WorkspaceCapabilities) bool { return c.CanViewWorkspaceReports }
+func canExportReports(c WorkspaceCapabilities) bool        { return c.CanExportReports }
+func canApproveLeaves(c WorkspaceCapabilities) bool        { return c.CanApproveLeaves }

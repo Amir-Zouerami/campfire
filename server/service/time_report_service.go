@@ -27,6 +27,7 @@ type GetTimeReportSummaryInput struct {
 TimeReportService builds workspace time reports.
 */
 type TimeReportService struct {
+	permissions        *PermissionService
 	workspaceStore     store.WorkspaceStore
 	workspaceRoleStore store.WorkspaceRoleStore
 	taskStore          store.TaskStore
@@ -39,8 +40,10 @@ func NewTimeReportService(
 	workspaceStore store.WorkspaceStore,
 	workspaceRoleStore store.WorkspaceRoleStore,
 	taskStore store.TaskStore,
+	permissions *PermissionService,
 ) *TimeReportService {
 	return &TimeReportService{
+		permissions:        permissions,
 		workspaceStore:     workspaceStore,
 		workspaceRoleStore: workspaceRoleStore,
 		taskStore:          taskStore,
@@ -151,25 +154,7 @@ func (s *TimeReportService) requireTimeReportPermission(
 	isSystemAdmin bool,
 	workspaceID domain.ID,
 ) error {
-	if isSystemAdmin {
-		return nil
-	}
-
-	hasRole, err := s.workspaceRoleStore.UserHasAnyRole(
-		ctx,
-		workspaceID,
-		actorUserID,
-		[]domain.Role{domain.RoleLead, domain.RoleAdmin, domain.RoleViewer},
-	)
-	if err != nil {
-		return NewError(ErrorCodeInternal, "Could not verify time report permission.")
-	}
-
-	if !hasRole {
-		return NewError(ErrorCodePermissionDenied, "Only workspace Leads, Viewers, Admins, and System Admins can view time reports.")
-	}
-
-	return nil
+	return s.permissions.require(ctx, workspaceID, actorUserID, isSystemAdmin, canViewWorkspaceReports, "Only workspace Leads, Viewers, Admins, and System Admins can view time reports.")
 }
 
 /*

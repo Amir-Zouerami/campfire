@@ -851,6 +851,24 @@ func (s *SQLLeaveStore) CancelRequest(
 		return nil, ErrConflict
 	}
 
+	// A cancelled leave has nothing left to edit or delete.
+	if _, err := transaction.ExecContext(
+		ctx,
+		s.db.Rebind(`
+			UPDATE campfire_leave_change_requests
+			SET status = ?, decision_comment = ?, updated_at = ?, decided_at = ?
+			WHERE leave_request_id = ? AND status = ?
+		`),
+		string(domain.LeaveChangeRequestStatusRejected),
+		"The leave request was cancelled.",
+		params.UpdatedAt,
+		params.UpdatedAt,
+		params.LeaveRequestID.String(),
+		string(domain.LeaveChangeRequestStatusPending),
+	); err != nil {
+		return nil, fmt.Errorf("close change requests of cancelled leave: %w", err)
+	}
+
 	leaveRequest, err := reloadLeaveRequest(ctx, transaction, s.db, params.LeaveRequestID)
 	if err != nil {
 		return nil, err

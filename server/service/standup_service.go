@@ -241,6 +241,7 @@ type SubmitStandupResult struct {
 StandupService owns standup template, schedule, and submission behavior.
 */
 type StandupService struct {
+	permissions            *PermissionService
 	workspaceStore         store.WorkspaceStore
 	workspaceRoleStore     store.WorkspaceRoleStore
 	workspaceCalendarStore store.WorkspaceCalendarStore
@@ -263,8 +264,10 @@ func NewStandupService(
 	taskStore store.TaskStore,
 	leaveStore store.LeaveStore,
 	memberProvider WorkspaceMemberProvider,
+	permissions *PermissionService,
 ) *StandupService {
 	return &StandupService{
+		permissions:            permissions,
 		workspaceStore:         workspaceStore,
 		workspaceRoleStore:     workspaceRoleStore,
 		workspaceCalendarStore: workspaceCalendarStore,
@@ -1154,24 +1157,41 @@ func (s *StandupService) createTasksFromStandupAnswers(
 		return nil, NewError(ErrorCodeInternal, "Could not load existing tasks for standup task sync.")
 	}
 
-	existingTitleKeys := map[string]bool{}
+	existingByTitle := map[string]domain.Task{}
 	for _, task := range existingTasks {
-		existingTitleKeys[normalizedTaskTitleKey(task.Title)] = true
+		existingByTitle[normalizedTaskTitleKey(task.Title)] = task
 	}
 
 	seenInSubmission := map[string]bool{}
+	stillListed := map[string]bool{}
 	createdTasks := []domain.Task{}
 	now := time.Now().UTC()
 
 	for _, answer := range answers {
 		question, ok := questionByID[answer.QuestionID.String()]
-		if !ok || !question.CreatesTasks {
+		for _, title := range taskTitlesFromAnswerValue(answer.ValueJSON) {
+			stillListed[normalizedTaskTitleKey(title)] = true
+		}
+
+		// Task titles show up in time reports, so private answers never become tasks.
+		if !ok || !question.CreatesTasks || question.IsPrivate {
 			continue
 		}
 
 		for _, title := range taskTitlesFromAnswerValue(answer.ValueJSON) {
 			titleKey := normalizedTaskTitleKey(title)
-			if titleKey == "" || existingTitleKeys[titleKey] || seenInSubmission[titleKey] {
+			if titleKey == "" || isPlaceholderWorkItem(titleKey) || seenInSubmission[titleKey] {
+				continue
+			}
+			seenInSubmission[titleKey] = true
+
+			if existing, found := existingByTitle[titleKey]; found {
+				// Reusing a task moves it up the suggestions.
+				if existing.SourceSubmissionID != submission.ID {
+					if err := s.taskStore.TouchTask(ctx, submission.WorkspaceID, existing.ID, now); err != nil {
+						return nil, NewError(ErrorCodeInternal, "Could not update tasks from standup work items.")
+					}
+				}
 				continue
 			}
 
@@ -1182,7 +1202,7 @@ func (s *StandupService) createTasksFromStandupAnswers(
 				SourceSubmissionID: submission.ID,
 				SourceAnswerID:     answer.ID,
 				Title:              title,
-				Description:        "Created from Campfire standup work item.",
+				Description:        standupTaskDescription,
 				ProjectID:          "",
 				CategoryID:         "",
 				Status:             domain.TaskStatusActive,
@@ -1199,12 +1219,38 @@ func (s *StandupService) createTasksFromStandupAnswers(
 			}
 
 			createdTasks = append(createdTasks, *created)
-			existingTitleKeys[titleKey] = true
-			seenInSubmission[titleKey] = true
+		}
+	}
+
+	// Items corrected or removed by re-saving this standup should not linger.
+	// Only untouched tasks that this same submission created are removed.
+	for titleKey, task := range existingByTitle {
+		if task.SourceSubmissionID != submission.ID || stillListed[titleKey] ||
+			task.Description != standupTaskDescription || task.Status != domain.TaskStatusActive ||
+			!task.UpdatedAt.Equal(task.CreatedAt) {
+			continue
+		}
+
+		if err := s.taskStore.DeleteUnusedTask(ctx, submission.WorkspaceID, task.ID); err != nil {
+			return nil, NewError(ErrorCodeInternal, "Could not update tasks from standup work items.")
 		}
 	}
 
 	return createdTasks, nil
+}
+
+const standupTaskDescription = "Created from Campfire standup work item."
+
+/*
+isPlaceholderWorkItem reports rows that only say there is nothing to report.
+*/
+func isPlaceholderWorkItem(titleKey string) bool {
+	switch strings.Trim(titleKey, " .!-—") {
+	case "", "none", "nothing", "n/a", "na", "no", "هیچ", "ندارم", "هیچی", "لا شيء", "لا يوجد":
+		return true
+	default:
+		return false
+	}
 }
 
 /*
@@ -1452,25 +1498,7 @@ func (s *StandupService) requireStandupManagement(
 	isSystemAdmin bool,
 	workspaceID domain.ID,
 ) error {
-	if isSystemAdmin {
-		return nil
-	}
-
-	hasRole, err := s.workspaceRoleStore.UserHasAnyRole(
-		ctx,
-		workspaceID,
-		actorUserID,
-		[]domain.Role{domain.RoleLead},
-	)
-	if err != nil {
-		return NewError(ErrorCodeInternal, "Could not verify standup management permission.")
-	}
-
-	if !hasRole {
-		return NewError(ErrorCodePermissionDenied, "Only workspace Leads and System Admins can manage standup forms.")
-	}
-
-	return nil
+	return s.permissions.require(ctx, workspaceID, actorUserID, isSystemAdmin, canManageStandups, "Only workspace Leads, Admins, and System Admins can manage standup forms.")
 }
 
 /*

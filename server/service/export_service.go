@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/amir-zouerami/campfire/server/csvsafe"
 	"github.com/amir-zouerami/campfire/server/domain"
 	"github.com/amir-zouerami/campfire/server/store"
 )
@@ -66,6 +66,7 @@ type ExportWorkspaceMissingStandupsCSVInput struct {
 ExportService builds CSV exports for workspace reports.
 */
 type ExportService struct {
+	permissions           *PermissionService
 	workspaceStore        store.WorkspaceStore
 	workspaceRoleStore    store.WorkspaceRoleStore
 	taskStore             store.TaskStore
@@ -84,8 +85,10 @@ func NewExportService(
 	leaveStore store.LeaveStore,
 	standupService *StandupService,
 	userDirectoryProvider UserDirectoryProvider,
+	permissions *PermissionService,
 ) *ExportService {
 	return &ExportService{
+		permissions:           permissions,
 		workspaceStore:        workspaceStore,
 		workspaceRoleStore:    workspaceRoleStore,
 		taskStore:             taskStore,
@@ -126,7 +129,7 @@ func (s *ExportService) ExportWorkspaceTimeCSV(
 	userLabels := s.userLabelsForExport(ctx, userIDs)
 
 	buffer := bytes.Buffer{}
-	writer := csv.NewWriter(&buffer)
+	writer := csvsafe.NewWriter(&buffer)
 
 	if err := writer.Write([]string{
 		"id",
@@ -201,8 +204,11 @@ func (s *ExportService) ExportWorkspaceStandupSubmissionsCSV(
 	}
 
 	configuration, err := s.standupService.ListConfiguration(ctx, ListStandupConfigurationInput{
-		ActorUserID: input.ActorUserID,
-		WorkspaceID: workspaceID.String(),
+		ActorUserID:   input.ActorUserID,
+		WorkspaceID:   workspaceID.String(),
+		IsSystemAdmin: input.IsSystemAdmin,
+		// Inactive questions too, so their private flag still applies.
+		IncludeInactive: true,
 	})
 	if err != nil {
 		return nil, err
@@ -236,7 +242,7 @@ func (s *ExportService) ExportWorkspaceStandupSubmissionsCSV(
 	userLabels := s.userLabelsForExport(ctx, userIDs)
 
 	buffer := bytes.Buffer{}
-	writer := csv.NewWriter(&buffer)
+	writer := csvsafe.NewWriter(&buffer)
 
 	if err := writer.Write([]string{
 		"occurrence_date",
@@ -293,6 +299,9 @@ func (s *ExportService) ExportWorkspaceStandupSubmissionsCSV(
 
 			for _, answer := range submissionWithAnswers.Answers {
 				question := questionsByID[answer.QuestionID.String()]
+				if question.IsPrivate {
+					continue
+				}
 
 				if err := writer.Write([]string{
 					summaryByDate.Date.String(),
@@ -376,7 +385,7 @@ func (s *ExportService) ExportWorkspaceMissingStandupsCSV(
 	userLabels := s.userLabelsForExport(ctx, userIDs)
 
 	buffer := bytes.Buffer{}
-	writer := csv.NewWriter(&buffer)
+	writer := csvsafe.NewWriter(&buffer)
 
 	if err := writer.Write([]string{
 		"occurrence_date",
@@ -441,7 +450,7 @@ func (s *ExportService) ExportWorkspaceLeavesCSV(
 	userLabels := s.userLabelsForExport(ctx, userIDs)
 
 	buffer := bytes.Buffer{}
-	writer := csv.NewWriter(&buffer)
+	writer := csvsafe.NewWriter(&buffer)
 
 	if err := writer.Write([]string{
 		"id",
@@ -640,25 +649,7 @@ func (s *ExportService) requireExportPermission(
 	isSystemAdmin bool,
 	workspaceID domain.ID,
 ) error {
-	if isSystemAdmin {
-		return nil
-	}
-
-	hasRole, err := s.workspaceRoleStore.UserHasAnyRole(
-		ctx,
-		workspaceID,
-		actorUserID,
-		[]domain.Role{domain.RoleLead, domain.RoleAdmin, domain.RoleViewer},
-	)
-	if err != nil {
-		return NewError(ErrorCodeInternal, "Could not verify report export permission.")
-	}
-
-	if !hasRole {
-		return NewError(ErrorCodePermissionDenied, "Only workspace Leads, Viewers, Admins, and System Admins can export reports.")
-	}
-
-	return nil
+	return s.permissions.require(ctx, workspaceID, actorUserID, isSystemAdmin, canExportReports, "Only workspace Leads, Admins, and System Admins can export reports.")
 }
 
 /*

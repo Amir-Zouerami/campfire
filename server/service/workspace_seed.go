@@ -237,7 +237,7 @@ func buildDefaultDailyTemplate(
 			questionType,
 			required,
 			true,
-			false,
+			questionType == domain.QuestionWorkItems,
 			options,
 		))
 	}

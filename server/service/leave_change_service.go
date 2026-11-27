@@ -445,6 +445,16 @@ func (s *LeaveService) DecideChange(
 		return nil, nil, err
 	}
 
+	if err := requireNotOwnLeave(cleanActorUserID, changeRequest.RequesterUserID, input.IsSystemAdmin); err != nil {
+		return nil, nil, err
+	}
+
+	if decisionStatus == domain.LeaveChangeRequestStatusApproved && changeRequest.Action != domain.LeaveChangeRequestActionDelete {
+		if err := s.requireNoOverlappingLeave(ctx, *changeRequest); err != nil {
+			return nil, nil, err
+		}
+	}
+
 	var leaveType *domain.LeaveType
 	if changeRequest.Action == domain.LeaveChangeRequestActionDelete {
 		leaveType, err = s.leaveStore.GetTypeByID(ctx, workspace.ID, changeRequest.LeaveTypeID)
@@ -504,4 +514,27 @@ func (s *LeaveService) DecideChange(
 	})
 
 	return decidedChangeRequest, leaveRequest, nil
+}
+
+/*
+requireNoOverlappingLeave repeats the overlap check at approval time, because
+other leave may have been booked since the edit was requested.
+*/
+func (s *LeaveService) requireNoOverlappingLeave(ctx context.Context, change domain.LeaveChangeRequest) error {
+	active, err := s.leaveStore.ListActiveByWorkspaceIDAndUserID(ctx, change.WorkspaceID, change.RequesterUserID)
+	if err != nil {
+		return NewError(ErrorCodeInternal, "Could not check existing leave requests.")
+	}
+
+	for _, other := range active {
+		if other.LeaveRequest.ID == change.LeaveRequestID {
+			continue
+		}
+
+		if leaveDateRangesOverlap(change.StartDate, change.EndDate, other.LeaveRequest) {
+			return NewError(ErrorCodeConflict, "This edit now overlaps another pending or approved leave request.")
+		}
+	}
+
+	return nil
 }

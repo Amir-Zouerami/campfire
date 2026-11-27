@@ -71,6 +71,7 @@ UpdateWorkspaceNotificationSettingsInput contains workspace notification routing
 */
 type UpdateWorkspaceNotificationSettingsInput struct {
 	ActorUserID                          string
+	IsSystemAdmin                        bool
 	WorkspaceID                          string
 	ApprovedLeaveNotificationChannelID   string
 	LeaveAbsenceScope                    string
@@ -93,6 +94,7 @@ type UpdateWorkspaceTimezoneInput struct {
 WorkspaceService owns workspace business rules.
 */
 type WorkspaceService struct {
+	channels       ChannelMembershipChecker
 	workspaceStore store.WorkspaceStore
 }
 
@@ -133,8 +135,9 @@ func (s *WorkspaceService) Archive(ctx context.Context, input ArchiveWorkspaceIn
 /*
 NewWorkspaceService creates a workspace service.
 */
-func NewWorkspaceService(workspaceStore store.WorkspaceStore) *WorkspaceService {
+func NewWorkspaceService(workspaceStore store.WorkspaceStore, channels ChannelMembershipChecker) *WorkspaceService {
 	return &WorkspaceService{
+		channels:       channels,
 		workspaceStore: workspaceStore,
 	}
 }
@@ -379,6 +382,12 @@ func (s *WorkspaceService) UpdateApprovedLeaveNotificationChannelID(
 	if leaveAbsenceScope != domain.LeaveAbsenceScopeChannel {
 		leaveAbsenceChannelID = ""
 	}
+	if !input.IsSystemAdmin {
+		if err := s.requireMemberOfNewChannels(ctx, domain.ID(cleanWorkspaceID), cleanActorUserID, cleanChannelID, leaveAbsenceChannelID); err != nil {
+			return nil, err
+		}
+	}
+
 	leaveRequestRecipientIDs := normalizeNotificationRecipientIDs(input.LeaveRequestNotificationRecipientIDs, "")
 	leaveNotificationLanguage := normalizeWorkspaceNotificationLanguage(input.LeaveNotificationLanguage)
 	generatedMessageLanguage := normalizeGeneratedMessageLanguage(
@@ -582,4 +591,42 @@ func appendUniqueRoleAssignment(
 		CreatedBy:   createdBy,
 		CreatedAt:   now,
 	})
+}
+
+/*
+requireMemberOfNewChannels stops a Lead from posting into, or reading absences
+from, a channel they cannot see. Channels already saved are left alone, so other
+settings can still be changed by someone who is not in them.
+*/
+func (s *WorkspaceService) requireMemberOfNewChannels(
+	ctx context.Context,
+	workspaceID domain.ID,
+	actorUserID string,
+	announcementChannelID string,
+	absenceChannelID string,
+) error {
+	workspace, err := s.workspaceStore.GetByID(ctx, workspaceID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return NewError(ErrorCodeNotFound, "Workspace was not found.")
+		}
+		return NewError(ErrorCodeInternal, "Could not load workspace.")
+	}
+
+	for _, channelID := range []string{announcementChannelID, absenceChannelID} {
+		if channelID == "" || channelID == workspace.ChannelID ||
+			channelID == workspace.ApprovedLeaveNotificationChannelID || channelID == workspace.LeaveAbsenceChannelID {
+			continue
+		}
+
+		isMember, err := s.channels.IsChannelMember(channelID, actorUserID)
+		if err != nil {
+			return NewError(ErrorCodeInternal, "Could not verify channel membership.")
+		}
+		if !isMember {
+			return NewError(ErrorCodePermissionDenied, "You can only choose channels that you belong to.")
+		}
+	}
+
+	return nil
 }

@@ -137,10 +137,9 @@ func handleUpdateWorkspaceNotificationSettings(
 			return
 		}
 
-		workspace, err := workspaceService.UpdateApprovedLeaveNotificationChannelID(
-			r.Context(),
-			request.ToServiceInput(user.ID, workspaceID),
-		)
+		input := request.ToServiceInput(user.ID, workspaceID)
+		input.IsSystemAdmin = user.IsSystemAdmin
+		workspace, err := workspaceService.UpdateApprovedLeaveNotificationChannelID(r.Context(), input)
 		if err != nil {
 			logServiceError(log, err)
 			WriteServiceError(w, err)
